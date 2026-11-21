@@ -1,0 +1,13 @@
+{
+  "name": "@olcys/analytics",
+  "version": "0.0.0",
+  "private": true,
+  "description": "PLN valuation (NBP), activity indicators, swaps and stablecoin conversion, cash-out rules B1-B7, fund-flow graph.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@olcys/core": "workspace:*"
+  }
+}

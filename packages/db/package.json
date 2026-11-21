@@ -1,0 +1,13 @@
+{
+  "name": "@olcys/db",
+  "version": "0.0.0",
+  "private": true,
+  "description": "PostgreSQL schema, SQL migrations and typed repositories for the append-only evidence store.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@olcys/core": "workspace:*"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.base.json",
+  "include": [
+    "packages/*/src/**/*",
+    "packages/*/test/**/*",
+    "apps/api/src/**/*",
+    "apps/api/test/**/*",
+    "apps/worker/src/**/*",
+    "apps/worker/test/**/*",
+    "apps/fixture-site/src/**/*",
+    "apps/fixture-site/test/**/*",
+    "vitest.config.ts"
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "name": "@olcys/worker",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Job runner and composition root: wires packages behind @olcys/core ports and runs the analysis pipeline on pg-boss.",
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch --env-file-if-exists=../../.env src/main.ts",
+    "start": "node src/main.ts"
+  },
+  "dependencies": {
+    "@olcys/address-extractor": "workspace:*",
+    "@olcys/analytics": "workspace:*",
+    "@olcys/chain-adapters": "workspace:*",
+    "@olcys/collectors": "workspace:*",
+    "@olcys/core": "workspace:*",
+    "@olcys/db": "workspace:*",
+    "@olcys/evidence": "workspace:*",
+    "@olcys/http": "workspace:*",
+    "@olcys/labels": "workspace:*",
+    "@olcys/llm": "workspace:*",
+    "@olcys/reporting": "workspace:*",
+    "@olcys/scoring": "workspace:*"
+  }
+}

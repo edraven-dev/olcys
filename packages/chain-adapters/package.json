@@ -1,0 +1,13 @@
+{
+  "name": "@olcys/chain-adapters",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Blockchain data providers behind the ChainProvider port (Esplora, Etherscan V2, TronGrid, Solana RPC); same interface for public APIs and self-hosted nodes.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@olcys/core": "workspace:*"
+  }
+}

@@ -1,0 +1,3 @@
+# Synthetic fixture site: collectors are allowed everywhere except /private/ (used to test robots.txt handling).
+User-agent: *
+Disallow: /private/
