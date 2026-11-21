@@ -1,0 +1,113 @@
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import type { FixtureServer } from '../../../apps/fixture-site/src/fixture-server.ts';
+import { createTronGridProvider, mapTrc20Items, USDT_TRC20, type ChainProviderConfig } from '../src/index.ts';
+import { FakeEgressClient, fixtureEgress, REPO_ROOT, startFixtureSite, testContext } from './helpers/fake-egress.ts';
+
+const config: ChainProviderConfig = {
+  id: 'trongrid-test',
+  kind: 'trongrid',
+  sourceId: 'trongrid',
+  baseUrl: 'https://trongrid.example.test',
+  chains: ['tron'],
+  priority: 1,
+  apiKeyEnv: 'TEST_TRON_KEY',
+};
+// Synthetic placeholders: the adapter treats base58 addresses as opaque strings.
+const ME = 'TSyntheticAddressMe000000000000000';
+const OTHER = 'TSyntheticAddressOther00000000000';
+const item = (over: Record<string, unknown> = {}) => ({
+  transaction_id: 'a'.repeat(64),
+  token_info: { symbol: 'USDT', address: USDT_TRC20, decimals: 6, name: 'Tether USD' },
+  block_timestamp: Date.parse('2026-11-12T08:45:00Z'),
+  from: ME,
+  to: OTHER,
+  type: 'Transfer',
+  value: '1500000000',
+  ...over,
+});
+
+describe('TronGrid mapping', () => {
+  it('maps TRC-20 transfers by contract and skips approvals', () => {
+    const items = mapTrc20Items([item(), item({ type: 'Approval' }), item({ value: '2500000' })], 'f');
+    expect(items).toHaveLength(2);
+    expect(items[0]).toMatchObject({
+      chain: 'tron',
+      kind: 'token',
+      amount: '1500',
+      index: 0,
+      blockHeight: 0,
+      blockTime: '2026-11-12T08:45:00.000Z',
+      asset: { symbol: 'USDT', decimals: 6, contract: USDT_TRC20 },
+    });
+    expect(items[1]).toMatchObject({ amount: '2.5', index: 1 });
+  });
+});
+
+describe('TronGrid provider', () => {
+  it('pages by fingerprint with otherwise identical parameters and sends the key as a secret header', async () => {
+    const http = new FakeEgressClient((r) =>
+      new URL(r.url).searchParams.has('fingerprint')
+        ? { body: { data: [item({ transaction_id: 'b'.repeat(64) })], success: true, meta: { page_size: 1 } } }
+        : { body: { data: [item()], success: true, meta: { page_size: 1, fingerprint: 'fp1' } } },
+    );
+    const provider = createTronGridProvider(
+      { ...config, options: { usdtOnly: true } },
+      { env: { TEST_TRON_KEY: 'k' } },
+    );
+    const ctx = testContext(http);
+    const first = await provider.listTransfers({ chain: 'tron', address: ME }, {}, ctx);
+    expect(first.nextCursor).toBeDefined();
+    const second = await provider.listTransfers(
+      { chain: 'tron', address: ME },
+      { cursor: first.nextCursor ?? '' },
+      ctx,
+    );
+    expect(second.nextCursor).toBeUndefined();
+    const [a, b] = http.requests.map((r) => new URL(r.url).searchParams);
+    expect(b?.get('fingerprint')).toBe('fp1');
+    b?.delete('fingerprint');
+    expect(b?.toString()).toBe(a?.toString());
+    expect(a?.get('contract_address')).toBe(USDT_TRC20);
+    expect(a?.get('only_confirmed')).toBe('true');
+    expect(http.requests.every((r) => r.headers?.['TRON-PRO-API-KEY'] === 'k')).toBe(true);
+    expect(http.requests.every((r) => r.secretParams?.includes('TRON-PRO-API-KEY'))).toBe(true);
+  });
+
+  it('reads the solidified tip and treats success:false as an upstream error', async () => {
+    const http = new FakeEgressClient((r) =>
+      r.url.endsWith('/walletsolidity/getnowblock')
+        ? { body: { blockID: 'ab'.repeat(32), block_header: { raw_data: { number: 76_543_210, timestamp: 1 } } } }
+        : { body: { success: false, error: 'boom' } },
+    );
+    const provider = createTronGridProvider(config, { env: {} });
+    const ctx = testContext(http);
+    expect(await provider.getTip('tron', ctx)).toMatchObject({ height: 76_543_210, hash: 'ab'.repeat(32) });
+    await expect(provider.getAddressSummary({ chain: 'tron', address: ME }, ctx)).rejects.toMatchObject({
+      kind: 'upstream_error',
+    });
+  });
+});
+
+describe('TronGrid provider against the synthetic fixture site', () => {
+  let site: FixtureServer;
+  let tron1 = '';
+  beforeAll(async () => {
+    site = await startFixtureSite();
+    const manifest = JSON.parse(await readFile(join(REPO_ROOT, 'fixtures', 'persona', 'manifest.json'), 'utf8')) as {
+      addresses: Record<string, { address: string }>;
+    };
+    tron1 = manifest.addresses['TRON-1']?.address ?? '';
+  });
+  afterAll(() => site.close());
+
+  it('lists the USDT history of TRON-1', async () => {
+    const provider = createTronGridProvider({ ...config, baseUrl: `${site.url}/chain/trongrid` }, { env: {} });
+    const ctx = testContext(fixtureEgress());
+    const page = await provider.listTransfers({ chain: 'tron', address: tron1 }, {}, ctx);
+    expect(page.items).toHaveLength(9);
+    expect(page.items.every((t) => t.asset.contract === USDT_TRC20)).toBe(true);
+    expect((await provider.getAddressSummary({ chain: 'tron', address: tron1 }, ctx)).balance).toBe('35');
+  });
+});
