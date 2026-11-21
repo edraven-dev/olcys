@@ -85,3 +85,8 @@ Environment: copy `.env.example` to `.env`. Default `OLCYS_MODE=offline` (no net
 
 Short-lived branches; commit messages `<area>: <imperative summary>` (e.g. `collectors: add Keybase adapter`).
 Never commit `data/` or `.env`.
+
+Pull requests target `develop`. CI (`pnpm check`) and the Greptile review must pass before merging. Greptile reads its
+reviewer context from `.greptile/` (`config.json` rules, `rules.md` domain notes, `files.json` key files): keep it in
+sync when these rules change. It reviews automatically when a PR is opened; comment `@greptileai` on the PR to request
+a re-review after substantial changes.

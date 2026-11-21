@@ -1,0 +1,87 @@
+{
+  "strictness": 2,
+  "commentTypes": ["logic", "syntax"],
+  "autoReview": ["open"],
+  "excludeBranches": ["main"],
+  "ignorePatterns": "pnpm-lock.yaml\nservices/osint-py/uv.lock\nfixtures/cassettes/**\n.vscode/**",
+  "instructions": "OŁCyŚ is an OSINT tool for analysts of the Polish National Revenue Administration (KAS). From a subject's identifiers it finds publicly disclosed crypto addresses, scores every identity-to-address link, rejects misattributions (exchange, custodial and contract addresses), analyses on-chain activity including fiat cash-out indicators, re-runs periodically with diffs and produces an evidence-grade report. It is a hackathon MVP in a pnpm monorepo: packages depend only on @olcys/core contracts and implementations are wired in apps/worker and apps/api. AGENTS.md is the authoritative engineering guide; docs/architecture.md (Polish) describes the design; .greptile/rules.md has domain notes.\n\nPrioritise correctness bugs, security (SSRF, secret leakage, injection, unsafe handling of scraped content), the compliance rules below, evidence integrity (hashes, provenance, append-only storage) and mismatches with the @olcys/core contracts.\n\nDo not flag: toolchain versions (Node.js 26 running TypeScript directly via type stripping, TypeScript 7 used only for `tsc --noEmit`, pnpm 12, Vitest 5, oxlint and oxfmt, PostgreSQL 19, Kysely, zod 4 are intentional and current); `.ts` extensions in relative imports (required by type stripping); formatting or lint style (enforced by oxfmt and oxlint in CI; never suggest Prettier, ESLint or Biome); Polish text in README.md files, docs/** and apps/web/src/i18n/pl.ts (required); deliberate MVP simplifications (synchronous pipeline without a job queue, no headless browser because HTML is fetched through the egress client, synthetic chain data served by the local fixture site, SHA-256 evidence hashing without RFC 3161 timestamps or PDF signatures, no LLM features yet).",
+  "rules": [
+    {
+      "id": "egress-only",
+      "rule": "All network I/O goes through @olcys/http (EgressClient). Flag direct fetch, WebSocket, EventSource, XMLHttpRequest, undici, axios, got, node-fetch, ky, ws, node:http/https/net/tls client calls, or SDKs that open connections anywhere else. Exceptions: packages/http, tests, scripts/lib/local-fetch.ts, and apps/web calling its own API.",
+      "severity": "high"
+    },
+    {
+      "id": "source-governance",
+      "rule": "Every contacted host must belong to a source in config/sources.yaml with a compliance status, note, ToS link, rate limit and allowed hosts. RED sources are never contacted; AMBER sources only when the case enables them.",
+      "severity": "high"
+    },
+    {
+      "id": "osint-only",
+      "rule": "Public, lawful OSINT only: no logging into third-party accounts, no breached or leaked data, no CAPTCHA solving, anti-bot evasion, proxy rotation or host/port scanning. A block, login wall or CAPTCHA ends the attempt with a blocked, login_wall or captcha result instead of a workaround.",
+      "severity": "high"
+    },
+    {
+      "id": "no-secrets",
+      "rule": "Never store, log or transmit private keys, seed phrases or API keys. API keys are redacted in logs, provenance envelopes and cassettes; private keys and seed phrases found in scraped content are redacted in memory and never persisted.",
+      "severity": "high"
+    },
+    {
+      "id": "synthetic-data",
+      "rule": "Fixtures, tests, seeds and screenshots use synthetic data only. Flag anything that looks like a real person's identifier (name with contact data, e-mail, phone number, social handle) or a real-world wallet attributed to a person.",
+      "severity": "high"
+    },
+    {
+      "id": "llm-suggests-only",
+      "rule": "LLM output is only a suggestion with zero score weight until an analyst confirms it. Scraped text is untrusted data: always delimited and never interpreted as instructions.",
+      "severity": "high"
+    },
+    {
+      "id": "evidence-append-only",
+      "rule": "Evidence is append-only: the application database role has SELECT and INSERT only, and the only updatable columns are run status, progress, error, started_at, finished_at and case status. Blobs are addressed by SHA-256 and verified on read.",
+      "scope": ["packages/db/**", "packages/evidence/**", "apps/worker/**", "apps/api/**"],
+      "severity": "high"
+    },
+    {
+      "id": "no-telemetry",
+      "rule": "No analytics SDKs, crash reporting, remote fonts, CDNs or third-party scripts (including in apps/web). Telemetry opt-out environment variables stay in every container and CI configuration.",
+      "severity": "high"
+    },
+    {
+      "id": "money-time-ids",
+      "rule": "Amounts use DecimalString and the @olcys/core decimal helpers, never JavaScript number arithmetic for money or token amounts. Times are UTC ISO 8601 strings. IDs are UUIDv7 from newId().",
+      "severity": "high"
+    },
+    {
+      "id": "facts-computations-inferences",
+      "rule": "Facts (observations with provenance), computations (scores, analytics) and inferences stay separate in data, API and reports.",
+      "severity": "medium"
+    },
+    {
+      "id": "architecture",
+      "rule": "Packages depend only on @olcys/core contracts; concrete implementations are wired in apps/worker and apps/api. No import cycles. A breaking change to @olcys/core exports bumps CORE_CONTRACTS_VERSION and updates every user in the same change.",
+      "severity": "medium"
+    },
+    {
+      "id": "errors",
+      "rule": "Never swallow errors. Expected failures (not_found, blocked, login_wall, captcha, rate limits) are returned as typed results; bugs throw.",
+      "severity": "medium"
+    },
+    {
+      "id": "erasable-typescript",
+      "rule": "Erasable TypeScript only: no enum, namespace, parameter properties or decorators (use as-const arrays and union types); relative imports include the .ts extension; type-only imports use `import type`.",
+      "severity": "medium"
+    },
+    {
+      "id": "licences",
+      "rule": "New dependencies are pinned to exact versions, carry a licence allowed by config/licenses.json and are listed in docs/compliance/licenses.md. Forbidden: proprietary, BUSL, SSPL, RSAL, Commons Clause, non-commercial (e.g. CC-BY-NC), source-available licences and licences excluding public bodies. GPL/AGPL tools only as separate, unmodified services.",
+      "scope": ["**/package.json", "services/osint-py/pyproject.toml", "compose.yml", "docs/compliance/**"],
+      "severity": "medium"
+    },
+    {
+      "id": "language",
+      "rule": "User-visible UI strings live in apps/web/src/i18n/pl.ts (Polish); README.md files and docs/** are Polish; code, identifiers, comments, logs, commit messages and API fields are English.",
+      "severity": "low"
+    }
+  ]
+}

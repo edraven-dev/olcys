@@ -1,0 +1,59 @@
+{
+  "files": [
+    {
+      "path": "AGENTS.md",
+      "description": "Authoritative engineering rules and the non-negotiable compliance requirements of the challenge"
+    },
+    {
+      "path": "docs/architecture.md",
+      "description": "Architecture overview (Polish): pipeline, run modes, data model, scoring, evidence"
+    },
+    {
+      "path": "config/sources.yaml",
+      "description": "Source registry: compliance status (GREEN/AMBER/RED), allowed hosts, rate limits, ToS links",
+      "scope": ["packages/http/**", "packages/collectors/**", "packages/chain-adapters/**", "apps/**", "config/**"]
+    },
+    {
+      "path": "packages/core/src/ports.ts",
+      "description": "Port interfaces implemented by adapters (egress client, collectors, chain adapters, stores)",
+      "scope": ["packages/**", "apps/**"]
+    },
+    {
+      "path": "packages/core/src/provenance.ts",
+      "description": "Provenance envelope, egress log and evidence contracts",
+      "scope": [
+        "packages/http/**",
+        "packages/evidence/**",
+        "packages/db/**",
+        "packages/collectors/**",
+        "packages/chain-adapters/**",
+        "packages/reporting/**"
+      ]
+    },
+    {
+      "path": "config/scoring/weights.v1.yaml",
+      "description": "Confidence Score weights: likelihood ratios, reliability discounts, gates",
+      "scope": ["packages/scoring/**"]
+    },
+    {
+      "path": "config/rules/exclusion.v1.yaml",
+      "description": "Exclusion rules A1-A8 for exchange, custodial and contract addresses",
+      "scope": ["packages/analytics/**", "packages/labels/**", "packages/scoring/**"]
+    },
+    {
+      "path": "config/rules/cashout.v1.yaml",
+      "description": "Fiat cash-out indicator rules B1-B7",
+      "scope": ["packages/analytics/**"]
+    },
+    {
+      "path": "docs/compliance/licenses.md",
+      "description": "Dependency licence register (Polish)",
+      "scope": ["**/package.json", "services/osint-py/pyproject.toml", "compose.yml"]
+    },
+    {
+      "path": "config/licenses.json",
+      "description": "Allowed SPDX licence identifiers for npm dependencies",
+      "scope": ["**/package.json"]
+    }
+  ]
+}
