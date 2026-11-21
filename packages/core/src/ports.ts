@@ -45,10 +45,16 @@ export interface EgressRequest {
   /** Query/header names to redact in logs and provenance (API keys, tokens). */
   secretParams?: string[];
   timeoutMs?: number;
+  /** `manual` returns 3xx responses to the caller (each hop is still allow-listed); default `follow`. */
+  redirect?: 'follow' | 'manual';
+  /** False hashes the body but does not store it. Default true. */
+  persistBody?: boolean;
 }
 
 export interface EgressResponse {
   status: number;
+  /** URL after redirects. */
+  finalUrl: string;
   headers: Record<string, string>;
   body: Uint8Array;
   text(): string;
@@ -82,7 +88,7 @@ export interface CollectorInput {
 }
 
 export interface CollectorResult {
-  status: 'ok' | 'partial' | 'not_found' | 'blocked' | 'error';
+  status: 'ok' | 'partial' | 'not_found' | 'blocked' | 'login_wall' | 'captcha' | 'error';
   captures: Capture[];
   accounts: OnlineAccount[];
   observations: Observation[];

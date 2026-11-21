@@ -19,6 +19,7 @@ export const CHAIN_FAMILIES = [
   'cardano',
   'ton',
   'lightning',
+  'zcash',
 ] as const;
 export type ChainFamily = (typeof CHAIN_FAMILIES)[number];
 
@@ -90,6 +91,7 @@ export const KNOWN_CHAINS: readonly ChainInfo[] = [
   { id: 'cardano', family: 'cardano', name: 'Cardano', nativeAsset: 'ADA', decimals: 6 },
   { id: 'ton', family: 'ton', name: 'TON', nativeAsset: 'TON', decimals: 9 },
   { id: 'lightning', family: 'lightning', name: 'Lightning Network', nativeAsset: 'BTC', decimals: 11 },
+  { id: 'zcash', family: 'zcash', name: 'Zcash', nativeAsset: 'ZEC', decimals: 8 },
 ];
 
 export function chainFamily(chain: ChainId): ChainFamily {
