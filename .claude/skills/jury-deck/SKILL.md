@@ -5,11 +5,11 @@ description: Create or update the Polish jury presentation and demo-video script
 
 # Jury deck
 
-1. Load the built-in `pptx` skill and follow it to produce a `.pptx` deck (plus a PDF export when asked). Save it
-   where the user asks; default `docs/presentation/`.
+1. Load the built-in `pptx` skill and follow it to produce the deck. The submission requires a **PDF with at most
+   10 slides**: export the PDF and check the page count. Save where the user asks; default `docs/presentation/`.
 2. Polish throughout: titles, bullets and speaker notes. Sources of truth: `README.md`, `docs/architecture.md`,
    `docs/compliance/`, and a rehearsed demo (`demo-run` skill) for screenshots.
-3. Structure (about ten slides):
+3. Structure (ten slides at most — merge topics rather than exceed the limit):
    1. problem and goal — what KAS analysts need;
    2. what OŁCyŚ does — identifiers → public traces → addresses → Confidence Score → exclusions → on-chain analysis
       → report;
@@ -25,4 +25,6 @@ description: Create or update the Polish jury presentation and demo-video script
 4. Screenshots and examples use the synthetic persona only — never real people, wallets attributed to real persons,
    or case data.
 5. Claim only what the MVP actually does; label planned features as next steps.
-6. Video script: same storyline, 3–5 minutes, with timestamps and Polish narration.
+6. Video script: same storyline, **at most 3 minutes**, with timestamps and Polish narration; the video must show the
+   tool working (the full scenario: input → OSINT traces → address detection and verification → Confidence Score →
+   rejected misattributions → blockchain indicators → sources and result) and be published in an open repository.

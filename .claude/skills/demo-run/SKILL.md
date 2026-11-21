@@ -13,10 +13,9 @@ Use the built-in `run` skill to launch and drive the app; this skill adds the pr
 2. `pnpm install`, then `pnpm dev:deps` (PostgreSQL, Gotenberg and the fixture site in containers; ports bound to
    127.0.0.1; the fixture site answers `ok v1` on `http://127.0.0.1:4100/healthz`).
 3. `pnpm db:migrate` on a fresh database (runs as the owner role).
-4. Start the apps on the host **without** a second fixture site (the container already holds port 4100):
-   `pnpm --parallel --filter './apps/*' --filter '!@olcys/fixture-site' run dev` — API on :4000, web UI on :5173,
-   worker. To run the fixture site on the host instead (e.g. while editing it), stop its container first
-   (`docker compose stop fixture-site`).
+4. `pnpm dev` — API on :4000, web UI on :5173, worker (the fixture site keeps running in its container). To run the
+   fixture site on the host instead (e.g. while editing it), stop its container (`docker compose stop fixture-site`)
+   and use `pnpm dev:fixture`.
 
 ## Walk the demo (synthetic persona only)
 
