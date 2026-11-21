@@ -70,6 +70,8 @@ const KEPT_HEADERS = [
   'retry-after',
   'location',
   'content-length',
+  // Anti-bot challenge marker: collectors classify the response as a CAPTCHA/challenge barrier and stop there.
+  'cf-mitigated',
   'x-olcys-synthetic',
 ];
 /** Request headers that change the response, hence part of the cassette key. */

@@ -8,7 +8,7 @@ import type { Identifier } from './case.ts';
 import type { AddressSummary, NormalizedTransfer, UtxoTransaction } from './chain-data.ts';
 import type { AddressRef, ChainId } from './chains.ts';
 import type { Id, IsoDateTime, Sha256Hex } from './common.ts';
-import type { Capture, Observation, OnlineAccount } from './evidence.ts';
+import type { AccountDiscoveryMethod, Capture, Observation, OnlineAccount } from './evidence.ts';
 import type { AddressLabel } from './labels.ts';
 import type { BlobRef, ChainTip, FetchMode, ProvenanceEnvelope } from './provenance.ts';
 import type { SourceDescriptor, SourceId } from './sources.ts';
@@ -79,12 +79,51 @@ export interface RunContext {
   signal?: AbortSignal;
 }
 
+/** A secret (private key, seed phrase) found in text: its kind and UTF-16 span in the input — never its value. */
+export interface RedactedSecret {
+  kind: string;
+  start: number;
+  end: number;
+}
+
+export interface RedactionResult {
+  /** The input with every secret replaced by a marker. */
+  text: string;
+  findings: RedactedSecret[];
+}
+
+/**
+ * Removes private keys and seed phrases from scraped text in memory, before anything is stored, logged or turned
+ * into observations. Implemented by the address extractor and wired in the composition root.
+ */
+export interface SecretRedactor {
+  redact(text: string): RedactionResult;
+}
+
+export const PIVOT_VALUE_KINDS = ['username', 'url', 'nip', 'regon', 'krs'] as const;
+export type PivotValueKind = (typeof PIVOT_VALUE_KINDS)[number];
+
+/**
+ * A value found during collection (or taken from a configured directory) that a collector can take as input, e.g. a
+ * profile URL linked from another account or a nick to look up on another platform.
+ */
+export interface PivotValue {
+  kind: PivotValueKind;
+  value: string;
+  /** How the value was found; `search` marks directory pages that must match a case identifier to be kept. */
+  method?: AccountDiscoveryMethod;
+  observationId?: Id;
+  captureId?: Id;
+}
+
 export interface CollectorInput {
   identifiers: Identifier[];
   accounts: OnlineAccount[];
   addresses: AddressRef[];
   /** Pivot generation (0 = input identifiers). */
   depth: number;
+  /** Values discovered by earlier tasks (linked URLs, nicks to probe, directory pages). */
+  values?: PivotValue[];
 }
 
 export interface CollectorResult {
