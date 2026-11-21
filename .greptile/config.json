@@ -38,7 +38,7 @@
     },
     {
       "id": "evidence-append-only",
-      "rule": "Evidence is append-only: the application database role has SELECT and INSERT only, and the only updatable columns are run status, progress, error, started_at, finished_at and case status. Blobs are addressed by SHA-256 and verified on read.",
+      "rule": "Evidence is append-only: the application database role has SELECT and INSERT only, and the only updatable columns are run status, progress, error, started_at, finished_at, case status and the case's current schedule (cases.schedule, whose every change is also appended to case_schedule_change in the same transaction). Blobs are addressed by SHA-256 and verified on read.",
       "scope": ["packages/db/**", "packages/evidence/**", "apps/worker/**", "apps/api/**"],
       "severity": "high"
     },
