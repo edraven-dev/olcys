@@ -13,7 +13,8 @@ zgłoszone przez etapy (`markPartial`) są od razu zapisywane w `progress.partia
   (skróty SHA-256 rejestru źródeł i wag), tryb (`OLCYS_MODE`) oraz `startRun()`, który tworzy przebieg i uruchamia potok
   bez czekania na wynik.
 - `runPipeline(runId, deps)` — wykonuje etapy (`Stage`: `step` + `run(ctx)`), aktualizuje status (`running` →
-  `succeeded`, `partial` gdy część źródeł była niedostępna, albo `failed` z komunikatem błędu) i zapisuje zmiany.
+  `succeeded`, `partial` gdy część źródeł lub danych łańcucha była niedostępna, albo `failed` z komunikatem błędu)
+  i zapisuje zmiany. Ponowna ocena dziedziczy powody niepełności ocenianego przebiegu.
 - `diffWithPrevious(repos, run)` — porównanie z poprzednim przebiegiem przez `diffRuns` z `@olcys/evidence`.
 - `loadConfig()` — rejestr źródeł i migawka konfiguracji.
 
@@ -29,8 +30,19 @@ Etapy (zbieranie, wyodrębnianie adresów, analiza łańcucha, punktacja, raport
    i fraz seed przed zapisem (`createSecretRedactor()` z pakietu wyodrębniania adresów).
 2. **Wyodrębnianie adresów** (`extract.capture`) — dla każdego udanego przechwycenia; lista wykluczeń
    `config/rules/deny-list.v1.yaml`.
-3. **Punktacja** (`score.links`) — Wskaźnik Pewności dla powiązań; migawka konfiguracji przebiegu zapisuje wersję
+3. **Analiza łańcucha** (`chain.fetch`) — wstępna selekcja (lista wykluczeń, etykiety), dane łańcucha przez klienta ruchu
+   wychodzącego (offline ze strony testowej), reguły odrzucania A1/A2/A4/A8, rozszerzenie o kontrahentów, aktywność
+   i wskaźniki wyjścia do fiat wyceniane w PLN (NBP). Adresy otrzymują tylko dostawcy włączeni w zakresie sprawy
+   (AMBER, np. `etherscan_v2`, `trongrid`, z uzasadnieniem analityka); kursy NBP przy włączonym `nbp_api`. Historia
+   pobrana niecałkowicie (brak włączonego dostawcy, blokada, brak nagrania, obcięcie) oznacza przebieg jako `partial`.
+   Użyte etykiety są zapisywane w magazynie (raport, API). Adres giełdy nigdy nie jest przypisywany osobie, ale
+   interakcja jest rejestrowana; trop KYC tylko dla adresu podanego w pierwszej osobie (nie w cytacie, ostrzeżeniu,
+   zgłoszeniu oszustwa ani na liście).
+4. **Punktacja** (`score.links`) — Wskaźnik Pewności dla powiązań; migawka konfiguracji przebiegu zapisuje wersję
    i skrót SHA-256 wag używanych przez punktację.
+5. **Raport** (`report.render`) — po wbudowanym porównaniu z poprzednim przebiegiem (`diff.previous`), więc raport
+   zawiera wykryte zmiany.
 
-Porównanie z poprzednim przebiegiem jest wbudowane (`diff.previous`). Analiza łańcucha i raport dołączają do listy etapów
-wraz z ich pakietami.
+Ponowna ocena (`rescore`) niczego nie pobiera: używa zebranych dowodów i analizy łańcucha ocenianego przebiegu,
+ponownie wyodrębnia adresy i liczy wskaźniki. Braki danych ocenianego przebiegu pozostają widoczne (status `partial`
+z tymi samymi powodami).

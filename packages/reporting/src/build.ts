@@ -24,6 +24,11 @@ export interface BuildReportOptions {
   weightsStatus?: string;
   generatedAt?: IsoDateTime;
   reportId?: Id;
+  /**
+   * The run whose collected evidence and chain analysis the report shows (for a rescore: the rescored run); default the
+   * run itself. Candidates, links and changes always belong to the run.
+   */
+  evidenceRunId?: Id;
 }
 
 /** Optional port extension: fund-flow edges, when the analytics store keeps them. */
@@ -52,6 +57,7 @@ export async function buildReportData(
   runId: Id,
   options: BuildReportOptions = {},
 ): Promise<ReportData> {
+  const evidenceRunId = options.evidenceRunId ?? runId;
   const run = await repos.runs.get(runId);
   if (!run) throw new Error(`run ${runId} not found`);
   const kase = await repos.cases.get(run.caseId);
@@ -74,20 +80,20 @@ export async function buildReportData(
     labels,
     flows,
   ] = await Promise.all([
-    repos.evidence.listCaptures(runId),
-    repos.evidence.listAccounts(runId),
-    repos.evidence.listObservations(runId),
+    repos.evidence.listCaptures(evidenceRunId),
+    repos.evidence.listAccounts(evidenceRunId),
+    repos.evidence.listObservations(evidenceRunId),
     repos.evidence.listCandidates(runId),
     repos.evidence.listExtractionResults(runId),
-    repos.evidence.listEgressLog(runId),
-    repos.chain.listTransfers(runId),
+    repos.evidence.listEgressLog(evidenceRunId),
+    repos.chain.listTransfers(evidenceRunId),
     analysis.listLinks(runId),
-    analysis.listExclusions(runId),
-    analysis.listActivity(runId),
-    analysis.listCashOuts(runId),
+    analysis.listExclusions(evidenceRunId),
+    analysis.listActivity(evidenceRunId),
+    analysis.listCashOuts(evidenceRunId),
     analysis.listChanges(runId),
     repos.labels.list(),
-    analysis.listFlows ? analysis.listFlows(runId) : Promise.resolve([] as FlowEdge[]),
+    analysis.listFlows ? analysis.listFlows(evidenceRunId) : Promise.resolve([] as FlowEdge[]),
   ]);
 
   // Reasons the pipeline recorded so far (`markPartial`): sources or stages that could not deliver data.

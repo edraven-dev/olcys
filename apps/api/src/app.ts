@@ -147,8 +147,9 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
   });
 
   /**
-   * Run-scoped lists. Collected evidence (captures, observations, accounts, egress log) is read from the run that
-   * collected it — for a rescore, the rescored run — while candidates, scores and other results stay per run.
+   * Run-scoped lists. Collected evidence (captures, observations, accounts, egress log) and the chain analysis derived
+   * from it (transfers, exclusions, activity, cash-outs) are read from the run that collected it — for a rescore, the
+   * rescored run — while candidates, extraction results, links and changes stay per run.
    */
   const runList = <T>(path: string, load: (runId: string) => Promise<T[]>, scope: 'evidence' | 'run' = 'run') =>
     app.get<{ Params: { runId: string } }>(`/api/runs/:runId/${path}`, async (request, reply) => {
@@ -164,11 +165,11 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
   // Extraction results include the matches rejected at validation (homoglyphs, transaction hashes, test vectors).
   runList('extractions', (id) => repos.evidence.listExtractionResults(id));
   runList('egress', (id) => repos.evidence.listEgressLog(id), 'evidence');
-  runList('transfers', (id) => repos.chain.listTransfers(id));
+  runList('transfers', (id) => repos.chain.listTransfers(id), 'evidence');
   runList('links', (id) => repos.analysis.listLinks(id));
-  runList('exclusions', (id) => repos.analysis.listExclusions(id));
-  runList('activity', (id) => repos.analysis.listActivity(id));
-  runList('cash-outs', (id) => repos.analysis.listCashOuts(id));
+  runList('exclusions', (id) => repos.analysis.listExclusions(id), 'evidence');
+  runList('activity', (id) => repos.analysis.listActivity(id), 'evidence');
+  runList('cash-outs', (id) => repos.analysis.listCashOuts(id), 'evidence');
   runList('changes', (id) => repos.analysis.listChanges(id));
 
   // Address labels (reference data, not run-scoped) with their provenance: dataset, URL, licence, lastmod.

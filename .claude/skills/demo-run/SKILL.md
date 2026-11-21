@@ -23,7 +23,10 @@ Use only what is merged: check `README.md` and the recent history for which part
 pipeline, API routes, UI, report). Skip steps whose feature is missing and say which ones you skipped — never present
 a skipped step as verified.
 
-1. Create a case for the persona described in `fixtures/persona/manifest.json`; its identifiers are synthetic.
+1. Create a case for the persona described in `fixtures/persona/manifest.json`; its identifiers are synthetic. Enable
+   the persona's sources (`bitcointalk`, `wykop`, `github`, `telegram_preview`) and the chain providers
+   (`mempool_space`, `nbp_api`; `etherscan_v2` and `trongrid` are AMBER, each with a justification): addresses go only
+   to providers the case enables, and a chain without one leaves the run `partial`.
 2. Run the analysis and check:
    - candidate addresses with their evidence;
    - Confidence Scores matching `manifest.expected`;

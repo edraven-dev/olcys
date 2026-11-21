@@ -12,6 +12,7 @@ export {
 } from './pipeline.ts';
 export { consoleLogger, createRuntime, type Runtime, type RuntimeOptions } from './runtime.ts';
 export {
+  createChainStage,
   createCollectStage,
   createExtractStage,
   createScoreStage,
