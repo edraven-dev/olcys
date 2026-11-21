@@ -135,6 +135,38 @@ export function buildCreateCaseRequest(state: CaseFormState, sources: readonly S
   };
 }
 
+export interface SubmitClient {
+  createCase(body: CreateCaseInput): Promise<{ id: string }>;
+  startRun(caseId: string): Promise<{ id: string }>;
+}
+
+export interface SubmitOutcome {
+  /** Set as soon as the case exists — also when starting the run failed, so a retry never creates a second case. */
+  caseId?: string;
+  runId?: string;
+  error?: unknown;
+}
+
+/**
+ * Creates the case (unless `existingCaseId` says it was already created) and optionally starts its first run.
+ * Never throws: the outcome keeps the case id next to the error of a failed run start.
+ */
+export async function submitCase(
+  body: CreateCaseInput,
+  startRun: boolean,
+  existingCaseId: string | undefined,
+  client: SubmitClient,
+): Promise<SubmitOutcome> {
+  let caseId = existingCaseId;
+  try {
+    caseId ??= (await client.createCase(body)).id;
+    if (!startRun) return { caseId };
+    return { caseId, runId: (await client.startRun(caseId)).id };
+  } catch (error) {
+    return caseId ? { caseId, error } : { error };
+  }
+}
+
 /** Maps API validation issues (`identifiers.0.value`, `scope.amberJustifications.github`) onto form fields. */
 export function errorsFromIssues(issues: readonly { path: string; message: string }[]): FormErrors {
   const errors: FormErrors = {};

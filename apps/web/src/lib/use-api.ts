@@ -5,12 +5,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from './api.ts';
 
-const cache = new Map<string, unknown>();
+const cache = new Map<string, { data: unknown; at: number }>();
 
 export interface Resource<T> {
   data: T | undefined;
+  /** Set when the last request failed — also while older `data` is still shown. */
   error: unknown;
   loading: boolean;
+  /** Time (ms) of the last successful load of `data`. */
+  updatedAt?: number;
   reload(): void;
 }
 
@@ -19,6 +22,12 @@ interface State<T> {
   data: T | undefined;
   error: unknown;
   loading: boolean;
+  updatedAt?: number;
+}
+
+function cached<T>(key: string | null): { data: T | undefined; updatedAt?: number } {
+  const hit = key ? cache.get(key) : undefined;
+  return hit ? { data: hit.data as T, updatedAt: hit.at } : { data: undefined };
 }
 
 export function useResource<T>(key: string | null, load: () => Promise<T>, pollMs?: number): Resource<T> {
@@ -28,7 +37,7 @@ export function useResource<T>(key: string | null, load: () => Promise<T>, pollM
   });
   const [state, setState] = useState<State<T>>(() => ({
     key,
-    data: key ? (cache.get(key) as T | undefined) : undefined,
+    ...cached<T>(key),
     error: undefined,
     loading: key !== null,
   }));
@@ -43,11 +52,15 @@ export function useResource<T>(key: string | null, load: () => Promise<T>, pollM
       try {
         const data = await loadRef.current();
         if (cancelled) return;
-        cache.set(key, data);
-        setState({ key, data, error: undefined, loading: false });
+        const at = Date.now();
+        cache.set(key, { data, at });
+        setState({ key, data, error: undefined, loading: false, updatedAt: at });
       } catch (error) {
         if (cancelled) return;
-        setState((s) => ({ key, data: s.key === key ? s.data : undefined, error, loading: false }));
+        // Older data stays visible, but the error is kept so the view can say the data is stale.
+        setState((s) =>
+          s.key === key ? { ...s, error, loading: false } : { key, ...cached<T>(key), error, loading: false },
+        );
       }
       if (pollMs && !cancelled) timer = setTimeout(() => void run(), pollMs);
     };
@@ -59,13 +72,8 @@ export function useResource<T>(key: string | null, load: () => Promise<T>, pollM
   }, [request, key, pollMs]);
 
   const reload = useCallback(() => setTick((n) => n + 1), []);
-  const current = state.key === key;
-  return {
-    data: current ? state.data : key ? (cache.get(key) as T | undefined) : undefined,
-    error: current ? state.error : undefined,
-    loading: current ? state.loading : key !== null,
-    reload,
-  };
+  if (state.key === key) return { ...state, reload };
+  return { ...cached<T>(key), error: undefined, loading: key !== null, reload };
 }
 
 /** JSON document; `version` forces a fresh request when it changes (e.g. the run finished). */

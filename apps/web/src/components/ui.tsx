@@ -299,10 +299,58 @@ export function ErrorState({ title, error, onRetry }: { title?: string; error: u
   );
 }
 
-/** Renders loading / error / empty states around a resource; children receive the loaded data. */
+/**
+ * What is wrong with a resource: `stale` — the last refresh failed and older data is shown; `unavailable` — the
+ * request failed and there is no data (never to be confused with an empty result).
+ */
+export function resourceIssue(resource: Pick<Resource<unknown>, 'data' | 'error'>): 'stale' | 'unavailable' | null {
+  if (!resource.error) return null;
+  return resource.data === undefined ? 'unavailable' : 'stale';
+}
+
+/** Warning shown above data that could not be refreshed, with the time of the data and a retry. */
+export function StaleNotice({ resource }: { resource: Resource<unknown> }) {
+  const time = resource.updatedAt ? formatDateTime(new Date(resource.updatedAt).toISOString()) : pl.common.dash;
+  return (
+    <div className="state state-warning" role="alert">
+      <p>
+        <Icon name="warn" />
+        <strong>{t(pl.common.stale, { time })} </strong>
+        {errorMessage(resource.error)}
+      </p>
+      <button type="button" className="button" onClick={resource.reload}>
+        {pl.common.retry}
+      </button>
+    </div>
+  );
+}
+
+/** Notices for every failed resource of a view (stale data or an unavailable section), each with a retry. */
+export function ResourceNotices({ resources }: { resources: readonly Resource<unknown>[] }) {
+  const failed = resources.filter((r) => resourceIssue(r) !== null);
+  if (failed.length === 0) return null;
+  return (
+    <div className="stack">
+      {failed.map((resource, index) =>
+        resourceIssue(resource) === 'stale' ? (
+          // oxlint-disable-next-line react/no-array-index-key -- resources have no identity of their own
+          <StaleNotice key={index} resource={resource} />
+        ) : (
+          // oxlint-disable-next-line react/no-array-index-key -- resources have no identity of their own
+          <ErrorState key={index} title={pl.common.unavailable} error={resource.error} onRetry={resource.reload} />
+        ),
+      )}
+    </div>
+  );
+}
+
+/**
+ * Renders loading / error / empty states around a resource; children receive the loaded data. A failed request is
+ * always visible: without data as "section unavailable", with older data as a stale-data warning above it.
+ */
 export function Async<T>({
   resource,
-  errorTitle,
+  errorTitle = pl.common.unavailable,
   loadingText,
   isEmpty,
   emptyText,
@@ -319,8 +367,21 @@ export function Async<T>({
     if (resource.error) return <ErrorState title={errorTitle} error={resource.error} onRetry={resource.reload} />;
     return <LoadingState text={loadingText} />;
   }
-  if (isEmpty && emptyText && isEmpty(resource.data)) return <EmptyState text={emptyText} />;
-  return <>{children(resource.data)}</>;
+  const stale = resource.error ? <StaleNotice resource={resource as Resource<unknown>} /> : null;
+  if (isEmpty && emptyText && isEmpty(resource.data)) {
+    return (
+      <>
+        {stale}
+        <EmptyState text={emptyText} />
+      </>
+    );
+  }
+  return (
+    <>
+      {stale}
+      {children(resource.data)}
+    </>
+  );
 }
 
 export function useDocumentTitle(page: string): void {

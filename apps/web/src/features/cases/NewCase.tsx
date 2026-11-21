@@ -12,6 +12,7 @@ import {
   buildCreateCaseRequest,
   errorsFromIssues,
   initialFormState,
+  submitCase,
   newIdentifierRow,
   validateCaseForm,
   type CaseFormState,
@@ -76,32 +77,42 @@ export function CaseForm({ sources }: { sources: SourceItem[] }) {
   const [errors, setErrors] = useState<FormErrors>({});
   const [submitError, setSubmitError] = useState<unknown>();
   const [busy, setBusy] = useState(false);
+  // Once the case exists, a retry only starts the run again — it never creates a second case.
+  const [createdCaseId, setCreatedCaseId] = useState<string>();
   const update = (patch: Partial<CaseFormState>) => setState((s) => ({ ...s, ...patch }));
   const updateRow = (rowId: string, patch: Partial<IdentifierRow>) =>
     setState((s) => ({ ...s, identifiers: s.identifiers.map((r) => (r.rowId === rowId ? { ...r, ...patch } : r)) }));
 
   const submit = async (startRun: boolean) => {
-    const found = validateCaseForm(state, sources);
-    setErrors(found);
     setSubmitError(undefined);
-    if (Object.keys(found).length > 0) {
-      document.getElementById(`${formId}-summary`)?.focus();
-      return;
+    if (!createdCaseId) {
+      const found = validateCaseForm(state, sources);
+      setErrors(found);
+      if (Object.keys(found).length > 0) {
+        document.getElementById(`${formId}-summary`)?.focus();
+        return;
+      }
     }
     setBusy(true);
-    try {
-      const created = await api.post<CaseWithIdentifiers>(apiPaths.cases, buildCreateCaseRequest(state, sources));
-      if (startRun) {
-        const run = await api.post<RunWithProgress>(apiPaths.caseRuns(created.id), { trigger: 'manual' });
-        navigate(routePath({ name: 'run', caseId: created.id, runId: run.id, tab: 'overview' }));
-      } else {
-        navigate(routePath({ name: 'case', caseId: created.id }));
-      }
-    } catch (error) {
-      if (error instanceof ApiRequestError && error.issues.length > 0) setErrors(errorsFromIssues(error.issues));
-      setSubmitError(error);
-      setBusy(false);
+    const outcome = await submitCase(buildCreateCaseRequest(state, sources), startRun, createdCaseId, {
+      createCase: (body) => api.post<CaseWithIdentifiers>(apiPaths.cases, body),
+      startRun: (caseId) => api.post<RunWithProgress>(apiPaths.caseRuns(caseId), { trigger: 'manual' }),
+    });
+    if (outcome.caseId) setCreatedCaseId(outcome.caseId);
+    if (outcome.error === undefined && outcome.caseId) {
+      navigate(
+        outcome.runId
+          ? routePath({ name: 'run', caseId: outcome.caseId, runId: outcome.runId, tab: 'overview' })
+          : routePath({ name: 'case', caseId: outcome.caseId }),
+      );
+      return;
     }
+    const { error } = outcome;
+    if (!outcome.caseId && error instanceof ApiRequestError && error.issues.length > 0) {
+      setErrors(errorsFromIssues(error.issues));
+    }
+    setSubmitError(error);
+    setBusy(false);
   };
 
   const errorCount = Object.keys(errors).length;
@@ -124,9 +135,25 @@ export function CaseForm({ sources }: { sources: SourceItem[] }) {
           </p>
         ) : null}
         {submitError ? <ErrorState error={submitError} /> : null}
+        {createdCaseId ? (
+          <div className="notice">
+            <p>
+              <Icon name="check" />
+              {pl.caseForm.createdRunFailed}
+            </p>
+            <div className="actions">
+              <button type="button" className="button primary" disabled={busy} onClick={() => void submit(true)}>
+                {pl.caseForm.retryRun}
+              </button>
+              <Link className="button" to={routePath({ name: 'case', caseId: createdCaseId })}>
+                {pl.caseForm.openCase}
+              </Link>
+            </div>
+          </div>
+        ) : null}
       </div>
 
-      <fieldset>
+      <fieldset disabled={Boolean(createdCaseId)}>
         <legend>{pl.caseForm.sectionCase}</legend>
         <Field id={fid('title')} label={pl.caseForm.caseTitle} error={errors['title']}>
           {(describedBy) => (
@@ -172,7 +199,7 @@ export function CaseForm({ sources }: { sources: SourceItem[] }) {
         </Field>
       </fieldset>
 
-      <fieldset>
+      <fieldset disabled={Boolean(createdCaseId)}>
         <legend>{pl.caseForm.sectionIdentifiers}</legend>
         {errors['identifiers'] ? <p className="field-error">{errors['identifiers']}</p> : null}
         <datalist id={fid('platforms')}>
@@ -205,7 +232,7 @@ export function CaseForm({ sources }: { sources: SourceItem[] }) {
         </button>
       </fieldset>
 
-      <fieldset>
+      <fieldset disabled={Boolean(createdCaseId)}>
         <legend>{pl.caseForm.sectionScope}</legend>
         <h2 className="h3">{pl.caseForm.sources}</h2>
         {errors['sources'] ? <p className="field-error">{errors['sources']}</p> : null}
@@ -262,7 +289,7 @@ export function CaseForm({ sources }: { sources: SourceItem[] }) {
         </Field>
       </fieldset>
 
-      <fieldset>
+      <fieldset disabled={Boolean(createdCaseId)}>
         <legend>{pl.caseForm.sectionMinimisation}</legend>
         <p className="hint">{pl.caseForm.minimisation}</p>
         <label className={`check${errors['minimisation'] ? ' field-invalid' : ''}`}>
@@ -277,7 +304,7 @@ export function CaseForm({ sources }: { sources: SourceItem[] }) {
         {errors['minimisation'] ? <p className="field-error">{errors['minimisation']}</p> : null}
       </fieldset>
 
-      <div className="actions">
+      <div className="actions" hidden={Boolean(createdCaseId)}>
         <button type="submit" className="button primary" disabled={busy}>
           {busy ? pl.caseForm.submitting : pl.caseForm.submitAndRun}
         </button>

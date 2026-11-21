@@ -1,5 +1,5 @@
 import type { Case, RunWithProgress } from '@olcys/core';
-import { Async, DateTime, RunStatusBadge, useDocumentTitle } from '../../components/ui.tsx';
+import { Async, DateTime, Icon, resourceIssue, RunStatusBadge, useDocumentTitle } from '../../components/ui.tsx';
 import { pl } from '../../i18n/pl.ts';
 import { apiPaths } from '../../lib/api.ts';
 import { Link, routePath } from '../../lib/router.tsx';
@@ -65,6 +65,14 @@ export function CaseListPage() {
 function LastRun({ caseId }: { caseId: string }) {
   const runs = useList<RunWithProgress>(apiPaths.caseRuns(caseId));
   const last = runs.data?.[0];
+  if (resourceIssue(runs) === 'unavailable') {
+    return (
+      <button type="button" className="button ghost" onClick={runs.reload}>
+        <Icon name="warn" />
+        {pl.common.unavailableShort}
+      </button>
+    );
+  }
   if (!runs.data) return <span className="muted">{pl.common.dash}</span>;
   if (!last) return <span className="muted">{pl.cases.noRun}</span>;
   return (

@@ -8,6 +8,8 @@ import {
   EmptyState,
   ErrorState,
   Icon,
+  ResourceNotices,
+  resourceIssue,
   RunStatusBadge,
   useDocumentTitle,
 } from '../../components/ui.tsx';
@@ -43,6 +45,7 @@ function CaseDetail({ kase }: { kase: CaseWithIdentifiers }) {
   const byId = new Map((sources.data ?? []).map((s) => [s.id, s]));
   return (
     <>
+      <ResourceNotices resources={[sources]} />
       <div className="page-head">
         <h1 id="case-title">{kase.title}</h1>
         <span className="badge tone-neutral">{pl.cases.status[kase.status] ?? kase.status}</span>
@@ -212,6 +215,14 @@ function RunAlerts({ run }: { run: RunWithProgress }) {
   const changes = useList<ChangeView>(enabled ? apiPaths.runList(run.id, 'changes') : null, {
     version: run.finishedAt ?? run.status,
   });
+  if (enabled && resourceIssue(changes) === 'unavailable') {
+    return (
+      <button type="button" className="button ghost" onClick={changes.reload}>
+        <Icon name="warn" />
+        {pl.common.unavailableShort}
+      </button>
+    );
+  }
   if (!enabled || !changes.data) return <span className="muted">{pl.common.dash}</span>;
   const alerts = changes.data.filter(isWalletSwap).length;
   const total = changes.data.length;

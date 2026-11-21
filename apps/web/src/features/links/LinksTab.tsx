@@ -9,6 +9,7 @@ import {
   KindBlock,
   KindLegend,
   LoadingState,
+  ResourceNotices,
   ScoreMeter,
   Verbatim,
 } from '../../components/ui.tsx';
@@ -53,8 +54,10 @@ export function LinksTab({ scope }: { scope: RunScope }) {
   const candidates = useList<AddressCandidate>(apiPaths.runList(run.id, 'candidates'), { version });
   const sources = useList<SourceItem>(apiPaths.sources);
 
-  if (links.error) return <ErrorState title={pl.links.loadError} error={links.error} onRetry={links.reload} />;
-  if (!links.data) return <LoadingState />;
+  if (!links.data) {
+    if (links.error) return <ErrorState title={pl.links.loadError} error={links.error} onRetry={links.reload} />;
+    return <LoadingState />;
+  }
 
   const excluded = new Set((exclusions.data ?? []).filter(isRejectingDecision).map((d) => keyOf(d.address)));
   const main = links.data
@@ -83,6 +86,7 @@ export function LinksTab({ scope }: { scope: RunScope }) {
           <strong>{pl.links.automationBias}</strong>
         </p>
       </div>
+      <ResourceNotices resources={[links, exclusions, accounts, captures, observations, candidates, sources]} />
       <BandLegend />
       <KindLegend />
       {main.length > 0 ? <p className="muted">{plural(main.length, pl.links.count)}</p> : null}

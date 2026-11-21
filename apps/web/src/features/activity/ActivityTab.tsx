@@ -8,6 +8,9 @@ import {
   Icon,
   KindBlock,
   LoadingState,
+  ResourceNotices,
+  resourceIssue,
+  StaleNotice,
   Verbatim,
 } from '../../components/ui.tsx';
 import { pl } from '../../i18n/pl.ts';
@@ -17,7 +20,7 @@ import { chainName, nativeAsset } from '../../lib/chains.ts';
 import { keyOf, type CashOutView, type ExclusionView, type LinkView } from '../../lib/domain.ts';
 import { formatCrypto, formatInteger, formatPln } from '../../lib/format.ts';
 import { navigate, useLocation } from '../../lib/router.tsx';
-import { useList } from '../../lib/use-api.ts';
+import { useList, type Resource } from '../../lib/use-api.ts';
 import type { RunScope } from '../run/RunPage.tsx';
 import { addressOptions, nbpLine, priceLine, transfersFor } from './activity-model.ts';
 
@@ -43,9 +46,11 @@ export function ActivityTab({ scope }: { scope: RunScope }) {
     document.getElementById(location.hash.slice(1))?.scrollIntoView();
   }, [location.hash, indicators]);
 
-  if (activity.error)
-    return <ErrorState title={pl.activity.loadError} error={activity.error} onRetry={activity.reload} />;
-  if (!activity.data) return <LoadingState />;
+  if (!activity.data) {
+    if (activity.error)
+      return <ErrorState title={pl.activity.loadError} error={activity.error} onRetry={activity.reload} />;
+    return <LoadingState />;
+  }
 
   const listed = (cashOuts.data ?? []).filter((e) => selected && keyOf(e.address) === selected.key);
   const events: CashOutView[] = (listed.length > 0 ? listed : (indicators?.cashOut.events ?? [])).toSorted((a, b) =>
@@ -67,6 +72,7 @@ export function ActivityTab({ scope }: { scope: RunScope }) {
       <KindBlock kind="inference" headingLevel={4}>
         <p>{pl.activity.caveat}</p>
       </KindBlock>
+      <ResourceNotices resources={[activity, links, exclusions]} />
       {options.length === 0 || !selected ? (
         <EmptyState text={pl.activity.empty.none} />
       ) : (
@@ -91,10 +97,10 @@ export function ActivityTab({ scope }: { scope: RunScope }) {
             <AddressText value={selected.address.address} />
           </div>
           {indicators ? <Indicators indicators={indicators} /> : null}
-          <CashOutSection events={events} chain={selected.address.chain} />
+          <CashOutSection events={events} chain={selected.address.chain} resource={cashOuts} />
           {indicators ? <Services indicators={indicators} /> : null}
           {indicators ? <Swaps indicators={indicators} /> : null}
-          <Transfers rows={transfersFor(selected.address, transfers.data ?? [])} />
+          <Transfers resource={transfers} rows={transfersFor(selected.address, transfers.data ?? [])} />
         </>
       )}
     </section>
@@ -149,11 +155,23 @@ function Indicators({ indicators }: { indicators: ActivityIndicators }) {
   );
 }
 
-function CashOutSection({ events, chain }: { events: CashOutView[]; chain: string }) {
+function CashOutSection({
+  events,
+  chain,
+  resource,
+}: {
+  events: CashOutView[];
+  chain: string;
+  /** The cash-out list: a failed read must not look like "no indicators". */
+  resource: Resource<CashOutView[]>;
+}) {
   return (
     <section aria-labelledby="cashout-title" className="stack">
       <h3 id="cashout-title">{pl.activity.sections.cashOut}</h3>
-      {events.length === 0 ? (
+      {resourceIssue(resource) === 'stale' ? <StaleNotice resource={resource} /> : null}
+      {events.length === 0 && resourceIssue(resource) === 'unavailable' ? (
+        <ErrorState title={pl.common.unavailable} error={resource.error} onRetry={resource.reload} />
+      ) : events.length === 0 ? (
         <EmptyState text={pl.activity.empty.cashOut} />
       ) : (
         <ol className="plain-list stack">
@@ -310,11 +328,22 @@ function Swaps({ indicators }: { indicators: ActivityIndicators }) {
   );
 }
 
-function Transfers({ rows }: { rows: ReturnType<typeof transfersFor> }) {
+function Transfers({
+  resource,
+  rows,
+}: {
+  resource: Resource<NormalizedTransfer[]>;
+  rows: ReturnType<typeof transfersFor>;
+}) {
   return (
     <section className="stack">
       <KindBlock kind="fact" title={pl.activity.sections.transfers}>
-        {rows.length === 0 ? (
+        {resourceIssue(resource) === 'stale' ? <StaleNotice resource={resource} /> : null}
+        {resourceIssue(resource) === 'unavailable' ? (
+          <ErrorState title={pl.common.unavailable} error={resource.error} onRetry={resource.reload} />
+        ) : resource.data === undefined ? (
+          <LoadingState />
+        ) : rows.length === 0 ? (
           <EmptyState text={pl.activity.empty.transfers} />
         ) : (
           <div className="table-wrap">

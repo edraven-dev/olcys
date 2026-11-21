@@ -4,6 +4,7 @@ import type {
   Capture,
   ExclusionRuleId,
   ExtractionResult,
+  Observation,
   OnlineAccount,
 } from '@olcys/core';
 import { CandidateSnippet } from '../../components/evidence.tsx';
@@ -15,6 +16,9 @@ import {
   Icon,
   KindBlock,
   LoadingState,
+  ResourceNotices,
+  resourceIssue,
+  StaleNotice,
   Verbatim,
 } from '../../components/ui.tsx';
 import { pl } from '../../i18n/pl.ts';
@@ -34,7 +38,14 @@ import { formatNumber, formatProbability } from '../../lib/format.ts';
 import { Link, routePath } from '../../lib/router.tsx';
 import { useList, useOptionalList } from '../../lib/use-api.ts';
 import type { RunScope } from '../run/RunPage.tsx';
-import { nonAsciiCodepoints, reasonCode, rejectedCandidates, splitNonAscii } from './rejected-model.ts';
+import {
+  describeMentions,
+  nonAsciiCodepoints,
+  reasonCode,
+  rejectedCandidates,
+  splitNonAscii,
+  type MentionView,
+} from './rejected-model.ts';
 
 const OUTCOME_TONE: Record<ExclusionView['outcome'], string> = {
   excluded: 'critical',
@@ -50,12 +61,13 @@ export function RejectedTab({ scope }: { scope: RunScope }) {
   const captures = useList<Capture>(apiPaths.runList(run.id, 'captures'), { version });
   const candidates = useList<AddressCandidate>(apiPaths.runList(run.id, 'candidates'), { version });
   const accounts = useList<OnlineAccount>(apiPaths.runList(run.id, 'accounts'), { version });
+  const observations = useList<Observation>(apiPaths.runList(run.id, 'observations'), { version });
   const cashOuts = useList<CashOutView>(apiPaths.runList(run.id, 'cash-outs'), { version });
   const extractions = useOptionalList<ExtractionResult>(apiPaths.runList(run.id, 'extractions'), { version });
   const labels = useOptionalList<AddressLabel>(apiPaths.labels);
 
-  const failed = [exclusions, links].find((r) => r.error);
-  if (failed) return <ErrorState title={pl.rejected.loadError} error={failed.error} onRetry={failed.reload} />;
+  const missing = [exclusions, links].find((r) => r.data === undefined && r.error);
+  if (missing) return <ErrorState title={pl.rejected.loadError} error={missing.error} onRetry={missing.reload} />;
   if (!exclusions.data || !links.data) return <LoadingState />;
 
   const decisions = [...exclusions.data].toSorted(
@@ -76,7 +88,24 @@ export function RejectedTab({ scope }: { scope: RunScope }) {
   const accountById = new Map((accounts.data ?? []).map((a) => [a.id, a]));
   const labelList = labels.data ?? [];
 
-  const mentionsOf = (key: string) => (candidates.data ?? []).filter((c) => keyOf(c.address) === key);
+  const subjectHandles = new Set(
+    [
+      ...(scope.kase?.identifiers ?? []).map((i) => i.value),
+      ...links.data
+        .filter((l) => !isRejectedLink(l, excluded))
+        .flatMap((l) => l.paths.map((p) => (p.accountId ? accountById.get(p.accountId)?.handle : undefined))),
+    ]
+      .filter((v): v is string => Boolean(v))
+      .map((v) => v.toLowerCase()),
+  );
+  const mentionsOf = (key: string) =>
+    describeMentions(
+      (candidates.data ?? []).filter((c) => keyOf(c.address) === key),
+      observations.data ?? [],
+      accounts.data ?? [],
+      captureById,
+      subjectHandles,
+    );
   const labelsOf = (decision: ExclusionView) =>
     labelList.filter(
       (label) =>
@@ -99,6 +128,9 @@ export function RejectedTab({ scope }: { scope: RunScope }) {
           })}
         </p>
       </div>
+      <ResourceNotices
+        resources={[exclusions, links, captures, candidates, accounts, observations, cashOuts, labels]}
+      />
 
       <section aria-labelledby="rej-rules" className="stack">
         <h3 id="rej-rules">{pl.rejected.sections.rules}</h3>
@@ -221,8 +253,10 @@ export function RejectedTab({ scope }: { scope: RunScope }) {
 
       <section aria-labelledby="rej-candidates" className="stack">
         <h3 id="rej-candidates">{pl.rejected.sections.candidates}</h3>
-        {extractions.error ? <ErrorState error={extractions.error} onRetry={extractions.reload} /> : null}
-        {rejected.length === 0 ? (
+        {resourceIssue(extractions) === 'stale' ? <StaleNotice resource={extractions} /> : null}
+        {resourceIssue(extractions) === 'unavailable' ? (
+          <ErrorState title={pl.common.unavailable} error={extractions.error} onRetry={extractions.reload} />
+        ) : rejected.length === 0 ? (
           <EmptyState text={pl.rejected.empty.candidates} />
         ) : (
           <div className="table-wrap">
@@ -288,21 +322,39 @@ export function RejectedTab({ scope }: { scope: RunScope }) {
   );
 }
 
-function Mentions({ mentions, captures }: { mentions: AddressCandidate[]; captures: ReadonlyMap<string, Capture> }) {
+/** Where the address was mentioned (facts): source page, author and whether it is a third party's statement. */
+export function Mentions({
+  mentions,
+  captures,
+}: {
+  mentions: readonly MentionView[];
+  captures: ReadonlyMap<string, Capture>;
+}) {
   if (mentions.length === 0) return null;
   return (
-    <KindBlock kind="fact" title={pl.evidence.title} headingLevel={4}>
-      <ul className="plain-list">
-        {mentions.map((mention) => {
-          const capture = captures.get(mention.captureId);
+    <KindBlock kind="fact" title={pl.rejected.mentionedIn} headingLevel={4}>
+      <ul className="plain-list stack">
+        {mentions.map(({ candidate, author, thirdParty }) => {
+          const capture = captures.get(candidate.captureId);
+          const cues = candidate.context.roleCues.map((cue) => lookup(pl.roleCues, cue) ?? cue);
           return (
-            <li key={mention.id}>
+            <li key={candidate.id}>
               {capture ? (
                 <p className="small">
                   <AddressText value={capture.url} truncate /> · <DateTime iso={capture.collectedAt} />
                 </p>
               ) : null}
-              <CandidateSnippet candidate={mention} />
+              <p className="small">
+                {author ? t(pl.rejected.mentionAuthor, { author }) : pl.rejected.mentionAuthorUnknown}{' '}
+                {thirdParty ? (
+                  <span className="badge tone-warning">
+                    <Icon name="warn" />
+                    {pl.rejected.mentionThirdParty}
+                  </span>
+                ) : null}
+              </p>
+              {cues.length > 0 ? <p className="muted small">{t(pl.rejected.cues, { cues: cues.join(', ') })}</p> : null}
+              <CandidateSnippet candidate={candidate} />
             </li>
           );
         })}
@@ -311,7 +363,7 @@ function Mentions({ mentions, captures }: { mentions: AddressCandidate[]; captur
   );
 }
 
-function DecisionCard({
+export function DecisionCard({
   decision,
   labels,
   mentions,
@@ -321,7 +373,7 @@ function DecisionCard({
 }: {
   decision: ExclusionView;
   labels: AddressLabel[];
-  mentions: AddressCandidate[];
+  mentions: MentionView[];
   captures: ReadonlyMap<string, Capture>;
   cashOuts: CashOutView[];
   scope: RunScope;
@@ -435,7 +487,8 @@ function DecisionCard({
       {isDeposit ? (
         <KindBlock kind="inference" headingLevel={4}>
           <p>{pl.rejected.custodialNote}</p>
-          {evidence.kycLead !== false && mentions.length > 0 ? <p>{pl.rejected.kycLead}</p> : null}
+          {/* Only the analysis engine decides that the subject published the address (a KYC lead). */}
+          {evidence.kycLead === true ? <p>{pl.rejected.kycLead}</p> : null}
           {cashOuts.map((event) => (
             <p key={event.id}>
               <Link to={activityPath(event.id)}>{pl.rejected.cashOutLink}</Link>

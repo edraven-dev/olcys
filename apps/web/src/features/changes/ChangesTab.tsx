@@ -1,6 +1,15 @@
 import type { Capture, RunWithProgress, SourceId } from '@olcys/core';
 import { CaptureCard } from '../../components/evidence.tsx';
-import { CopyButton, EmptyState, ErrorState, Icon, KindBlock, LoadingState, Verbatim } from '../../components/ui.tsx';
+import {
+  Async,
+  CopyButton,
+  EmptyState,
+  Icon,
+  KindBlock,
+  LoadingState,
+  ResourceNotices,
+  Verbatim,
+} from '../../components/ui.tsx';
 import { pl } from '../../i18n/pl.ts';
 import { lookup, plural, t } from '../../i18n/t.ts';
 import { apiPaths } from '../../lib/api.ts';
@@ -47,15 +56,15 @@ export function ChangesTab({ scope }: { scope: RunScope }) {
               {t(pl.changes.unavailable, { sources: unavailable.map((id) => names.get(id) ?? id).join(', ') })}
             </p>
           ) : null}
-          {changes.error ? (
-            <ErrorState title={pl.changes.loadError} error={changes.error} onRetry={changes.reload} />
-          ) : !changes.data ? (
-            <LoadingState />
-          ) : changes.data.length === 0 ? (
-            <EmptyState text={pl.changes.none} />
-          ) : (
-            <ChangeGroups changes={changes.data} names={names} />
-          )}
+          <ResourceNotices resources={[previous, captures, sources]} />
+          <Async
+            resource={changes}
+            errorTitle={pl.changes.loadError}
+            isEmpty={(list) => list.length === 0}
+            emptyText={pl.changes.none}
+          >
+            {(list) => <ChangeGroups changes={list} names={names} />}
+          </Async>
         </>
       )}
     </section>

@@ -45,6 +45,11 @@ pnpm vitest run --project @olcys/web
 - **Dane częściowe.** Brakujące pola opcjonalne nie psują widoku: przedział wyniku jest wyliczany z wartości, gdy
   silnik go nie podał; synergia śladów jest wyprowadzana ze ścieżek; brak tras `/api/runs/:id/extractions` lub
   `/api/labels` oznacza pustą sekcję.
+- **Błędy odczytu są widoczne.** Nieudane odświeżenie zostawia poprzednie dane z ostrzeżeniem (czas danych i
+  „Spróbuj ponownie”); sekcja bez danych z powodu błędu jest oznaczona jako niedostępna — nigdy jako pusty wynik.
+- **Wzmianki bez domysłów.** Przy odrzuconym adresie konsola pokazuje, gdzie i przez kogo adres był wspomniany
+  (wzmianki stron trzecich są oznaczone); trop KYC pojawia się tylko wtedy, gdy silnik analizy ustalił, że adres
+  opublikowała sama osoba (`evidence.kycLead`).
 - **Dostępność.** Nawigacja klawiaturą, etykiety wszystkich pól, odnośnik „Przejdź do treści”, komunikaty o postępie
   w regionie `aria-live`, tabele z nagłówkami, układ działający na szerokości telefonu, motyw jasny i ciemny.
 - **Tylko typy z `@olcys/core`.** Do przeglądarki nie trafia kod serwera; lokalne listy (sieci, etapy) są

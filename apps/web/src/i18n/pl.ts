@@ -22,6 +22,7 @@ import type {
   IdentifierKind,
   IndicatorStrength,
   Relation,
+  RoleCue,
   RunStatus,
   RunStep,
   RunTrigger,
@@ -61,6 +62,9 @@ export const pl = {
     fullValue: 'Pełna wartość: {value}',
     notAvailable: 'brak danych',
     sha256: 'SHA-256',
+    stale: 'Nie udało się odświeżyć danych — wyświetlane są dane z {time}.',
+    unavailable: 'Sekcja niedostępna (błąd odczytu danych).',
+    unavailableShort: 'błąd odczytu',
   },
   kinds: {
     legend: 'Rodzaje informacji w wynikach',
@@ -200,6 +204,10 @@ export const pl = {
     cancel: 'Anuluj',
     submitting: 'Zapisywanie…',
     fixErrors: 'Popraw zaznaczone pola formularza.',
+    createdRunFailed:
+      'Sprawa została zapisana, ale nie udało się uruchomić analizy. Ponowienie nie utworzy drugiej sprawy.',
+    retryRun: 'Ponów uruchomienie analizy',
+    openCase: 'Przejdź do zapisanej sprawy',
   },
   errors: {
     required: 'To pole jest wymagane.',
@@ -641,6 +649,11 @@ export const pl = {
     } satisfies Record<ExclusionRuleId, string>,
     kycLead: 'Trop KYC: osoba sama opublikowała ten adres depozytowy — giełda może wskazać klienta na wniosek.',
     custodialNote: 'Interakcja z giełdą — adres nie jest portfelem osoby.',
+    mentionedIn: 'Adres wspomniany w:',
+    mentionAuthor: 'Autor: {author}',
+    mentionAuthorUnknown: 'Autor nieustalony',
+    mentionThirdParty: 'wzmianka strony trzeciej — nie jest deklaracją osoby',
+    cues: 'Sygnały kontekstu: {cues}',
     cashOutLink: 'Zdarzenie wyjścia do walut tradycyjnych (B1) — zobacz zakładkę „Aktywność on-chain”',
     relationText: {
       THIRD_PARTY_ATTRIBUTION:
@@ -681,6 +694,17 @@ export const pl = {
       candidates: 'Brak kandydatów odrzuconych przy weryfikacji.',
     },
   },
+  roleCues: {
+    first_person_owner: 'wypowiedź o własności w 1. osobie',
+    payment_request: 'prośba o płatność',
+    donation: 'darowizna',
+    scam_report: 'zgłoszenie oszustwa',
+    warning: 'ostrzeżenie',
+    quote: 'cytat',
+    exchange_deposit: 'wpłata na giełdę',
+    listing: 'lista adresów',
+    unclear: 'niejasne',
+  } satisfies Record<RoleCue, string>,
   textViews: {
     visible_text: 'tekst widoczny',
     inline_joined: 'tekst sklejony z elementów',

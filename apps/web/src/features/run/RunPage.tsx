@@ -1,6 +1,6 @@
 import type { CaseWithIdentifiers, RunWithProgress } from '@olcys/core';
 import { useState } from 'react';
-import { Async, DateTime, Icon, RunStatusBadge, useDocumentTitle } from '../../components/ui.tsx';
+import { Async, DateTime, Icon, ResourceNotices, RunStatusBadge, useDocumentTitle } from '../../components/ui.tsx';
 import { pl } from '../../i18n/pl.ts';
 import { t } from '../../i18n/t.ts';
 import { apiPaths } from '../../lib/api.ts';
@@ -40,6 +40,7 @@ export function RunPage({ caseId, runId, tab }: { caseId: string; runId: string;
         <span aria-hidden="true"> › </span>
         <Link to={routePath({ name: 'case', caseId })}>{kase.data?.title ?? pl.common.loading}</Link>
       </nav>
+      <ResourceNotices resources={[kase]} />
       <Async resource={run} errorTitle={pl.run.loadError}>
         {(data) => {
           const scope: RunScope = {

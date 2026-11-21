@@ -1,5 +1,66 @@
 /** Pure helpers for the rejected-addresses panel. */
-import type { ExtractionResult, TextSpan, TextView } from '@olcys/core';
+import type {
+  AddressCandidate,
+  Capture,
+  ExtractionResult,
+  Observation,
+  OnlineAccount,
+  RoleCue,
+  TextSpan,
+  TextView,
+} from '@olcys/core';
+
+/** Context cues that mark a mention as someone else's statement (warnings, scam reports, quotes). */
+const THIRD_PARTY_CUES: ReadonlySet<RoleCue> = new Set(['scam_report', 'warning', 'quote']);
+
+export interface MentionView {
+  candidate: AddressCandidate;
+  /** Author of the post or owner of the profile page that contains the mention, when the sources show it. */
+  author?: string;
+  /** True when the mention is a third party's statement, not the subject's own declaration. */
+  thirdParty: boolean;
+}
+
+/**
+ * Author of a mention, from facts only: a `*.author` observation of the same capture (matched by the DOM anchor of
+ * the authored item when the page has several authors), otherwise the account whose profile page is the capture.
+ */
+export function mentionAuthor(
+  candidate: AddressCandidate,
+  observations: readonly Observation[],
+  accounts: readonly OnlineAccount[],
+  capture?: Pick<Capture, 'url' | 'finalUrl'>,
+): string | undefined {
+  const authors = observations.filter((o) => o.captureId === candidate.captureId && /(?:^|\.)author$/.test(o.property));
+  const anchor = /\d+/.exec(candidate.context.anchor ?? '')?.[0];
+  if (anchor) {
+    const match = authors.find((o) => o.locator.match(/\d+/g)?.includes(anchor));
+    if (match) return match.value;
+  }
+  const distinct = [...new Set(authors.map((o) => o.value))];
+  if (distinct.length > 0) return distinct.length === 1 ? distinct[0] : undefined;
+  if (!capture) return undefined;
+  return accounts.find((a) => a.profileUrl === capture.url || a.profileUrl === capture.finalUrl)?.handle;
+}
+
+/**
+ * Describes where an address was mentioned, neutrally: who wrote it and whether it is a third party's statement.
+ * Whether the subject published the address is decided by the analysis engine (`kycLead`), never inferred here.
+ */
+export function describeMentions(
+  candidates: readonly AddressCandidate[],
+  observations: readonly Observation[],
+  accounts: readonly OnlineAccount[],
+  captures: ReadonlyMap<string, Pick<Capture, 'url' | 'finalUrl'>>,
+  subjectHandles: ReadonlySet<string>,
+): MentionView[] {
+  return candidates.map((candidate) => {
+    const author = mentionAuthor(candidate, observations, accounts, captures.get(candidate.captureId));
+    const cue = candidate.context.roleCues.some((c) => THIRD_PARTY_CUES.has(c));
+    const otherAuthor = author !== undefined && !subjectHandles.has(author.toLowerCase());
+    return { candidate, ...(author !== undefined ? { author } : {}), thirdParty: cue || otherAuthor };
+  });
+}
 
 /** Stable reason code: the text before the first `:` (`checksum_invalid: bad bech32` → `checksum_invalid`). */
 export function reasonCode(reason: string): string {

@@ -1,10 +1,11 @@
 import type { Capture, EgressLogEntry, RunStep } from '@olcys/core';
 import {
   CaptureStatusBadge,
-  ErrorState,
   HashText,
   Icon,
   KindBlock,
+  ResourceNotices,
+  resourceIssue,
   Verbatim,
   type IconName,
 } from '../../components/ui.tsx';
@@ -24,7 +25,7 @@ import {
 } from '../../lib/domain.ts';
 import { formatInteger, formatPln, sumDecimals } from '../../lib/format.ts';
 import { Link, routePath, type RunTab } from '../../lib/router.tsx';
-import { useList } from '../../lib/use-api.ts';
+import { useList, type Resource } from '../../lib/use-api.ts';
 import type { RunScope } from './RunPage.tsx';
 import {
   currentStep,
@@ -139,6 +140,10 @@ function ResultTile({
   );
 }
 
+/** A count from a list that could not be read is "read error", never 0. */
+const shown = (resource: Resource<unknown>, value: string) =>
+  resourceIssue(resource) === 'unavailable' ? pl.common.unavailableShort : value;
+
 function ResultSummary({ scope }: { scope: RunScope }) {
   const { run, version } = scope;
   const done = isTerminal(run.status);
@@ -175,42 +180,40 @@ function ResultSummary({ scope }: { scope: RunScope }) {
             scope={scope}
             tab="links"
             label={pl.overview.resultLinks}
-            value={formatInteger(main.length)}
+            value={shown(links, formatInteger(main.length))}
             detail={t(pl.overview.resultLinksDetail, { high: main.filter((l) => l.score >= 60).length })}
           />
           <ResultTile
             scope={scope}
             tab="rejected"
             label={pl.overview.resultRejected}
-            value={formatInteger(rejected.size)}
+            value={shown(exclusions, shown(links, formatInteger(rejected.size)))}
           />
           <ResultTile
             scope={scope}
             tab="activity"
             label={pl.overview.resultCashOut}
-            value={formatInteger(cashOuts.data?.length ?? 0)}
+            value={shown(cashOuts, formatInteger(cashOuts.data?.length ?? 0))}
             detail={plnValues.length > 0 ? formatPln(sumDecimals(plnValues)) : undefined}
           />
           <ResultTile
             scope={scope}
             tab="sources"
             label={pl.overview.resultCaptures}
-            value={formatInteger(captures.data?.length ?? 0)}
+            value={shown(captures, formatInteger(captures.data?.length ?? 0))}
           />
           {run.previousRunId ? (
             <ResultTile
               scope={scope}
               tab="changes"
               label={pl.overview.resultChanges}
-              value={formatInteger(changes.data?.length ?? 0)}
+              value={shown(changes, formatInteger(changes.data?.length ?? 0))}
               detail={alerts > 0 ? t(pl.run.alertBadge, { count: alerts }) : undefined}
             />
           ) : null}
         </ul>
       </KindBlock>
-      {[links, exclusions, cashOuts, captures].some((r) => r.error) ? (
-        <ErrorState error={[links, exclusions, cashOuts, captures].find((r) => r.error)?.error} />
-      ) : null}
+      <ResourceNotices resources={[links, exclusions, cashOuts, captures, changes]} />
     </section>
   );
 }
@@ -264,7 +267,7 @@ function SourcesSummary({ scope }: { scope: RunScope }) {
   return (
     <section aria-labelledby="sources-summary-title" className="card">
       <h2 id="sources-summary-title">{pl.overview.sourcesTitle}</h2>
-      {captures.error ? <ErrorState error={captures.error} onRetry={captures.reload} /> : null}
+      <ResourceNotices resources={[captures, egress, sources]} />
       {summaries.length === 0 ? <p className="muted">{pl.overview.noSources}</p> : table(available)}
       {unavailable.length > 0 ? (
         <div className="notice">

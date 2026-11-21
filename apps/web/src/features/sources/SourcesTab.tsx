@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { CaptureFiles } from '../../components/evidence.tsx';
 import {
   AddressText,
+  Async,
   CaptureStatusBadge,
   DateTime,
   EmptyState,
@@ -11,6 +12,9 @@ import {
   Icon,
   KindBlock,
   LoadingState,
+  ResourceNotices,
+  resourceIssue,
+  StaleNotice,
   Verbatim,
 } from '../../components/ui.tsx';
 import { pl } from '../../i18n/pl.ts';
@@ -18,9 +22,11 @@ import { lookup, t } from '../../i18n/t.ts';
 import { apiPaths } from '../../lib/api.ts';
 import type { SourceItem } from '../../lib/domain.ts';
 import { formatBytes } from '../../lib/format.ts';
-import { useList } from '../../lib/use-api.ts';
+import { useList, type Resource } from '../../lib/use-api.ts';
 import type { RunScope } from '../run/RunPage.tsx';
 import { egressSummary } from '../run/run-model.ts';
+
+const isEmptyList = (list: readonly unknown[]) => list.length === 0;
 
 export function SourcesTab({ scope }: { scope: RunScope }) {
   const { run, version } = scope;
@@ -38,159 +44,149 @@ export function SourcesTab({ scope }: { scope: RunScope }) {
         <h2 id="sources-title">{pl.sources.title}</h2>
         <p>{pl.sources.intro}</p>
       </div>
+      <ResourceNotices resources={[sources]} />
 
       <KindBlock kind="fact" title={pl.sources.capturesTitle}>
-        {captures.error ? (
-          <ErrorState title={pl.sources.loadError} error={captures.error} onRetry={captures.reload} />
-        ) : !captures.data ? (
-          <LoadingState />
-        ) : captures.data.length === 0 ? (
-          <EmptyState text={pl.sources.noCaptures} />
-        ) : (
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th scope="col">{pl.sources.captureColumns.source}</th>
-                  <th scope="col">{pl.sources.captureColumns.url}</th>
-                  <th scope="col">{pl.sources.captureColumns.collectedAt}</th>
-                  <th scope="col">{pl.sources.captureColumns.status}</th>
-                  <th scope="col">{pl.sources.captureColumns.manifest}</th>
-                  <th scope="col">{pl.sources.captureColumns.files}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {captures.data.map((capture) => (
-                  <tr key={capture.id} id={`capture-${capture.id}`}>
-                    <td>{sourceName(capture.sourceId)}</td>
-                    <td className="break">
-                      <AddressText value={capture.url} />
-                    </td>
-                    <td>
-                      <DateTime iso={capture.collectedAt} />
-                    </td>
-                    <td>
-                      <CaptureStatusBadge status={capture.status} />
-                      <span className="muted small block">{t(pl.evidence.http, { code: capture.httpStatus })}</span>
-                    </td>
-                    <td>
-                      <HashText value={capture.manifestSha256} />
-                    </td>
-                    <td>
-                      <CaptureFiles capture={capture} />
-                    </td>
+        <Async resource={captures} isEmpty={isEmptyList} emptyText={pl.sources.noCaptures}>
+          {(list) => (
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th scope="col">{pl.sources.captureColumns.source}</th>
+                    <th scope="col">{pl.sources.captureColumns.url}</th>
+                    <th scope="col">{pl.sources.captureColumns.collectedAt}</th>
+                    <th scope="col">{pl.sources.captureColumns.status}</th>
+                    <th scope="col">{pl.sources.captureColumns.manifest}</th>
+                    <th scope="col">{pl.sources.captureColumns.files}</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                </thead>
+                <tbody>
+                  {list.map((capture) => (
+                    <tr key={capture.id} id={`capture-${capture.id}`}>
+                      <td>{sourceName(capture.sourceId)}</td>
+                      <td className="break">
+                        <AddressText value={capture.url} />
+                      </td>
+                      <td>
+                        <DateTime iso={capture.collectedAt} />
+                      </td>
+                      <td>
+                        <CaptureStatusBadge status={capture.status} />
+                        <span className="muted small block">{t(pl.evidence.http, { code: capture.httpStatus })}</span>
+                      </td>
+                      <td>
+                        <HashText value={capture.manifestSha256} />
+                      </td>
+                      <td>
+                        <CaptureFiles capture={capture} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Async>
       </KindBlock>
 
       <KindBlock kind="fact" title={pl.sources.observationsTitle}>
-        {!observations.data ? (
-          observations.error ? (
-            <ErrorState error={observations.error} onRetry={observations.reload} />
-          ) : (
-            <LoadingState />
-          )
-        ) : observations.data.length === 0 ? (
-          <EmptyState text={pl.sources.noObservations} />
-        ) : (
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th scope="col">{pl.sources.observationColumns.property}</th>
-                  <th scope="col">{pl.sources.observationColumns.value}</th>
-                  <th scope="col">{pl.sources.observationColumns.locator}</th>
-                  <th scope="col">{pl.sources.observationColumns.capture}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {observations.data.map((o) => (
-                  <tr key={o.id}>
-                    <td>
-                      {lookup(pl.changes.properties, o.property) ?? null} <Verbatim>{o.property}</Verbatim>
-                    </td>
-                    <td className="break">
-                      <AddressText value={o.value} truncate />
-                    </td>
-                    <td className="break">
-                      <Verbatim>{o.locator}</Verbatim>
-                    </td>
-                    <td>
-                      <a href={`#capture-${o.captureId}`}>{t(pl.sources.toCapture, { id: o.captureId.slice(0, 8) })}</a>
-                    </td>
+        <Async resource={observations} isEmpty={isEmptyList} emptyText={pl.sources.noObservations}>
+          {(list) => (
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th scope="col">{pl.sources.observationColumns.property}</th>
+                    <th scope="col">{pl.sources.observationColumns.value}</th>
+                    <th scope="col">{pl.sources.observationColumns.locator}</th>
+                    <th scope="col">{pl.sources.observationColumns.capture}</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                </thead>
+                <tbody>
+                  {list.map((o) => (
+                    <tr key={o.id}>
+                      <td>
+                        {lookup(pl.changes.properties, o.property) ?? null} <Verbatim>{o.property}</Verbatim>
+                      </td>
+                      <td className="break">
+                        <AddressText value={o.value} truncate />
+                      </td>
+                      <td className="break">
+                        <Verbatim>{o.locator}</Verbatim>
+                      </td>
+                      <td>
+                        <a href={`#capture-${o.captureId}`}>
+                          {t(pl.sources.toCapture, { id: o.captureId.slice(0, 8) })}
+                        </a>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Async>
       </KindBlock>
 
       <KindBlock kind="fact" title={pl.sources.accountsTitle}>
-        {!accounts.data ? (
-          <LoadingState />
-        ) : accounts.data.length === 0 ? (
-          <EmptyState text={pl.sources.noAccounts} />
-        ) : (
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th scope="col">{pl.sources.accountColumns.platform}</th>
-                  <th scope="col">{pl.sources.accountColumns.handle}</th>
-                  <th scope="col">{pl.sources.accountColumns.profile}</th>
-                  <th scope="col">{pl.sources.accountColumns.via}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {accounts.data.map((a) => (
-                  <tr key={a.id}>
-                    <td>{a.platform}</td>
-                    <td>
-                      <code className="mono">{a.handle}</code>
-                    </td>
-                    <td className="break">
-                      <AddressText value={a.profileUrl} truncate />
-                    </td>
-                    <td>{lookup(pl.discovery, a.discoveredVia.method) ?? a.discoveredVia.method}</td>
+        <Async resource={accounts} isEmpty={isEmptyList} emptyText={pl.sources.noAccounts}>
+          {(list) => (
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th scope="col">{pl.sources.accountColumns.platform}</th>
+                    <th scope="col">{pl.sources.accountColumns.handle}</th>
+                    <th scope="col">{pl.sources.accountColumns.profile}</th>
+                    <th scope="col">{pl.sources.accountColumns.via}</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                </thead>
+                <tbody>
+                  {list.map((a) => (
+                    <tr key={a.id}>
+                      <td>{a.platform}</td>
+                      <td>
+                        <code className="mono">{a.handle}</code>
+                      </td>
+                      <td className="break">
+                        <AddressText value={a.profileUrl} truncate />
+                      </td>
+                      <td>{lookup(pl.discovery, a.discoveredVia.method) ?? a.discoveredVia.method}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Async>
       </KindBlock>
 
-      <EgressLog entries={egress.data} error={egress.error} reload={egress.reload} sourceName={sourceName} />
+      <EgressLog resource={egress} sourceName={sourceName} />
     </section>
   );
 }
 
 export function EgressLog({
-  entries,
-  error,
-  reload,
+  resource,
   sourceName,
 }: {
-  entries: EgressLogEntry[] | undefined;
-  error?: unknown;
-  reload?: () => void;
+  resource: Resource<EgressLogEntry[]>;
   sourceName: (id: string) => string;
 }) {
   const [onlyDisclosed, setOnlyDisclosed] = useState(false);
   const [onlyDenied, setOnlyDenied] = useState(false);
+  const entries = resource.data;
   const rows = (entries ?? []).filter((e) => (!onlyDisclosed || e.containsIdentifier) && (!onlyDenied || !e.allowed));
   return (
     <section aria-labelledby="egress-title" className="card stack">
       <h3 id="egress-title">{pl.egress.title}</h3>
       <p className="muted">{pl.egress.description}</p>
-      {error ? <ErrorState error={error} onRetry={reload} /> : null}
+      {resourceIssue(resource) === 'stale' ? <StaleNotice resource={resource} /> : null}
       {!entries ? (
-        error ? null : (
+        resource.error ? (
+          <ErrorState title={pl.common.unavailable} error={resource.error} onRetry={resource.reload} />
+        ) : (
           <LoadingState />
         )
       ) : entries.length === 0 ? (
