@@ -46,11 +46,17 @@ export async function createFixtureServer(options: FixtureServerOptions): Promis
   let variant = options.variant;
   let routes: FixtureRoute[] = await loadRoutes(options.root, variant);
 
-  const send = (res: ServerResponse, status: number, headers: Record<string, string>, body?: string | Buffer) => {
+  const send = (
+    res: ServerResponse,
+    status: number,
+    headers: Record<string, string>,
+    body?: string | Buffer,
+    served: Variant = variant,
+  ) => {
     res.writeHead(status, {
       'cache-control': 'no-store',
       'x-olcys-synthetic': 'true',
-      'x-olcys-fixture-variant': variant,
+      'x-olcys-fixture-variant': served,
       ...headers,
     });
     res.end(body);
@@ -77,16 +83,25 @@ export async function createFixtureServer(options: FixtureServerOptions): Promis
       return send(res, 405, { ...text, allow: 'GET, HEAD' }, 'method not allowed');
     if (url.pathname === '/healthz') return send(res, 200, text, `ok ${variant}`);
 
-    const resolved = await resolveRequest(options.root, variant, routes, url.pathname, url.search.replace(/^\?/, ''));
+    // One variant per request: a concurrent switch must not mix files of one variant with the header of another.
+    const served = variant;
+    const servedRoutes = routes;
+    const resolved = await resolveRequest(
+      options.root,
+      served,
+      servedRoutes,
+      url.pathname,
+      url.search.replace(/^\?/, ''),
+    );
     if (!resolved) return send(res, 404, text, 'not found');
-    if (!resolved.file) return send(res, resolved.status, resolved.headers, method === 'HEAD' ? undefined : '');
+    if (!resolved.file) return send(res, resolved.status, resolved.headers, method === 'HEAD' ? undefined : '', served);
     const body = await readFile(resolved.file);
     const headers = {
       'content-type': MIME[extname(resolved.file)] ?? 'application/octet-stream',
       'content-length': String(body.byteLength),
       ...resolved.headers,
     };
-    return send(res, resolved.status, headers, method === 'HEAD' ? undefined : body);
+    return send(res, resolved.status, headers, method === 'HEAD' ? undefined : body, served);
   }
 
   const server = createServer((req, res) => {

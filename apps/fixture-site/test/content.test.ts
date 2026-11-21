@@ -4,6 +4,7 @@ import { join, relative, resolve } from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
 import type { PersonaManifest } from '../src/manifest.ts';
 import { check, pathsFor } from '../scripts/generate.ts';
+import { verifyBip137 } from '../scripts/lib/crypto.ts';
 
 const APP = resolve(import.meta.dirname, '..');
 const REPO = resolve(APP, '..', '..');
@@ -96,6 +97,27 @@ describe('committed fixtures', () => {
     );
     const docVectors = [...tree].filter(([, text]) => text.includes('bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4'));
     expect(docVectors.every(([path]) => /topic-5500002|showposts-900001|manifest\.json/.test(path))).toBe(true);
+  });
+
+  it('carry valid committed signatures and test vectors', async () => {
+    const sig = manifest.signedMessages[0]!;
+    expect(verifyBip137(manifest.addresses['BTC-1']!.address, sig.message, sig.signature)).toBe('valid');
+    expect(tree.get('apps/fixture-site/public/shared/bitcointalk/topic-5500001.html')).toContain(sig.signature);
+    const { vectors } = JSON.parse(await readFile(join(REPO, 'fixtures/persona/test-vectors.json'), 'utf8')) as {
+      vectors: {
+        id: string;
+        address: string;
+        message: string;
+        signature: string;
+        expected: string;
+        normalise?: string;
+      }[];
+    };
+    const outcomes = vectors.map((v) => [
+      v.id,
+      verifyBip137(v.address, v.normalise ? v.message.replaceAll('\r\n', '\n') : v.message, v.signature),
+    ]);
+    expect(outcomes).toEqual(vectors.map((v) => [v.id, v.expected]));
   });
 
   it('serve from src/ with Node built-ins only (no node_modules in the container)', async () => {

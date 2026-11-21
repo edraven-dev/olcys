@@ -6,3 +6,4 @@ export { createDb, iso, json, type Db } from './client.ts';
 export { migrate, migrationStatus, MIGRATIONS_DIR, type MigrationStatus } from './migrate.ts';
 export type * from './schema.ts';
 export * from './sql/index.ts';
+export { createMemoryRepositories } from './memory.ts';
