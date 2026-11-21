@@ -181,6 +181,8 @@ beforeAll(async () => {
       ...(await evaluateExclusions(
         {
           address: candidate,
+          // the explicit resolution of an evm:unknown candidate (transfers never cross chains otherwise)
+          ...(candidate.chain === 'evm:unknown' ? { resolved } : {}),
           ...(code ? { classification: classifyAddressType(resolved, code.code, [code.fetchId]) } : {}),
           transfers: transfersOf(resolved, fetched.transfers),
           published: published.has(candidate.address),
@@ -189,13 +191,13 @@ beforeAll(async () => {
       )),
     );
   }
-  const analysed = candidates
-    .filter(
-      (c) =>
-        effectiveOutcome(decisions.filter((d) => d.address.address.toLowerCase() === c.address.toLowerCase()))
-          .outcome !== 'excluded',
-    )
-    .map(resolvedOf);
+  const kept = candidates.filter(
+    (c) =>
+      effectiveOutcome(decisions.filter((d) => d.address.address.toLowerCase() === c.address.toLowerCase())).outcome !==
+      'excluded',
+  );
+  const analysed = kept.map(resolvedOf);
+  const requestedOf = new Map(kept.map((c) => [addressKey(resolvedOf(c)), c]));
 
   // 3. One-hop expansion of unlabelled recipients (deposit addresses show themselves by their sweeps).
   const assets = createAssetRegistry();
@@ -243,6 +245,9 @@ beforeAll(async () => {
       await analyseAddress(
         {
           address: a,
+          ...(requestedOf.get(addressKey(a))?.chain === 'evm:unknown'
+            ? { requested: requestedOf.get(addressKey(a)) }
+            : {}),
           transfers: transfersOf(a, fetched.transfers),
           utxoTxs: fetched.utxoTxs.filter((tx) => [...tx.inputs, ...tx.outputs].some((io) => io.address === a.address)),
           decisions,

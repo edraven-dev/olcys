@@ -17,7 +17,7 @@ import { apiKeyOf, type ChainProviderConfig, type ProviderDeps } from './config.
 import { ChainProviderError } from './errors.ts';
 import { integerText, isRecord } from './json.ts';
 import { CircuitBreaker, requestJson, type ChainRequest } from './request.ts';
-import { baseUnitsToDecimal, decodeCursor, encodeCursor } from './units.ts';
+import { baseUnitsToDecimal, contentIndex, decodeCursor, encodeCursor, occurrences } from './units.ts';
 
 /** Tether USD on TRON. Identify USDT by contract, never by symbol (fake "USDT" tokens exist). */
 export const USDT_TRC20 = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t';
@@ -41,15 +41,16 @@ interface Trc20Item {
 
 /** Pure mapping of TRC-20 list items; only `Transfer` events move value. */
 export function mapTrc20Items(items: readonly Trc20Item[], fetchId: string): NormalizedTransfer[] {
-  const ordinal = new Map<string, number>();
+  const occurrence = occurrences();
   const out: NormalizedTransfer[] = [];
   for (const item of items) {
     if (item.type !== undefined && item.type !== 'Transfer') continue;
-    const index = ordinal.get(item.transaction_id) ?? 0;
-    ordinal.set(item.transaction_id, index + 1);
     const decimals = Number(item.token_info?.decimals);
     const value = integerText(item.value);
     if (!Number.isInteger(decimals) || value === undefined) continue;
+    // TRC-20 items carry no log index: a content-based index stays the same across pages and listings.
+    const key = [item.transaction_id, item.token_info?.address ?? '', item.from, item.to, value].join('|');
+    const index = contentIndex([key, occurrence(key)]);
     out.push({
       chain: 'tron',
       txHash: item.transaction_id,

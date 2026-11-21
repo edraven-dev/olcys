@@ -48,6 +48,11 @@ export interface AnalyticsDeps {
 export interface AddressAnalysisInput {
   /** The analysed address on its concrete chain (an `evm:unknown` candidate resolved by the chain fetch). */
   address: AddressRef;
+  /**
+   * The candidate as extracted, when it differs from `address` (an `evm:unknown` candidate that the chain fetch
+   * resolved): its own exclusion decisions then apply to `address`. Decisions never cross chains otherwise.
+   */
+  requested?: AddressRef;
   /** Fetched transfers; only legs of `address` are used. Bitcoin: the derived transfer view. */
   transfers: readonly NormalizedTransfer[];
   /** Bitcoin: the UTXO transactions (volumes are net per transaction). */
@@ -71,8 +76,16 @@ export interface Counterparty {
   /** `label`: a label on the address; `deposit_*`: an exchange deposit address (A4 decision or forwarding seen). */
   via: 'label' | 'deposit_decision' | 'deposit_forwarding';
   decisionId?: Id;
-  /** Deposit addresses: matched receive → sweep pairs. */
-  sweeps?: { receiveTx: string; forwardTx: string; forwardTo: string; kappa: number }[];
+  /** Deposit addresses: matched receive → sweep pairs, each with the exchange its sweep reached. */
+  sweeps?: {
+    receiveTx: string;
+    forwardTx: string;
+    forwardTo: string;
+    kappa: number;
+    entity?: string;
+    category?: EntityCategory;
+    labelId?: Id;
+  }[];
 }
 
 export const sameAddress = (chain: ChainId, a: string, b: string): boolean =>
@@ -83,7 +96,9 @@ export function createCounterpartyResolver(deps: AnalyticsDeps, input: AddressAn
   const deposits = new Map<string, Promise<Counterparty | undefined>>();
 
   async function forwardingOf(chain: ChainId, address: string): Promise<Counterparty | undefined> {
-    const transfers = input.counterpartyTransfers?.get(addressKey({ chain, address })) ?? [];
+    const transfers = (input.counterpartyTransfers?.get(addressKey({ chain, address })) ?? []).filter(
+      (t) => t.chain === chain,
+    );
     const key = (t: NormalizedTransfer) => assetKey(t.asset, deps.assets);
     const leg = (t: NormalizedTransfer): ForwardingLeg => ({ ...t, assetKey: key(t) });
     const receives: ForwardingLeg[] = [];
@@ -126,12 +141,21 @@ export function createCounterpartyResolver(deps: AnalyticsDeps, input: AddressAn
       labelId: target.label.id,
       ...(target.label.fiatCapable !== undefined ? { fiatCapable: target.label.fiatCapable } : {}),
       via: 'deposit_forwarding',
-      sweeps: pairs.map((p) => ({
-        receiveTx: p.receive.txHash,
-        forwardTx: p.forward.txHash,
-        forwardTo: forwards.find((f) => f.leg === p.forward)?.transfer.to ?? '',
-        kappa: p.kappa,
-      })),
+      sweeps: pairs.map((p) => {
+        const reached = forwards.find((f) => f.leg === p.forward);
+        const sweep: NonNullable<Counterparty['sweeps']>[number] = {
+          receiveTx: p.receive.txHash,
+          forwardTx: p.forward.txHash,
+          forwardTo: reached?.transfer.to ?? '',
+          kappa: p.kappa,
+        };
+        if (reached) {
+          sweep.entity = reached.label.entity;
+          sweep.category = reached.label.category;
+          sweep.labelId = reached.label.id;
+        }
+        return sweep;
+      }),
     };
   }
 
@@ -143,7 +167,7 @@ export function createCounterpartyResolver(deps: AnalyticsDeps, input: AddressAn
         (d) =>
           d.ruleId === 'A4' &&
           d.evidence.forwardsTo !== undefined &&
-          chainFamily(d.address.chain) === chainFamily(chain) &&
+          d.address.chain === chain &&
           sameAddress(chain, d.address.address, address),
       );
       const forwardsTo = decision?.evidence.forwardsTo;
@@ -156,12 +180,18 @@ export function createCounterpartyResolver(deps: AnalyticsDeps, input: AddressAn
               labelId: forwardsTo.labelId,
               via: 'deposit_decision',
               decisionId: decision.id,
-              sweeps: (decision.evidence.pairs ?? []).map((p) => ({
-                receiveTx: p.receiveTx,
-                forwardTx: p.forwardTx,
-                forwardTo: forwardsTo.address,
-                kappa: p.kappa,
-              })),
+              sweeps: (decision.evidence.pairs ?? []).map((p) => {
+                const reached = p.forwardsTo ?? forwardsTo;
+                return {
+                  receiveTx: p.receiveTx,
+                  forwardTx: p.forwardTx,
+                  forwardTo: reached.address,
+                  kappa: p.kappa,
+                  entity: reached.entity,
+                  category: reached.category,
+                  labelId: reached.labelId,
+                };
+              }),
             })
           : forwardingOf(chain, address);
       deposits.set(cacheKey, found);
@@ -201,6 +231,7 @@ export function legsOf(input: AddressAnalysisInput, deps: Pick<AnalyticsDeps, 'a
   const { chain, address } = input.address;
   const legs: Leg[] = [];
   for (const t of input.transfers) {
+    if (t.chain !== chain) continue; // transfers never cross chains
     const out = sameAddress(chain, t.from, address);
     const into = sameAddress(chain, t.to, address);
     if (out === into) continue;
@@ -286,6 +317,55 @@ export const SWAP_METHODS: ReadonlySet<string> = new Set([
  * counterparty or a swap method; (2) proceeds received from a DEX-labelled pool or router (`dex_inflow`, the sold leg
  * is not visible, e.g. TRX paid into a TRC-20 pool).
  */
+/** Net amount per asset of the address within one transaction (split payments are summed). */
+function netsByAsset(txLegs: readonly Leg[]): { asset: string; leg: Leg; net: DecimalString }[] {
+  const nets = new Map<string, { asset: string; leg: Leg; net: DecimalString }>();
+  for (const l of txLegs) {
+    const entry = nets.get(l.asset) ?? { asset: l.asset, leg: l, net: '0' };
+    entry.net = l.direction === 'in' ? dAdd(entry.net, l.transfer.amount) : dSub(entry.net, l.transfer.amount);
+    nets.set(l.asset, entry);
+  }
+  return [...nets.values()];
+}
+
+/** A leg of `amount` with the asset and time of `leg` (to value summed amounts). */
+const withAmount = (leg: Leg, amount: DecimalString): Leg => ({
+  transfer: Object.assign(structuredClone(leg.transfer), { amount }),
+  direction: leg.direction,
+  counterparty: leg.counterparty,
+  asset: leg.asset,
+});
+
+interface Side {
+  asset: string;
+  leg: Leg;
+  amount: DecimalString;
+}
+
+/** The asset side with the largest PLN value (unpriced sides last, then by amount). */
+async function largest(
+  sides: readonly Side[],
+  deps: AnalyticsDeps,
+  ctx: RunContext,
+): Promise<(Side & { valuation?: Valuation }) | undefined> {
+  const valued = await Promise.all(
+    sides.map(async (side) => {
+      const valuation = await valueLeg(withAmount(side.leg, side.amount), deps, ctx);
+      return valuation ? { asset: side.asset, leg: side.leg, amount: side.amount, valuation } : side;
+    }),
+  );
+  return valued.toSorted((a: Side & { valuation?: Valuation }, b: Side & { valuation?: Valuation }) => {
+    if (a.valuation && b.valuation) return dCmp(b.valuation.pln, a.valuation.pln);
+    if (a.valuation || b.valuation) return a.valuation ? -1 : 1;
+    return dCmp(b.amount, a.amount);
+  })[0];
+}
+
+/**
+ * DEX swaps: (1) the address's net outflow of asset A and net inflow of asset B in one transaction (legs summed per
+ * asset), confirmed by a DEX-labelled counterparty or a swap method; (2) proceeds received from a DEX-labelled pool or
+ * router (`dex_inflow`, the sold leg is not visible, e.g. TRX paid into a TRC-20 pool), summed per transaction.
+ */
 export async function detectSwaps(
   input: AddressAnalysisInput,
   legs: readonly Leg[],
@@ -297,10 +377,14 @@ export async function detectSwaps(
   const byTx = Map.groupBy(legs, (l) => l.transfer.txHash);
   const inSwapTx = new Set<string>();
   for (const [txHash, txLegs] of byTx) {
-    const ins = txLegs.filter((l) => l.direction === 'in' && dCmp(l.transfer.amount, '0') > 0);
-    const sold = txLegs.find((l) => l.direction === 'out' && dCmp(l.transfer.amount, '0') > 0);
-    const bought = ins.find((l) => l.asset !== sold?.asset);
-    if (!sold || !bought) continue;
+    const nets = netsByAsset(txLegs);
+    const soldSides = nets
+      .filter((n) => dCmp(n.net, '0') < 0)
+      .map((n): Side => ({ asset: n.asset, leg: n.leg, amount: dSub('0', n.net) }));
+    const boughtSides = nets
+      .filter((n) => dCmp(n.net, '0') > 0)
+      .map((n): Side => ({ asset: n.asset, leg: n.leg, amount: n.net }));
+    if (soldSides.length === 0 || boughtSides.length === 0) continue;
     let venue: string | undefined;
     let detection: SwapEvent['detection'];
     for (const l of txLegs) {
@@ -318,38 +402,44 @@ export async function detectSwaps(
       detection = 'method';
     }
     if (!detection) continue;
-    inSwapTx.add(txHash);
-    const info = deps.assets.resolve(bought.transfer.asset);
     // oxlint-disable-next-line no-await-in-loop
-    const valuation = await valueLeg(bought, deps, ctx);
+    const [sold, bought] = await Promise.all([largest(soldSides, deps, ctx), largest(boughtSides, deps, ctx)]);
+    if (!sold || !bought) continue;
+    inSwapTx.add(txHash);
     swaps.push({
       chain: input.address.chain,
       txHash,
-      at: bought.transfer.blockTime,
+      at: bought.leg.transfer.blockTime,
       ...(venue ? { venue } : {}),
-      sold: { asset: sold.asset, amount: sold.transfer.amount },
-      bought: { asset: bought.asset, amount: bought.transfer.amount },
-      intoStablecoin: info?.stablecoin !== undefined,
-      ...(valuation ? { valuation } : {}),
+      sold: { asset: sold.asset, amount: sold.amount },
+      bought: { asset: bought.asset, amount: bought.amount },
+      intoStablecoin: deps.assets.resolve(bought.leg.transfer.asset)?.stablecoin !== undefined,
+      ...(bought.valuation ? { valuation: bought.valuation } : {}),
       detection,
     });
   }
+  const inflows = new Map<string, { leg: Leg; amount: DecimalString; venue: string }>();
   for (const l of legs) {
     if (l.direction !== 'in' || inSwapTx.has(l.transfer.txHash)) continue;
     // oxlint-disable-next-line no-await-in-loop
     const cp = await resolver.resolve(input.address.chain, l.counterparty, l.transfer.blockTime);
     if (cp?.category !== 'defi_dex') continue;
-    const info = deps.assets.resolve(l.transfer.asset);
+    const key = `${l.transfer.txHash}|${l.asset}`;
+    const entry = inflows.get(key) ?? { leg: l, amount: '0', venue: cp.entity };
+    entry.amount = dAdd(entry.amount, l.transfer.amount);
+    inflows.set(key, entry);
+  }
+  for (const { leg, amount, venue } of inflows.values()) {
     // oxlint-disable-next-line no-await-in-loop
-    const valuation = await valueLeg(l, deps, ctx);
+    const valuation = await valueLeg(withAmount(leg, amount), deps, ctx);
     swaps.push({
       chain: input.address.chain,
-      txHash: l.transfer.txHash,
-      at: l.transfer.blockTime,
-      venue: cp.entity,
+      txHash: leg.transfer.txHash,
+      at: leg.transfer.blockTime,
+      venue,
       sold: { asset: 'UNKNOWN', amount: '0' },
-      bought: { asset: l.asset, amount: l.transfer.amount },
-      intoStablecoin: info?.stablecoin !== undefined,
+      bought: { asset: leg.asset, amount },
+      intoStablecoin: deps.assets.resolve(leg.transfer.asset)?.stablecoin !== undefined,
       ...(valuation ? { valuation } : {}),
       detection: 'dex_inflow',
     });

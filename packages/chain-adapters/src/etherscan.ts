@@ -20,7 +20,7 @@ import { apiKeyOf, type ChainProviderConfig, type ProviderDeps } from './config.
 import { ChainProviderError, type ChainErrorKind } from './errors.ts';
 import { isRecord } from './json.ts';
 import { CircuitBreaker, requestJson, type ChainRequest } from './request.ts';
-import { baseUnitsToDecimal, decodeCursor, encodeCursor, isoFromSeconds } from './units.ts';
+import { baseUnitsToDecimal, contentIndex, decodeCursor, encodeCursor, isoFromSeconds, occurrences } from './units.ts';
 
 export const ETHERSCAN_ATTRIBUTION = 'Powered by Etherscan.io APIs';
 const STREAMS = ['normal', 'internal', 'token'] as const;
@@ -72,6 +72,8 @@ interface Row {
   methodId?: string;
   functionName?: string;
   logIndex?: string;
+  /** Internal transactions: position in the call tree, unique within the transaction (e.g. `0_1_1`). */
+  traceId?: string;
   tokenSymbol?: string;
   tokenDecimal?: string;
 }
@@ -94,11 +96,11 @@ export function mapEtherscanRows(
   fetchId: Id,
 ): NormalizedTransfer[] {
   const native = nativeAsset(chain);
-  const ordinal = new Map<string, number>();
-  const nextOrdinal = (hash: string): number => {
-    const n = ordinal.get(hash) ?? 0;
-    ordinal.set(hash, n + 1);
-    return n;
+  const occurrence = occurrences();
+  // Rows without a log index get a content-based index: stable across pages, windows and listings.
+  const indexOf = (row: Row, extra: string): number => {
+    const key = [row.hash.toLowerCase(), extra, row.from.toLowerCase(), row.to.toLowerCase(), row.value].join('|');
+    return contentIndex([key, occurrence(key)]);
   };
   const out: NormalizedTransfer[] = [];
   for (const row of rows) {
@@ -123,8 +125,8 @@ export function mapEtherscanRows(
         ...(method ? { method } : {}),
       });
     } else if (stream === 'internal') {
-      const index = nextOrdinal(base.txHash);
       if (row.isError === '1' || /^0+$/.test(row.value)) continue;
+      const index = indexOf(row, `internal:${row.traceId ?? ''}`);
       out.push({
         ...base,
         index,
@@ -135,7 +137,9 @@ export function mapEtherscanRows(
       });
     } else {
       const index =
-        row.logIndex !== undefined && /^\d+$/.test(row.logIndex) ? Number(row.logIndex) : nextOrdinal(base.txHash);
+        row.logIndex !== undefined && /^\d+$/.test(row.logIndex)
+          ? Number(row.logIndex)
+          : indexOf(row, `token:${(row.contractAddress ?? '').toLowerCase()}`);
       const decimals = Number(row.tokenDecimal);
       // Zero-value token transfers are address-poisoning spam; a token without decimals cannot be valued.
       if (/^0+$/.test(row.value) || !Number.isInteger(decimals)) continue;
@@ -257,29 +261,33 @@ export function createEtherscanProvider(config: ChainProviderConfig, deps: Provi
         throw new ChainProviderError('invalid_response', config.id, 'expected a row list', { fetchId });
       }
       let rows = data.result as Row[];
-      let next: EtherscanCursor | undefined;
+      const following = STREAMS[STREAMS.indexOf(cursor.stream) + 1];
+      const nextStream: EtherscanCursor | undefined = following
+        ? { stream: following, startBlock: options.fromBlock ?? 0, endBlock: cursor.endBlock, page: 1 }
+        : undefined;
+      let next: EtherscanCursor | undefined = nextStream;
+      let truncated = false;
       if (rows.length >= pageSize) {
         if (cursor.page * pageSize >= windowRows) {
-          // Window full: restart at the last block and re-read that block whole in the new window.
           const lastBlock = Number(rows.at(-1)?.blockNumber);
-          if (rows.every((row) => Number(row.blockNumber) === lastBlock) || lastBlock <= cursor.startBlock) {
-            throw new ChainProviderError('window_exceeded', config.id, `block ${lastBlock} fills a whole window`, {
-              fetchId,
-            });
+          if (lastBlock > cursor.startBlock) {
+            // Window full: restart at the last block and re-read it whole there (stable indexes de-duplicate).
+            rows = rows.filter((row) => Number(row.blockNumber) !== lastBlock);
+            next = { ...cursor, startBlock: lastBlock, page: 1 };
+          } else {
+            // One block fills the whole window: keep what was read, report the gap, go on with the next stream.
+            truncated = true;
           }
-          rows = rows.filter((row) => Number(row.blockNumber) !== lastBlock);
-          next = { ...cursor, startBlock: lastBlock, page: 1 };
         } else {
           next = { ...cursor, page: cursor.page + 1 };
         }
-      } else {
-        const following = STREAMS[STREAMS.indexOf(cursor.stream) + 1];
-        if (following) {
-          next = { stream: following, startBlock: options.fromBlock ?? 0, endBlock: cursor.endBlock, page: 1 };
-        }
       }
       const items = mapEtherscanRows(cursor.stream, rows, address.chain, fetchId);
-      return { items, ...(next ? { nextCursor: encodeCursor(config.id, { ...next }) } : {}) };
+      return {
+        items,
+        ...(next ? { nextCursor: encodeCursor(config.id, { ...next }) } : {}),
+        ...(truncated ? { truncated: true } : {}),
+      };
     },
 
     async getCode(address: AddressRef, ctx: RunContext): Promise<{ code: string; fetchId: Id }> {

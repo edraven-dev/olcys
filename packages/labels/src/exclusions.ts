@@ -50,7 +50,12 @@ export interface AddressFacts {
   /** The candidate as extracted (may be `evm:unknown`). */
   address: AddressRef;
   classification?: AddressTypeClassification;
-  /** Transfers of the address (fetched chain data; may be on the resolved EVM chain). */
+  /**
+   * The concrete address the chain data was fetched on, for an `evm:unknown` candidate (the chain fetch's explicit
+   * resolution). Without it an `evm:unknown` candidate gets no transfer-based rule (A4).
+   */
+  resolved?: AddressRef;
+  /** Transfers of the address; only those on the address's (resolved) chain are used. */
   transfers: readonly NormalizedTransfer[];
   /** The address was published by an account of the case (not a third party): a deposit address is a KYC lead. */
   published: boolean;
@@ -134,13 +139,16 @@ async function a4(facts: AddressFacts, deps: ExclusionDeps): Promise<ExclusionDe
   const type = facts.classification?.type ?? 'unknown';
   if (!['eoa', 'delegated_eoa', 'contract', 'unknown'].includes(type)) return undefined;
   const self = facts.address.address;
-  const chain = facts.transfers[0]?.chain ?? facts.address.chain;
+  // Transfers never cross chains: an `evm:unknown` candidate is evaluated only on its explicitly resolved chain.
+  const chain = facts.address.chain === 'evm:unknown' ? facts.resolved?.chain : facts.address.chain;
+  if (chain === undefined || chain === 'evm:unknown') return undefined;
+  const transfers = facts.transfers.filter((t) => t.chain === chain);
 
   const receives: ForwardingLeg[] = [];
   const forwards: ForwardingLeg[] = [];
   const hotWallet = new Map<ForwardingLeg, { transfer: NormalizedTransfer; label: AddressLabel }>();
   const senders = new Map<ForwardingLeg, string>();
-  for (const t of facts.transfers) {
+  for (const t of transfers) {
     const incoming = sameAddress(chain, t.to, self) && !sameAddress(chain, t.from, self);
     const outgoing = sameAddress(chain, t.from, self) && !sameAddress(chain, t.to, self);
     if (incoming) {
@@ -150,7 +158,7 @@ async function a4(facts: AddressFacts, deps: ExclusionDeps): Promise<ExclusionDe
     } else if (outgoing) {
       // Sequential label lookups keep the decision deterministic; transfers per address are few in the MVP.
       // oxlint-disable-next-line no-await-in-loop
-      const labels = await deps.labels.labelsFor({ chain: t.chain, address: t.to }, t.blockTime);
+      const labels = await deps.labels.labelsFor({ chain, address: t.to }, t.blockTime);
       const exchange = labels.find((l) => l.category === 'exchange' && isDecidingService(l, deps.rules.a1.trustOrder));
       if (!exchange) continue;
       const l = leg(t);
@@ -173,23 +181,36 @@ async function a4(facts: AddressFacts, deps: ExclusionDeps): Promise<ExclusionDe
     reason: `A4: forwards received funds to the labelled exchange hot wallet ${target.transfer.to} ("${target.label.entity}"); ${pairs.length} pair(s), max kappa ${best.kappa}`,
     evidence: {
       kappa: best.kappa,
-      labelIds: [target.label.id],
+      labelIds: [...new Set(pairs.map((p) => hotWallet.get(p.forward)?.label.id ?? target.label.id))],
       txHashes: pairs.flatMap((p) => [p.receive.txHash, p.forward.txHash]),
-      fetchIds: [...new Set(facts.transfers.map((t) => t.fetchId))],
+      fetchIds: [...new Set(transfers.map((t) => t.fetchId))],
       forwardsTo: {
         address: target.transfer.to,
         entity: target.label.entity,
         category: target.label.category,
         labelId: target.label.id,
       },
-      pairs: pairs.map((p) => ({
-        receiveTx: p.receive.txHash,
-        forwardTx: p.forward.txHash,
-        amountIn: p.receive.amount,
-        amountOut: p.forward.amount,
-        delta: p.delta,
-        kappa: p.kappa,
-      })),
+      // Each pair keeps the hot wallet its own forward reached (one address may sweep to several exchanges).
+      pairs: pairs.map((p) => {
+        const reached = hotWallet.get(p.forward);
+        const pair: NonNullable<ExclusionDecision['evidence']['pairs']>[number] = {
+          receiveTx: p.receive.txHash,
+          forwardTx: p.forward.txHash,
+          amountIn: p.receive.amount,
+          amountOut: p.forward.amount,
+          delta: p.delta,
+          kappa: p.kappa,
+        };
+        if (reached) {
+          pair.forwardsTo = {
+            address: reached.transfer.to,
+            entity: reached.label.entity,
+            category: reached.label.category,
+            labelId: reached.label.id,
+          };
+        }
+        return pair;
+      }),
       kycLead: facts.published,
       params: {
         ...(params.clock === 'blocks' ? { tauBlocks: params.tau } : { tauSeconds: params.tau }),

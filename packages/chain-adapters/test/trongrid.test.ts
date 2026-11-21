@@ -36,12 +36,14 @@ describe('TronGrid mapping', () => {
       chain: 'tron',
       kind: 'token',
       amount: '1500',
-      index: 0,
       blockHeight: 0,
       blockTime: '2026-11-12T08:45:00.000Z',
       asset: { symbol: 'USDT', decimals: 6, contract: USDT_TRC20 },
     });
-    expect(items[1]).toMatchObject({ amount: '2.5', index: 1 });
+    expect(items[1]).toMatchObject({ amount: '2.5' });
+    // no log index on TRC-20 items: a content-based index, distinct within the transaction and stable across pages
+    expect(items[0]?.index).not.toBe(items[1]?.index);
+    expect(mapTrc20Items([item({ value: '2500000' })], 'other-page')[0]?.index).toBe(items[1]?.index);
   });
 });
 

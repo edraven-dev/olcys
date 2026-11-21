@@ -105,6 +105,8 @@ export interface SourceCollector {
 export interface TransferPage {
   items: NormalizedTransfer[];
   nextCursor?: string;
+  /** True when the provider could not read part of the history (e.g. one block fills a whole result window). */
+  truncated?: boolean;
 }
 
 /** One blockchain data provider (packages/chain-adapters). Same interface for public APIs and self-hosted nodes. */

@@ -163,14 +163,24 @@ export function createNbpFxRateSource(options: NbpOptions = {}): FxRateSource {
     }));
   }
 
+  // The current month gains a table every business day: it is cached for one run only, a finished month for good.
+  const current = new Map<string, Promise<NbpRate[]>>();
+  let currentRun: string | undefined;
+
   function monthRates(code: string, m: string, ctx: RunContext): Promise<NbpRate[]> {
     const key = `${code.toUpperCase()}|${m}`;
-    let rates = months.get(key);
+    const finished = lastDayOfMonth(m) < warsawDate(ctx.clock.now().toISOString());
+    if (!finished && currentRun !== ctx.runId) {
+      current.clear();
+      currentRun = ctx.runId;
+    }
+    const cache = finished ? months : current;
+    let rates = cache.get(key);
     if (!rates) {
       rates = fetchMonth(code, m, ctx);
       // A failed month is retried by a later valuation (e.g. after a transient error).
-      rates.catch(() => months.delete(key));
-      months.set(key, rates);
+      rates.catch(() => cache.delete(key));
+      cache.set(key, rates);
     }
     return rates;
   }

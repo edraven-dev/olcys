@@ -129,6 +129,8 @@ export interface ExclusionDecision {
       amountOut: DecimalString;
       delta: number;
       kappa: number;
+      /** The labelled hot wallet this forward went to (pairs of one address may reach different exchanges). */
+      forwardsTo?: { address: string; entity: string; category: EntityCategory; labelId: Id };
     }[];
     /** A4: the subject published the deposit address (a KYC lead for the exchange). */
     kycLead?: boolean;

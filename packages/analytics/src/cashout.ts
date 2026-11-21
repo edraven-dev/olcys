@@ -92,14 +92,17 @@ export async function evaluateCashOut(
   });
 
   // B1 (a): the address is an exchange deposit address (A4) — one event per matched pair, at the receive time.
-  const own = input.decisions.filter(
-    (d) => d.ruleId === 'A4' && d.emitsCashOut === 'B1' && sameAddress(chain, d.address.address, address),
-  );
+  const isOwn = (ref: { chain: string; address: string }): boolean =>
+    (ref.chain === chain && sameAddress(chain, ref.address, address)) ||
+    (input.requested !== undefined &&
+      ref.chain === input.requested.chain &&
+      sameAddress(chain, ref.address, input.requested.address));
+  const own = input.decisions.filter((d) => d.ruleId === 'A4' && d.emitsCashOut === 'B1' && isOwn(d.address));
   const sweeps = new Set<string>();
   for (const decision of own) {
-    const forwardsTo = decision.evidence.forwardsTo;
     for (const pair of decision.evidence.pairs ?? []) {
       sweeps.add(pair.forwardTx);
+      const forwardsTo = pair.forwardsTo ?? decision.evidence.forwardsTo;
       const receive = legs.find((l) => l.direction === 'in' && l.transfer.txHash === pair.receiveTx);
       if (!receive || !forwardsTo) continue;
       // oxlint-disable-next-line no-await-in-loop
@@ -151,13 +154,13 @@ export async function evaluateCashOut(
       ...withValuation(valuation),
       counterparty: {
         address: cp.address,
-        ...(cp.labelId ? { labelId: cp.labelId } : {}),
-        entity: cp.entity,
-        category: cp.category,
+        ...((sweep?.labelId ?? cp.labelId) ? { labelId: sweep?.labelId ?? cp.labelId } : {}),
+        entity: sweep?.entity ?? cp.entity,
+        category: sweep?.category ?? cp.category,
       },
       hops: 0,
       explanation: deposit
-        ? `B1: transfer to ${cp.address}, an exchange deposit address forwarding to the hot wallet of ${cp.entity}${
+        ? `B1: transfer to ${cp.address}, an exchange deposit address forwarding to the hot wallet of ${sweep?.entity ?? cp.entity}${
             sweep ? ` (sweep ${sweep.forwardTx}, kappa ${sweep.kappa})` : ''
           }`
         : `B1: transfer to a fiat-capable exchange wallet of ${cp.entity}`,
@@ -237,45 +240,48 @@ export async function evaluateCashOut(
     if (await resolver.resolve(chain, leg.counterparty, leg.transfer.blockTime)) continue;
     candidates.push(leg);
   }
-  candidates.sort((a, b) => (a.transfer.blockTime < b.transfer.blockTime ? -1 : 1));
-  for (let i = 0; i < candidates.length;) {
-    const first = candidates[i];
-    if (!first) break;
-    const limit = Date.parse(first.transfer.blockTime) + deps.rules.b5.windowDays * DAY_MS;
-    const group = candidates
-      .slice(i)
-      .filter((l) => Date.parse(l.transfer.blockTime) <= limit && l.asset === first.asset);
-    const recipients = new Set(group.map((l) => l.counterparty));
-    if (group.length < deps.rules.b5.minRoundTransfers || recipients.size < deps.rules.b5.minRoundTransfers) {
-      i += 1;
-      continue;
+  // Each asset is scanned on its own, so interleaved payments in another stablecoin cannot hide a pattern.
+  for (const legsOfAsset of Map.groupBy(candidates, (l) => l.asset).values()) {
+    const sorted = legsOfAsset.toSorted((a, b) => (a.transfer.blockTime < b.transfer.blockTime ? -1 : 1));
+    for (let i = 0; i < sorted.length;) {
+      const first = sorted[i];
+      if (!first) break;
+      const limit = Date.parse(first.transfer.blockTime) + deps.rules.b5.windowDays * DAY_MS;
+      let end = i;
+      while (end < sorted.length && Date.parse(sorted[end]?.transfer.blockTime ?? '') <= limit) end += 1;
+      const group = sorted.slice(i, end);
+      const recipients = new Set(group.map((l) => l.counterparty));
+      if (group.length < deps.rules.b5.minRoundTransfers || recipients.size < deps.rules.b5.minRoundTransfers) {
+        i += 1;
+        continue;
+      }
+      // Windows are found one after another; the next one starts after the legs used here.
+      // oxlint-disable-next-line no-await-in-loop
+      const valuations = await Promise.all(group.map((l) => valueLeg(l, deps, ctx)));
+      const largest = group.reduce((a, b) => (dCmp(b.transfer.amount, a.transfer.amount) > 0 ? b : a));
+      const last = group.at(-1);
+      events.push(
+        event({
+          ruleId: 'B5',
+          strength: 'medium',
+          occurredAt: first.transfer.blockTime,
+          txHashes: group.map((l) => l.transfer.txHash),
+          amount: group.reduce((sum, l) => dAdd(sum, l.transfer.amount), '0'),
+          asset: first.asset,
+          components: group.map((l, k) => ({
+            txHash: l.transfer.txHash,
+            at: l.transfer.blockTime,
+            amount: l.transfer.amount,
+            ...withValuation(valuations[k]),
+          })),
+          ...plnTotalOf(valuations),
+          counterparty: { address: largest.counterparty },
+          hops: 0,
+          explanation: `B5: ${group.length} round-number ${first.asset} transfers (multiples of ${deps.rules.b5.roundUnit}) to ${recipients.size} distinct unlabelled addresses between ${first.transfer.blockTime} and ${last?.transfer.blockTime}: P2P sale pattern; the fiat leg is off-chain, corroboration needed`,
+        }),
+      );
+      i = end;
     }
-    // Windows are found one after another; each starts after the previous one.
-    // oxlint-disable-next-line no-await-in-loop
-    const valuations = await Promise.all(group.map((l) => valueLeg(l, deps, ctx)));
-    const largest = group.reduce((a, b) => (dCmp(b.transfer.amount, a.transfer.amount) > 0 ? b : a));
-    const last = group.at(-1);
-    events.push(
-      event({
-        ruleId: 'B5',
-        strength: 'medium',
-        occurredAt: first.transfer.blockTime,
-        txHashes: group.map((l) => l.transfer.txHash),
-        amount: group.reduce((sum, l) => dAdd(sum, l.transfer.amount), '0'),
-        asset: first.asset,
-        components: group.map((l, k) => ({
-          txHash: l.transfer.txHash,
-          at: l.transfer.blockTime,
-          amount: l.transfer.amount,
-          ...withValuation(valuations[k]),
-        })),
-        ...plnTotalOf(valuations),
-        counterparty: { address: largest.counterparty },
-        hops: 0,
-        explanation: `B5: ${group.length} round-number ${first.asset} transfers (multiples of ${deps.rules.b5.roundUnit}) to ${recipients.size} distinct unlabelled addresses between ${first.transfer.blockTime} and ${last?.transfer.blockTime}: P2P sale pattern; the fiat leg is off-chain, corroboration needed`,
-      }),
-    );
-    i += candidates.slice(i).indexOf(last ?? first) + 1;
   }
   return events.toSorted((a, b) => (a.occurredAt < b.occurredAt ? -1 : a.occurredAt > b.occurredAt ? 1 : 0));
 }

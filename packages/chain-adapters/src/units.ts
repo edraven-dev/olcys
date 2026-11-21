@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { fromBaseUnits, type DecimalString } from '@olcys/core';
 import { ChainProviderError } from './errors.ts';
 
@@ -29,6 +30,25 @@ export function decodeCursor<T>(providerId: string, cursor: string): T {
     throw new ChainProviderError('invalid_request', providerId, 'cursor belongs to another provider');
   }
   return parsed as T;
+}
+
+/**
+ * Index of a transfer row that carries no log/trace index of its own: a 48-bit hash of its content, so the same row
+ * gets the same index on every page and in every address's listing (de-duplication stays exact). Identical rows of
+ * one response are told apart by their occurrence number.
+ */
+export function contentIndex(parts: readonly (string | number)[]): number {
+  return Number.parseInt(createHash('sha256').update(parts.join('|')).digest('hex').slice(0, 12), 16);
+}
+
+/** Counts identical content keys within one response (0 for the first occurrence). */
+export function occurrences(): (key: string) => number {
+  const seen = new Map<string, number>();
+  return (key) => {
+    const n = seen.get(key) ?? 0;
+    seen.set(key, n + 1);
+    return n;
+  };
 }
 
 export const isoFromSeconds = (seconds: number): string => new Date(seconds * 1000).toISOString();

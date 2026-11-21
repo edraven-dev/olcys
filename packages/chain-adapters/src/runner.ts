@@ -97,6 +97,8 @@ const FALLBACK_KINDS: ReadonlySet<ChainErrorKind> = new Set<ChainErrorKind>([
   'upstream_error',
 ]);
 const KIND_ORDER: Record<NormalizedTransfer['kind'], number> = { native: 0, internal: 1, token: 2 };
+/** Errors that end a listing early but keep what was read (`truncated` outcome). */
+const TRUNCATING_KINDS: ReadonlySet<ChainErrorKind> = new Set<ChainErrorKind>(['window_exceeded', 'budget_exceeded']);
 
 function statusOf(kind: ChainErrorKind): ChainFetchStatus {
   switch (kind) {
@@ -158,10 +160,21 @@ async function fetchFrom(
       }
       const options = { ...(cursor ? { cursor } : {}), ...(tip ? { toBlock: tip.height } : {}) };
       // Sequential on purpose: each page needs the previous cursor.
-      // oxlint-disable-next-line no-await-in-loop
-      const result = await provider.listTransfers(address, options, ctx);
+      let result;
+      try {
+        // oxlint-disable-next-line no-await-in-loop
+        result = await provider.listTransfers(address, options, ctx);
+      } catch (error) {
+        // A listing that cannot go further keeps the pages already read.
+        if (isChainProviderError(error) && TRUNCATING_KINDS.has(error.kind)) {
+          fetched.truncated = true;
+          break;
+        }
+        throw error;
+      }
       fetched.pages += 1;
       fetched.transfers.push(...result.items);
+      if (result.truncated) fetched.truncated = true;
       cursor = result.nextCursor;
       if (!cursor) break;
     }
