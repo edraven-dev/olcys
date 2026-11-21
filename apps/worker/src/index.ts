@@ -12,6 +12,26 @@ export {
 } from './pipeline.ts';
 export { consoleLogger, createRuntime, type Runtime, type RuntimeOptions } from './runtime.ts';
 export {
+  latestOccurrence,
+  minIntervalFor,
+  nextOccurrences,
+  NEXT_RUNS_SHOWN,
+  validateCron,
+  type CronCheck,
+} from './cron.ts';
+export {
+  createScheduler,
+  decideTick,
+  dueOccurrence,
+  scheduleJobId,
+  schedulesOf,
+  schedulingSettings,
+  type ScheduleReconcileReport,
+  type Scheduler,
+  type SchedulerOptions,
+  type SchedulingSettings,
+} from './scheduler.ts';
+export {
   createChainStage,
   createCollectStage,
   createExtractStage,
