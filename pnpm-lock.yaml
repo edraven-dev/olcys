@@ -377,6 +377,13 @@ importers:
       '@olcys/core':
         specifier: workspace:*
         version: link:../core
+    devDependencies:
+      '@olcys/db':
+        specifier: workspace:*
+        version: link:../db
+      '@olcys/evidence':
+        specifier: workspace:*
+        version: link:../evidence
 
   packages/scoring:
     dependencies:
