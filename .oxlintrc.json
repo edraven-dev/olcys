@@ -9,8 +9,54 @@
   "rules": {
     "import/no-cycle": "error",
     "no-console": "off",
-    "react/react-in-jsx-scope": "off"
+    "react/react-in-jsx-scope": "off",
+    "no-restricted-globals": [
+      "error",
+      { "name": "fetch", "message": "Network I/O must go through @olcys/http (EgressClient)." },
+      { "name": "WebSocket", "message": "Network I/O must go through @olcys/http (EgressClient)." },
+      { "name": "EventSource", "message": "Network I/O must go through @olcys/http (EgressClient)." },
+      { "name": "XMLHttpRequest", "message": "Network I/O must go through @olcys/http (EgressClient)." }
+    ],
+    "no-restricted-imports": [
+      "error",
+      {
+        "paths": [
+          { "name": "undici", "message": "Network I/O must go through @olcys/http (EgressClient)." },
+          { "name": "axios", "message": "Network I/O must go through @olcys/http (EgressClient)." },
+          { "name": "got", "message": "Network I/O must go through @olcys/http (EgressClient)." },
+          { "name": "node-fetch", "message": "Network I/O must go through @olcys/http (EgressClient)." },
+          { "name": "ky", "message": "Network I/O must go through @olcys/http (EgressClient)." },
+          { "name": "ws", "message": "Network I/O must go through @olcys/http (EgressClient)." },
+          {
+            "name": "node:http",
+            "importNames": ["request", "get", "Agent"],
+            "message": "Use @olcys/http (EgressClient)."
+          },
+          {
+            "name": "node:https",
+            "importNames": ["request", "get", "Agent"],
+            "message": "Use @olcys/http (EgressClient)."
+          },
+          {
+            "name": "node:net",
+            "importNames": ["connect", "createConnection", "Socket"],
+            "message": "Use @olcys/http (EgressClient)."
+          },
+          { "name": "node:tls", "importNames": ["connect"], "message": "Use @olcys/http (EgressClient)." }
+        ]
+      }
+    ]
   },
+  "overrides": [
+    {
+      "files": ["packages/http/**", "**/test/**", "**/*.test.ts", "**/*.test.tsx", "scripts/lib/local-fetch.ts"],
+      "rules": { "no-restricted-globals": "off", "no-restricted-imports": "off" }
+    },
+    {
+      "files": ["apps/web/src/**"],
+      "rules": { "no-restricted-globals": "off" }
+    }
+  ],
   "env": {
     "builtin": true,
     "node": true,
