@@ -9,36 +9,38 @@ przechodnich; ten plik wymienia komponenty bezpośrednie. Licencje wszystkich za
 licencje „source-available” (np. Blockscout ≥ v11) oraz licencje wykluczające sektor publiczny (np. QuestPDF Community).
 **GPL/AGPL:** wyłącznie jako osobne, niemodyfikowane usługi lub kontenery.
 
-| Komponent                      | Wersja  | Licencja (SPDX)   | Zastosowanie                                                     | Gdzie                              |
-| ------------------------------ | ------- | ----------------- | ---------------------------------------------------------------- | ---------------------------------- |
-| Node.js                        | 26.13.1 | MIT               | środowisko uruchomieniowe                                        | host / `node:26.13.1-alpine`       |
-| pnpm                           | 12.22.0 | MIT               | menedżer pakietów                                                | host                               |
-| TypeScript                     | 7.0.2   | Apache-2.0        | kontrola typów                                                   | devDependency (root)               |
-| Vitest                         | 5.1.1   | MIT               | testy                                                            | devDependency (root)               |
-| oxlint                         | 1.94.0  | MIT               | lint                                                             | devDependency (root)               |
-| oxfmt                          | 0.79.0  | MIT               | formatowanie                                                     | devDependency (root)               |
-| license-checker-rseidelsohn    | 5.0.1   | BSD-3-Clause      | kontrola licencji zależności npm                                 | devDependency (root)               |
-| @types/node                    | 26.6.6  | MIT               | typy Node                                                        | devDependency (root)               |
-| zod                            | 4.6.7   | MIT               | walidacja danych wejściowych i konfiguracji                      | packages/core                      |
-| big.js                         | 7.0.1   | MIT               | dokładna arytmetyka dziesiętna (kwoty, PLN)                      | packages/core                      |
-| @noble/curves                  | 2.4.0   | MIT               | generator danych syntetycznych: klucze secp256k1, podpis BIP-137 | apps/fixture-site (dev)            |
-| @noble/hashes                  | 2.4.0   | MIT               | generator danych syntetycznych: SHA-256, RIPEMD-160, Keccak-256  | apps/fixture-site (dev)            |
-| @scure/base                    | 2.4.0   | MIT               | generator danych syntetycznych: bech32, base58check, base64      | apps/fixture-site (dev)            |
-| yaml                           | 2.9.1   | ISC               | odczyt plików konfiguracyjnych w testach                         | packages/core (dev)                |
-| Kysely                         | 0.29.9  | MIT               | typowany konstruktor zapytań SQL                                 | packages/db                        |
-| pg (node-postgres)             | 8.23.1  | MIT               | sterownik PostgreSQL                                             | packages/db                        |
-| Fastify                        | 5.12.8  | MIT               | API HTTP                                                         | apps/api                           |
-| React / React DOM              | 19.3.1  | MIT               | interfejs                                                        | apps/web                           |
-| Vite                           | 8.3.8   | MIT               | budowanie i serwer deweloperski interfejsu                       | apps/web                           |
-| @vitejs/plugin-react           | 6.3.0   | MIT               | budowanie interfejsu                                             | apps/web                           |
-| @types/react, @types/react-dom | 19.3.0  | MIT               | typy interfejsu                                                  | apps/web                           |
-| PostgreSQL                     | 19.0    | PostgreSQL        | baza danych                                                      | compose `postgres:19.0-alpine3.24` |
-| Gotenberg                      | 9.9.1   | MIT               | HTML → PDF/A                                                     | compose                            |
-| Ollama                         | 0.40.17 | MIT               | lokalne środowisko modeli z API zgodnym z OpenAI (opcjonalne)    | compose, profil `llm`              |
-| Python                         | 3.15.2  | PSF-2.0           | środowisko serwisu OSINT                                         | `python:3.15.2-slim-trixie`        |
-| uv                             | 0.13.9  | MIT OR Apache-2.0 | zarządzanie zależnościami Pythona                                | obraz osint-py                     |
-| FastAPI                        | 0.165.0 | MIT               | API serwisu osint-py                                             | services/osint-py                  |
-| Uvicorn                        | 0.54.0  | BSD-3-Clause      | serwer ASGI serwisu osint-py                                     | services/osint-py                  |
+| Komponent                      | Wersja  | Licencja (SPDX)   | Zastosowanie                                                                                           | Gdzie                                                                           |
+| ------------------------------ | ------- | ----------------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------- |
+| Node.js                        | 26.13.1 | MIT               | środowisko uruchomieniowe                                                                              | host / `node:26.13.1-alpine`                                                    |
+| pnpm                           | 12.22.0 | MIT               | menedżer pakietów                                                                                      | host                                                                            |
+| TypeScript                     | 7.0.2   | Apache-2.0        | kontrola typów                                                                                         | devDependency (root)                                                            |
+| Vitest                         | 5.1.1   | MIT               | testy                                                                                                  | devDependency (root)                                                            |
+| oxlint                         | 1.94.0  | MIT               | lint                                                                                                   | devDependency (root)                                                            |
+| oxfmt                          | 0.79.0  | MIT               | formatowanie                                                                                           | devDependency (root)                                                            |
+| license-checker-rseidelsohn    | 5.0.1   | BSD-3-Clause      | kontrola licencji zależności npm                                                                       | devDependency (root)                                                            |
+| @types/node                    | 26.6.6  | MIT               | typy Node                                                                                              | devDependency (root)                                                            |
+| zod                            | 4.6.7   | MIT               | walidacja danych wejściowych i konfiguracji                                                            | packages/core                                                                   |
+| big.js                         | 7.0.1   | MIT               | dokładna arytmetyka dziesiętna (kwoty, PLN)                                                            | packages/core                                                                   |
+| @noble/curves                  | 2.4.0   | MIT               | generator danych syntetycznych: klucze secp256k1, podpis BIP-137                                       | apps/fixture-site (dev)                                                         |
+| @noble/hashes                  | 2.4.0   | MIT               | generator danych syntetycznych: SHA-256, RIPEMD-160, Keccak-256                                        | apps/fixture-site (dev)                                                         |
+| @scure/base                    | 2.4.0   | MIT               | generator danych syntetycznych: bech32, base58check, base64                                            | apps/fixture-site (dev)                                                         |
+| yaml                           | 2.9.1   | ISC               | odczyt plików konfiguracyjnych w testach                                                               | packages/core (dev)                                                             |
+| yaml                           | 2.9.1   | ISC               | odczyt konfiguracji: dostawcy danych łańcuchowych, reguły wykluczeń i wyjścia do walut, lista odrzuceń | packages/chain-adapters, packages/labels, packages/analytics, apps/worker (dev) |
+| Kysely                         | 0.29.9  | MIT               | typowany konstruktor zapytań SQL                                                                       | packages/db                                                                     |
+| pg (node-postgres)             | 8.23.1  | MIT               | sterownik PostgreSQL                                                                                   | packages/db                                                                     |
+| Fastify                        | 5.12.8  | MIT               | API HTTP                                                                                               | apps/api                                                                        |
+| React / React DOM              | 19.3.1  | MIT               | interfejs                                                                                              | apps/web                                                                        |
+| Vite                           | 8.3.8   | MIT               | budowanie i serwer deweloperski interfejsu                                                             | apps/web                                                                        |
+| @vitejs/plugin-react           | 6.3.0   | MIT               | budowanie interfejsu                                                                                   | apps/web                                                                        |
+| @types/react, @types/react-dom | 19.3.0  | MIT               | typy interfejsu                                                                                        | apps/web                                                                        |
+| PostgreSQL                     | 19.0    | PostgreSQL        | baza danych                                                                                            | compose `postgres:19.0-alpine3.24`                                              |
+| Gotenberg                      | 9.9.1   | MIT               | HTML → PDF/A                                                                                           | compose                                                                         |
+| Ollama                         | 0.40.17 | MIT               | lokalne środowisko modeli z API zgodnym z OpenAI (opcjonalne)                                          | compose, profil `llm`                                                           |
+| Python                         | 3.15.2  | PSF-2.0           | środowisko serwisu OSINT                                                                               | `python:3.15.2-slim-trixie`                                                     |
+| uv                             | 0.13.9  | MIT OR Apache-2.0 | zarządzanie zależnościami Pythona                                                                      | obraz osint-py                                                                  |
+| FastAPI                        | 0.165.0 | MIT               | API serwisu osint-py                                                                                   | services/osint-py                                                               |
+| Uvicorn                        | 0.54.0  | BSD-3-Clause      | serwer ASGI serwisu osint-py                                                                           | services/osint-py                                                               |
 
 Zbiory danych (etykiety, listy sankcyjne, archiwa cen) mają własne licencje; są one zapisywane przy każdej etykiecie
-i rekordzie ceny (`LabelProvenance.license`) i podsumowane w `docs/compliance/sources.md`.
+i rekordzie ceny (`LabelProvenance.license`) i podsumowane w `docs/compliance/sources.md`. Demonstracyjne etykiety
+(`fixtures/labels/demo-curated.json`) i ceny (`fixtures/prices/demo-prices.v1.json`) są syntetyczne, CC0-1.0.

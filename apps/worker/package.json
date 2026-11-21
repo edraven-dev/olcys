@@ -21,5 +21,8 @@
     "@olcys/llm": "workspace:*",
     "@olcys/reporting": "workspace:*",
     "@olcys/scoring": "workspace:*"
+  },
+  "devDependencies": {
+    "yaml": "2.9.1"
   }
 }
