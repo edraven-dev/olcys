@@ -15,7 +15,9 @@
     "format": "oxfmt",
     "format:check": "oxfmt --check",
     "licenses:check": "pnpm -r --include-workspace-root --no-bail exec license-checker-rseidelsohn --excludePrivatePackages --summary --onlyAllow \"$(node -p \"require('./config/licenses.json').allowed.join(';')\")\"",
-    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm licenses:check && pnpm test"
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm licenses:check && pnpm test",
+    "db:migrate": "node --env-file-if-exists=.env packages/db/src/migrate.ts",
+    "db:status": "node --env-file-if-exists=.env packages/db/src/migrate.ts --status"
   },
   "devDependencies": {
     "@types/node": "26.6.6",
