@@ -40,6 +40,11 @@ export interface CaptureTechnicalReport {
   robots?: { allowed: boolean; robotsUrl: string; reason?: string };
   /** Signals that classified the response as a block, login wall or CAPTCHA (collection stopped there). */
   barrier?: { status: CaptureStatus; signals: string[] };
+  /**
+   * Secrets removed before storage: how many and of which kinds (never their values), and the SHA-256 of the body as
+   * received (from the provenance envelope), which differs from the stored artifact when something was redacted.
+   */
+  redaction?: { secrets: number; kinds: string[]; originalSha256: Sha256Hex };
   /** Tools and parser versions, e.g. `{ name: 'parser:bitcointalk', version: 'smf1.v1' }`. */
   software: { name: string; version: string }[];
   /** Transformations applied to derive artifacts or observations, e.g. `charset decode (utf-8)`. */

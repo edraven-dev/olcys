@@ -6,7 +6,7 @@ import type { SourceCollector } from '@olcys/core';
 import type { CollectorFactory } from '../framework/collector-registry.ts';
 import { createSourceHttp } from '../framework/http.ts';
 import { ResultBuilder } from '../framework/result.ts';
-import { GITHUB_LOGIN, toLogicalUrl, type FixtureMapping } from '../framework/urls.ts';
+import { GITHUB_LOGIN, toLogicalUrl, usesFixtures, type FixtureMapping } from '../framework/urls.ts';
 import { absoluteHref, all, blockText, parseHtml, textOf } from '../html/dom.ts';
 import { fetchPage, JSON_ACCEPT } from '../html/page.ts';
 import { handleTarget, observer } from './common.ts';
@@ -110,10 +110,10 @@ export function createGithubCollector(): CollectorFactory {
         descriptor,
         // HTML pages exist only on the fixture site; live GitHub access goes through its REST API (not in this build).
         supports: (input) =>
-          deps.mode === 'offline' && handleTarget(input, 'github', githubLogin, mapping) !== undefined,
+          usesFixtures(deps.mode) && handleTarget(input, 'github', githubLogin, mapping) !== undefined,
         async collect(input, ctx) {
-          const rb = new ResultBuilder(ctx, descriptor.id);
-          const target = deps.mode === 'offline' ? handleTarget(input, 'github', githubLogin, mapping) : undefined;
+          const rb = new ResultBuilder(ctx, descriptor.id, deps.redactor);
+          const target = usesFixtures(deps.mode) ? handleTarget(input, 'github', githubLogin, mapping) : undefined;
           if (!target) {
             rb.note('unsupported_input', 'no code-hosting login (the HTML pages are read offline only)');
             return rb.build();

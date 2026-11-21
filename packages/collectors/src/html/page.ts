@@ -11,6 +11,7 @@ import { NoFixtureError, SyntheticIdentifierError } from '../framework/errors.ts
 import type { SourceHttp } from '../framework/http.ts';
 import type { PageOutcome } from '../framework/result.ts';
 import { isBarrierStatus, note, statusFromHttp } from '../framework/status.ts';
+import { usesFixtures } from '../framework/urls.ts';
 import { detectAccessBarrier } from './barrier.ts';
 import { decodeBody } from './dom.ts';
 
@@ -116,6 +117,8 @@ export async function fetchPage(http: SourceHttp, request: PageRequest): Promise
       response = await http.fetch({
         url,
         redirect: 'manual',
+        // The egress client keeps only the hash: the body is redacted here, in memory, before anything is stored.
+        persistBody: false,
         headers: { accept: request.accept ?? HTML_ACCEPT, 'accept-language': ACCEPT_LANGUAGE },
         purpose: request.purpose,
         containsIdentifier: request.containsIdentifier,
@@ -131,7 +134,7 @@ export async function fetchPage(http: SourceHttp, request: PageRequest): Promise
     if (response.status < 300 || response.status >= 400 || !location) break;
     redirects.push({ url, status: response.status });
     let next = new URL(location, url).toString();
-    if (http.deps.mode === 'offline' && !http.hostAllowed(next)) {
+    if (usesFixtures(http.deps.mode) && !http.hostAllowed(next)) {
       // A redirect to a live host of a mapped platform is followed on the fixture site; others are refused above.
       try {
         next = http.requestUrl(next);
@@ -145,7 +148,19 @@ export async function fetchPage(http: SourceHttp, request: PageRequest): Promise
   if (!response) throw new Error('unreachable: no response after the redirect loop');
 
   const contentType = response.headers['content-type'] ?? '';
-  const { text: body, charset } = decodeBody(response.body, contentType);
+  const decoded = decodeBody(response.body, contentType);
+  const charset = decoded.charset;
+  // Private keys and seed phrases never reach storage or observations: everything below sees the redacted text.
+  const redaction = http.deps.redactor.redact(decoded.text);
+  const body = redaction.text;
+  const secretKinds = [...new Set(redaction.findings.map((f) => f.kind))].toSorted();
+  const mediaType = contentType || 'application/octet-stream';
+  const stored = redaction.findings.length
+    ? await http.ctx.blobs.put(
+        new TextEncoder().encode(body),
+        `${mediaType.split(';')[0]?.trim() || 'text/plain'}; charset=utf-8`,
+      )
+    : await http.ctx.blobs.put(response.body, mediaType);
   const html = /html|xml/i.test(contentType) ? body : '';
   const verdict = detectAccessBarrier({ status: response.status, headers: response.headers, finalUrl, html });
   let status: CaptureStatus = verdict.status === 'ok' ? statusFromHttp(response.status) : verdict.status;
@@ -169,10 +184,17 @@ export async function fetchPage(http: SourceHttp, request: PageRequest): Promise
     ...(logicalUrl !== finalUrl ? { logicalUrl } : {}),
     redirects,
     ...(robots ? { robots } : {}),
+    redaction: {
+      secrets: redaction.findings.length,
+      kinds: secretKinds,
+      originalSha256: response.provenance.body.sha256,
+    },
     ...(verdict.status !== 'ok' ? { barrier: { status: verdict.status, signals: verdict.signals } } : {}),
     software: [{ name: '@olcys/collectors', version: COLLECTORS_VERSION }, ...(request.software ?? [])],
     transformations: [
-      `body stored as received; parsed after charset decode (${charset})`,
+      redaction.findings.length
+        ? `${redaction.findings.length} secret(s) redacted in memory (${secretKinds.join(', ')}); stored and parsed body re-encoded as UTF-8`
+        : `body stored as received; parsed after charset decode (${charset})`,
       'headers artifact: canonical JSON of the HTTP status and the kept response headers',
     ],
     notes,
@@ -182,6 +204,7 @@ export async function fetchPage(http: SourceHttp, request: PageRequest): Promise
     descriptor: http.descriptor,
     config: http.deps.config,
     response,
+    body: stored,
     requestedUrl,
     finalUrl,
     fetchIds,

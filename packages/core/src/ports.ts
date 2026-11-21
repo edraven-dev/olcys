@@ -79,6 +79,27 @@ export interface RunContext {
   signal?: AbortSignal;
 }
 
+/** A secret (private key, seed phrase) found in text: its kind and UTF-16 span in the input — never its value. */
+export interface RedactedSecret {
+  kind: string;
+  start: number;
+  end: number;
+}
+
+export interface RedactionResult {
+  /** The input with every secret replaced by a marker. */
+  text: string;
+  findings: RedactedSecret[];
+}
+
+/**
+ * Removes private keys and seed phrases from scraped text in memory, before anything is stored, logged or turned
+ * into observations. Implemented by the address extractor and wired in the composition root.
+ */
+export interface SecretRedactor {
+  redact(text: string): RedactionResult;
+}
+
 export const PIVOT_VALUE_KINDS = ['username', 'url', 'nip', 'regon', 'krs'] as const;
 export type PivotValueKind = (typeof PIVOT_VALUE_KINDS)[number];
 

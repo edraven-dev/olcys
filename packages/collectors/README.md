@@ -12,7 +12,7 @@ sprawy wyszukuje publiczne ślady, zapisuje każdą pobraną stronę jako przech
 ## Zasady
 
 1. **Zakres sprawy jest zamknięty:** źródła RED nigdy nie są kontaktowane, AMBER tylko z uzasadnieniem w sprawie
-   (co najmniej 20 znaków), GREEN — gdy sprawa je wymienia. W trybie `offline` dochodzi strona testowa (`fixture_site`).
+   (co najmniej 20 znaków), GREEN — gdy sprawa je wymienia. W trybach `offline` i `replay` dochodzi strona testowa (`fixture_site`).
    Kolektor spoza zakresu to błąd planera: `SourceRefusedError` przed jakimkolwiek żądaniem.
 2. **Każde żądanie** idzie przez klienta egress (lista dozwolonych hostów, limity, dziennik z `containsIdentifier`,
    koperta pochodzenia). `containsIdentifier` nigdy nie jest obniżane, a identyfikator sprawy w adresie podnosi je do
@@ -22,10 +22,15 @@ sprawy wyszukuje publiczne ślady, zapisuje każdą pobraną stronę jako przech
 4. **Bariery kończą zbieranie ze źródła:** CAPTCHA, wyzwanie przeglądarki (`cf-mitigated: challenge`), ściana
    logowania, blokada (403/451) i limit (429 z `retry-after`) dają status `captcha` / `login_wall` / `blocked`, strona
    blokady zostaje zapisana jako dowód, a źródło do końca przebiegu nie jest już odpytywane. Bez ponowień i obchodzenia.
-5. **Tryb `offline`:** kolektory budują adresy prawdziwych serwisów, a `resolveSourceUrl` zamienia host na prefiks
+5. **Tryby `offline` i `replay`:** kolektory budują adresy prawdziwych serwisów, a `resolveSourceUrl` zamienia host na prefiks
    strony testowej (`hostPrefixes` z manifestu persony, adres bazowy `OLCYS_FIXTURE_BASE_URL` lub `FIXTURE_SITE_URL`).
-   Lokalizatory nie zależą od hosta, więc przebieg offline i live daje te same obserwacje.
+   W `replay` adresy, kolektory i lista obserwowanych stron są takie same jak w `offline`, więc klucze nagrań się
+   zgadzają. Lokalizatory nie zależą od hosta, więc przebieg offline i live daje te same obserwacje.
 6. **Treść stron to dane, nie polecenia.** Parsery są czyste: ponowne przetworzenie zapisanego HTML daje te same fakty.
+7. **Sekrety nie trafiają do magazynu:** treść strony jest pobierana z `persistBody: false` (klient egress zachowuje
+   tylko skrót i jej nie nagrywa), w pamięci przechodzi przez `SecretRedactor` (klucze prywatne, frazy seed), a
+   zapisywane są wyłącznie bajty po redakcji. Parsery i obserwacje widzą tylko tekst po redakcji; `technical.redaction`
+   podaje liczbę i rodzaje usuniętych sekretów (bez wartości) oraz skrót oryginału z koperty pochodzenia.
 
 ## Publiczne API (wywołanie z potoku)
 
@@ -50,6 +55,7 @@ const result = await collectCase({
   ctx: { runId, caseId, mode, http, blobs, clock, logger },
   config,
   robots,
+  redactor, // SecretRedactor z ekstraktora adresów (wymagany)
   maxPivotDepth: kase.scope.maxPivotDepth,
   onTask: ({ done, planned }) => progress({ done, planned }), // opcjonalnie
 });
@@ -63,9 +69,9 @@ const result = await collectCase({
   `recogniseAccountUrl`, `ResultBuilder`, `buildCapture`, `rollupStatus`, parsery stron.
 
 Przechwycenie (`Capture`): adres pobrany i końcowy, czas, kolektor, wersja narzędzia, user agent, status HTTP i status
-zbierania, artefakty `html`/`json`/`text` (bajty dokładnie jak odebrane — blob z koperty pochodzenia, więc jego SHA-256
-jest skrótem z chwili zebrania) oraz `headers` (kanoniczny JSON), identyfikatory pobrań całego łańcucha przekierowań,
-`manifestSha256` oraz `technical` (adres logiczny, przekierowania, decyzja robots.txt, sygnały bariery, wersje parserów).
+zbierania, artefakty `html`/`json`/`text` (bajty jak odebrane albo — gdy usunięto sekrety — tekst po redakcji w UTF-8; skrót
+oryginału zostaje w kopercie pochodzenia i w `technical.redaction`) oraz `headers` (kanoniczny JSON), identyfikatory pobrań całego łańcucha przekierowań,
+`manifestSha256` oraz `technical` (adres logiczny, przekierowania, decyzja robots.txt, sygnały bariery, redakcja, wersje parserów).
 
 ## Kolektory
 
@@ -82,20 +88,22 @@ jest numer uid albo adres profilu. Strony Wykopu, GitHuba (HTML) i ogłoszeń is
 
 ## Pivoty (`pivot.v1`)
 
-| Reguła | Wyzwalacz                                        | Zadanie                                                                    |
-| ------ | ------------------------------------------------ | -------------------------------------------------------------------------- |
-| I1     | identyfikator podany dla platformy P             | kolektor platformy P                                                       |
-| I2     | nick / login                                     | ten sam nick na pozostałych platformach (GitHub: `_` i `.` → `-`)          |
-| I3     | dowolny identyfikator                            | strony z listy obserwowanych; zachowane tylko, gdy zawierają identyfikator |
-| I4     | identyfikator będący adresem profilu             | kolektor rozpoznanej platformy                                             |
-| E1     | `account.link` do rozpoznanego konta             | kolektor tej platformy (głębokość + 1)                                     |
-| E2     | konto znalezione dla osoby (nie kanał ostrzeżeń) | jego login na pozostałych platformach (głębokość + 1)                      |
+| Reguła | Wyzwalacz                                                                | Zadanie                                                                    |
+| ------ | ------------------------------------------------------------------------ | -------------------------------------------------------------------------- |
+| I1     | identyfikator podany dla platformy P                                     | kolektor platformy P                                                       |
+| I2     | nick / login                                                             | ten sam nick na pozostałych platformach (GitHub: `_` i `.` → `-`)          |
+| I3     | dowolny identyfikator                                                    | strony z listy obserwowanych; zachowane tylko, gdy zawierają identyfikator |
+| I4     | identyfikator będący adresem profilu                                     | kolektor rozpoznanej platformy                                             |
+| E1     | `account.link` do rozpoznanego konta                                     | kolektor tej platformy (głębokość + 1)                                     |
+| E2     | konto znalezione dla osoby inaczej niż próbą nicku (nie kanał ostrzeżeń) | jego login na pozostałych platformach (głębokość + 1)                      |
 
 Każde zadanie ma klucz `<sourceId>|<podmiot>` (np. `bitcointalk|handle:bitcointalk:fikcyjny_kacper`,
-`bitcointalk|id:bitcointalk:900001`) i zapisany powód. Pominięcia: `source_red`, `amber_without_justification`,
+`bitcointalk|id:bitcointalk:900001`) i zapisany powód. Wielkość liter i początkowe `@` nie mają znaczenia, interpunkcja
+tak (`a-b` i `a_b` to różne konta). Pominięcia: `source_red`, `amber_without_justification`,
 `unknown_source`, `source_not_enabled`, `not_registered`, `unsupported`, `depth_exceeded` (`maxPivotDepth` sprawy),
-`duplicate` (także konto już znalezione pod innym kluczem), `budget_exceeded` (domyślnie 40 zadań). Lista obserwowanych
-stron: offline — strony z manifestu persony (jak mapa witryny), live — `OLCYS_WATCH_PAGES` (`platforma=adres`, po przecinku).
+`duplicate` (także konto już znalezione pod innym kluczem), `already_collected` (zadanie w kolejce objęte kontem
+zebranym wcześniej w przebiegu), `budget_exceeded` (domyślnie 40 zadań). Lista obserwowanych
+stron: offline i replay — strony z manifestu persony (jak mapa witryny), live — `OLCYS_WATCH_PAGES` (`platforma=adres`, po przecinku).
 
 ## Słownik obserwacji
 
@@ -141,6 +149,7 @@ Notatki mają postać `kod: szczegóły`; interfejs tłumaczy kod.
 | `not_found`                    | Źródło odpowiedziało, że profil lub ślad nie istnieje             |
 | `no_identifier_match`          | Strona nie zawiera identyfikatorów sprawy — nie zachowano         |
 | `unrecognised_markup`          | Nierozpoznana struktura strony                                    |
+| `malformed_link`               | Pominięto odnośnik z błędnym kodowaniem adresu                    |
 | `redirect_limit`               | Za dużo przekierowań                                              |
 | `truncated`                    | Odczytano tylko część elementów (limit)                           |
 

@@ -11,6 +11,7 @@ import type {
   Observation,
   OnlineAccount,
   RunContext,
+  SecretRedactor,
   SourceId,
 } from '@olcys/core';
 import { nowIso } from '@olcys/core';
@@ -25,6 +26,7 @@ import { createGithubCollector } from '../platforms/code-hosting.ts';
 import { createWykopCollector } from '../platforms/social-profile.ts';
 import { createTelegramCollector } from '../platforms/telegram.ts';
 import {
+  accountAliasKeys,
   DEFAULT_MAX_TASKS,
   planExpansion,
   planInitial,
@@ -54,6 +56,8 @@ export interface CollectCaseOptions {
   config: CollectorConfig;
   /** robots.txt policy over the same egress client (`new RobotsCache(http, userAgent)`). */
   robots: RobotsPolicy;
+  /** Removes private keys and seed phrases from every body before storage and parsing (required). */
+  redactor: SecretRedactor;
   maxPivotDepth: number;
   collectors?: CollectorRegistry;
   maxTasks?: number;
@@ -100,6 +104,7 @@ export async function collectCase(options: CollectCaseOptions): Promise<CollectC
     config: options.config,
     robots: options.robots,
     breaker: new SourceCircuitBreaker(),
+    redactor: options.redactor,
   };
   const planner: PlannerContext = {
     scope,
@@ -126,15 +131,28 @@ export async function collectCase(options: CollectCaseOptions): Promise<CollectC
   const captures: Capture[] = [];
   const accounts: OnlineAccount[] = [];
   const observations: Observation[] = [];
+  /** Task keys covered by accounts already collected in this run (handle and stable-id aliases). */
+  const covered = new Set<string>();
 
   // Breadth-first and strictly sequential: one request at a time, deterministic order.
   for (let task = queue.shift(); task; task = queue.shift()) {
     ctx.signal?.throwIfAborted();
+    if (covered.has(task.key)) {
+      // Queued before the account was known under this key (e.g. a nick and its profile URL as inputs).
+      const { key, sourceId, platform, subjectKey, depth, provenance } = task;
+      skipped.push({ key, sourceId, platform, subjectKey, depth, provenance, skip: 'already_collected' });
+      continue;
+    }
     const instance = planner.collectors.get(task.sourceId);
     if (!instance) throw new Error(`planned task without collector: ${task.key}`);
     const startedAt = nowIso(ctx.clock);
     // oxlint-disable-next-line no-await-in-loop
     const result: CollectorResult = await runCollector(instance.collector, task.input, ctx, scope, deps);
+    covered.add(task.key);
+    for (const account of result.accounts) {
+      const owner = planner.factories.find((f) => f.platform === account.platform);
+      if (owner) for (const alias of accountAliasKeys(owner.sourceId, account)) covered.add(alias);
+    }
     captures.push(...result.captures);
     accounts.push(...result.accounts);
     observations.push(...result.observations);

@@ -1,7 +1,7 @@
 /**
  * Source register (`config/sources.yaml`) and the case-scope lock: RED sources are never enabled, AMBER sources only
- * with a per-case justification of at least 20 characters, GREEN sources when the case lists them. Offline runs add
- * the fixture site implicitly.
+ * with a per-case justification of at least 20 characters, GREEN sources when the case lists them. Offline and replay
+ * runs add the fixture site implicitly.
  */
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -11,6 +11,7 @@ import { parse as parseYaml } from 'yaml';
 import { sha256Hex } from './capture.ts';
 import { REPO_ROOT } from './config.ts';
 import { SourceConfigError } from './errors.ts';
+import { usesFixtures } from './urls.ts';
 
 export const MIN_AMBER_JUSTIFICATION = 20;
 export const FIXTURE_SOURCE_ID = 'fixture_site';
@@ -24,8 +25,8 @@ export interface ResolvedScope {
   readonly refused: readonly { sourceId: SourceId; reason: ScopeRefusal }[];
   readonly amberJustifications: Readonly<Record<SourceId, string>>;
   /**
-   * Descriptors for `createEgressClient({ enabledSources })`. Offline every request goes to the local fixture site,
-   * so each source gets the fixture site's rate limit there.
+   * Descriptors for `createEgressClient({ enabledSources })`. Offline and replay every request goes to the fixture
+   * site (or its recordings), so each source gets the fixture site's rate limit there.
    */
   readonly egressSources: readonly SourceDescriptor[];
   isEnabled(sourceId: SourceId): boolean;
@@ -107,10 +108,10 @@ export function createSourceRegistry(
         } else enabled.push(d);
       }
       const fixture = byId.get(FIXTURE_SOURCE_ID);
-      if (mode === 'offline' && fixture && !enabled.some((d) => d.id === FIXTURE_SOURCE_ID)) enabled.push(fixture);
+      if (usesFixtures(mode) && fixture && !enabled.some((d) => d.id === FIXTURE_SOURCE_ID)) enabled.push(fixture);
       const ids = new Set(enabled.map((d) => d.id));
       const egressSources =
-        mode === 'offline' && fixture ? enabled.map((d) => ({ ...d, rateLimit: { ...fixture.rateLimit } })) : enabled;
+        usesFixtures(mode) && fixture ? enabled.map((d) => ({ ...d, rateLimit: { ...fixture.rateLimit } })) : enabled;
       return {
         mode,
         enabled,

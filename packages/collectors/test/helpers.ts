@@ -13,6 +13,7 @@ import type {
   Logger,
   ProvenanceEnvelope,
   RunContext,
+  SecretRedactor,
   SourceDescriptor,
 } from '@olcys/core';
 import { createEgressClient, RobotsCache } from '@olcys/http';
@@ -28,6 +29,19 @@ export const BTC_1 = 'bc1qqeyyk5qtdw97f384wus6nfy4muwa3qh67m9mt2';
 export const BTC_2 = 'bc1qgegxcs9wqknj3cnku7p3gqrkl67pmhljyeg6p3';
 export const ETH_2 = '0xc3436335B60F0fd74bF6C2638f7a8fA64ac53Cd7';
 export const SIGNATURE = 'J624GOcOyQdbXVZySYxKEeDYkKYHP8ZlIa7fF1j4kPbjJb7oho3u999zmjRNXUr+WQCJHePce+z/LLBUwCh6c6c=';
+
+/** Stub of the extractor's redactor: one fake secret format, `TESTSECRET-<alnum>`. */
+export const TEST_SECRET = /TESTSECRET-[A-Za-z0-9]+/g;
+export const TEST_REDACTOR: SecretRedactor = {
+  redact(text) {
+    const findings = [...text.matchAll(TEST_SECRET)].map((m) => ({
+      kind: 'test_secret',
+      start: m.index,
+      end: m.index + m[0].length,
+    }));
+    return { text: text.replace(TEST_SECRET, '[REDACTED:test_secret]'), findings };
+  },
+};
 
 export async function fixtureFile(relative: string, variant: 'v1' | 'v2' = 'v1'): Promise<string> {
   try {
@@ -102,7 +116,20 @@ export interface TestRun {
 }
 
 /** A run context over the real egress client (offline: the fixture site is live, everything else denied). */
-export function createTestRun(scope: ResolvedScope, mode: FetchMode = 'offline', runId = 'run-1'): TestRun {
+export interface TestRunOptions {
+  fetchImpl?: typeof fetch;
+  cassetteDir?: string;
+  record?: boolean;
+  /** Wraps the egress client (e.g. to record what it returned); robots.txt goes through the wrapper too. */
+  wrap?: (client: EgressClient) => EgressClient;
+}
+
+export function createTestRun(
+  scope: ResolvedScope,
+  mode: FetchMode = 'offline',
+  runId = 'run-1',
+  options: TestRunOptions = {},
+): TestRun {
   const logs: EgressLogEntry[] = [];
   const envelopes: ProvenanceEnvelope[] = [];
   const blobs = new MemoryBlobs();
@@ -111,15 +138,19 @@ export function createTestRun(scope: ResolvedScope, mode: FetchMode = 'offline',
     ...d,
     rateLimit: { requests: 1000, perSeconds: 1 },
   }));
-  const http = createEgressClient({
+  const client = createEgressClient({
     mode,
     runId,
     enabledSources,
     blobs,
+    ...(options.fetchImpl ? { fetchImpl: options.fetchImpl } : {}),
+    ...(options.cassetteDir ? { cassetteDir: options.cassetteDir } : {}),
+    ...(options.record ? { record: true } : {}),
     sinks: { log: (e) => void logs.push(e), provenance: (p) => void envelopes.push(p) },
     toolVersion: '0.1.0-test',
     userAgent: USER_AGENT,
   });
+  const http = options.wrap ? options.wrap(client) : client;
   const logger = memoryLogger();
   const ctx: RunContext = {
     runId,

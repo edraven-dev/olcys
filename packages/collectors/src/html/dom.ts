@@ -145,6 +145,29 @@ export function blockText(root: DomElement, options: BlockTextOptions = {}): str
     .replace(/^\n+|\n+$/g, '');
 }
 
+/**
+ * Text exactly as authored, for content that is verified byte for byte (signed messages): text nodes verbatim
+ * (entities decoded by the parser), `<br>` → `\n`, images via `options.image`. Nothing is trimmed or collapsed.
+ */
+export function rawText(root: DomElement, options: BlockTextOptions = {}): string {
+  let out = '';
+  const walk = (node: DomNode): void => {
+    if (node.nodeType === TEXT_NODE) {
+      out += node.textContent ?? '';
+      return;
+    }
+    if (node.nodeType !== ELEMENT_NODE) return;
+    const element = node as DomElement;
+    const tag = element.tagName.toUpperCase();
+    if (SKIPPED_TAGS.has(tag) || options.skip?.(element)) return;
+    if (tag === 'BR') out += '\n';
+    else if (tag === 'IMG') out += options.image?.(element) ?? '';
+    else for (const child of Array.from(element.childNodes)) walk(child);
+  };
+  for (const child of Array.from(root.childNodes)) walk(child);
+  return out;
+}
+
 /** Absolute URL of an `href`, resolved against the page URL; undefined for non-HTTP links. */
 export function absoluteHref(element: DomElement | null, pageUrl: string): string | undefined {
   const href = element?.getAttribute('href')?.trim();

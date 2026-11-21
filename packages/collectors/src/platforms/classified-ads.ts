@@ -6,6 +6,7 @@ import type { CollectorInput, SourceCollector } from '@olcys/core';
 import type { CollectorFactory } from '../framework/collector-registry.ts';
 import { createSourceHttp } from '../framework/http.ts';
 import { ResultBuilder } from '../framework/result.ts';
+import { safeDecode, usesFixtures } from '../framework/urls.ts';
 import { blockText, isoDateTime, parseHtml, textOf } from '../html/dom.ts';
 import { fetchPage } from '../html/page.ts';
 import { observer } from './common.ts';
@@ -40,7 +41,7 @@ export function parseClassifiedAd(html: string): ClassifiedAd {
   const seller = doc.querySelector('aside.seller');
   const description = ad?.querySelector('.ad-description');
   const mailto = seller?.querySelector('a[href^="mailto:"]')?.getAttribute('href');
-  const email = mailto ? decodeURIComponent(mailto.slice('mailto:'.length).split('?')[0] ?? '').trim() : undefined;
+  const email = mailto ? safeDecode(mailto.slice('mailto:'.length).split('?')[0] ?? '')?.trim() : undefined;
   const fields = {
     adId: ad?.getAttribute('data-ad-id')?.trim(),
     title: textOf(ad?.querySelector('.ad-title')),
@@ -65,10 +66,10 @@ export function createClassifiedAdsCollector(): CollectorFactory {
     create(descriptor, deps): SourceCollector {
       return {
         descriptor,
-        supports: (input) => deps.mode === 'offline' && adUrls(input).length > 0,
+        supports: (input) => usesFixtures(deps.mode) && adUrls(input).length > 0,
         async collect(input, ctx) {
-          const rb = new ResultBuilder(ctx, descriptor.id);
-          if (deps.mode !== 'offline') {
+          const rb = new ResultBuilder(ctx, descriptor.id, deps.redactor);
+          if (!usesFixtures(deps.mode)) {
             rb.note('unsupported_input', 'classified ads are read from the fixture site only');
             return rb.build();
           }

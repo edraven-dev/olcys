@@ -75,9 +75,26 @@ export function toFixtureUrl(liveUrl: string, mapping: FixtureMapping): string {
   throw new NoFixtureError(host);
 }
 
-/** The URL actually requested in `mode`: offline maps live hosts to the fixture site, live and replay keep it. */
+/**
+ * True in the modes that read the synthetic fixture site (`offline` live from the site, `replay` from recordings of
+ * it): URLs are mapped to fixture paths and fixture-only collectors run, so both modes request identical URLs.
+ */
+export function usesFixtures(mode: FetchMode): boolean {
+  return mode !== 'live';
+}
+
+/** The URL actually requested in `mode`: offline and replay map live hosts to the fixture site, live keeps it. */
 export function resolveSourceUrl(liveUrl: string, mode: FetchMode, mapping: FixtureMapping): string {
-  return mode === 'offline' ? toFixtureUrl(liveUrl, mapping) : liveUrl;
+  return usesFixtures(mode) ? toFixtureUrl(liveUrl, mapping) : liveUrl;
+}
+
+/** `decodeURIComponent` that reports malformed escapes (a stray `%`) as `undefined` instead of throwing. */
+export function safeDecode(value: string): string | undefined {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return undefined;
+  }
 }
 
 /** Fixture URL → the live URL it stands for (unchanged when it is not a mapped fixture URL). */
@@ -165,8 +182,8 @@ export function recogniseAccountUrl(url: string, mapping?: FixtureMapping): Reco
   const host = parsed.hostname.toLowerCase().replace(/^www\./, '');
   const segments = parsed.pathname.split('/').filter(Boolean);
   if (host === 'bitcointalk.org') {
-    const search = decodeURIComponent(parsed.search);
-    if (!/action=profile/.test(search)) return undefined;
+    const search = safeDecode(parsed.search);
+    if (search === undefined || !/action=profile/.test(search)) return undefined;
     const uid = /[?;&]u=(\d{1,8})(?![\d])/.exec(search)?.[1];
     if (uid) return { platform: 'bitcointalk', platformUserId: uid, logicalUrl: bitcointalkProfileUrl(uid) };
     const user = /[?;&]user=([^;&#]+)/.exec(search)?.[1];

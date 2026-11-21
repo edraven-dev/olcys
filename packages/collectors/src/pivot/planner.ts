@@ -23,7 +23,7 @@ import type {
 import type { CollectorFactory, CollectorInstance } from '../framework/collector-registry.ts';
 import type { WatchedPage } from '../framework/config.ts';
 import type { ResolvedScope } from '../framework/source-registry.ts';
-import { normaliseHandle, recogniseAccountUrl, toLogicalUrl, type FixtureMapping } from '../framework/urls.ts';
+import { recogniseAccountUrl, toLogicalUrl, type FixtureMapping } from '../framework/urls.ts';
 
 export const PIVOT_RULES_VERSION = 'pivot.v1';
 export const PIVOT_REASONS = [
@@ -43,6 +43,7 @@ export const SKIP_REASONS = [
   'unsupported',
   'depth_exceeded',
   'duplicate',
+  'already_collected',
   'budget_exceeded',
 ] as const;
 export type SkipReason = (typeof SKIP_REASONS)[number];
@@ -112,8 +113,12 @@ export function taskKey(sourceId: SourceId, subjectKey: string): string {
   return `${sourceId}|${subjectKey}`;
 }
 
+/**
+ * Task subject of a handle on one platform. Account names on the supported platforms are case-insensitive but
+ * punctuation is significant (`a-b` and `a_b` are different accounts), so only case and a leading `@` are folded.
+ */
 export function handleSubject(platform: string, handle: string): string {
-  return `handle:${platform}:${normaliseHandle(handle)}`;
+  return `handle:${platform}:${handle.normalize('NFKC').trim().replace(/^@+/, '').toLowerCase()}`;
 }
 
 /** Keys under which an account found in the run is already covered (by handle and by stable platform id). */
@@ -295,7 +300,9 @@ export function planExpansion(parent: PlannedTask, result: CollectorResult, ctx:
     );
   }
   if (factory?.pivotOnAccounts !== false) {
-    for (const account of result.accounts) {
+    // An account found by a same-nick probe was looked up with a nick already probed everywhere: no re-probe with
+    // its platform spelling (e.g. the code-hosting login `a-b` for the nick `a_b`).
+    for (const account of result.accounts.filter((a) => a.discoveredVia.method !== 'enumeration')) {
       planner.probes(
         account.handle,
         depth,

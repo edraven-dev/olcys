@@ -10,13 +10,14 @@ import type {
   FetchMode,
   Id,
   RunContext,
+  SecretRedactor,
   SourceDescriptor,
   SourceId,
 } from '@olcys/core';
 import type { CollectorConfig } from './config.ts';
 import { SyntheticIdentifierError } from './errors.ts';
 import type { BarrierStatus } from './status.ts';
-import { isFixtureUrl, resolveSourceUrl, toLogicalUrl } from './urls.ts';
+import { isFixtureUrl, resolveSourceUrl, toLogicalUrl, usesFixtures } from './urls.ts';
 
 /** RFC 9309 decision for a URL; `RobotsCache` from the http package satisfies it. */
 export interface RobotsPolicy {
@@ -42,6 +43,8 @@ export interface CollectorDeps {
   config: CollectorConfig;
   robots: RobotsPolicy;
   breaker: SourceCircuitBreaker;
+  /** Applied to every fetched body before it is stored or parsed, and to every observation value. */
+  redactor: SecretRedactor;
 }
 
 export type SourceHttpRequest = Omit<EgressRequest, 'sourceId' | 'runId'>;
@@ -126,7 +129,7 @@ export function createSourceHttp(args: {
     requestUrl: (liveUrl) => resolveSourceUrl(liveUrl, deps.mode, mapping),
     logicalUrl: (url) => toLogicalUrl(url, mapping),
     hostAllowed(url) {
-      if (deps.mode === 'offline') return isFixtureUrl(url, mapping);
+      if (usesFixtures(deps.mode)) return isFixtureUrl(url, mapping);
       const host = new URL(url).hostname.toLowerCase();
       if (descriptor.blockedHosts?.some((p) => hostMatches(host, p))) return false;
       return descriptor.allowedHosts.some((p) => hostMatches(host, p));

@@ -6,7 +6,7 @@ import { readFile } from 'node:fs/promises';
 import { hostname } from 'node:os';
 import { resolve } from 'node:path';
 import type { FetchMode } from '@olcys/core';
-import { DEFAULT_HOST_PREFIXES, toLogicalUrl, type FixtureMapping } from './urls.ts';
+import { DEFAULT_HOST_PREFIXES, toLogicalUrl, usesFixtures, type FixtureMapping } from './urls.ts';
 
 export type Env = Readonly<Record<string, string | undefined>>;
 
@@ -90,14 +90,13 @@ export function createCollectorConfig(options: CollectorConfigOptions): Collecto
     hostPrefixes: { ...DEFAULT_HOST_PREFIXES, ...options.manifest?.hostPrefixes },
   };
   const base = fixture.baseUrl.replace(/\/+$/, '');
-  // Offline, the persona manifest's page list is the directory (like a sitemap); live it comes from configuration.
-  const watchList =
-    options.mode === 'offline'
-      ? (options.manifest?.pages ?? []).map((p) => ({
-          platform: p.platform,
-          url: toLogicalUrl(`${base}${p.path}`, fixture),
-        }))
-      : parseWatchPages(env['OLCYS_WATCH_PAGES']);
+  // Offline and replay, the persona manifest's page list is the directory (like a sitemap); live it is configured.
+  const watchList = usesFixtures(options.mode)
+    ? (options.manifest?.pages ?? []).map((p) => ({
+        platform: p.platform,
+        url: toLogicalUrl(`${base}${p.path}`, fixture),
+      }))
+    : parseWatchPages(env['OLCYS_WATCH_PAGES']);
   return {
     fixture,
     collectorName: env['OLCYS_COLLECTOR_NAME'] || 'olcys-worker',
@@ -109,7 +108,7 @@ export function createCollectorConfig(options: CollectorConfigOptions): Collecto
     bitcointalk: {
       maxTopicPages: 3,
       // The by-name lookup is verified on the fixture only; live runs need the numeric uid or the profile URL.
-      resolveByName: options.mode === 'offline',
+      resolveByName: usesFixtures(options.mode),
       guestTimezoneOffsetMinutes: 0,
     },
     github: { maxRepositories: 5 },

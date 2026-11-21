@@ -23,7 +23,7 @@ import {
   type CollectorDeps,
   type FixtureMapping,
 } from '../src/index.ts';
-import { fakeEgress, identifier, MemoryBlobs, memoryLogger } from './helpers.ts';
+import { fakeEgress, identifier, MemoryBlobs, memoryLogger, TEST_REDACTOR } from './helpers.ts';
 
 const FIXTURE: FixtureMapping = { baseUrl: 'http://127.0.0.1:4100', hostPrefixes: DEFAULT_HOST_PREFIXES };
 
@@ -183,6 +183,7 @@ describe('source HTTP guards', () => {
       }),
       robots: { check: async () => ({ allowed: true }) },
       breaker: new SourceCircuitBreaker(),
+      redactor: TEST_REDACTOR,
     };
     const input = {
       identifiers: [identifier('nickname', 'fikcyjny_kacper', { platform: 'bitcointalk' })],

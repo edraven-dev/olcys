@@ -26,6 +26,7 @@ import {
   SIGNATURE,
   startFixture,
   testConfig,
+  TEST_REDACTOR,
   type TestRun,
 } from './helpers.ts';
 
@@ -52,6 +53,7 @@ async function run(identifiers = PERSONA_IDENTIFIERS(), maxPivotDepth = 2, cfg =
     ctx: test.ctx,
     config: cfg,
     robots: test.robots,
+    redactor: TEST_REDACTOR,
     maxPivotDepth,
   });
   return { result, test };
@@ -73,7 +75,7 @@ describe('persona run (offline, fixture site)', () => {
     expect(result.tasks.map((t) => [t.key, t.status, t.provenance.rule])).toEqual([
       ['bitcointalk|handle:bitcointalk:fikcyjny_kacper', 'ok', 'I1'],
       ['wykop|handle:wykop:fikcyjny_kacper', 'ok', 'I2'],
-      ['github|handle:github:fikcyjny_kacper', 'ok', 'I2'],
+      ['github|handle:github:fikcyjny-kacper', 'ok', 'I2'],
       ['telegram_preview|handle:telegram:fikcyjny_kacper', 'not_found', 'I2'],
       [`fixture_site|url:${server.url}/tablica/ogloszenie/81000001/`, 'ok', 'I3'],
       ['telegram_preview|url:https://t.me/s/olcys_test_ostrzezenia/', 'ok', 'I3'],
@@ -208,7 +210,7 @@ describe('pivots', () => {
     expect(result.tasks.filter((t) => t.depth === 1).map((t) => t.key)).toEqual([
       'bitcointalk|handle:bitcointalk:fikcyjny_kacper',
       'wykop|handle:wykop:fikcyjny_kacper',
-      'github|handle:github:fikcyjny_kacper',
+      'github|handle:github:fikcyjny-kacper',
       'telegram_preview|handle:telegram:fikcyjny_kacper',
     ]);
     expect(result.accounts.find((a) => a.platform === 'bitcointalk')?.discoveredVia.method).toBe('enumeration');
@@ -244,7 +246,13 @@ describe('pivots', () => {
 async function page(path: string) {
   const scope = registry.resolveScope(DEMO_SCOPE, 'offline');
   const test = createTestRun(scope);
-  const deps: CollectorDeps = { mode: 'offline', config, robots: test.robots, breaker: new SourceCircuitBreaker() };
+  const deps: CollectorDeps = {
+    mode: 'offline',
+    config,
+    robots: test.robots,
+    breaker: new SourceCircuitBreaker(),
+    redactor: TEST_REDACTOR,
+  };
   const http = createSourceHttp({
     descriptor: registry.require('bitcointalk'),
     ctx: test.ctx,

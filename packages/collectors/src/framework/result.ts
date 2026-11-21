@@ -5,6 +5,7 @@ import type {
   Observation,
   OnlineAccount,
   RunContext,
+  SecretRedactor,
   SourceId,
 } from '@olcys/core';
 import { newId } from '@olcys/core';
@@ -21,6 +22,7 @@ export interface PageOutcome {
 export class ResultBuilder {
   readonly #ctx: RunContext;
   readonly #sourceId: SourceId;
+  readonly #redactor: SecretRedactor;
   readonly #captures: Capture[] = [];
   readonly #accounts: OnlineAccount[] = [];
   readonly #observations: Observation[] = [];
@@ -28,9 +30,14 @@ export class ResultBuilder {
   readonly #statuses: CaptureStatus[] = [];
   #affirmativeNotFound = false;
 
-  constructor(ctx: RunContext, sourceId: SourceId) {
+  constructor(ctx: RunContext, sourceId: SourceId, redactor: SecretRedactor) {
     this.#ctx = ctx;
     this.#sourceId = sourceId;
+    this.#redactor = redactor;
+  }
+
+  #safe(value: string): string {
+    return this.#redactor.redact(value).text;
   }
 
   addPage(page: PageOutcome): void {
@@ -45,12 +52,18 @@ export class ResultBuilder {
   }
 
   account(fields: Omit<OnlineAccount, 'id' | 'runId'>): OnlineAccount {
-    const account: OnlineAccount = { id: newId(), runId: this.#ctx.runId, ...fields };
+    const account: OnlineAccount = {
+      id: newId(),
+      runId: this.#ctx.runId,
+      ...fields,
+      handle: this.#safe(fields.handle),
+      ...(fields.displayName === undefined ? {} : { displayName: this.#safe(fields.displayName) }),
+    };
     this.#accounts.push(account);
     return account;
   }
 
-  /** Adds a fact read from `capture`; empty values are skipped. Values are always strings. */
+  /** Adds a fact read from `capture` (value redacted again, defence in depth); empty values are skipped. */
   observe(capture: Capture, subject: Observation['subject'], property: string, value: string, locator: string): void {
     if (value === '') return;
     this.#observations.push({
@@ -60,7 +73,7 @@ export class ResultBuilder {
       sourceId: this.#sourceId,
       subject,
       property,
-      value,
+      value: this.#safe(value),
       locator,
       observedAt: capture.collectedAt,
     });

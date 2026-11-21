@@ -27,6 +27,7 @@ export const NOTE_CODES = [
   'not_found',
   'no_identifier_match',
   'unrecognised_markup',
+  'malformed_link',
   'redirect_limit',
   'truncated',
 ] as const;

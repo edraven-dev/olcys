@@ -1,11 +1,12 @@
 /**
- * Builds the `Capture` record of one fetched resource: the body exactly as received (the provenance envelope's blob,
- * so its SHA-256 is the hash at collection), the response headers as canonical JSON, collector identity, every fetch
+ * Builds the `Capture` record of one fetched resource: the stored body (as received, or with secrets redacted — the
+ * technical report then keeps the original hash), the response headers as canonical JSON, collector identity, every fetch
  * of the redirect chain and a SHA-256 manifest over all of it. One module, so a sealing recorder can replace it.
  */
 import { createHash } from 'node:crypto';
 import type {
   ArtifactKind,
+  BlobRef,
   Capture,
   CaptureArtifact,
   CaptureStatus,
@@ -41,6 +42,8 @@ export async function buildCapture(args: {
   config: CollectorConfig;
   /** Final response of the redirect chain. */
   response: EgressResponse;
+  /** The stored body (redacted when secrets were found; the provenance envelope keeps the original hash). */
+  body: BlobRef;
   /** First URL requested (the fixture URL offline). */
   requestedUrl: string;
   finalUrl: string;
@@ -52,7 +55,7 @@ export async function buildCapture(args: {
   const headersJson = canonicalJson({ status: response.status, headers: response.headers });
   const headersBlob = await ctx.blobs.put(new TextEncoder().encode(headersJson), 'application/json');
   const artifacts: CaptureArtifact[] = [
-    { kind: artifactKindFor(response.headers['content-type'] ?? ''), blob: response.provenance.body },
+    { kind: artifactKindFor(response.headers['content-type'] ?? ''), blob: args.body },
     { kind: 'headers', blob: headersBlob },
   ];
   const capture: Omit<Capture, 'manifestSha256'> = {

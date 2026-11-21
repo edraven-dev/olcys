@@ -74,7 +74,7 @@ export function createTelegramCollector(): CollectorFactory {
         descriptor,
         supports: (input) => handleTarget(input, 'telegram', telegramChannel, mapping) !== undefined,
         async collect(input, ctx) {
-          const rb = new ResultBuilder(ctx, descriptor.id);
+          const rb = new ResultBuilder(ctx, descriptor.id, deps.redactor);
           const target = handleTarget(input, 'telegram', telegramChannel, mapping);
           if (!target) {
             rb.note('unsupported_input', 'no public channel name');

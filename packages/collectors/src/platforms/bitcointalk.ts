@@ -15,7 +15,7 @@ import type { CollectorFactory } from '../framework/collector-registry.ts';
 import { createSourceHttp } from '../framework/http.ts';
 import { ResultBuilder } from '../framework/result.ts';
 import { bitcointalkProfileUrl, recogniseAccountUrl } from '../framework/urls.ts';
-import { all, blockText, childElements, parseHtml, squash, textOf, type DomElement } from '../html/dom.ts';
+import { all, blockText, childElements, parseHtml, rawText, squash, textOf, type DomElement } from '../html/dom.ts';
 import { fetchPage } from '../html/page.ts';
 
 export const BITCOINTALK_PARSER_VERSION = 'smf1.v1';
@@ -192,10 +192,11 @@ function smiley(element: DomElement): string | undefined {
   return SMILEYS[(element.getAttribute('alt') ?? '').trim().toLowerCase()];
 }
 
+// Armour lines may end in CRLF; the message between them is kept exactly as authored.
 const ELECTRUM =
-  /-----BEGIN BITCOIN SIGNED MESSAGE-----\n([\s\S]*?)\n-----BEGIN SIGNATURE-----\n([^\n]+)\n([^\n]+)\n-----END BITCOIN SIGNED MESSAGE-----/g;
+  /-----BEGIN BITCOIN SIGNED MESSAGE-----\r?\n([\s\S]*?)\r?\n-----BEGIN SIGNATURE-----\r?\n([^\r\n]+)\r?\n([^\r\n]+)\r?\n-----END BITCOIN SIGNED MESSAGE-----/g;
 const BITCOIN_QT =
-  /-----BEGIN BITCOIN SIGNED MESSAGE-----\n([\s\S]*?)\n-----BEGIN BITCOIN SIGNATURE-----\n([\s\S]*?)\n\n([^\n]+)\n-----END BITCOIN SIGNATURE-----/g;
+  /-----BEGIN BITCOIN SIGNED MESSAGE-----\r?\n([\s\S]*?)\r?\n-----BEGIN BITCOIN SIGNATURE-----\r?\n([\s\S]*?)\r?\n[\t ]*\r?\n([^\r\n]+)\r?\n-----END BITCOIN SIGNATURE-----/g;
 
 function blocksIn(
   text: string,
@@ -230,11 +231,12 @@ const isQuote = (element: DomElement): boolean => element.matches('div.quote, di
 
 /** Signed-message blocks of a post body: the author's own text first, then each quote (`inQuote`). */
 export function findSignedMessages(post: DomElement): SignedMessageBlock[] {
-  const own = blocksIn(blockText(post, { skip: isQuote, image: smiley }), false, undefined);
+  // Whitespace-preserving read: trimming or collapsing would change the signed text and fail verification.
+  const own = blocksIn(rawText(post, { skip: isQuote, image: smiley }), false, undefined);
   const quoted = all(post, 'div.quote').flatMap((quote) => {
     const header = quote.previousElementSibling?.matches('div.quoteheader') ? quote.previousElementSibling : null;
     const author = /Quote from:\s*(.+?)\s+on\s/i.exec(textOf(header))?.[1];
-    const text = blockText(quote, { skip: (el) => el !== quote && isQuote(el), image: smiley });
+    const text = rawText(quote, { skip: (el) => el !== quote && isQuote(el), image: smiley });
     return blocksIn(text, true, author);
   });
   return [...own, ...quoted].map((block, index) => Object.assign({ index }, block));
@@ -449,7 +451,7 @@ export function createBitcointalkCollector(): CollectorFactory {
         descriptor,
         supports: (input) => targetOf(input, options.resolveByName) !== undefined,
         async collect(input, ctx) {
-          const rb = new ResultBuilder(ctx, descriptor.id);
+          const rb = new ResultBuilder(ctx, descriptor.id, deps.redactor);
           const target = targetOf(input, options.resolveByName);
           if (!target) {
             rb.note('unsupported_input', 'no bitcointalk uid, profile URL or (offline) member name');

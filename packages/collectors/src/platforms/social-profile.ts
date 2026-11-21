@@ -6,7 +6,7 @@ import type { SourceCollector } from '@olcys/core';
 import type { CollectorFactory } from '../framework/collector-registry.ts';
 import { createSourceHttp } from '../framework/http.ts';
 import { ResultBuilder } from '../framework/result.ts';
-import { recogniseAccountUrl, type FixtureMapping } from '../framework/urls.ts';
+import { recogniseAccountUrl, safeDecode, usesFixtures, type FixtureMapping } from '../framework/urls.ts';
 import { absoluteHref, all, blockText, isoDateTime, parseHtml, textOf } from '../html/dom.ts';
 import { fetchPage } from '../html/page.ts';
 import { handleTarget, observer } from './common.ts';
@@ -29,6 +29,8 @@ export interface SocialProfilePage {
   about?: string;
   /** Logical profile URLs of other recognised accounts linked from the page. */
   links: string[];
+  /** Links skipped because their percent-encoding is malformed (raw `href` values). */
+  malformedLinks: string[];
   entries: { id: string; publishedAt?: string; text: string }[];
 }
 
@@ -37,7 +39,13 @@ export function parseWykopProfile(html: string, pageUrl: string, mapping?: Fixtu
   const handle = textOf(doc.querySelector('h1.username')) || undefined;
   const aboutParagraphs = all(doc, 'section.about p').map((p) => blockText(p));
   const links: string[] = [];
+  const malformedLinks: string[] = [];
   for (const anchor of all(doc, 'main a[href]')) {
+    const raw = anchor.getAttribute('href') ?? '';
+    if (safeDecode(raw) === undefined) {
+      malformedLinks.push(raw);
+      continue;
+    }
     const href = absoluteHref(anchor, pageUrl);
     const account = href ? recogniseAccountUrl(href, mapping) : undefined;
     if (!account || (account.platform === 'wykop' && account.handle?.toLowerCase() === handle?.toLowerCase())) continue;
@@ -54,6 +62,7 @@ export function parseWykopProfile(html: string, pageUrl: string, mapping?: Fixtu
     ...(handle ? { handle } : {}),
     ...(aboutParagraphs.length ? { about: aboutParagraphs.join('\n') } : {}),
     links,
+    malformedLinks,
     entries,
   };
 }
@@ -69,10 +78,10 @@ export function createWykopCollector(): CollectorFactory {
         descriptor,
         // Only the fixture page exists: the register's live Wykop access is an API that needs keys.
         supports: (input) =>
-          deps.mode === 'offline' && handleTarget(input, 'wykop', wykopHandle, mapping) !== undefined,
+          usesFixtures(deps.mode) && handleTarget(input, 'wykop', wykopHandle, mapping) !== undefined,
         async collect(input, ctx) {
-          const rb = new ResultBuilder(ctx, descriptor.id);
-          const target = deps.mode === 'offline' ? handleTarget(input, 'wykop', wykopHandle, mapping) : undefined;
+          const rb = new ResultBuilder(ctx, descriptor.id, deps.redactor);
+          const target = usesFixtures(deps.mode) ? handleTarget(input, 'wykop', wykopHandle, mapping) : undefined;
           if (!target) {
             rb.note('unsupported_input', 'no wykop handle (the profile page is read offline only)');
             return rb.build();
@@ -101,6 +110,7 @@ export function createWykopCollector(): CollectorFactory {
           const account = observer(rb, capture, 'account', accountKey);
           account('profile.about', profile.about);
           profile.links.forEach((link, i) => account('account.link', link, i));
+          for (const link of profile.malformedLinks) rb.note('malformed_link', link);
           for (const entry of profile.entries) {
             // The page key equals the entry's DOM anchor (data-entry-id), so extraction can attribute mentions.
             const post = observer(rb, capture, 'page', `wykop:${entry.id}`);
