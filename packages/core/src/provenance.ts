@@ -35,6 +35,8 @@ export interface ProvenanceEnvelope {
   method: 'GET' | 'POST';
   /** Full URL with API keys and other secret parameters redacted. */
   url: string;
+  /** Redacted URL of the last redirect hop, when it differs from `url`. */
+  finalUrl?: string;
   requestedAt: IsoDateTime;
   receivedAt: IsoDateTime;
   httpStatus: number;
@@ -76,4 +78,6 @@ export interface EgressLogEntry {
   at: IsoDateTime;
   httpStatus?: number;
   bytes?: number;
+  /** Transport failure after the request was sent (timeout, connection error, body over the size cap). */
+  error?: string;
 }
