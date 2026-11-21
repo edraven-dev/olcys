@@ -49,6 +49,14 @@ export interface ProvenanceEnvelope {
   chainTip?: ChainTip;
   pagination?: { page?: number; cursor?: string; nextCursor?: string };
   egressLogId: Id;
+  /** Peer IP address of the server (Berkeley Protocol Annex IV), when known. */
+  remoteAddress?: string;
+  /** False when the body was hashed but deliberately not stored (restrictive terms, tokens). */
+  bodyPersisted?: boolean;
+  /** Set when the response is synthetic demo data (e.g. generated chain history). */
+  synthetic?: boolean;
+  /** Set when the response comes from a local sandbox chain. */
+  sandbox?: boolean;
 }
 
 /** One row per outbound request attempt, allowed or denied. Shown to the analyst. */

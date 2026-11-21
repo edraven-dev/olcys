@@ -19,6 +19,9 @@ licencje „source-available” (np. Blockscout ≥ v11) oraz licencje wykluczaj
 | oxfmt                          | 0.79.0  | MIT               | formatowanie                                                  | devDependency (root)               |
 | license-checker-rseidelsohn    | 5.0.1   | BSD-3-Clause      | kontrola licencji zależności npm                              | devDependency (root)               |
 | @types/node                    | 26.6.6  | MIT               | typy Node                                                     | devDependency (root)               |
+| zod                            | 4.6.7   | MIT               | walidacja danych wejściowych i konfiguracji                   | packages/core                      |
+| big.js                         | 7.0.1   | MIT               | dokładna arytmetyka dziesiętna (kwoty, PLN)                   | packages/core                      |
+| yaml                           | 2.9.1   | ISC               | odczyt plików konfiguracyjnych w testach                      | packages/core (dev)                |
 | Fastify                        | 5.12.8  | MIT               | API HTTP                                                      | apps/api                           |
 | React / React DOM              | 19.3.1  | MIT               | interfejs                                                     | apps/web                           |
 | Vite                           | 8.3.8   | MIT               | budowanie i serwer deweloperski interfejsu                    | apps/web                           |

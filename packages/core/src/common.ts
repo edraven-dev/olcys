@@ -17,4 +17,4 @@ export type Sha256Hex = string;
 export type DecimalString = string;
 
 /** Version of the contracts in this package. Bump on any breaking change (see AGENTS.md). */
-export const CORE_CONTRACTS_VERSION = '0.1.0';
+export const CORE_CONTRACTS_VERSION = '0.2.0';

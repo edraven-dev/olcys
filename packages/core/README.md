@@ -1,6 +1,7 @@
 # @olcys/core
 
-Model domeny i kontrakty współdzielone przez wszystkie pakiety OŁCyŚ. Bez zależności uruchomieniowych; działa
+Model domeny i kontrakty współdzielone przez wszystkie pakiety OŁCyŚ: typy, porty, schematy zod, generator
+identyfikatorów UUIDv7, arytmetyka dziesiętna i kanoniczny JSON (RFC 8785). Minimalne zależności (zod, big.js); działa
 zarówno w Node.js, jak i w przeglądarce.
 
 | Plik                | Zawartość                                                                                                                                                  |

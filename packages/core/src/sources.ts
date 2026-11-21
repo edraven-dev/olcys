@@ -31,6 +31,8 @@ export const SOURCE_KINDS = [
   'timestamping',
   'label_dataset',
   'fixture',
+  'internal_service',
+  'ai_model',
 ] as const;
 export type SourceKind = (typeof SOURCE_KINDS)[number];
 
@@ -46,7 +48,16 @@ export interface SourceDescriptor {
   compliance: ComplianceStatus;
   /** Why the source has this status (ToS clause, licence, data-flow concern). */
   complianceNote: string;
-  tosUrl?: string;
+  tosUrl?: string | null;
+  /** Polish display name / note for the analyst console. */
+  namePl?: string;
+  complianceNotePl?: string;
+  /** False excludes this source's content from every LLM prompt (e.g. Telegram). Default true. */
+  llmAllowed?: boolean;
+  /** Hosts that must never be contacted even if allowed elsewhere. */
+  blockedHosts?: string[];
+  /** Attribution text required by the provider's terms (e.g. "Powered by Etherscan.io APIs"). */
+  attribution?: string;
   enabledByDefault: boolean;
   requiresApiKey: boolean;
   /** True when a query to this source discloses a case identifier to a third party (logged per request). */
