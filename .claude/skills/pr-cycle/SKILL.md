@@ -26,7 +26,9 @@ Run the `pre-pr-review` skill first; this skill starts when the change is done a
 ## 3. Wait for CI and the review
 
 - Wait in the background (a polling loop or event listener), not with foreground sleeps, until `gh pr checks <n>` has
-  no pending checks and `gh api repos/{owner}/{repo}/pulls/<n>/reviews` contains a review by `greptile-apps[bot]`.
+  no pending checks and `gh api repos/{owner}/{repo}/pulls/<n>/reviews` contains a review by `greptile-apps[bot]`
+  whose `commit_id` is the commit you asked about — the PR head (`gh pr view <n> --json headRefOid`) for a new PR or
+  a re-review. An older review does not count.
 - Read the summary comment (confidence score, findings, the "Fix with agent prompt" block) and the inline comments
   (`gh api repos/{owner}/{repo}/pulls/<n>/comments`).
 
@@ -39,12 +41,14 @@ Run the `pre-pr-review` skill first; this skill starts when the change is done a
   `gh api repos/{owner}/{repo}/pulls/<n>/comments/<comment-id>/replies -f body="Fixed in <sha>: …"`.
 - Resolve the addressed threads: GraphQL `resolveReviewThread(input: {threadId})`, thread ids from
   `repository.pullRequest(number).reviewThreads`.
-- After substantive fixes, request a re-review by commenting `@greptileai` on the PR. Skip re-reviews for trivial
-  follow-ups (wording, typos): review credits are limited.
+- After substantive fixes, request a re-review by commenting `@greptileai` on the PR, then wait again as in step 3
+  for a review of the new head commit. Skip re-reviews for trivial follow-ups (wording, typos, one-line fixes a
+  review already asked for): review credits are limited.
 
 ## 5. Merge
 
-- Merge only when CI is green, the latest review leaves no valid open finding and every thread is answered:
+- Merge only when CI is green, a review of the latest substantive commit leaves no valid open finding and every
+  thread is answered:
   `gh pr merge <n> --merge --delete-branch`, then `git fetch --prune origin`.
 
 ## Releases and hotfixes
