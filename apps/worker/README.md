@@ -2,7 +2,8 @@
 
 Łączy implementacje pakietów z portami `@olcys/core` i wykonuje potok analizy. W MVP potok działa synchronicznie
 w procesie API: etapy wykonują się po kolei, zapisują wyniki przez repozytoria i raportują postęp w rekordzie
-przebiegu; na końcu przebieg jest porównywany z poprzednim zakończonym przebiegiem sprawy.
+przebiegu. Porównanie z poprzednim zakończonym przebiegiem sprawy jest wbudowanym krokiem `diff.previous`; etapy
+późniejszych kroków według `RUN_STEPS` (raport) wykonują się po nim i widzą wykryte zmiany.
 
 ## Publiczne API
 
