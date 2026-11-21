@@ -1,0 +1,18 @@
+{
+  "_synthetic": "SYNTHETIC TEST DATA (OŁCyŚ fixture)",
+  "address": "bc1qsycvyr0x9trm0jwgvsg5ph8sx5pj6rxyus0eqz",
+  "chain_stats": {
+    "funded_txo_count": 2,
+    "funded_txo_sum": 5970000,
+    "spent_txo_count": 2,
+    "spent_txo_sum": 34990000,
+    "tx_count": 2
+  },
+  "mempool_stats": {
+    "funded_txo_count": 0,
+    "funded_txo_sum": 0,
+    "spent_txo_count": 0,
+    "spent_txo_sum": 0,
+    "tx_count": 0
+  }
+}

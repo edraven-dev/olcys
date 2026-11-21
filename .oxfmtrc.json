@@ -6,5 +6,13 @@
   "semi": true,
   "singleQuote": true,
   "trailingComma": "all",
-  "ignorePatterns": ["data/**", "pnpm-lock.yaml"]
+  "ignorePatterns": [
+    "data/**",
+    "pnpm-lock.yaml",
+    "apps/fixture-site/templates/**",
+    "apps/fixture-site/public/**",
+    "fixtures/persona/**",
+    "fixtures/labels/demo-curated.json",
+    "fixtures/cassettes/**"
+  ]
 }

@@ -7,6 +7,14 @@
   "scripts": {
     "dev": "node --watch --env-file-if-exists=../../.env src/server.ts",
     "dev:v2": "FIXTURE_VARIANT=v2 node --watch src/server.ts",
-    "start": "node src/server.ts"
+    "start": "node src/server.ts",
+    "fixtures:generate": "node scripts/generate.ts",
+    "fixtures:render": "node scripts/generate.ts --render-only",
+    "fixtures:check": "node scripts/generate.ts --check"
+  },
+  "devDependencies": {
+    "@noble/curves": "2.4.0",
+    "@noble/hashes": "2.4.0",
+    "@scure/base": "2.4.0"
   }
 }

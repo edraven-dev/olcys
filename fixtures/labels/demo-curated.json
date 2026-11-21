@@ -1,0 +1,70 @@
+{
+  "_synthetic": "SYNTHETIC TEST DATA (OŁCyŚ fixture)",
+  "dataset": {
+    "datasetId": "demo-curated",
+    "url": "fixtures/labels/demo-curated.json",
+    "license": "CC0-1.0",
+    "lastmod": "2026-11-21T19:14:17.102Z",
+    "note": "Synthetic labels for the demo persona; regenerated with the fixture site."
+  },
+  "labels": [
+    {
+      "address": {
+        "chain": "evm:1",
+        "address": "0xb9C66cBbfaFcd672eda6755a12370f46Cd73c396"
+      },
+      "entity": "Giełda Testowa (SYNTHETIC)",
+      "category": "exchange",
+      "attributes": {
+        "custodial": true,
+        "fiatCapable": true,
+        "plRegistered": true,
+        "kyc": true
+      },
+      "confidence": 95,
+      "provenance": {
+        "datasetId": "demo-curated",
+        "url": "fixtures/labels/demo-curated.json",
+        "license": "CC0-1.0",
+        "lastmod": "2026-11-21T19:14:17.102Z"
+      }
+    },
+    {
+      "address": {
+        "chain": "tron",
+        "address": "TAf9N45ms8ppc9f6jqn5BypDGgdaqgZrtt"
+      },
+      "entity": "Giełda Testowa (SYNTHETIC)",
+      "category": "exchange",
+      "attributes": {
+        "custodial": true,
+        "fiatCapable": true,
+        "plRegistered": true,
+        "kyc": true
+      },
+      "confidence": 95,
+      "provenance": {
+        "datasetId": "demo-curated",
+        "url": "fixtures/labels/demo-curated.json",
+        "license": "CC0-1.0",
+        "lastmod": "2026-11-21T19:14:17.102Z"
+      }
+    },
+    {
+      "address": {
+        "chain": "tron",
+        "address": "TLWHUoN6d7wEUezPbpv3qTHVAEya2C5biV"
+      },
+      "entity": "DEX Testowy — pula USDT/TRX (SYNTHETIC)",
+      "category": "defi_dex",
+      "attributes": {},
+      "confidence": 90,
+      "provenance": {
+        "datasetId": "demo-curated",
+        "url": "fixtures/labels/demo-curated.json",
+        "license": "CC0-1.0",
+        "lastmod": "2026-11-21T19:14:17.102Z"
+      }
+    }
+  ]
+}

@@ -7,7 +7,8 @@
   "scripts": {
     "dev:deps": "docker compose up -d --wait",
     "dev:deps:down": "docker compose down",
-    "dev": "pnpm --parallel --filter \"./apps/*\" run dev",
+    "dev": "pnpm --parallel --filter \"./apps/*\" --filter \"!@olcys/fixture-site\" run dev",
+    "dev:fixture": "pnpm --filter @olcys/fixture-site run dev",
     "typecheck": "tsc -p tsconfig.json && tsc -p apps/web/tsconfig.json",
     "test": "vitest run",
     "test:watch": "vitest",

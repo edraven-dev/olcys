@@ -2,14 +2,39 @@
 <html lang="pl">
   <head>
     <meta charset="utf-8" />
-    <title>OŁCyŚ fixture site (SYNTHETIC)</title>
     <meta name="robots" content="noindex,nofollow" />
+    <title>OŁCyŚ — strona testowa (SYNTHETIC)</title>
+    <link rel="stylesheet" href="/assets/fixture.css" />
   </head>
   <body>
-    <p>
-      <strong>SYNTHETIC TEST DATA.</strong> This site contains a fictional persona for testing OŁCyŚ. No real person is
-      described here.
-    </p>
-    <p>Persona pages live under <code>public/v1/</code> and <code>public/v2/</code>.</p>
+    <div class="olcys-synthetic" role="note">DANE SYNTETYCZNE — SYNTHETIC TEST DATA. Fikcyjna persona testowa OŁCyŚ; żadna prawdziwa osoba nie jest tu opisana.</div>
+    <main>
+      <h1>Strona testowa OŁCyŚ (dane syntetyczne)</h1>
+      <p>Fikcyjna persona „Kacper Fikcyjny” (nick fikcyjny_kacper) do demonstracji i testów. Strony naśladują strukturę
+        popularnych serwisów, ale nie zawierają żadnych prawdziwych danych.</p>
+      <h2>Ślady Web2</h2>
+      <ul>
+        <li><a href="/bitcointalk/index.php?action=profile;u=900001">Profil forum (uid 900001)</a> ·
+          <a href="/bitcointalk/index.php?action=profile;u=900001;sa=showPosts">ostatnie posty</a></li>
+        <li><a href="/bitcointalk/index.php?topic=5500001.0">Wątek: podpisana wiadomość</a> ·
+          <a href="/bitcointalk/index.php?topic=5500002.0">Wątek: wpłaty na giełdę</a></li>
+        <li><a href="/wykop/ludzie/fikcyjny_kacper/">Profil w serwisie społecznościowym</a></li>
+        <li><a href="/tablica/ogloszenie/81000001/">Ogłoszenie P2P: sprzedaż USDT za PLN</a></li>
+        <li><a href="/github/fikcyjny-kacper/">Konto w serwisie z kodem (ten sam nick, inna osoba)</a></li>
+        <li><a href="/telegram/s/olcys_test_ostrzezenia/">Kanał z ostrzeżeniami (strona trzecia)</a></li>
+      </ul>
+      <h2>Bariery i zgodność</h2>
+      <ul>
+        <li><a href="/barriers/captcha">CAPTCHA</a> · <a href="/barriers/login">logowanie</a> ·
+          <a href="/barriers/forbidden">403</a> · <a href="/barriers/rate-limited">429</a> ·
+          <a href="/barriers/challenge">wyzwanie przeglądarki</a></li>
+        <li><a href="/robots.txt">robots.txt</a> (katalog <code>/private/</code> jest wyłączony)</li>
+      </ul>
+      <h2>Dane łańcuchów (syntetyczne, formaty dostawców)</h2>
+      <ul>
+        <li><code>/chain/esplora/api/…</code> (Esplora), <code>/chain/etherscan/v2/api?…</code> (Etherscan V2),
+          <code>/chain/trongrid/v1/…</code> (TronGrid)</li>
+      </ul>
+    </main>
   </body>
 </html>

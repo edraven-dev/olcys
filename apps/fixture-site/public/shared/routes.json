@@ -1,0 +1,379 @@
+{
+  "_synthetic": "SYNTHETIC TEST DATA (OŁCyŚ fixture)",
+  "routes": [
+    {
+      "path": "/bitcointalk/index.php",
+      "query": "action=profile;u=900001",
+      "file": "bitcointalk/profile-900001.html"
+    },
+    {
+      "path": "/bitcointalk/index.php",
+      "query": "action=profile;user=fikcyjny_kacper",
+      "file": "bitcointalk/profile-900001.html"
+    },
+    {
+      "path": "/bitcointalk/index.php",
+      "query": "action=profile;u=900001;sa=showPosts",
+      "file": "bitcointalk/showposts-900001.html"
+    },
+    {
+      "path": "/bitcointalk/index.php",
+      "query": "topic=5500001.0",
+      "file": "bitcointalk/topic-5500001.html"
+    },
+    {
+      "path": "/bitcointalk/index.php",
+      "query": "topic=5500001.msg65000001",
+      "file": "bitcointalk/topic-5500001.html"
+    },
+    {
+      "path": "/bitcointalk/index.php",
+      "query": "topic=5500001.msg65000002",
+      "file": "bitcointalk/topic-5500001.html"
+    },
+    {
+      "path": "/bitcointalk/index.php",
+      "query": "topic=5500002.0",
+      "file": "bitcointalk/topic-5500002.html"
+    },
+    {
+      "path": "/bitcointalk/index.php",
+      "query": "topic=5500002.msg65000101",
+      "file": "bitcointalk/topic-5500002.html"
+    },
+    {
+      "path": "/bitcointalk/index.php",
+      "query": "topic=5500002.msg65000102",
+      "file": "bitcointalk/topic-5500002.html"
+    },
+    {
+      "path": "/bitcointalk/index.php",
+      "query": "topic=5500002.msg65000103",
+      "file": "bitcointalk/topic-5500002.html"
+    },
+    {
+      "path": "/bitcointalk/index.php",
+      "query": "topic=5500002.msg65000104",
+      "file": "bitcointalk/topic-5500002.html"
+    },
+    {
+      "path": "/bitcointalk/index.php",
+      "queryPrefix": "action=profile;",
+      "file": "bitcointalk/error-no-member.html"
+    },
+    {
+      "path": "/barriers/captcha",
+      "file": "barriers/captcha.html"
+    },
+    {
+      "path": "/barriers/login",
+      "file": "barriers/login.html"
+    },
+    {
+      "path": "/barriers/forbidden",
+      "status": 403,
+      "file": "barriers/forbidden.html"
+    },
+    {
+      "path": "/barriers/rate-limited",
+      "status": 429,
+      "headers": {
+        "retry-after": "1"
+      },
+      "file": "barriers/rate-limited.html"
+    },
+    {
+      "path": "/barriers/challenge",
+      "status": 403,
+      "headers": {
+        "cf-mitigated": "challenge"
+      },
+      "file": "barriers/challenge.html"
+    },
+    {
+      "path": "/barriers/redirect-private",
+      "status": 302,
+      "headers": {
+        "location": "/private/"
+      }
+    },
+    {
+      "path": "/barriers/redirect-external",
+      "status": 302,
+      "headers": {
+        "location": "https://example.org/"
+      }
+    },
+    {
+      "path": "/chain/esplora/api/blocks/tip/height",
+      "file": "chain/esplora/api/blocks/tip/height.txt",
+      "headers": {
+        "content-type": "text/plain; charset=utf-8"
+      }
+    },
+    {
+      "path": "/chain/etherscan/v2/api",
+      "params": {
+        "chainid": "1",
+        "module": "account",
+        "action": "txlist",
+        "address": "0x52872125038dd73c4f8a4d289daf2d67189a4efa"
+      },
+      "file": "chain/etherscan/0x52872125038dd73c4f8a4d289daf2d67189a4efa/txlist.json"
+    },
+    {
+      "path": "/chain/etherscan/v2/api",
+      "params": {
+        "chainid": "1",
+        "module": "account",
+        "action": "balance",
+        "address": "0x52872125038dd73c4f8a4d289daf2d67189a4efa"
+      },
+      "file": "chain/etherscan/0x52872125038dd73c4f8a4d289daf2d67189a4efa/balance.json"
+    },
+    {
+      "path": "/chain/etherscan/v2/api",
+      "params": {
+        "chainid": "1",
+        "module": "account",
+        "action": "txlist",
+        "address": "0x72e7b4931b53ba13ca8d0b51b4655e6e64881ea5"
+      },
+      "file": "chain/etherscan/0x72e7b4931b53ba13ca8d0b51b4655e6e64881ea5/txlist.json"
+    },
+    {
+      "path": "/chain/etherscan/v2/api",
+      "params": {
+        "chainid": "1",
+        "module": "account",
+        "action": "balance",
+        "address": "0x72e7b4931b53ba13ca8d0b51b4655e6e64881ea5"
+      },
+      "file": "chain/etherscan/0x72e7b4931b53ba13ca8d0b51b4655e6e64881ea5/balance.json"
+    },
+    {
+      "path": "/chain/etherscan/v2/api",
+      "params": {
+        "chainid": "1",
+        "module": "account",
+        "action": "txlist",
+        "address": "0xb9c66cbbfafcd672eda6755a12370f46cd73c396"
+      },
+      "file": "chain/etherscan/0xb9c66cbbfafcd672eda6755a12370f46cd73c396/txlist.json"
+    },
+    {
+      "path": "/chain/etherscan/v2/api",
+      "params": {
+        "chainid": "1",
+        "module": "account",
+        "action": "balance",
+        "address": "0xb9c66cbbfafcd672eda6755a12370f46cd73c396"
+      },
+      "file": "chain/etherscan/0xb9c66cbbfafcd672eda6755a12370f46cd73c396/balance.json"
+    },
+    {
+      "path": "/chain/etherscan/v2/api",
+      "params": {
+        "chainid": "1",
+        "module": "account",
+        "action": "txlist",
+        "address": "0xd621c4f5494878d859ace5ff9ad853438ac5d061"
+      },
+      "file": "chain/etherscan/0xd621c4f5494878d859ace5ff9ad853438ac5d061/txlist.json"
+    },
+    {
+      "path": "/chain/etherscan/v2/api",
+      "params": {
+        "chainid": "1",
+        "module": "account",
+        "action": "balance",
+        "address": "0xd621c4f5494878d859ace5ff9ad853438ac5d061"
+      },
+      "file": "chain/etherscan/0xd621c4f5494878d859ace5ff9ad853438ac5d061/balance.json"
+    },
+    {
+      "path": "/chain/etherscan/v2/api",
+      "params": {
+        "chainid": "1",
+        "module": "account",
+        "action": "txlist",
+        "address": "0x2eb2f9dbab4aee84a1b16c8a66a9317198ac195e"
+      },
+      "file": "chain/etherscan/0x2eb2f9dbab4aee84a1b16c8a66a9317198ac195e/txlist.json"
+    },
+    {
+      "path": "/chain/etherscan/v2/api",
+      "params": {
+        "chainid": "1",
+        "module": "account",
+        "action": "balance",
+        "address": "0x2eb2f9dbab4aee84a1b16c8a66a9317198ac195e"
+      },
+      "file": "chain/etherscan/0x2eb2f9dbab4aee84a1b16c8a66a9317198ac195e/balance.json"
+    },
+    {
+      "path": "/chain/etherscan/v2/api",
+      "params": {
+        "chainid": "1",
+        "module": "account",
+        "action": "txlist",
+        "address": "0x5b4e8c83fe9873973dcecab864e9630fa6cbbcd0"
+      },
+      "file": "chain/etherscan/0x5b4e8c83fe9873973dcecab864e9630fa6cbbcd0/txlist.json"
+    },
+    {
+      "path": "/chain/etherscan/v2/api",
+      "params": {
+        "chainid": "1",
+        "module": "account",
+        "action": "balance",
+        "address": "0x5b4e8c83fe9873973dcecab864e9630fa6cbbcd0"
+      },
+      "file": "chain/etherscan/0x5b4e8c83fe9873973dcecab864e9630fa6cbbcd0/balance.json"
+    },
+    {
+      "path": "/chain/etherscan/v2/api",
+      "params": {
+        "chainid": "1",
+        "module": "account",
+        "action": "txlist",
+        "address": "0x6f8e09a6bbb19f241d1b7155b5aeac8278c8de67"
+      },
+      "file": "chain/etherscan/0x6f8e09a6bbb19f241d1b7155b5aeac8278c8de67/txlist.json"
+    },
+    {
+      "path": "/chain/etherscan/v2/api",
+      "params": {
+        "chainid": "1",
+        "module": "account",
+        "action": "balance",
+        "address": "0x6f8e09a6bbb19f241d1b7155b5aeac8278c8de67"
+      },
+      "file": "chain/etherscan/0x6f8e09a6bbb19f241d1b7155b5aeac8278c8de67/balance.json"
+    },
+    {
+      "path": "/chain/etherscan/v2/api",
+      "params": {
+        "chainid": "1",
+        "module": "account",
+        "action": "txlist",
+        "address": "0x87ea7c9c74a3f0288a5fbe0f425c9d02532002c0"
+      },
+      "file": "chain/etherscan/0x87ea7c9c74a3f0288a5fbe0f425c9d02532002c0/txlist.json"
+    },
+    {
+      "path": "/chain/etherscan/v2/api",
+      "params": {
+        "chainid": "1",
+        "module": "account",
+        "action": "balance",
+        "address": "0x87ea7c9c74a3f0288a5fbe0f425c9d02532002c0"
+      },
+      "file": "chain/etherscan/0x87ea7c9c74a3f0288a5fbe0f425c9d02532002c0/balance.json"
+    },
+    {
+      "path": "/chain/etherscan/v2/api",
+      "params": {
+        "chainid": "1",
+        "module": "account",
+        "action": "txlist",
+        "address": "0x0f00d9af73be7b9bf6621d7d675d4638d5b48973"
+      },
+      "file": "chain/etherscan/0x0f00d9af73be7b9bf6621d7d675d4638d5b48973/txlist.json"
+    },
+    {
+      "path": "/chain/etherscan/v2/api",
+      "params": {
+        "chainid": "1",
+        "module": "account",
+        "action": "balance",
+        "address": "0x0f00d9af73be7b9bf6621d7d675d4638d5b48973"
+      },
+      "file": "chain/etherscan/0x0f00d9af73be7b9bf6621d7d675d4638d5b48973/balance.json"
+    },
+    {
+      "path": "/chain/etherscan/v2/api",
+      "params": {
+        "chainid": "1",
+        "module": "account",
+        "action": "txlist",
+        "address": "0x02f8f3f1a65ca207ee7083dc48fc668660339b62"
+      },
+      "file": "chain/etherscan/0x02f8f3f1a65ca207ee7083dc48fc668660339b62/txlist.json"
+    },
+    {
+      "path": "/chain/etherscan/v2/api",
+      "params": {
+        "chainid": "1",
+        "module": "account",
+        "action": "balance",
+        "address": "0x02f8f3f1a65ca207ee7083dc48fc668660339b62"
+      },
+      "file": "chain/etherscan/0x02f8f3f1a65ca207ee7083dc48fc668660339b62/balance.json"
+    },
+    {
+      "path": "/chain/etherscan/v2/api",
+      "params": {
+        "chainid": "1",
+        "module": "proxy",
+        "action": "eth_getCode",
+        "address": "0xd621c4f5494878d859ace5ff9ad853438ac5d061"
+      },
+      "file": "chain/etherscan/0xd621c4f5494878d859ace5ff9ad853438ac5d061/code.json"
+    },
+    {
+      "path": "/chain/etherscan/v2/api",
+      "params": {
+        "chainid": "1",
+        "module": "account",
+        "action": "txlist"
+      },
+      "file": "chain/etherscan/empty-list.json"
+    },
+    {
+      "path": "/chain/etherscan/v2/api",
+      "params": {
+        "chainid": "1",
+        "module": "account",
+        "action": "txlistinternal"
+      },
+      "file": "chain/etherscan/empty-list.json"
+    },
+    {
+      "path": "/chain/etherscan/v2/api",
+      "params": {
+        "chainid": "1",
+        "module": "account",
+        "action": "tokentx"
+      },
+      "file": "chain/etherscan/empty-list.json"
+    },
+    {
+      "path": "/chain/etherscan/v2/api",
+      "params": {
+        "chainid": "1",
+        "module": "account",
+        "action": "balance"
+      },
+      "file": "chain/etherscan/zero-balance.json"
+    },
+    {
+      "path": "/chain/etherscan/v2/api",
+      "params": {
+        "chainid": "1",
+        "module": "proxy",
+        "action": "eth_getCode"
+      },
+      "file": "chain/etherscan/code-eoa.json"
+    },
+    {
+      "path": "/chain/etherscan/v2/api",
+      "params": {
+        "chainid": "1",
+        "module": "proxy",
+        "action": "eth_blockNumber"
+      },
+      "file": "chain/etherscan/block-number.json"
+    }
+  ]
+}

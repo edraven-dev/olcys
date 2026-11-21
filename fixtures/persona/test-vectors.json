@@ -1,0 +1,79 @@
+{
+  "_synthetic": "SYNTHETIC TEST DATA (OŁCyŚ fixture)",
+  "scheme": "bip137",
+  "vectors": [
+    {
+      "id": "p2wpkh",
+      "address": "bc1q9cjlkxvrxd9hkn685tw3g99c3d5aj6n9xxfehp",
+      "message": "OLCYS signature test vector (SYNTHETIC TEST DATA)",
+      "signature": "KAA8u4yIFBTNbvHNgkosQ2TUH6JdfYtL+vTd5SNUN483A+0sj9O0ZX1jASnhAoL3Qq14STVHQGdNg0qTBpP9N1A=",
+      "expected": "valid",
+      "note": "BIP-137 header 39-42"
+    },
+    {
+      "id": "p2wpkh_electrum",
+      "address": "bc1q9cjlkxvrxd9hkn685tw3g99c3d5aj6n9xxfehp",
+      "message": "OLCYS signature test vector (SYNTHETIC TEST DATA)",
+      "signature": "IAA8u4yIFBTNbvHNgkosQ2TUH6JdfYtL+vTd5SNUN483A+0sj9O0ZX1jASnhAoL3Qq14STVHQGdNg0qTBpP9N1A=",
+      "expected": "valid",
+      "note": "Electrum header 31-34 for a segwit address (compat mode)"
+    },
+    {
+      "id": "p2pkh_compressed",
+      "address": "15D1anGXzxG2CX1rdH6FNnWfjiZLXv3tZ9",
+      "message": "OLCYS signature test vector (SYNTHETIC TEST DATA)",
+      "signature": "IAA8u4yIFBTNbvHNgkosQ2TUH6JdfYtL+vTd5SNUN483A+0sj9O0ZX1jASnhAoL3Qq14STVHQGdNg0qTBpP9N1A=",
+      "expected": "valid",
+      "note": "header 31-34"
+    },
+    {
+      "id": "p2sh_p2wpkh",
+      "address": "36se1tvXFtUCiKBGS6MhBk6S54WLnQhYn6",
+      "message": "OLCYS signature test vector (SYNTHETIC TEST DATA)",
+      "signature": "JAA8u4yIFBTNbvHNgkosQ2TUH6JdfYtL+vTd5SNUN483A+0sj9O0ZX1jASnhAoL3Qq14STVHQGdNg0qTBpP9N1A=",
+      "expected": "valid",
+      "note": "header 35-38"
+    },
+    {
+      "id": "tampered_message",
+      "address": "bc1q9cjlkxvrxd9hkn685tw3g99c3d5aj6n9xxfehp",
+      "message": "OLCYS signature test vect0r (SYNTHETIC TEST DATA)",
+      "signature": "KAA8u4yIFBTNbvHNgkosQ2TUH6JdfYtL+vTd5SNUN483A+0sj9O0ZX1jASnhAoL3Qq14STVHQGdNg0qTBpP9N1A=",
+      "expected": "invalid",
+      "note": "one character changed after signing"
+    },
+    {
+      "id": "wrong_address",
+      "address": "bc1qgj38yl77pej5dgjz23etrm8vz0jwc9hpq88xex",
+      "message": "OLCYS signature test vector (SYNTHETIC TEST DATA)",
+      "signature": "KAA8u4yIFBTNbvHNgkosQ2TUH6JdfYtL+vTd5SNUN483A+0sj9O0ZX1jASnhAoL3Qq14STVHQGdNg0qTBpP9N1A=",
+      "expected": "invalid",
+      "note": "valid signature, different address"
+    },
+    {
+      "id": "bip322_like",
+      "address": "bc1q9cjlkxvrxd9hkn685tw3g99c3d5aj6n9xxfehp",
+      "message": "OLCYS signature test vector (SYNTHETIC TEST DATA)",
+      "signature": "PRrzAlEvR1C/480WxmcoJrxIhJ3IM4cxVTHp+oyoSoMklbH+eXTDso/c6ENbDq55JYzWAhgddwmiHs0Zbmqp9s35OF7Frmh6wclctM7TCtR9Yv3JGiNmw+Hon1CNITQxC/nImj8O7Y+VMox0oQQ=",
+      "expected": "unsupported_format",
+      "note": "not a 65-byte BIP-137 signature"
+    },
+    {
+      "id": "malformed",
+      "address": "bc1q9cjlkxvrxd9hkn685tw3g99c3d5aj6n9xxfehp",
+      "message": "OLCYS signature test vector (SYNTHETIC TEST DATA)",
+      "signature": "not-base64!",
+      "expected": "unsupported_format",
+      "note": "not base64"
+    },
+    {
+      "id": "crlf",
+      "address": "bc1q9cjlkxvrxd9hkn685tw3g99c3d5aj6n9xxfehp",
+      "message": "line one\r\nline two (SYNTHETIC)",
+      "signature": "KGdzrYl38ENew9To/miaIT5xOLbylG1sMlya1P34e9/xJ4VKZ/07FOYZVSDR7LEQpcbvmDSLkQwxY8/a9S6bzjo=",
+      "expected": "valid",
+      "normalise": "crlf_to_lf",
+      "note": "signed with LF, displayed with CRLF: valid after normalisation"
+    }
+  ]
+}
