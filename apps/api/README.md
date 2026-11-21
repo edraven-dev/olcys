@@ -11,6 +11,7 @@ serwer deweloperski Vite (`/api`). W MVP uruchamia też potok analizy w tym samy
 | `GET /api/sources`                                                  | rejestr źródeł ze statusem zgodności (GREEN/AMBER/RED)                             |
 | `GET /api/cases`, `POST /api/cases`, `GET /api/cases/:id`           | sprawy i ich identyfikatory (walidacja schematem `CreateCaseSchema`)               |
 | `GET /api/cases/:id/runs`, `POST /api/cases/:id/runs`               | przebiegi sprawy; `POST` tworzy przebieg i uruchamia potok (odpowiedź 202)         |
+| `GET /api/cases/:id/schedule`, `PUT /api/cases/:id/schedule`        | harmonogram analiz okresowych: cron (UTC), najbliższe terminy, wyzwolenia, zmiany  |
 | `GET /api/runs/:id`                                                 | status i postęp przebiegu                                                          |
 | `GET /api/runs/:id/{captures,observations,accounts,candidates}`     | dowody: przechwycenia stron, fakty, konta, kandydaci adresów                       |
 | `GET /api/runs/:id/extractions`                                     | wyniki ekstrakcji z dopasowaniami odrzuconymi przy weryfikacji (np. homoglify)     |
@@ -23,6 +24,16 @@ serwer deweloperski Vite (`/api`). W MVP uruchamia też potok analizy w tym samy
 
 Treść pobrana ze stron jest niezaufana: `/api/blobs` zwraca ją jako załącznik `application/octet-stream` z nagłówkami
 `nosniff` i `Content-Security-Policy: sandbox`, nigdy jako stronę w domenie konsoli.
+
+## Harmonogram analiz
+
+Proces API uruchamia też planistę analiz okresowych (`createScheduler` z `@olcys/worker`, zob. `docs/architecture.md`):
+co `OLCYS_SCHEDULER_INTERVAL_SECONDS` (domyślnie 30 s) obsługuje należne terminy harmonogramów i zatrzymuje się razem
+z serwerem. `PUT /api/cases/:id/schedule` przyjmuje `{ cron, enabled, reason }` (powód jest wymagany) i zwraca stan
+harmonogramu (`CaseScheduleState`). Autor zmiany pochodzi z konfiguracji serwera (`OLCYS_ANALYST_NAME`, domyślnie
+`analyst`), nigdy z żądania. Błędy: 400 `invalid_cron` (inne niż pięć pól, makra, pole sekund, `H`, RRULE),
+400 `schedule_too_frequent` (w trybie `live` terminy bliżej niż `OLCYS_SCHEDULE_MIN_INTERVAL_MINUTES`, domyślnie 60 min;
+w trybach `offline` i `replay` minimum to 1 min), 400 `invalid_input`, 404 `case_not_found`, 409 `case_closed`.
 
 ## Uruchomienie
 

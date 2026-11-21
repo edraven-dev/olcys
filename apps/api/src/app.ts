@@ -2,10 +2,11 @@
  * HTTP API for the analyst console. Reads the append-only store through the repository ports; starting a run hands
  * it to the pipeline (in-process in the MVP). Inputs are validated with the `@olcys/core` schemas.
  */
-import type { BlobStore, Repositories, RunWithProgress, SourceDescriptor } from '@olcys/core';
+import type { BlobStore, FetchMode, Repositories, RunWithProgress, SourceDescriptor } from '@olcys/core';
 import { ContractError, CORE_CONTRACTS_VERSION, CreateCaseSchema, parse, StartRunSchema } from '@olcys/core';
 import { evidenceRunIdOf } from '@olcys/worker';
 import Fastify, { type FastifyInstance, type FastifyReply } from 'fastify';
+import { registerScheduleRoutes } from './schedule-routes.ts';
 
 export interface ApiDeps {
   repos: Repositories;
@@ -20,6 +21,10 @@ export interface ApiDeps {
   analyst?: string;
   /** Fastify request logging. */
   httpLog?: boolean;
+  /** Fetch mode of the runs: in live mode schedules keep the minimum interval (the strict rule when absent). */
+  mode?: FetchMode;
+  /** Periodic re-runs: live-mode minimum interval (default 60 min), who changes schedules (default: `analyst`), clock. */
+  schedule?: { minIntervalMinutes?: number; analyst?: string; clock?: () => Date };
 }
 
 const notFound = (reply: FastifyReply, what: string) =>
@@ -138,6 +143,15 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
     return reply
       .code(202)
       .send(await deps.startRun(kase.id, { trigger: input.trigger, ...(rescoreOfRunId ? { rescoreOfRunId } : {}) }));
+  });
+
+  registerScheduleRoutes(app, {
+    repos,
+    mode: deps.mode ?? 'live',
+    minIntervalMinutes: deps.schedule?.minIntervalMinutes ?? 60,
+    analyst: deps.schedule?.analyst ?? deps.analyst ?? 'analyst',
+    clock: deps.schedule?.clock ?? (() => new Date()),
+    idOf,
   });
 
   app.get<{ Params: { runId: string } }>('/api/runs/:runId', async (request, reply) => {
