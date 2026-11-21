@@ -36,7 +36,7 @@ export function scheduleRequest(form: ScheduleFormState): UpdateScheduleInput {
   return { cron: form.cron.trim().split(/\s+/).join(' '), enabled: form.enabled, reason: form.reason.trim() };
 }
 
-/** A schedule that starts analyses: enabled, on an open case. */
+/** A schedule that starts analyses: enabled, on an open case, and accepted in the server's mode. */
 export function isScheduleActive(state: CaseScheduleState | undefined, caseOpen: boolean): boolean {
-  return caseOpen && Boolean(state?.schedule?.enabled);
+  return caseOpen && Boolean(state?.schedule?.enabled) && !state?.problem;
 }

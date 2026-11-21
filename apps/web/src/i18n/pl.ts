@@ -270,7 +270,7 @@ export const pl = {
     formTitle: 'Zmień harmonogram',
     cron: 'Wyrażenie cron (UTC)',
     cronHint:
-      '5 pól: minuta, godzina, dzień miesiąca, miesiąc, dzień tygodnia — np. „0 3 * * *” oznacza codziennie o 03:00 UTC, „*/2 * * * *” co 2 minuty. Makra (@daily), pole sekund, H i RRULE nie są obsługiwane.',
+      '5 pól: minuta, godzina, dzień miesiąca, miesiąc, dzień tygodnia — np. „0 3 * * *” oznacza codziennie o 03:00 UTC, „0 */6 * * *” co 6 godzin. Makra (@daily), pole sekund, H i RRULE nie są obsługiwane.',
     minInterval: 'Minimalny odstęp między analizami w bieżącym trybie pracy: {minutes} min.',
     enabled: 'Harmonogram włączony',
     reason: 'Powód zmiany',

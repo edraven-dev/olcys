@@ -3,7 +3,7 @@ import type { CaseScheduleState } from '@olcys/core';
 import { SCHEDULE_PROBLEMS, SCHEDULE_TICK_OUTCOMES } from '@olcys/core';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { scheduleRequest, validateScheduleForm } from '../src/features/cases/schedule-model.ts';
+import { isScheduleActive, scheduleRequest, validateScheduleForm } from '../src/features/cases/schedule-model.ts';
 import { ScheduleView } from '../src/features/cases/SchedulePanel.tsx';
 import { pl } from '../src/i18n/pl.ts';
 
@@ -98,6 +98,14 @@ describe('schedule form model', () => {
       reason: 'Podaj powód zmiany (co najmniej 3 znaki).',
     });
     expect(validateScheduleForm({ cron: '0 3 * * *', enabled: false, reason: 'wstrzymanie' })).toEqual({});
+  });
+
+  it('refreshes only for a schedule that starts analyses', () => {
+    expect(isScheduleActive(state, true)).toBe(true);
+    expect(isScheduleActive(state, false)).toBe(false);
+    expect(isScheduleActive({ ...state, problem: 'schedule_too_frequent' }, true)).toBe(false);
+    expect(isScheduleActive({ ...state, schedule: { cron: '0 3 * * *', enabled: false } }, true)).toBe(false);
+    expect(isScheduleActive(undefined, true)).toBe(false);
   });
 
   it('sends only the expression, the flag and the reason — never who changed it', () => {
