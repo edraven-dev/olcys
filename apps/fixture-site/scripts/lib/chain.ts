@@ -62,9 +62,21 @@ interface BtcStoryTx {
 /** Values in satoshi. BTC-1 is the persona's declared address; BTC-2 replaces it in variant v2. */
 export const BTC_STORY: readonly BtcStoryTx[] = [
   {
+    label: 'btc-fund-1',
+    time: '2025-03-07T15:02:44Z',
+    inputs: [{ from: 'external:src1', slot: 'BTC-SRC-1', value: 30_020_000 }],
+    outputs: [{ slot: 'BTC-CP-1', value: 30_000_000 }],
+  },
+  {
+    label: 'btc-fund-2',
+    time: '2025-08-28T10:31:09Z',
+    inputs: [{ from: 'external:src2', slot: 'BTC-SRC-2', value: 20_015_000 }],
+    outputs: [{ slot: 'BTC-CP-2', value: 20_000_000 }],
+  },
+  {
     label: 'btc-a',
     time: '2025-03-14T09:21:05Z',
-    inputs: [{ from: 'external:cp1', slot: 'BTC-CP-1', value: 30_000_000 }],
+    inputs: [{ from: 'btc-fund-1:0', slot: 'BTC-CP-1', value: 30_000_000 }],
     outputs: [
       { slot: 'BTC-1', value: 25_000_000 },
       { slot: 'BTC-CP-1', value: 4_990_000 },
@@ -73,7 +85,7 @@ export const BTC_STORY: readonly BtcStoryTx[] = [
   {
     label: 'btc-b',
     time: '2025-09-02T17:44:30Z',
-    inputs: [{ from: 'external:cp2', slot: 'BTC-CP-2', value: 20_000_000 }],
+    inputs: [{ from: 'btc-fund-2:0', slot: 'BTC-CP-2', value: 20_000_000 }],
     outputs: [
       { slot: 'BTC-1', value: 10_000_000 },
       { slot: 'BTC-CP-2', value: 9_990_000 },
@@ -186,7 +198,14 @@ export const EVM_STORY: readonly EvmStoryTx[] = [
 ];
 
 /** Opening balances (wei) so that every balance stays non-negative. */
-const EVM_OPENING: Readonly<Record<string, bigint>> = { 'HOT-1': 412n * ETH, 'ETH-CP-1': 2n * ETH };
+const EVM_OPENING: Readonly<Record<string, bigint>> = {
+  'HOT-1': 412n * ETH,
+  'ETH-CP-1': 2n * ETH,
+  'ETH-CP-2': 1n * ETH,
+  'ETH-CP-3': 1n * ETH,
+  'ETH-CP-4': 1n * ETH,
+  'ETH-CP-5': 5n * ETH,
+};
 
 interface TronStoryTransfer {
   label: string;
@@ -220,6 +239,9 @@ export const TRON_STORY: readonly TronStoryTransfer[] = [
 
 /** Slots used by the stories (beyond the persona's own), with their manifest roles. */
 export const STORY_SLOTS: Readonly<Record<string, { chain: string; role: string }>> = {
+  // Funding sources outside the story: their own history is not rendered.
+  'BTC-SRC-1': { chain: 'bitcoin', role: 'external_source' },
+  'BTC-SRC-2': { chain: 'bitcoin', role: 'external_source' },
   'BTC-CP-1': { chain: 'bitcoin', role: 'counterparty' },
   'BTC-CP-2': { chain: 'bitcoin', role: 'counterparty' },
   'BTC-CP-3': { chain: 'bitcoin', role: 'counterparty' },
@@ -315,6 +337,9 @@ function renderEsplora(seed: string, slots: Slots, btcSlots: readonly string[]):
     );
     const funded = BTC_STORY.flatMap((tx) => tx.outputs.filter((o) => o.slot === slot));
     const spent = BTC_STORY.flatMap((tx) => tx.inputs.filter((i) => i.slot === slot));
+    if (funded.reduce((sum, o) => sum + o.value, 0) < spent.reduce((sum, i) => sum + i.value, 0)) {
+      throw new Error(`${slot} spends more than it received in the BTC story`);
+    }
     const stats = {
       funded_txo_count: funded.length,
       funded_txo_sum: funded.reduce((sum, o) => sum + o.value, 0),
@@ -352,8 +377,11 @@ function renderEtherscan(
 ): { files: GeneratedFile[]; routes: FixtureRouteOut[] } {
   const tip = evmBlock(DEMO_NOW);
   const lower = (slot: string) => (slots[slot] ?? '').toLowerCase();
+  const nonces = new Map<string, number>();
   const rows = EVM_STORY.map((tx, index) => {
     const block = evmBlock(tx.time);
+    const nonce = nonces.get(tx.from) ?? 0;
+    nonces.set(tx.from, nonce + 1);
     const hash = tx.hashSlot ? (slots[tx.hashSlot] ?? '') : `0x${derive(seed, `eth-hash:${tx.label}`)}`;
     return {
       tx,
@@ -361,7 +389,7 @@ function renderEtherscan(
         blockNumber: String(block),
         timeStamp: String(seconds(tx.time)),
         hash: hash.toLowerCase(),
-        nonce: String(index),
+        nonce: String(nonce),
         blockHash: `0x${derive(seed, `eth-block:${block}`)}`,
         transactionIndex: String(40 + index),
         from: lower(tx.from),
@@ -375,7 +403,7 @@ function renderEtherscan(
         contractAddress: '',
         cumulativeGasUsed: String(1_000_000 + 21_000 * index),
         gasUsed: '21000',
-        confirmations: String(tip - block),
+        confirmations: String(tip - block + 1),
         methodId: '0x',
         functionName: '',
       },
@@ -392,6 +420,7 @@ function renderEtherscan(
       if (tx.to === slot) balance += tx.value;
       if (tx.from === slot) balance -= tx.value + 21_000n * BigInt(tx.gasPriceGwei) * GWEI;
     }
+    if (balance < 0n) throw new Error(`${slot} has a negative balance in the EVM story`);
     const dir = `chain/etherscan/${address}`;
     files.push(
       {

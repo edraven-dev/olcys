@@ -13,7 +13,7 @@ export interface FixtureRoute {
   path: string;
   /** Exact raw search without `?`, e.g. `action=profile;u=900001` (SMF uses `;`). */
   query?: string;
-  /** Subset match on URLSearchParams, order-insensitive. */
+  /** Subset match on URLSearchParams, order- and case-insensitive (Etherscan treats addresses case-insensitively). */
   params?: Record<string, string>;
   /** Raw search starts with. */
   queryPrefix?: string;
@@ -49,8 +49,10 @@ export async function loadRoutes(root: string, variant: Variant): Promise<Fixtur
 async function isFile(path: string): Promise<boolean> {
   try {
     return (await stat(path)).isFile();
-  } catch {
-    return false;
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === 'ENOENT' || code === 'ENOTDIR') return false;
+    throw error;
   }
 }
 
@@ -85,7 +87,7 @@ const MATCHERS: Matcher[] = [
   (r, search) => {
     if (r.query !== undefined || !r.params) return false;
     const params = new URLSearchParams(search);
-    return Object.entries(r.params).every(([key, value]) => params.get(key) === value);
+    return Object.entries(r.params).every(([key, value]) => params.get(key)?.toLowerCase() === value.toLowerCase());
   },
   (r, search) =>
     r.query === undefined && r.params === undefined && r.queryPrefix !== undefined && search.startsWith(r.queryPrefix),

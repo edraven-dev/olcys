@@ -110,6 +110,39 @@ describe('fixture server', () => {
   });
 });
 
+describe('fixture server — review findings', () => {
+  it('matches Etherscan addresses case-insensitively and numbers nonces per sender', async () => {
+    const checksummed = addr('ETH-1');
+    const list = (await (
+      await get(`/chain/etherscan/v2/api?chainid=1&module=account&action=txlist&address=${checksummed}`)
+    ).json()) as { result: { from: string; nonce: string }[] };
+    expect(list.result).toHaveLength(2);
+    expect(list.result.find((r) => r.from === checksummed.toLowerCase())?.nonce).toBe('0');
+  });
+
+  it('serves the third-party forum profiles the posts link to', async () => {
+    const html = await (await get('/bitcointalk/index.php?action=profile;u=900003')).text();
+    expect(html).toContain('test_moderator');
+    expect(html).not.toContain('does not exist');
+  });
+
+  it('does not read //-prefixed targets as protocol-relative URLs', async () => {
+    expect((await get('//bitcointalk/index.php?action=profile;u=900001')).status).toBe(404);
+  });
+
+  it('rejects when the port is taken instead of crashing', async () => {
+    await expect(
+      createFixtureServer({
+        root: ROOT,
+        variant: 'v1',
+        host: '127.0.0.1',
+        port: server.port,
+        allowVariantSwitch: false,
+      }),
+    ).rejects.toThrow(/EADDRINUSE/);
+  });
+});
+
 describe('route resolution', () => {
   it('matches query before params before queryPrefix before path-only routes', async () => {
     const routes: FixtureRoute[] = [

@@ -592,6 +592,8 @@ export function routesFor(chainRoutes: readonly FixtureRouteOut[]): FixtureRoute
     { path: BT, query: 'action=profile;u=900001', file: 'bitcointalk/profile-900001.html' },
     { path: BT, query: 'action=profile;user=fikcyjny_kacper', file: 'bitcointalk/profile-900001.html' },
     { path: BT, query: 'action=profile;u=900001;sa=showPosts', file: 'bitcointalk/showposts-900001.html' },
+    { path: BT, query: 'action=profile;u=900002', file: 'bitcointalk/profile-900002.html' },
+    { path: BT, query: 'action=profile;u=900003', file: 'bitcointalk/profile-900003.html' },
     ...topic('5500001', ['65000001', '65000002']),
     ...topic('5500002', ['65000101', '65000102', '65000103', '65000104']),
     // SMF answers unknown members with an error page and HTTP 200.
@@ -624,7 +626,9 @@ export function chainFor(manifest: World['manifest']): { files: GeneratedFile[];
       // Listing addresses use the Etherscan fallbacks; the robots canary must appear on the disallowed page only.
       .filter(
         ([, a]) =>
-          a.chain === chain && formats.includes(a.format) && !['exchange_listing', 'robots_canary'].includes(a.role),
+          a.chain === chain &&
+          formats.includes(a.format) &&
+          !['exchange_listing', 'robots_canary', 'external_source'].includes(a.role),
       )
       .map(([slot]) => slot)
       .filter((slot) => slot !== 'D2');

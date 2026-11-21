@@ -107,6 +107,22 @@ describe('generator', () => {
     expect(await check(paths)).toEqual(['changed: public/shared/robots.txt']);
   });
 
+  it('keeps every synthetic balance non-negative', async () => {
+    const { readdir } = await import('node:fs/promises');
+    const chainDir = join(paths.publicDir, 'shared', 'chain');
+    const all = (await readdir(chainDir, { recursive: true })).map(String);
+    const read = async (rel: string) =>
+      JSON.parse(await readFile(join(chainDir, rel), 'utf8')) as Record<string, unknown>;
+    const balances = await Promise.all(all.filter((f) => f.endsWith('balance.json')).map(read));
+    expect(balances.filter((b) => BigInt(String(b['result'])) < 0n)).toEqual([]);
+    const stats = await Promise.all(all.filter((f) => f.startsWith('esplora') && f.endsWith('index.json')).map(read));
+    const overspent = stats.filter((d) => {
+      const c = d['chain_stats'] as { funded_txo_sum: number; spent_txo_sum: number };
+      return c.funded_txo_sum < c.spent_txo_sum;
+    });
+    expect(overspent).toEqual([]);
+  });
+
   it('writes demo labels for the exchange and DEX slots', async () => {
     const labels = JSON.parse(await readFile(join(paths.labelsDir, 'demo-curated.json'), 'utf8')) as {
       labels: { address: { address: string }; category: string }[];

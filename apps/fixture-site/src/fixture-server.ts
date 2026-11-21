@@ -57,15 +57,20 @@ export async function createFixtureServer(options: FixtureServerOptions): Promis
   };
 
   async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
-    const url = new URL(req.url ?? '/', 'http://fixture.invalid');
+    const target = req.url ?? '/';
+    // Origin-form only: a target such as `//host/path` must not be read as a protocol-relative URL.
+    if (!target.startsWith('/')) return send(res, 400, { 'content-type': 'text/plain; charset=utf-8' }, 'bad request');
+    const url = new URL(`http://fixture.invalid${target}`);
     const method = req.method ?? 'GET';
     const text = { 'content-type': 'text/plain; charset=utf-8' };
 
     if (method === 'POST' && url.pathname === '/__fixture/variant' && options.allowVariantSwitch) {
       const requested = await readSmallBody(req, 16);
       if (requested !== 'v1' && requested !== 'v2') return send(res, 400, text, 'expected v1 or v2');
+      // Load first, then switch both together, so a failure leaves the previous variant intact.
+      const nextRoutes = await loadRoutes(options.root, requested);
+      routes = nextRoutes;
       variant = requested;
-      routes = await loadRoutes(options.root, variant);
       return send(res, 204, {});
     }
     if (method !== 'GET' && method !== 'HEAD')
@@ -91,7 +96,13 @@ export async function createFixtureServer(options: FixtureServerOptions): Promis
       else res.end();
     });
   });
-  await new Promise<void>((resolve) => server.listen(options.port, options.host, resolve));
+  await new Promise<void>((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(options.port, options.host, () => {
+      server.off('error', reject);
+      resolve();
+    });
+  });
   const port = (server.address() as AddressInfo).port;
   const hostForUrl = options.host.includes(':') ? `[${options.host}]` : options.host;
   return {

@@ -1,0 +1,16 @@
+{
+  "_synthetic": "SYNTHETIC TEST DATA (OŁCyŚ fixture)",
+  "data": [
+    {
+      "address": "4122df288859f0b1e399e0837e2f3ba4f926b3e6c3",
+      "balance": 35000000,
+      "create_time": 1787140800000,
+      "trc20": []
+    }
+  ],
+  "success": true,
+  "meta": {
+    "at": 1795219200000,
+    "page_size": 1
+  }
+}
