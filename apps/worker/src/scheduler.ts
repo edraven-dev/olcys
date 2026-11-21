@@ -30,17 +30,22 @@ export interface SchedulingSettings {
   minIntervalMinutes: number;
 }
 
-function positiveInteger(env: NodeJS.ProcessEnv, name: string, fallback: number): number {
+function positiveInteger(env: NodeJS.ProcessEnv, name: string, fallback: number, max: number): number {
   const raw = env[name]?.trim();
   if (!raw) return fallback;
-  if (!/^\d+$/.test(raw) || Number(raw) < 1) throw new Error(`${name} must be a positive whole number, got "${raw}"`);
+  if (!/^\d+$/.test(raw) || Number(raw) < 1 || Number(raw) > max) {
+    throw new Error(`${name} must be a whole number from 1 to ${max}, got "${raw}"`);
+  }
   return Number(raw);
 }
 
+/** Longest timer interval Node.js supports (2^31 − 1 ms); a longer one would fire every millisecond. */
+const MAX_INTERVAL_SECONDS = Math.floor((2 ** 31 - 1) / 1000);
+
 export function schedulingSettings(env: NodeJS.ProcessEnv = process.env): SchedulingSettings {
   return {
-    intervalSeconds: positiveInteger(env, 'OLCYS_SCHEDULER_INTERVAL_SECONDS', 30),
-    minIntervalMinutes: positiveInteger(env, 'OLCYS_SCHEDULE_MIN_INTERVAL_MINUTES', 60),
+    intervalSeconds: positiveInteger(env, 'OLCYS_SCHEDULER_INTERVAL_SECONDS', 30, MAX_INTERVAL_SECONDS),
+    minIntervalMinutes: positiveInteger(env, 'OLCYS_SCHEDULE_MIN_INTERVAL_MINUTES', 60, 366 * 24 * 60),
   };
 }
 
@@ -150,12 +155,13 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
     const fired = await Promise.all(
       (await schedules.listActive()).map(async (active): Promise<ScheduleTick | undefined> => {
         const checked = check(active.schedule.cron, now);
+        const key = `${active.caseId}|${active.schedule.cron}`;
         if (!checked.ok) {
-          const key = `${active.caseId}|${active.schedule.cron}`;
           if (!warned.has(key)) logger.warn('schedule not evaluated', { caseId: active.caseId, problem: checked.code });
           warned.add(key);
           return undefined;
         }
+        warned.delete(key);
         const due = dueOccurrence(active, now);
         if (!due) return undefined;
         try {
@@ -195,9 +201,12 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
     logger.info('schedules reconciled', {
       scheduled: report.scheduled.length,
       catchUp: report.scheduled.filter((s) => s.catchUp).length,
-      waitingForRuns: report.scheduled.filter((s) => s.activeRunIds).length,
       notEvaluated: report.notEvaluated.length,
     });
+    // A run left queued or running (e.g. by a restart during its pipeline) makes every tick of its case skip.
+    for (const { caseId, activeRunIds } of report.scheduled) {
+      if (activeRunIds) logger.warn('scheduled case waits for unfinished runs', { caseId, runIds: activeRunIds });
+    }
     return report;
   }
 

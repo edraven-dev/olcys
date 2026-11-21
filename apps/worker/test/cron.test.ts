@@ -56,6 +56,24 @@ describe('validateCron', () => {
     ]);
   });
 
+  it('checks the minimum exactly within a day and across midnight, whatever the time of the check', () => {
+    const strict = { ...live, minIntervalMinutes: 120 };
+    const beforeMidnight = { ...strict, now: new Date('2026-11-21T23:00:10.000Z') };
+    // 22:00 → 23:00 is beyond the next ten occurrences when checked at the start of the day.
+    for (const options of [strict, beforeMidnight]) {
+      expect(validateCron('0 */2,23 * * *', options)).toMatchObject({ ok: false, code: 'schedule_too_frequent' });
+    }
+    expect(validateCron('0 */2 * * *', strict)).toMatchObject({ ok: true });
+    const three = { ...live, minIntervalMinutes: 180 };
+    // 23:00 → 01:00 the next day.
+    expect(validateCron('0 1,23 * * *', three)).toMatchObject({ ok: false, code: 'schedule_too_frequent' });
+    expect(validateCron('0 1,23 1,2 * *', three)).toMatchObject({ ok: false, code: 'schedule_too_frequent' });
+    expect(validateCron('0 1,23 * * 6,0', three)).toMatchObject({ ok: false, code: 'schedule_too_frequent' });
+    // No two consecutive days match: the shortest interval is 22 hours.
+    expect(validateCron('0 1,23 * * 1,3,5', three)).toMatchObject({ ok: true });
+    expect(validateCron('0 1,23 1,15 * *', three)).toMatchObject({ ok: true });
+  });
+
   it('normalises the spacing of the stored expression', () => {
     expect(validateCron('  0   3 *  * * ', live)).toMatchObject({ ok: true, cron: '0 3 * * *' });
   });

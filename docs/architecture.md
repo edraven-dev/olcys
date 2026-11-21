@@ -113,8 +113,9 @@ oceną), więc krok `diff.previous` pokazuje, co się zmieniło (np. podmianę a
 - **Nadrabianie po przerwie.** Po przestoju uruchamiany jest najwyżej jeden przebieg — dla najpóźniejszego opuszczonego
   terminu; `fired_at` zapisuje faktyczny czas obsługi. Terminy sprzed zmiany harmonogramu (także z okresu, gdy był
   wyłączony) nie są nadrabiane.
-- **Umiar wobec źródeł.** W trybie `live` odstęp między kolejnymi terminami (sprawdzany dla 10 najbliższych) musi
-  wynosić co najmniej `OLCYS_SCHEDULE_MIN_INTERVAL_MINUTES` (domyślnie 60 min), w trybach `offline` i `replay` — 1 min.
+- **Umiar wobec źródeł.** W trybie `live` odstęp między kolejnymi terminami musi wynosić co najmniej
+  `OLCYS_SCHEDULE_MIN_INTERVAL_MINUTES` (domyślnie 60 min), w trybach `offline` i `replay` — 1 min; jest sprawdzany
+  dokładnie w obrębie doby i na przełomie dni, a dla wzorców dni (tygodnie, miesiące) na 10 najbliższych terminach.
   Harmonogram zapisany w innym trybie, zbyt częsty dla bieżącego, nie jest wykonywany. Przebiegi z harmonogramu
   podlegają tym samym ograniczeniom co ręczne (lista dozwolonych hostów, limity zapytań, zakres sprawy); harmonogram
   nigdy sam nie włącza źródeł.

@@ -5,12 +5,13 @@
  * apart (politeness towards the sources); in offline and replay mode one minute.
  */
 import type { FetchMode, IsoDateTime, ScheduleProblem } from '@olcys/core';
-import { CronExpressionParser, type CronExpression } from 'cron-parser';
+import { CronExpressionParser, type CronExpression, type CronFieldCollection } from 'cron-parser';
 
 /** How many upcoming occurrences `validateCron` returns as `nextRuns`. */
 export const NEXT_RUNS_SHOWN = 3;
-/** Upcoming occurrences checked for the minimum interval. */
+/** Upcoming occurrences checked for the minimum interval between days (patterns of days, weeks and months). */
 const INTERVAL_SAMPLE = 10;
+const MINUTES_PER_DAY = 24 * 60;
 
 const MONTH_NAMES = /JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC/gi;
 const DAY_NAMES = /SUN|MON|TUE|WED|THU|FRI|SAT/gi;
@@ -74,9 +75,51 @@ export function minIntervalFor(mode: FetchMode, liveMinimumMinutes: number): num
 }
 
 /**
- * Checks a schedule's cron expression and previews it: `nextRuns` are the next occurrences after `now`. The interval
- * between consecutive occurrences (over the next ten) must be at least `minIntervalMinutes` in live mode, one minute
- * otherwise.
+ * Whether two consecutive days can both match. Values that are hard to rule out (last day of the month, last weekday)
+ * count as possible, which errs on the strict side.
+ */
+function consecutiveDaysPossible(fields: CronFieldCollection): boolean {
+  const { dayOfMonth, dayOfWeek } = fields;
+  // Strict mode never restricts both day fields at once.
+  const restricted = dayOfMonth.isWildcard ? (dayOfWeek.isWildcard ? undefined : dayOfWeek) : dayOfMonth;
+  if (!restricted) return true;
+  if (restricted.values.some((value) => typeof value !== 'number')) return true;
+  if (restricted === dayOfWeek) {
+    // 0 and 7 are both Sunday.
+    const weekdays = new Set(restricted.values.map((value) => Number(value) % 7));
+    return [...weekdays].some((day) => weekdays.has((day + 1) % 7));
+  }
+  const days = new Set(restricted.values.map(Number));
+  // The next day of the month, or the 1st after the last day of a month.
+  return [...days].some((day) => days.has(day + 1)) || (days.has(1) && [...days].some((day) => day >= 28));
+}
+
+/**
+ * Smallest interval between consecutive occurrences within a day and across midnight, independent of the date: every
+ * matching day has the same times (all hour × minute pairs), and the step from a day's last time to the next day's
+ * first time counts when two consecutive days can match.
+ */
+function smallestDailyGapMinutes(fields: CronFieldCollection): number {
+  const times = fields.hour.values
+    .flatMap((hour) => fields.minute.values.map((minute) => Number(hour) * 60 + Number(minute)))
+    .toSorted((a, b) => a - b);
+  let smallest = Infinity;
+  for (const [index, time] of times.entries()) {
+    const previous = times[index - 1];
+    if (previous !== undefined) smallest = Math.min(smallest, time - previous);
+  }
+  const first = times[0];
+  const last = times.at(-1);
+  if (first !== undefined && last !== undefined && consecutiveDaysPossible(fields)) {
+    smallest = Math.min(smallest, MINUTES_PER_DAY + first - last);
+  }
+  return smallest;
+}
+
+/**
+ * Checks a schedule's cron expression and previews it: `nextRuns` are the next occurrences after `now`. In live mode
+ * consecutive occurrences must be at least `minIntervalMinutes` apart (one minute otherwise): checked exactly within a
+ * day and across midnight, and over the next ten occurrences for patterns of days.
  */
 export function validateCron(
   cron: string,
@@ -87,16 +130,17 @@ export function validateCron(
   const sample = upcoming(parsed.expression, INTERVAL_SAMPLE);
   if (!sample?.length) return invalid('the expression has no upcoming occurrence');
   const minimum = minIntervalFor(options.mode, options.minIntervalMinutes);
+  let smallest = smallestDailyGapMinutes(parsed.expression.fields);
   for (const [index, date] of sample.entries()) {
     const previous = sample[index - 1];
-    const minutes = previous ? (date.getTime() - previous.getTime()) / 60_000 : Infinity;
-    if (minutes < minimum) {
-      return {
-        ok: false,
-        code: 'schedule_too_frequent',
-        message: `occurrences ${minutes} min apart; the minimum in ${options.mode} mode is ${minimum} min`,
-      };
-    }
+    if (previous) smallest = Math.min(smallest, (date.getTime() - previous.getTime()) / 60_000);
+  }
+  if (smallest < minimum) {
+    return {
+      ok: false,
+      code: 'schedule_too_frequent',
+      message: `occurrences ${smallest} min apart; the minimum in ${options.mode} mode is ${minimum} min`,
+    };
   }
   return {
     ok: true,

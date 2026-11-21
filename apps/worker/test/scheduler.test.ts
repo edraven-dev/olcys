@@ -6,7 +6,7 @@ import type { FetchMode, Logger, Repositories, RunConfigSnapshot, ScheduleReposi
 import { nowIso } from '@olcys/core';
 import { createMemoryRepositories } from '@olcys/db';
 import { describe, expect, it } from 'vitest';
-import { createRun, createScheduler, decideTick, schedulesOf } from '../src/index.ts';
+import { createRun, createScheduler, decideTick, schedulesOf, schedulingSettings } from '../src/index.ts';
 
 const silent: Logger = { debug() {}, info() {}, warn() {}, error() {} };
 const CONFIG: RunConfigSnapshot = {
@@ -19,7 +19,7 @@ const CONFIG: RunConfigSnapshot = {
 const CREATED = '2026-11-21T10:00:00.000Z';
 const REASON = 'weryfikacja okresowa';
 
-function setup(options: { mode?: FetchMode; repos?: Repositories } = {}) {
+function setup(options: { mode?: FetchMode; repos?: Repositories; logger?: Logger } = {}) {
   const repos = options.repos ?? createMemoryRepositories();
   const clock = { now: new Date(CREATED) };
   const launched: string[] = [];
@@ -28,7 +28,7 @@ function setup(options: { mode?: FetchMode; repos?: Repositories } = {}) {
       repos,
       mode: options.mode ?? 'offline',
       config: { sources: [], snapshot: CONFIG },
-      logger: silent,
+      logger: options.logger ?? silent,
       launchRun: (runId) => launched.push(runId),
     },
     settings: { intervalSeconds: 3600, minIntervalMinutes: 60 },
@@ -253,5 +253,34 @@ describe('scheduled runs', () => {
     expect(await repos.runs.get(restarted.launched[0]!)).toMatchObject({ caseId: missed.id, mode: 'live' });
     expect(await schedules.listTicks(tooFrequent.id, 10)).toEqual([]);
     expect(await schedules.listTicks(disabled.id, 10)).toEqual([]);
+  });
+});
+
+describe('scheduler settings and logging', () => {
+  it('reads the intervals from the environment and refuses unusable values', () => {
+    expect(schedulingSettings({})).toEqual({ intervalSeconds: 30, minIntervalMinutes: 60 });
+    expect(
+      schedulingSettings({ OLCYS_SCHEDULER_INTERVAL_SECONDS: '5', OLCYS_SCHEDULE_MIN_INTERVAL_MINUTES: ' 120 ' }),
+    ).toEqual({ intervalSeconds: 5, minIntervalMinutes: 120 });
+    for (const value of ['0', '-1', '1.5', 'abc', '3000000']) {
+      expect(() => schedulingSettings({ OLCYS_SCHEDULER_INTERVAL_SECONDS: value })).toThrow(
+        /OLCYS_SCHEDULER_INTERVAL_SECONDS/,
+      );
+    }
+    expect(() => schedulingSettings({ OLCYS_SCHEDULE_MIN_INTERVAL_MINUTES: '0' })).toThrow(
+      /OLCYS_SCHEDULE_MIN_INTERVAL_MINUTES/,
+    );
+  });
+
+  it('warns once about a schedule it does not evaluate', async () => {
+    const warnings: string[] = [];
+    const logger: Logger = { ...silent, warn: (message) => warnings.push(message) };
+    const { repos, schedules, scheduler, at } = setup({ mode: 'live', logger });
+    await scheduledCase(schedules, repos, '*/2 * * * *');
+    at('2026-11-21T10:02:30.000Z');
+    expect(await scheduler.evaluate()).toEqual([]);
+    at('2026-11-21T10:04:30.000Z');
+    expect(await scheduler.evaluate()).toEqual([]);
+    expect(warnings).toEqual(['schedule not evaluated']);
   });
 });
