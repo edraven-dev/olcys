@@ -62,15 +62,17 @@ export async function createRun(
   config: RunConfigSnapshot,
 ): Promise<AnalysisRun> {
   // A rescore compares with the run it rescores (same evidence); other runs with the latest completed one.
-  const previous = input.rescoreOfRunId
-    ? await repos.runs.get(input.rescoreOfRunId)
-    : await repos.runs.latestCompleted(input.caseId);
+  const target = input.rescoreOfRunId ? await repos.runs.get(input.rescoreOfRunId) : undefined;
+  if (input.rescoreOfRunId && !target) throw new Error(`rescore target ${input.rescoreOfRunId} not found`);
+  const previous = target ?? (await repos.runs.latestCompleted(input.caseId));
+  // `rescoreOfRunId` names the run that collected the evidence, also when a rescore is rescored again.
+  const evidenceRunId = target ? evidenceRunIdOf(target) : undefined;
   const run: AnalysisRun = {
     id: newId(),
     caseId: input.caseId,
     ...(previous ? { previousRunId: previous.id } : {}),
     trigger: input.trigger ?? 'manual',
-    ...(input.rescoreOfRunId ? { rescoreOfRunId: input.rescoreOfRunId } : {}),
+    ...(evidenceRunId ? { rescoreOfRunId: evidenceRunId } : {}),
     mode: input.mode,
     status: 'queued',
     config,

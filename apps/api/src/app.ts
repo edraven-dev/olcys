@@ -4,6 +4,7 @@
  */
 import type { BlobStore, Repositories, RunWithProgress, SourceDescriptor } from '@olcys/core';
 import { ContractError, CORE_CONTRACTS_VERSION, CreateCaseSchema, parse, StartRunSchema } from '@olcys/core';
+import { evidenceRunIdOf } from '@olcys/worker';
 import Fastify, { type FastifyInstance, type FastifyReply } from 'fastify';
 
 export interface ApiDeps {
@@ -145,19 +146,24 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
     return run ?? notFound(reply, 'run');
   });
 
-  const runList = <T>(path: string, load: (runId: string) => Promise<T[]>) =>
+  /**
+   * Run-scoped lists. Collected evidence (captures, observations, accounts, egress log) is read from the run that
+   * collected it — for a rescore, the rescored run — while candidates, scores and other results stay per run.
+   */
+  const runList = <T>(path: string, load: (runId: string) => Promise<T[]>, scope: 'evidence' | 'run' = 'run') =>
     app.get<{ Params: { runId: string } }>(`/api/runs/:runId/${path}`, async (request, reply) => {
       const runId = idOf(request.params.runId);
-      if (!runId || !(await repos.runs.get(runId))) return notFound(reply, 'run');
-      return { items: await load(runId) };
+      const run = runId ? await repos.runs.get(runId) : undefined;
+      if (!run) return notFound(reply, 'run');
+      return { items: await load(scope === 'evidence' ? evidenceRunIdOf(run) : run.id) };
     });
-  runList('captures', (id) => repos.evidence.listCaptures(id));
-  runList('observations', (id) => repos.evidence.listObservations(id));
-  runList('accounts', (id) => repos.evidence.listAccounts(id));
+  runList('captures', (id) => repos.evidence.listCaptures(id), 'evidence');
+  runList('observations', (id) => repos.evidence.listObservations(id), 'evidence');
+  runList('accounts', (id) => repos.evidence.listAccounts(id), 'evidence');
   runList('candidates', (id) => repos.evidence.listCandidates(id));
   // Extraction results include the matches rejected at validation (homoglyphs, transaction hashes, test vectors).
   runList('extractions', (id) => repos.evidence.listExtractionResults(id));
-  runList('egress', (id) => repos.evidence.listEgressLog(id));
+  runList('egress', (id) => repos.evidence.listEgressLog(id), 'evidence');
   runList('transfers', (id) => repos.chain.listTransfers(id));
   runList('links', (id) => repos.analysis.listLinks(id));
   runList('exclusions', (id) => repos.analysis.listExclusions(id));

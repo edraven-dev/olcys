@@ -119,5 +119,18 @@ describe('demo scenario on the synthetic persona', () => {
     expect(rescoredScore('BTC-1')).toContain(99);
     expect(rescoredScore('BTC-2')).toEqual([]);
     expect(await runtime.repos.analysis.listChanges(rescore.id)).toEqual([]);
+
+    // Rescoring a rescore still reads the evidence of the run that collected it.
+    const again = await runtime.startRun(kase.id, { trigger: 'rescore', rescoreOfRunId: rescore.id });
+    await runtime.idle();
+    expect(await runtime.repos.runs.get(again.id)).toMatchObject({
+      status: 'succeeded',
+      rescoreOfRunId: first.id,
+      previousRunId: rescore.id,
+    });
+    const againLinks = await runtime.repos.analysis.listLinks(again.id);
+    expect(
+      againLinks.filter((l) => l.address.address.toLowerCase() === addressOf('BTC-1')).map((l) => l.score),
+    ).toContain(99);
   });
 });

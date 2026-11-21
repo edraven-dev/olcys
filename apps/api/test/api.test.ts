@@ -14,6 +14,7 @@ const walletByRun: string[] = ['bc1qstaryadres', 'bc1qnowyadres'];
 const fakeCollect: Stage = {
   step: 'collect.source',
   async run(ctx) {
+    if (ctx.evidenceRunId !== ctx.run.id) return; // a rescore never collects
     const value = walletByRun.shift() ?? 'bc1qnowyadres';
     const capture: Capture = {
       id: newId(),
@@ -131,6 +132,24 @@ describe('api', () => {
     ]);
     expect((await app.inject(`/api/runs/${runId}/observations`)).json().items).toHaveLength(1);
     expect((await app.inject(`/api/cases/${caseId}/runs`)).json().items).toHaveLength(2);
+  });
+
+  it('shows a rescore the evidence of the run that collected it', async () => {
+    const caseId = (await app.inject('/api/cases')).json().items[0].id as string;
+    const runs = (await app.inject(`/api/cases/${caseId}/runs`)).json().items as { id: string; trigger: string }[];
+    const collected = runs.find((r) => r.trigger === 'manual')!.id;
+    const rescore = await app.inject({
+      method: 'POST',
+      url: `/api/cases/${caseId}/runs`,
+      payload: { trigger: 'rescore', rescoreOfRunId: collected },
+    });
+    expect(rescore.statusCode).toBe(202);
+    await runtime.idle();
+    const id = rescore.json().id as string;
+    const own = (await app.inject(`/api/runs/${collected}/captures`)).json().items as { id: string }[];
+    expect(own.length).toBeGreaterThan(0);
+    expect((await app.inject(`/api/runs/${id}/captures`)).json().items).toEqual(own);
+    expect((await app.inject(`/api/runs/${id}/observations`)).json().items.length).toBeGreaterThan(0);
   });
 
   it('marks a run failed when a stage throws', async () => {

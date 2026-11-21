@@ -53,18 +53,13 @@ function structureOf(text: string): { kind: ArtifactKind; mediaType: string } | 
 function structuredRanges(text: string): Range[] {
   const structure = structureOf(text);
   if (!structure) return [];
-  let views: ViewText[];
-  try {
-    views = buildViews({
-      captureId: 'redactor',
-      url: '',
-      finalUrl: '',
-      artifacts: [{ ...structure, bytes: new TextEncoder().encode(text) }],
-    });
-  } catch {
-    // Unparsable structure: the raw-text scan still applies.
-    return [];
-  }
+  // Malformed JSON falls back to text inside the view builder; any other failure is a bug and must surface.
+  const views: ViewText[] = buildViews({
+    captureId: 'redactor',
+    url: '',
+    finalUrl: '',
+    artifacts: [{ ...structure, bytes: new TextEncoder().encode(text) }],
+  });
   const ranges: Range[] = [];
   for (const view of views) {
     const map = view.sourceMap;
