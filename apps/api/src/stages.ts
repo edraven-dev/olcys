@@ -1,11 +1,10 @@
 /**
- * Pipeline stages wired for the API process. Each stage adapts one package (collectors, address extraction, chain
- * analytics, scoring, reporting) to the pipeline; they are registered here as the packages land.
+ * Pipeline stages for the API process (which runs analyses in-process in the MVP): the worker's stages, configured
+ * with the run mode, the source register and the process environment.
  */
 import type { Runtime, Stage } from '@olcys/worker';
+import { defaultStages as workerStages } from '@olcys/worker';
 
-export function defaultStages(
-  _runtime: Pick<Runtime, 'repos' | 'blobs' | 'sources' | 'config' | 'mode' | 'logger'>,
-): Stage[] {
-  return [];
+export function defaultStages(runtime: Pick<Runtime, 'sources' | 'mode'>): Stage[] {
+  return workerStages({ mode: runtime.mode, sources: runtime.sources, env: process.env });
 }

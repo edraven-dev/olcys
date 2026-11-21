@@ -83,6 +83,11 @@ const newCase = {
   scope: { enabledSources: ['fixture_site'], amberJustifications: {}, chains: [], maxPivotDepth: 2 },
 };
 
+const withSources = (enabledSources: string[], amberJustifications: Record<string, string> = {}) => ({
+  ...newCase,
+  scope: { ...newCase.scope, enabledSources, amberJustifications },
+});
+
 describe('api', () => {
   it('validates and creates cases', async () => {
     const bad = await app.inject({ method: 'POST', url: '/api/cases', payload: { title: '' } });
@@ -180,6 +185,30 @@ describe('api', () => {
     });
     expect(upper.statusCode).toBe(202);
     await runtime.idle();
+  });
+
+  it('refuses RED, unknown and unjustified AMBER sources server-side', async () => {
+    const sources = (await app.inject('/api/sources')).json().items as { id: string; compliance: string }[];
+    const red = sources.find((s) => s.compliance === 'RED')?.id;
+    const amber = sources.find((s) => s.compliance === 'AMBER')?.id;
+    for (const payload of [withSources([red!]), withSources(['no_such_source']), withSources([amber!])]) {
+      // oxlint-disable-next-line no-await-in-loop
+      const response = await app.inject({ method: 'POST', url: '/api/cases', payload });
+      expect(response.statusCode).toBe(400);
+      expect(response.json()).toMatchObject({ error: 'invalid_scope' });
+    }
+    const tooShort = await app.inject({
+      method: 'POST',
+      url: '/api/cases',
+      payload: withSources([amber!], { [amber!]: 'za krótko' }),
+    });
+    expect(tooShort.statusCode).toBe(400);
+    const justified = await app.inject({
+      method: 'POST',
+      url: '/api/cases',
+      payload: withSources([amber!], { [amber!]: 'Uzasadnienie sprawy testowej na danych syntetycznych' }),
+    });
+    expect(justified.statusCode).toBe(201);
   });
 
   it('lists the source register and serves evidence only as downloads', async () => {

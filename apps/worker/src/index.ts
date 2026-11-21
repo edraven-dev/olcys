@@ -10,3 +10,11 @@ export {
   type StartRunInput,
 } from './pipeline.ts';
 export { consoleLogger, createRuntime, type Runtime, type RuntimeOptions } from './runtime.ts';
+export {
+  createCollectStage,
+  createExtractStage,
+  createScoreStage,
+  defaultStages,
+  USER_AGENT,
+  type StageOptions,
+} from './stages.ts';
