@@ -1,0 +1,153 @@
+# Deny list, version 1 — the single list of addresses that are never evidence about a person.
+# Schema: DenyListSchema in packages/core. Addresses are canonical (EVM and bech32 lower-case).
+# Kinds `test_vector` and `documentation` are rejected at extraction time (reason `documentation_example`,
+# packages/address-extractor); every kind is excluded by rule A8 (packages/labels). EVM entries apply to every EVM
+# network. Only public specifications and documentation pages are listed here — never persons.
+
+version: deny-list.v1
+
+entries:
+  # --- BIP-173 / BIP-350 (bech32 / bech32m) -------------------------------------------------------------------------
+  - chain: bitcoin
+    address: bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4
+    kind: test_vector
+    name: BIP-173 example P2WPKH address
+    source: https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki
+  - chain: bitcoin
+    address: bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3
+    kind: test_vector
+    name: BIP-173 example P2WSH address
+    source: https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki
+  - chain: bitcoin
+    address: bc1pw508d6qejxtdg4y5r3zarvary0c5xw7kw508d6qejxtdg4y5r3zarvary0c5xw7kt5nd6y
+    kind: test_vector
+    name: BIP-350 test vector (witness v1, 40-byte program)
+    source: https://github.com/bitcoin/bips/blob/master/bip-0350.mediawiki
+  - chain: bitcoin
+    address: bc1sw50qgdz25j
+    kind: test_vector
+    name: BIP-350 test vector (witness v16)
+    source: https://github.com/bitcoin/bips/blob/master/bip-0350.mediawiki
+  - chain: bitcoin
+    address: bc1zw508d6qejxtdg4y5r3zarvaryvaxxpcs
+    kind: test_vector
+    name: BIP-350 test vector (witness v2)
+    source: https://github.com/bitcoin/bips/blob/master/bip-0350.mediawiki
+  - chain: bitcoin
+    address: bc1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vqzk5jj0
+    kind: test_vector
+    name: BIP-350 test vector (Taproot, witness v1)
+    source: https://github.com/bitcoin/bips/blob/master/bip-0350.mediawiki
+
+  # --- EIP-55 (mixed-case checksum) -----------------------------------------------------------------------------------
+  - chain: evm:1
+    address: '0x5aaeb6053f3e94c9b9a09f33669435e7ef1beaed'
+    kind: test_vector
+    name: EIP-55 test vector (mixed case)
+    source: https://eips.ethereum.org/EIPS/eip-55
+  - chain: evm:1
+    address: '0xfb6916095ca1df60bb79ce92ce3ea74c37c5d359'
+    kind: test_vector
+    name: EIP-55 test vector (mixed case)
+    source: https://eips.ethereum.org/EIPS/eip-55
+  - chain: evm:1
+    address: '0xdbf03b407c01e7cd3cbea99509d93f8dddc8c6fb'
+    kind: test_vector
+    name: EIP-55 test vector (mixed case)
+    source: https://eips.ethereum.org/EIPS/eip-55
+  - chain: evm:1
+    address: '0xd1220a0cf47c7b9be7a2e6ba89f429762e7b9adb'
+    kind: test_vector
+    name: EIP-55 test vector (mixed case)
+    source: https://eips.ethereum.org/EIPS/eip-55
+  - chain: evm:1
+    address: '0x52908400098527886e0f7030069857d2e4169ee7'
+    kind: test_vector
+    name: EIP-55 test vector (all caps)
+    source: https://eips.ethereum.org/EIPS/eip-55
+  - chain: evm:1
+    address: '0x8617e340b3d01fa5f11f306f4090fd50e238070d'
+    kind: test_vector
+    name: EIP-55 test vector (all caps)
+    source: https://eips.ethereum.org/EIPS/eip-55
+  - chain: evm:1
+    address: '0xde709f2102306220921060314715629080e2fb77'
+    kind: test_vector
+    name: EIP-55 test vector (all lower)
+    source: https://eips.ethereum.org/EIPS/eip-55
+  - chain: evm:1
+    address: '0x27b1fdb04752bbc536007a920d24acb045561c26'
+    kind: test_vector
+    name: EIP-55 test vector (all lower)
+    source: https://eips.ethereum.org/EIPS/eip-55
+
+  # --- Documentation examples -----------------------------------------------------------------------------------------
+  - chain: bitcoin
+    address: 1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2
+    kind: documentation
+    name: Bitcoin Wiki example P2PKH address
+    source: https://en.bitcoin.it/wiki/Invoice_address
+  - chain: bitcoin
+    address: 3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy
+    kind: documentation
+    name: Bitcoin Wiki example P2SH address
+    source: https://en.bitcoin.it/wiki/Invoice_address
+  - chain: bitcoin
+    address: bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq
+    kind: documentation
+    name: Bitcoin Wiki example bech32 address
+    source: https://en.bitcoin.it/wiki/Invoice_address
+
+  # --- Burn addresses (provably unspendable) --------------------------------------------------------------------------
+  - chain: evm:1
+    address: '0x0000000000000000000000000000000000000000'
+    kind: burn
+    name: EVM zero address
+    source: https://ethereum.org/en/developers/docs/accounts/
+  - chain: evm:1
+    address: '0x000000000000000000000000000000000000dead'
+    kind: burn
+    name: EVM "dead" burn address
+    source: https://etherscan.io/address/0x000000000000000000000000000000000000dead
+  - chain: bitcoin
+    address: 1111111111111111111114oLvT2
+    kind: burn
+    name: Bitcoin P2PKH of the all-zero hash160 (burn)
+    source: https://en.bitcoin.it/wiki/Proof_of_burn
+  - chain: bitcoin
+    address: 1BitcoinEaterAddressDontSendf59kuE
+    kind: burn
+    name: Bitcoin Eater Address (vanity burn)
+    source: https://en.bitcoin.it/wiki/Proof_of_burn
+  - chain: tron
+    address: T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb
+    kind: burn
+    name: TRON zero address (black hole)
+    source: https://developers.tron.network/docs/account
+
+  # --- Major token contracts (an institutional contract is never a person's holding) ------------------------------------
+  - chain: evm:1
+    address: '0xdac17f958d2ee523a2206206994597c13d831ec7'
+    kind: token_contract
+    name: Tether USD (USDT) ERC-20 contract
+    source: https://tether.to/en/supported-protocols/
+  - chain: evm:1
+    address: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48'
+    kind: token_contract
+    name: USD Coin (USDC) ERC-20 contract
+    source: https://developers.circle.com/stablecoins/usdc-contract-addresses
+  - chain: evm:1
+    address: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2'
+    kind: token_contract
+    name: Wrapped Ether (WETH9) contract
+    source: https://etherscan.io/token/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2
+  - chain: evm:1
+    address: '0x6b175474e89094c44da98b954eedeac495271d0f'
+    kind: token_contract
+    name: Dai Stablecoin (DAI) contract
+    source: https://docs.makerdao.com/
+  - chain: tron
+    address: TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t
+    kind: token_contract
+    name: Tether USD (USDT) TRC-20 contract
+    source: https://tether.to/en/supported-protocols/
