@@ -121,6 +121,14 @@ describe('generator', () => {
       return c.funded_txo_sum < c.spent_txo_sum;
     });
     expect(overspent).toEqual([]);
+    const tron = await Promise.all(all.filter((f) => f.startsWith('trongrid') && f.endsWith('index.json')).map(read));
+    const negative = tron.filter((d) =>
+      (d['data'] as { trc20: Record<string, string>[] }[]).some((a) =>
+        a.trc20.some((t) => Object.values(t).some((v) => BigInt(v) < 0n)),
+      ),
+    );
+    expect(negative).toEqual([]);
+    expect(tron.length).toBeGreaterThan(10);
   });
 
   it('writes demo labels for the exchange and DEX slots', async () => {
