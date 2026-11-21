@@ -24,6 +24,10 @@ export interface ApiDeps {
 const notFound = (reply: FastifyReply, what: string) =>
   reply.code(404).send({ error: 'not_found', message: `${what} not found` });
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/** Ids are UUIDs; anything else cannot exist and must not reach the database. */
+const isId = (value: string): boolean => UUID.test(value);
+
 export function buildApp(deps: ApiDeps): FastifyInstance {
   const app = Fastify({ logger: deps.httpLog ?? false });
   const { repos } = deps;
@@ -32,6 +36,13 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
   app.setErrorHandler((error, _request, reply) => {
     if (error instanceof ContractError) {
       return reply.code(400).send({ error: 'invalid_input', message: error.message, issues: error.issues });
+    }
+    // Fastify's own client errors (malformed JSON, unsupported media type, body too large) keep their status.
+    const status = (error as { statusCode?: number }).statusCode;
+    if (typeof status === 'number' && status >= 400 && status < 500) {
+      return reply
+        .code(status)
+        .send({ error: 'bad_request', message: error instanceof Error ? error.message : 'bad request' });
     }
     app.log.error(error);
     return reply.code(500).send({ error: 'internal', message: 'internal error' });
@@ -61,29 +72,40 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
   });
 
   app.get<{ Params: { caseId: string } }>('/api/cases/:caseId', async (request, reply) => {
+    if (!isId(request.params.caseId)) return notFound(reply, 'case');
     const found = await repos.cases.get(request.params.caseId);
     return found ?? notFound(reply, 'case');
   });
 
   app.get<{ Params: { caseId: string } }>('/api/cases/:caseId/runs', async (request, reply) => {
-    if (!(await repos.cases.get(request.params.caseId))) return notFound(reply, 'case');
+    if (!isId(request.params.caseId) || !(await repos.cases.get(request.params.caseId))) return notFound(reply, 'case');
     return { items: await repos.runs.listByCase(request.params.caseId) };
   });
 
   app.post<{ Params: { caseId: string } }>('/api/cases/:caseId/runs', async (request, reply) => {
-    if (!(await repos.cases.get(request.params.caseId))) return notFound(reply, 'case');
+    const { caseId } = request.params;
+    if (!isId(caseId) || !(await repos.cases.get(caseId))) return notFound(reply, 'case');
     const input = parse(StartRunSchema, request.body ?? {});
-    return reply.code(202).send(await deps.startRun(request.params.caseId, input));
+    if (input.trigger === 'rescore' || input.rescoreOfRunId) {
+      const target = input.rescoreOfRunId ? await repos.runs.get(input.rescoreOfRunId) : undefined;
+      if (!target || target.caseId !== caseId) {
+        return reply
+          .code(400)
+          .send({ error: 'invalid_input', message: 'rescoreOfRunId must name an existing run of this case' });
+      }
+    }
+    return reply.code(202).send(await deps.startRun(caseId, input));
   });
 
   app.get<{ Params: { runId: string } }>('/api/runs/:runId', async (request, reply) => {
+    if (!isId(request.params.runId)) return notFound(reply, 'run');
     const run = await repos.runs.get(request.params.runId);
     return run ?? notFound(reply, 'run');
   });
 
   const runList = <T>(path: string, load: (runId: string) => Promise<T[]>) =>
     app.get<{ Params: { runId: string } }>(`/api/runs/:runId/${path}`, async (request, reply) => {
-      if (!(await repos.runs.get(request.params.runId))) return notFound(reply, 'run');
+      if (!isId(request.params.runId) || !(await repos.runs.get(request.params.runId))) return notFound(reply, 'run');
       return { items: await load(request.params.runId) };
     });
   runList('captures', (id) => repos.evidence.listCaptures(id));
@@ -99,6 +121,7 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
   runList('changes', (id) => repos.analysis.listChanges(id));
 
   app.get<{ Params: { captureId: string } }>('/api/captures/:captureId', async (request, reply) => {
+    if (!isId(request.params.captureId)) return notFound(reply, 'capture');
     const capture = await repos.evidence.getCapture(request.params.captureId);
     return capture ?? notFound(reply, 'capture');
   });
@@ -118,6 +141,7 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
   });
 
   app.get<{ Params: { runId: string } }>('/api/runs/:runId/report', async (request, reply) => {
+    if (!isId(request.params.runId)) return notFound(reply, 'run');
     const report = await repos.analysis.latestReport(request.params.runId, 'html');
     if (!report) return notFound(reply, 'report');
     const bytes = await deps.blobs.get(report.blobSha256);

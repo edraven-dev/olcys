@@ -90,9 +90,13 @@ async function snapshotOf(repos: Repositories, run: RunWithProgress): Promise<Ru
   };
 }
 
-/** Compares the run with the previous completed run of the case and stores the change events. */
+/**
+ * Compares the run with the predecessor recorded when it was created (`previousRunId`) and stores the change events.
+ * Using the recorded predecessor keeps the direction stable when runs of one case overlap.
+ */
 export async function diffWithPrevious(repos: Repositories, run: RunWithProgress): Promise<ChangeEvent[]> {
-  const previous = await repos.runs.latestCompleted(run.caseId, run.id);
+  if (!run.previousRunId) return [];
+  const previous = await repos.runs.get(run.previousRunId);
   if (!previous) return [];
   const { events } = diffRuns(await snapshotOf(repos, previous), await snapshotOf(repos, run));
   const detectedAt = nowIso();
