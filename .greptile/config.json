@@ -23,7 +23,7 @@
     },
     {
       "id": "no-secrets",
-      "rule": "Never store, log or transmit private keys, seed phrases or API keys. API keys are redacted in logs, provenance envelopes and cassettes; private keys and seed phrases found in scraped content are redacted in memory and never persisted.",
+      "rule": "Never store, log or transmit private keys or seed phrases; when found in scraped content they are redacted in memory and never persisted. API keys may be sent only to their own provider through EgressClient (declared in secretParams) and must never leak into logs, provenance envelopes, cassettes, evidence, error messages or other hosts.",
       "severity": "high"
     },
     {
