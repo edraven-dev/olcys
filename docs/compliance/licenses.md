@@ -22,6 +22,8 @@ licencje „source-available” (np. Blockscout ≥ v11) oraz licencje wykluczaj
 | zod                            | 4.6.7   | MIT               | walidacja danych wejściowych i konfiguracji                   | packages/core                      |
 | big.js                         | 7.0.1   | MIT               | dokładna arytmetyka dziesiętna (kwoty, PLN)                   | packages/core                      |
 | yaml                           | 2.9.1   | ISC               | odczyt plików konfiguracyjnych w testach                      | packages/core (dev)                |
+| Kysely                         | 0.29.9  | MIT               | typowany konstruktor zapytań SQL                              | packages/db                        |
+| pg (node-postgres)             | 8.23.1  | MIT               | sterownik PostgreSQL                                          | packages/db                        |
 | Fastify                        | 5.12.8  | MIT               | API HTTP                                                      | apps/api                           |
 | React / React DOM              | 19.3.1  | MIT               | interfejs                                                     | apps/web                           |
 | Vite                           | 8.3.8   | MIT               | budowanie i serwer deweloperski interfejsu                    | apps/web                           |

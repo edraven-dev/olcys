@@ -1,6 +1,5 @@
 /**
- * @olcys/evidence — Content-addressed blob store, SHA-256 manifests, Berkeley Protocol capture records, RFC 3161 timestamps and run-to-run diffing.
- *
- * Contracts (types and ports) come from @olcys/core.
+ * @olcys/evidence — content-addressed blob store, hashing and (later) capture manifests and timestamps.
  */
-export const PACKAGE_NAME = '@olcys/evidence';
+export { canonicalJson } from '@olcys/core';
+export { BlobIntegrityError, BlobNotFoundError, FileBlobStore, InMemoryBlobStore, sha256Hex } from './blob-store.ts';
