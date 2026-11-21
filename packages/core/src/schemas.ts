@@ -4,6 +4,7 @@
 import { z } from 'zod';
 import { IDENTIFIER_KINDS } from './case.ts';
 import { CHAIN_FAMILIES, type ChainId } from './chains.ts';
+import { DENY_LIST_KINDS } from './labels.ts';
 import { EVIDENCE_TIERS } from './scoring.ts';
 import { ADMIRALTY_RELIABILITY, COMPLIANCE_STATUSES, SOURCE_KINDS } from './sources.ts';
 
@@ -175,3 +176,21 @@ export const RuleSetSchema = z.object({
   rules: z.record(z.string(), z.record(z.string(), z.unknown())),
 });
 export type RuleSet = z.infer<typeof RuleSetSchema>;
+
+// --- config/rules/deny-list.v1.yaml --------------------------------------------------------------------------------
+
+/** One deny-list address in canonical form (EVM and bech32 lower-case), with its public source. */
+export const DenyListEntrySchema = z.strictObject({
+  chain: ChainIdSchema,
+  address: z.string().min(1).max(256),
+  kind: z.enum(DENY_LIST_KINDS),
+  name: z.string().min(1).max(200),
+  source: z.url(),
+});
+export type DenyListEntry = z.infer<typeof DenyListEntrySchema>;
+
+export const DenyListSchema = z.strictObject({
+  version: z.string().min(1),
+  entries: z.array(DenyListEntrySchema),
+});
+export type DenyListConfig = z.infer<typeof DenyListSchema>;

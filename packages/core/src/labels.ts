@@ -79,6 +79,13 @@ export interface AddressTypeClassification {
   fetchIds: Id[];
 }
 
+/**
+ * Entry kinds of the deny list (`config/rules/deny-list.v1.yaml`). Test vectors and documentation examples are
+ * rejected at extraction time; every kind is excluded by rule A8.
+ */
+export const DENY_LIST_KINDS = ['test_vector', 'documentation', 'burn', 'token_contract'] as const;
+export type DenyListKind = (typeof DENY_LIST_KINDS)[number];
+
 /** Misattribution filters. */
 export const EXCLUSION_RULE_IDS = ['A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7', 'A8'] as const;
 export type ExclusionRuleId = (typeof EXCLUSION_RULE_IDS)[number];

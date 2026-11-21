@@ -199,9 +199,19 @@ importers:
       '@olcys/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@olcys/worker':
+        specifier: workspace:*
+        version: link:../worker
       fastify:
         specifier: 5.12.8
         version: 5.12.8
+    devDependencies:
+      '@olcys/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      '@olcys/evidence':
+        specifier: workspace:*
+        version: link:../../packages/evidence
 
   apps/fixture-site:
     devDependencies:
@@ -278,12 +288,33 @@ importers:
       '@olcys/scoring':
         specifier: workspace:*
         version: link:../../packages/scoring
+      yaml:
+        specifier: 2.9.1
+        version: 2.9.1
 
   packages/address-extractor:
     dependencies:
+      '@noble/hashes':
+        specifier: 2.4.0
+        version: 2.4.0
       '@olcys/core':
         specifier: workspace:*
         version: link:../core
+      '@scure/base':
+        specifier: 2.4.0
+        version: 2.4.0
+      '@scure/bip39':
+        specifier: 2.4.0
+        version: 2.4.0
+      entities:
+        specifier: 9.0.0
+        version: 9.0.0
+      parse5:
+        specifier: 8.1.1
+        version: 8.1.1
+      yaml:
+        specifier: 2.9.1
+        version: 2.9.1
 
   packages/analytics:
     dependencies:
@@ -864,6 +895,9 @@ packages:
   '@scure/base@2.4.0':
     resolution: {integrity: sha512-thZ1TuJwFwBblOhgsjDKvvGirBxNp+wSvY/DR6tJBJOTDhdAAcHJ8Vbr2eFnqaxeca4+t0i9KBf+uHYGWwZORg==}
 
+  '@scure/bip39@2.4.0':
+    resolution: {integrity: sha512-82dxFbZUYboyOf0AXiydsQrFQ5Q4h9mX+O2UkE91ROYmsc0BKMGZLwDmy96Jpa2+vrtoxomjUhy1RPIgH/r2nA==}
+
   '@sigstore/bundle@4.0.0':
     resolution: {integrity: sha512-NwCl5Y0V6Di0NexvkTqdoVfmjTaQwoLM236r89KEojGmq/jMls8S+zb7yOwAPdXvbwfKDlP+lmXgAL4vKSQT+A==}
     engines: {node: ^20.17.0 || >=22.9.0}
@@ -1249,6 +1283,10 @@ packages:
 
   entities@8.1.0:
     resolution: {integrity: sha512-kxL7msIffSuh9aaFAMD7rxAIuTRMAHMeBtgHW2yUdWw732ZNh4MehkF2gdjvtdmikkaIP9bFDDJOPlsvm7avrA==}
+    engines: {node: '>=20.19.0'}
+
+  entities@9.0.0:
+    resolution: {integrity: sha512-oJFNDJg3kTPwAD1cNn2+WmUq4wFoo09npc3Ydf1D7ED4smRiWrsKnaLxykrTWgyGEcusc87P5dxlAleol9kpkg==}
     engines: {node: '>=20.19.0'}
 
   env-paths@2.2.1:
@@ -1650,6 +1688,9 @@ packages:
   parse-conflict-json@5.0.1:
     resolution: {integrity: sha512-ZHEmNKMq1wyJXNwLxyHnluPfRAFSIliBvbK/UiOceROt4Xh9Pz0fq49NytIaeaCUf5VR86hwQ/34FCcNU5/LKQ==}
     engines: {node: ^20.17.0 || >=22.9.0}
+
+  parse5@8.1.1:
+    resolution: {integrity: sha512-EcR/6WDcU7b2N3vQSxKALCk9lXGtUMQxXio008OEMBE0kavu/7JLfBEeFPzi43nMqVDSbEn3QCK+BMCc9zO//w==}
 
   path-scurry@2.0.2:
     resolution: {integrity: sha512-3O/iVVsJAPsOnpwWIeD+d6z/7PmqApyQePUtCndjatj/9I5LylHvt5qluFaBT3I5h3r1ejfR056c+FCv+NnNXg==}
@@ -2428,6 +2469,10 @@ snapshots:
 
   '@scure/base@2.4.0': {}
 
+  '@scure/bip39@2.4.0':
+    dependencies:
+      '@noble/hashes': 2.4.0
+
   '@sigstore/bundle@4.0.0':
     dependencies:
       '@sigstore/protobuf-specs': 0.5.2
@@ -2730,6 +2775,8 @@ snapshots:
   entities@7.0.1: {}
 
   entities@8.1.0: {}
+
+  entities@9.0.0: {}
 
   env-paths@2.2.1: {}
 
@@ -3177,6 +3224,10 @@ snapshots:
       json-parse-even-better-errors: 5.0.0
       just-diff: 6.0.2
       just-diff-apply: 5.5.0
+
+  parse5@8.1.1:
+    dependencies:
+      entities: 9.0.0
 
   path-scurry@2.0.2:
     dependencies:
