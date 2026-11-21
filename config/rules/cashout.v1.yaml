@@ -28,6 +28,8 @@ rules:
   B5_p2p:
     test: Bisq 2-of-2 multisig with delayed payout; Hodl Hodl one-shot 2-of-3 P2SH-P2WSH escrow; repeated round-number USDT-TRC20 transfers to many unrelated addresses
     minRoundTransfers: 5
+    roundUnit: 100 # a round amount is >= roundUnit and a multiple of it (stablecoin units)
+    windowDays: 30 # all transfers of one pattern fall within this window, to distinct unlabelled recipients
     strength: medium
   B6_chain_hop:
     test: Bridge or instant-exchanger hop followed by B1–B3 on the destination chain
