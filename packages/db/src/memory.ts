@@ -16,6 +16,7 @@ import type {
   RunWithProgress,
 } from '@olcys/core';
 import { addressKey, newId, nowIso } from '@olcys/core';
+import { labelContentSha256 } from './sql/analysis.ts';
 
 const copy = <T>(value: T): T => structuredClone(value);
 const byRun = <T extends { runId?: Id }>(items: readonly T[], runId: Id): T[] =>
@@ -38,7 +39,8 @@ export function createMemoryRepositories(): Repositories {
     links: [] as LinkAssessment[],
     changes: [] as ChangeEvent[],
     reports: [] as { runId: Id; kind: string; blobSha256: string; mediaType: string; createdAt: string }[],
-    labels: new Map<string, AddressLabel>(),
+    /** Label versions, as in SQL: exact re-imports are no-ops, a corrected record is a new version. */
+    labels: [] as { key: string; sha: string; lastmod: string; label: AddressLabel }[],
   };
 
   return {
@@ -52,7 +54,7 @@ export function createMemoryRepositories(): Repositories {
           purpose: input.purpose,
           legalBasis: input.legalBasis,
           status: 'open',
-          scope: input.scope,
+          scope: copy(input.scope),
           createdAt: at,
           createdBy,
           identifiers: input.identifiers.map((i) => ({
@@ -200,11 +202,20 @@ export function createMemoryRepositories(): Repositories {
     labels: {
       async upsert(labels) {
         for (const label of labels) {
-          store.labels.set(`${addressKey(label.address)}|${label.entity}|${label.provenance.datasetId}`, copy(label));
+          const key = `${addressKey(label.address)}|${label.entity}|${label.provenance.datasetId}`;
+          const sha = labelContentSha256(label);
+          if (store.labels.some((v) => v.key === key && v.sha === sha)) continue;
+          store.labels.push({ key, sha, lastmod: label.provenance.lastmod, label: copy(label) });
         }
       },
+      /** Current labels: the newest version (by `lastmod`, then insertion) per address, entity and dataset. */
       async list() {
-        return copy([...store.labels.values()]);
+        const current = new Map<string, { lastmod: string; label: AddressLabel }>();
+        for (const v of store.labels) {
+          const seen = current.get(v.key);
+          if (!seen || v.lastmod >= seen.lastmod) current.set(v.key, v);
+        }
+        return copy([...current.values()].map((v) => v.label));
       },
     },
   };

@@ -24,6 +24,13 @@ export interface ApiDeps {
 const notFound = (reply: FastifyReply, what: string) =>
   reply.code(404).send({ error: 'not_found', message: `${what} not found` });
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/**
+ * Ids are UUIDs in canonical lowercase form; anything else cannot exist and must not reach the database. Both stores
+ * then see the same spelling (PostgreSQL's uuid type ignores case, the in-memory store does not).
+ */
+const idOf = (value: string): string | undefined => (UUID.test(value) ? value.toLowerCase() : undefined);
+
 export function buildApp(deps: ApiDeps): FastifyInstance {
   const app = Fastify({ logger: deps.httpLog ?? false });
   const { repos } = deps;
@@ -32,6 +39,13 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
   app.setErrorHandler((error, _request, reply) => {
     if (error instanceof ContractError) {
       return reply.code(400).send({ error: 'invalid_input', message: error.message, issues: error.issues });
+    }
+    // Fastify's own client errors (malformed JSON, unsupported media type, body too large) keep their status.
+    const status = (error as { statusCode?: number }).statusCode;
+    if (typeof status === 'number' && status >= 400 && status < 500) {
+      return reply
+        .code(status)
+        .send({ error: 'bad_request', message: error instanceof Error ? error.message : 'bad request' });
     }
     app.log.error(error);
     return reply.code(500).send({ error: 'internal', message: 'internal error' });
@@ -61,30 +75,49 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
   });
 
   app.get<{ Params: { caseId: string } }>('/api/cases/:caseId', async (request, reply) => {
-    const found = await repos.cases.get(request.params.caseId);
+    const caseId = idOf(request.params.caseId);
+    const found = caseId ? await repos.cases.get(caseId) : undefined;
     return found ?? notFound(reply, 'case');
   });
 
   app.get<{ Params: { caseId: string } }>('/api/cases/:caseId/runs', async (request, reply) => {
-    if (!(await repos.cases.get(request.params.caseId))) return notFound(reply, 'case');
-    return { items: await repos.runs.listByCase(request.params.caseId) };
+    const caseId = idOf(request.params.caseId);
+    if (!caseId || !(await repos.cases.get(caseId))) return notFound(reply, 'case');
+    return { items: await repos.runs.listByCase(caseId) };
   });
 
   app.post<{ Params: { caseId: string } }>('/api/cases/:caseId/runs', async (request, reply) => {
-    if (!(await repos.cases.get(request.params.caseId))) return notFound(reply, 'case');
+    const caseId = idOf(request.params.caseId);
+    const kase = caseId ? await repos.cases.get(caseId) : undefined;
+    if (!kase) return notFound(reply, 'case');
     const input = parse(StartRunSchema, request.body ?? {});
-    return reply.code(202).send(await deps.startRun(request.params.caseId, input));
+    if (input.trigger === 'rescore' || input.rescoreOfRunId) {
+      const targetId = input.rescoreOfRunId?.toLowerCase();
+      const target = targetId ? await repos.runs.get(targetId) : undefined;
+      // Compare canonical ids as stored, not the URL spelling (UUIDs are case-insensitive).
+      if (!target || target.caseId !== kase.id) {
+        return reply
+          .code(400)
+          .send({ error: 'invalid_input', message: 'rescoreOfRunId must name an existing run of this case' });
+      }
+    }
+    const rescoreOfRunId = input.rescoreOfRunId?.toLowerCase();
+    return reply
+      .code(202)
+      .send(await deps.startRun(kase.id, { trigger: input.trigger, ...(rescoreOfRunId ? { rescoreOfRunId } : {}) }));
   });
 
   app.get<{ Params: { runId: string } }>('/api/runs/:runId', async (request, reply) => {
-    const run = await repos.runs.get(request.params.runId);
+    const runId = idOf(request.params.runId);
+    const run = runId ? await repos.runs.get(runId) : undefined;
     return run ?? notFound(reply, 'run');
   });
 
   const runList = <T>(path: string, load: (runId: string) => Promise<T[]>) =>
     app.get<{ Params: { runId: string } }>(`/api/runs/:runId/${path}`, async (request, reply) => {
-      if (!(await repos.runs.get(request.params.runId))) return notFound(reply, 'run');
-      return { items: await load(request.params.runId) };
+      const runId = idOf(request.params.runId);
+      if (!runId || !(await repos.runs.get(runId))) return notFound(reply, 'run');
+      return { items: await load(runId) };
     });
   runList('captures', (id) => repos.evidence.listCaptures(id));
   runList('observations', (id) => repos.evidence.listObservations(id));
@@ -99,7 +132,8 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
   runList('changes', (id) => repos.analysis.listChanges(id));
 
   app.get<{ Params: { captureId: string } }>('/api/captures/:captureId', async (request, reply) => {
-    const capture = await repos.evidence.getCapture(request.params.captureId);
+    const captureId = idOf(request.params.captureId);
+    const capture = captureId ? await repos.evidence.getCapture(captureId) : undefined;
     return capture ?? notFound(reply, 'capture');
   });
 
@@ -118,7 +152,8 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
   });
 
   app.get<{ Params: { runId: string } }>('/api/runs/:runId/report', async (request, reply) => {
-    const report = await repos.analysis.latestReport(request.params.runId, 'html');
+    const runId = idOf(request.params.runId);
+    const report = runId ? await repos.analysis.latestReport(runId, 'html') : undefined;
     if (!report) return notFound(reply, 'report');
     const bytes = await deps.blobs.get(report.blobSha256);
     return reply

@@ -142,6 +142,46 @@ describe('api', () => {
     expect(await broken.repos.runs.get(run.id)).toMatchObject({ status: 'failed', error: 'scoring exploded' });
   });
 
+  it('answers client errors with 4xx, never 500', async () => {
+    const malformed = await app.inject({
+      method: 'POST',
+      url: '/api/cases',
+      headers: { 'content-type': 'application/json' },
+      payload: '{"title":',
+    });
+    expect(malformed.statusCode).toBe(400);
+    expect((await app.inject('/api/cases/not-a-uuid')).statusCode).toBe(404);
+    expect((await app.inject('/api/runs/not-a-uuid/links')).statusCode).toBe(404);
+    expect((await app.inject('/api/captures/123')).statusCode).toBe(404);
+  });
+
+  it('accepts rescores only of runs of the same case', async () => {
+    const caseId = (await app.inject('/api/cases')).json().items[0].id as string;
+    const other = (await app.inject({ method: 'POST', url: '/api/cases', payload: newCase })).json().id as string;
+    const runOfOther = (await app.inject({ method: 'POST', url: `/api/cases/${other}/runs`, payload: {} })).json().id;
+    await runtime.idle();
+    const foreign = await app.inject({
+      method: 'POST',
+      url: `/api/cases/${caseId}/runs`,
+      payload: { trigger: 'rescore', rescoreOfRunId: runOfOther },
+    });
+    expect(foreign.statusCode).toBe(400);
+    const missing = await app.inject({
+      method: 'POST',
+      url: `/api/cases/${caseId}/runs`,
+      payload: { trigger: 'rescore' },
+    });
+    expect(missing.statusCode).toBe(400);
+    const ownRun = (await app.inject(`/api/cases/${caseId}/runs`)).json().items[0].id as string;
+    const upper = await app.inject({
+      method: 'POST',
+      url: `/api/cases/${caseId.toUpperCase()}/runs`,
+      payload: { trigger: 'rescore', rescoreOfRunId: ownRun },
+    });
+    expect(upper.statusCode).toBe(202);
+    await runtime.idle();
+  });
+
   it('lists the source register and serves evidence only as downloads', async () => {
     const sources = (await app.inject('/api/sources')).json().items as { id: string; compliance: string }[];
     expect(sources.find((s) => s.id === 'fixture_site')).toMatchObject({ compliance: 'GREEN' });
