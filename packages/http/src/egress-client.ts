@@ -466,6 +466,8 @@ export function createEgressClient(options: EgressClientOptions): EgressClient {
             headers: fetched.storedHeaders,
             bodyBase64: Buffer.from(fetched.body).toString('base64'),
             finalUrl: redactUrl(fetched.finalUrl, request.secretParams),
+            ...(fetched.synthetic ? { synthetic: true } : {}),
+            ...(fetched.sandbox ? { sandbox: true } : {}),
           });
         }
       }

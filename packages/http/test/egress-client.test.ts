@@ -425,7 +425,10 @@ describe('egress client — second review', () => {
   it('records fixture-site responses so that replay can serve them, but not internal services', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'olcys-cassettes-'));
     const sources = [source('fixture_site', { kind: 'fixture' }), source('gotenberg', { kind: 'internal_service' })];
-    const live = setup({ mode: 'offline', cassetteDir: dir, record: true, enabledSources: sources });
+    const live = setup(
+      { mode: 'offline', cassetteDir: dir, record: true, enabledSources: sources },
+      (url) => new Response(JSON.stringify({ url }), { headers: { 'x-olcys-synthetic': 'true' } }),
+    );
     await live.client.fetch(req('http://127.0.0.1:4100/forum/profile', 'fixture_site'));
     await live.client.fetch(req('http://gotenberg:3000/health', 'gotenberg'));
     expect(await readdir(dir)).toEqual(['fixture_site']);
@@ -433,6 +436,7 @@ describe('egress client — second review', () => {
     const replay = setup({ mode: 'replay', cassetteDir: dir, enabledSources: sources });
     const res = await replay.client.fetch(req('http://127.0.0.1:4100/forum/profile', 'fixture_site'));
     expect(res.json<{ url: string }>().url).toBe('http://127.0.0.1:4100/forum/profile');
+    expect(res.provenance.synthetic).toBe(true);
     expect(replay.calls).toEqual([]);
   });
 
