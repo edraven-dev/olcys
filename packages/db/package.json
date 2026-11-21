@@ -8,6 +8,11 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@olcys/core": "workspace:*"
+    "@olcys/core": "workspace:*",
+    "kysely": "0.29.9",
+    "pg": "8.23.1"
+  },
+  "devDependencies": {
+    "@types/pg": "8.23.1"
   }
 }
