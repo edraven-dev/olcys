@@ -123,6 +123,8 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
   runList('observations', (id) => repos.evidence.listObservations(id));
   runList('accounts', (id) => repos.evidence.listAccounts(id));
   runList('candidates', (id) => repos.evidence.listCandidates(id));
+  // Extraction results include the matches rejected at validation (homoglyphs, transaction hashes, test vectors).
+  runList('extractions', (id) => repos.evidence.listExtractionResults(id));
   runList('egress', (id) => repos.evidence.listEgressLog(id));
   runList('transfers', (id) => repos.chain.listTransfers(id));
   runList('links', (id) => repos.analysis.listLinks(id));
@@ -130,6 +132,9 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
   runList('activity', (id) => repos.analysis.listActivity(id));
   runList('cash-outs', (id) => repos.analysis.listCashOuts(id));
   runList('changes', (id) => repos.analysis.listChanges(id));
+
+  // Address labels (reference data, not run-scoped) with their provenance: dataset, URL, licence, lastmod.
+  app.get('/api/labels', async () => ({ items: await repos.labels.list() }));
 
   app.get<{ Params: { captureId: string } }>('/api/captures/:captureId', async (request, reply) => {
     const captureId = idOf(request.params.captureId);
