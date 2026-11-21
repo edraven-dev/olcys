@@ -12,4 +12,11 @@ export {
   type EgressSinks,
 } from './egress-client.ts';
 export { EgressDeniedError, ReplayMissError } from './errors.ts';
-export { isAllowedByRobots, parseRobots, RobotsCache } from './robots.ts';
+export {
+  isAllowedByRobots,
+  normaliseRobotsPath,
+  parseRobots,
+  RobotsCache,
+  type RobotsCacheOptions,
+  type RobotsDecision,
+} from './robots.ts';

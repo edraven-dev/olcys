@@ -30,6 +30,7 @@ export interface EgressSinks {
 
 export interface EgressClientOptions {
   mode: FetchMode;
+  /** Default run id; a request's own `runId` takes precedence. */
   runId?: string;
   /** Sources and providers enabled for the run; their `allowedHosts` form the allow-list. */
   enabledSources: readonly SourceDescriptor[];
@@ -61,7 +62,20 @@ export const DEFAULT_LOCAL_HOSTS = [
   'ollama',
 ] as const;
 const DEFAULT_SECRET_PARAMS = ['apikey', 'api_key', 'key', 'token', 'access_token', 'authorization', 'x-api-key'];
-const KEPT_HEADERS = ['content-type', 'etag', 'last-modified', 'date', 'retry-after', 'location', 'content-length'];
+const KEPT_HEADERS = [
+  'content-type',
+  'etag',
+  'last-modified',
+  'date',
+  'retry-after',
+  'location',
+  'content-length',
+  'x-olcys-synthetic',
+];
+/** Request headers that change the response, hence part of the cassette key. */
+const KEYED_REQUEST_HEADERS: ReadonlySet<string> = new Set(['accept', 'accept-language', 'content-type']);
+/** Fetch spec "request-body-header names": dropped together with the body when a redirect switches to GET. */
+const BODY_HEADERS = ['content-length', 'content-type', 'content-encoding', 'content-language', 'content-location'];
 /** Source kinds that stay live in replay mode (when they target a local host). */
 const LIVE_IN_REPLAY: ReadonlySet<SourceKind> = new Set<SourceKind>(['internal_service', 'ai_model']);
 
@@ -77,7 +91,10 @@ interface Cassette {
 
 interface Fetched {
   status: number;
+  /** Headers as returned to the caller. */
   headers: Record<string, string>;
+  /** Headers as stored in provenance and cassettes (secret parameters in `location` redacted). */
+  storedHeaders: Record<string, string>;
   body: Uint8Array;
   finalUrl: string;
   egressLogId: string;
@@ -111,17 +128,35 @@ export function redactUrl(raw: string, secretParams: readonly string[] = []): st
   return url.toString();
 }
 
-/** Stable request key for cassettes: method + URL without secrets + body hash. */
+/**
+ * Stable request key for cassettes: method + URL without secrets + body hash, plus response-affecting options
+ * (`redirect: manual`, `accept`, `accept-language`, `content-type`) when present.
+ */
 export function requestHash(
   method: string,
   url: string,
   body?: string | Uint8Array,
   secretParams?: readonly string[],
+  variant: Readonly<Record<string, string>> = {},
 ): string {
   const bodyHash = body === undefined ? '' : createHash('sha256').update(body).digest('hex');
+  const extra = Object.entries(variant)
+    .map(([k, v]) => `\n${k.toLowerCase()}=${v}`)
+    .toSorted()
+    .join('');
   return createHash('sha256')
-    .update(`${method.toUpperCase()} ${redactUrl(url, secretParams)}\n${bodyHash}`)
+    .update(`${method.toUpperCase()} ${redactUrl(url, secretParams)}\n${bodyHash}${extra}`)
     .digest('hex');
+}
+
+/** The response-affecting parts of a request that are not in method, URL or body. */
+function requestVariant(request: EgressRequest): Record<string, string> {
+  const variant: Record<string, string> = {};
+  if (request.redirect === 'manual') variant['redirect'] = 'manual';
+  for (const [name, value] of Object.entries(request.headers ?? {})) {
+    if (KEYED_REQUEST_HEADERS.has(name.toLowerCase())) variant[`header:${name.toLowerCase()}`] = value;
+  }
+  return variant;
 }
 
 function describeError(error: unknown): string {
@@ -136,6 +171,27 @@ function keptHeaders(source: Headers): Record<string, string> {
     if (value !== null) headers[name] = value;
   }
   return headers;
+}
+
+/** Copy of `headers` safe to store: a `location` (absolute or relative) has its secret parameters redacted. */
+function redactHeaders(
+  headers: Record<string, string>,
+  baseUrl: string,
+  secretParams: readonly string[] = [],
+): Record<string, string> {
+  const location = headers['location'];
+  if (location === undefined) return headers;
+  let redacted: string;
+  try {
+    redacted = redactUrl(new URL(location, baseUrl).toString(), secretParams);
+  } catch {
+    redacted = 'REDACTED (unparseable location)';
+  }
+  return { ...headers, location: redacted };
+}
+
+function withoutHeaders(headers: Record<string, string>, names: ReadonlySet<string>): Record<string, string> {
+  return Object.fromEntries(Object.entries(headers).filter(([name]) => !names.has(name.toLowerCase())));
 }
 
 export function createEgressClient(options: EgressClientOptions): EgressClient {
@@ -161,11 +217,11 @@ export function createEgressClient(options: EgressClientOptions): EgressClient {
   }
 
   /** Why a live request to `host` must not be sent (undefined when it may). */
-  function liveDenial(source: SourceDescriptor, firstHost: string, host: string): string | undefined {
+  function liveDenial(source: SourceDescriptor, host: string, visitedExternal: boolean): string | undefined {
     const denial = allowedFor(source, host);
     if (denial) return denial;
     if (options.mode !== 'live' && !isLocal(host)) return `external host in ${options.mode} mode`;
-    if (!isLocal(firstHost) && isLocal(host)) return 'external host redirected to an internal host';
+    if (visitedExternal && isLocal(host)) return 'external host redirected to an internal host';
     return undefined;
   }
 
@@ -186,11 +242,11 @@ export function createEgressClient(options: EgressClientOptions): EgressClient {
     if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
   }
 
-  async function log(fields: LogFields): Promise<string> {
+  async function log(runId: string | undefined, fields: LogFields): Promise<string> {
     const id = newId();
     await options.sinks.log({
       id,
-      ...(options.runId ? { runId: options.runId } : {}),
+      ...(runId ? { runId } : {}),
       mode: options.mode,
       at: clock.now().toISOString(),
       ...fields,
@@ -240,11 +296,17 @@ export function createEgressClient(options: EgressClientOptions): EgressClient {
     return new Uint8Array(Buffer.concat(chunks));
   }
 
-  async function fetchLive(request: EgressRequest, source: SourceDescriptor, firstHost: string): Promise<Fetched> {
+  async function fetchLive(
+    request: EgressRequest,
+    source: SourceDescriptor,
+    runId: string | undefined,
+  ): Promise<Fetched> {
     let url = request.url;
     let method = request.method ?? 'GET';
     let body = request.body;
     let headers: Record<string, string> = { 'user-agent': userAgent, ...request.headers };
+    // Once a hop has left the local hosts, no later hop may come back to them (SSRF via redirects).
+    let visitedExternal = false;
     const describe = (host: string): LogFields => ({
       sourceId: request.sourceId,
       host,
@@ -258,13 +320,14 @@ export function createEgressClient(options: EgressClientOptions): EgressClient {
     // Sequential on purpose: every hop is allow-listed, throttled and logged before the next one is sent.
     for (let hop = 0; ; hop += 1) {
       const host = normaliseHost(new URL(url).hostname);
-      const denial = liveDenial(source, firstHost, host);
+      const denial = liveDenial(source, host, visitedExternal);
       if (denial) {
         const reason = hop === 0 ? denial : `redirect: ${denial}`;
         // oxlint-disable-next-line no-await-in-loop
-        await log({ ...describe(host), allowed: false, denyReason: reason });
+        await log(runId, { ...describe(host), allowed: false, denyReason: reason });
         throw new EgressDeniedError(host, reason);
       }
+      if (!isLocal(host)) visitedExternal = true;
       // oxlint-disable-next-line no-await-in-loop
       await throttle(host, source);
       let response: Response;
@@ -279,7 +342,7 @@ export function createEgressClient(options: EgressClientOptions): EgressClient {
         });
       } catch (error) {
         // oxlint-disable-next-line no-await-in-loop
-        await log({ ...describe(host), error: describeError(error) });
+        await log(runId, { ...describe(host), error: describeError(error) });
         throw error;
       }
 
@@ -288,13 +351,12 @@ export function createEgressClient(options: EgressClientOptions): EgressClient {
         // oxlint-disable-next-line no-await-in-loop
         await response.body?.cancel();
         // oxlint-disable-next-line no-await-in-loop
-        await log({ ...describe(host), httpStatus: response.status });
+        await log(runId, { ...describe(host), httpStatus: response.status });
         if (hop >= maxRedirects) throw new Error(`too many redirects (more than ${maxRedirects})`);
         const next = new URL(location, url);
         if (next.origin !== new URL(url).origin) {
           // Never forward credentials to another origin.
-          const secrets = secretNames([...(request.secretParams ?? []), 'cookie']);
-          headers = Object.fromEntries(Object.entries(headers).filter(([name]) => !secrets.has(name.toLowerCase())));
+          headers = withoutHeaders(headers, secretNames([...(request.secretParams ?? []), 'cookie']));
         }
         const toGet =
           response.status === 303
@@ -303,6 +365,7 @@ export function createEgressClient(options: EgressClientOptions): EgressClient {
         if (toGet) {
           method = 'GET';
           body = undefined;
+          headers = withoutHeaders(headers, new Set(BODY_HEADERS));
         }
         url = next.toString();
         continue;
@@ -314,17 +377,25 @@ export function createEgressClient(options: EgressClientOptions): EgressClient {
         bytes = await readCapped(response);
       } catch (error) {
         // oxlint-disable-next-line no-await-in-loop
-        await log({ ...describe(host), httpStatus: response.status, error: describeError(error) });
+        await log(runId, { ...describe(host), httpStatus: response.status, error: describeError(error) });
         throw error;
       }
       // oxlint-disable-next-line no-await-in-loop
-      const egressLogId = await log({ ...describe(host), httpStatus: response.status, bytes: bytes.byteLength });
+      const egressLogId = await log(runId, {
+        ...describe(host),
+        httpStatus: response.status,
+        bytes: bytes.byteLength,
+      });
+      const returned = keptHeaders(response.headers);
       return {
         status: response.status,
-        headers: keptHeaders(response.headers),
+        headers: returned,
+        storedHeaders: redactHeaders(returned, url, request.secretParams),
         body: bytes,
         finalUrl: url,
         egressLogId,
+        // The fixture site marks every response as synthetic.
+        ...(isLocal(host) && returned['x-olcys-synthetic'] === 'true' ? { synthetic: true } : {}),
       };
     }
   }
@@ -332,10 +403,11 @@ export function createEgressClient(options: EgressClientOptions): EgressClient {
   return {
     async fetch(request: EgressRequest): Promise<EgressResponse> {
       const method = request.method ?? 'GET';
+      const runId = request.runId ?? options.runId;
       const source = sources.get(request.sourceId);
       const requestedAt = clock.now().toISOString();
       const urlRedacted = redactUrl(request.url, request.secretParams);
-      const hash = requestHash(method, request.url, request.body, request.secretParams);
+      const hash = requestHash(method, request.url, request.body, request.secretParams, requestVariant(request));
       const firstHost = normaliseHost(new URL(request.url).hostname);
       const fields: LogFields = {
         sourceId: request.sourceId,
@@ -350,41 +422,49 @@ export function createEgressClient(options: EgressClientOptions): EgressClient {
       const denial = allowedFor(source, firstHost);
       if (denial !== undefined || !source) {
         const reason = denial ?? 'denied';
-        await log({ ...fields, allowed: false, denyReason: reason });
+        await log(runId, { ...fields, allowed: false, denyReason: reason });
         throw new EgressDeniedError(firstHost, reason);
       }
 
       let fetched: Fetched;
       if (servedFromCassette(source, firstHost)) {
-        const cassette = await readCassette(request.sourceId, hash);
+        let cassette: Cassette | undefined;
+        try {
+          cassette = await readCassette(request.sourceId, hash);
+        } catch (error) {
+          await log(runId, { ...fields, error: `cassette unreadable: ${describeError(error)}` });
+          throw error;
+        }
         if (!cassette) {
-          await log({ ...fields, allowed: false, denyReason: 'replay miss' });
+          await log(runId, { ...fields, allowed: false, denyReason: 'replay miss' });
           throw new ReplayMissError(hash, urlRedacted);
         }
         const body = new Uint8Array(Buffer.from(cassette.bodyBase64, 'base64'));
         fetched = {
           status: cassette.status,
           headers: cassette.headers,
+          storedHeaders: cassette.headers,
           body,
           finalUrl: cassette.finalUrl,
-          egressLogId: await log({ ...fields, httpStatus: cassette.status, bytes: body.byteLength }),
+          egressLogId: await log(runId, { ...fields, httpStatus: cassette.status, bytes: body.byteLength }),
           ...(cassette.synthetic ? { synthetic: true } : {}),
           ...(cassette.sandbox ? { sandbox: true } : {}),
         };
       } else {
-        fetched = await fetchLive(request, source, firstHost);
-        if (options.record && options.mode === 'live' && !isLocal(firstHost)) {
+        fetched = await fetchLive(request, source, runId);
+        // Hash-only requests (persistBody: false) are never written to disk, not even as cassettes.
+        if (options.record && options.mode === 'live' && !isLocal(firstHost) && request.persistBody !== false) {
           await writeCassette(request.sourceId, hash, {
             request: { method, url: urlRedacted },
             status: fetched.status,
-            headers: fetched.headers,
+            headers: fetched.storedHeaders,
             bodyBase64: Buffer.from(fetched.body).toString('base64'),
             finalUrl: redactUrl(fetched.finalUrl, request.secretParams),
           });
         }
       }
 
-      const { status, headers, body, finalUrl } = fetched;
+      const { status, headers, storedHeaders, body, finalUrl } = fetched;
       const persist = request.persistBody !== false;
       const mediaType = headers['content-type'] ?? 'application/octet-stream';
       const blob: BlobRef = persist
@@ -394,7 +474,7 @@ export function createEgressClient(options: EgressClientOptions): EgressClient {
 
       const envelope: ProvenanceEnvelope = {
         fetchId: newId(),
-        ...(options.runId ? { runId: options.runId } : {}),
+        ...(runId ? { runId } : {}),
         sourceId: request.sourceId,
         provider: source.name,
         method,
@@ -403,7 +483,7 @@ export function createEgressClient(options: EgressClientOptions): EgressClient {
         requestedAt,
         receivedAt: clock.now().toISOString(),
         httpStatus: status,
-        responseHeaders: headers,
+        responseHeaders: storedHeaders,
         body: blob,
         mode: options.mode,
         toolVersion: options.toolVersion,

@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { mkdtemp, mkdir, readdir, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { BlobRef, BlobStore, EgressLogEntry, ProvenanceEnvelope, SourceDescriptor } from '@olcys/core';
@@ -11,6 +11,7 @@ import {
   parseRobots,
   ReplayMissError,
   requestHash,
+  RobotsCache,
   type EgressClientOptions,
 } from '../src/index.ts';
 
@@ -285,5 +286,128 @@ describe('robots.txt', () => {
     expect(isAllowedByRobots(groups, 'OLCYS/0.1', '/private/x')).toBe(false);
     expect(isAllowedByRobots(groups, 'OLCYS/0.1', '/private/public')).toBe(true);
     expect(isAllowedByRobots([], 'OLCYS/0.1', '/anything')).toBe(true);
+  });
+});
+
+describe('egress client — review hardening', () => {
+  it('redacts secrets in stored redirect locations but returns them to the caller', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'olcys-cassettes-'));
+    const { client, envelopes } = setup(
+      { cassetteDir: dir, record: true },
+      () => new Response(null, { status: 302, headers: { location: '/next?token=SECRET&page=2' } }),
+    );
+    const res = await client.fetch({ ...req('https://api.example.test/start'), redirect: 'manual' });
+    expect(res.status).toBe(302);
+    expect(res.headers['location']).toBe('/next?token=SECRET&page=2');
+    expect(envelopes[0]?.responseHeaders['location']).toBe('https://api.example.test/next?token=REDACTED&page=2');
+    const [file] = await readdir(join(dir, 'api'));
+    expect(await readFile(join(dir, 'api', file!), 'utf8')).not.toContain('SECRET');
+  });
+
+  it('does not record hash-only responses as cassettes', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'olcys-cassettes-'));
+    const { client } = setup({ cassetteDir: dir, record: true });
+    await client.fetch({ ...req('https://api.example.test/terms-restricted'), persistBody: false });
+    await expect(readdir(join(dir, 'api'))).rejects.toThrow(/ENOENT/);
+  });
+
+  it('denies a local → external → local redirect chain', async () => {
+    const { client, calls } = setup({}, (url) =>
+      url.startsWith('http://127.0.0.1')
+        ? new Response(null, { status: 302, headers: { location: 'https://api.example.test/bounce' } })
+        : new Response(null, { status: 302, headers: { location: 'http://gotenberg:3000/forms' } }),
+    );
+    await expect(client.fetch(req('http://127.0.0.1:4100/start'))).rejects.toThrow(/internal host/);
+    expect(calls).toEqual(['http://127.0.0.1:4100/start', 'https://api.example.test/bounce']);
+  });
+
+  it('keys cassettes by redirect mode and response-affecting headers', () => {
+    const url = 'https://api.example.test/a';
+    const plain = requestHash('GET', url);
+    expect(requestHash('GET', url, undefined, undefined, {})).toBe(plain);
+    expect(requestHash('GET', url, undefined, undefined, { redirect: 'manual' })).not.toBe(plain);
+    expect(requestHash('GET', url, undefined, undefined, { 'header:accept': 'application/json' })).not.toBe(plain);
+  });
+
+  it('drops body headers when a redirect switches POST to GET', async () => {
+    const { client, inits } = setup({}, (url) =>
+      url.endsWith('/form') ? new Response(null, { status: 302, headers: { location: '/done' } }) : new Response('ok'),
+    );
+    await client.fetch({
+      ...req('https://api.example.test/form'),
+      method: 'POST',
+      body: 'a=1',
+      headers: { 'content-type': 'application/x-www-form-urlencoded', 'content-length': '3', accept: '*/*' },
+    });
+    expect(inits[1]?.method).toBe('GET');
+    expect(inits[1]?.headers).toEqual({ 'user-agent': expect.any(String), accept: '*/*' });
+  });
+
+  it("uses the request's run id for logs and provenance", async () => {
+    const { client, logs, envelopes } = setup();
+    await client.fetch({ ...req('https://api.example.test/a'), runId: 'run-2' });
+    expect(logs[0]?.runId).toBe('run-2');
+    expect(envelopes[0]?.runId).toBe('run-2');
+  });
+
+  it('logs unreadable cassettes before rethrowing', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'olcys-cassettes-'));
+    const url = 'https://api.example.test/broken';
+    await mkdir(join(dir, 'api'), { recursive: true });
+    await writeFile(join(dir, 'api', `${requestHash('GET', url)}.json`), '{not json');
+    const { client, logs } = setup({ mode: 'replay', cassetteDir: dir });
+    await expect(client.fetch(req(url))).rejects.toBeInstanceOf(SyntaxError);
+    expect(logs[0]?.error).toMatch(/^cassette unreadable/);
+  });
+
+  it('marks fixture-site responses as synthetic', async () => {
+    const { client, envelopes } = setup({}, () => new Response('x', { headers: { 'x-olcys-synthetic': 'true' } }));
+    await client.fetch(req('http://127.0.0.1:4100/page'));
+    expect(envelopes[0]?.synthetic).toBe(true);
+  });
+});
+
+describe('robots.txt — RFC 9309 details', () => {
+  it('matches pathological wildcard rules in linear time', () => {
+    const groups = parseRobots(`User-agent: *\nDisallow: /${'*a'.repeat(40)}b\n`);
+    const start = performance.now();
+    expect(isAllowedByRobots(groups, 'OLCYS/0.1', `/${'a'.repeat(5000)}`)).toBe(true);
+    expect(performance.now() - start).toBeLessThan(500);
+  });
+
+  it('normalises percent-encoding on both sides', () => {
+    const groups = parseRobots('User-agent: *\nDisallow: /private\nDisallow: /zażółć\n');
+    expect(isAllowedByRobots(groups, 'OLCYS/0.1', '/%70rivate/x')).toBe(false);
+    expect(isAllowedByRobots(groups, 'OLCYS/0.1', new URL('https://h.test/zażółć/1').pathname)).toBe(false);
+    expect(isAllowedByRobots(groups, 'OLCYS/0.1', '/public')).toBe(true);
+  });
+
+  it('uses the group of our product token instead of *', () => {
+    const groups = parseRobots('User-agent: *\nDisallow: /\n\nUser-agent: olcys\nDisallow: /private/\n');
+    expect(isAllowedByRobots(groups, 'OLCYS/0.1 (OSINT research prototype)', '/forum')).toBe(true);
+    expect(isAllowedByRobots(groups, 'OtherBot/1.0', '/forum')).toBe(false);
+  });
+
+  it('allows everything on 4xx, disallows on 5xx or errors, and retries after a failure', async () => {
+    let now = 0;
+    let status = 503;
+    const { client } = setup({}, (url) =>
+      url.endsWith('/robots.txt') ? new Response('', { status }) : new Response('page'),
+    );
+    const robots = new RobotsCache(client, 'OLCYS/0.1', { retryAfterFailureMs: 1000, now: () => now });
+    expect(await robots.check('https://api.example.test/a', 'api')).toEqual({
+      allowed: false,
+      reason: 'robots.txt unreachable (HTTP 503)',
+    });
+    status = 404;
+    expect(await robots.isAllowed('https://api.example.test/a', 'api')).toBe(false);
+    now = 1001;
+    expect(await robots.isAllowed('https://api.example.test/a', 'api')).toBe(true);
+
+    const failing = setup({}, () => {
+      throw new TypeError('fetch failed');
+    });
+    const unreachable = new RobotsCache(failing.client, 'OLCYS/0.1');
+    expect(await unreachable.isAllowed('https://api.example.test/a', 'api')).toBe(false);
   });
 });
