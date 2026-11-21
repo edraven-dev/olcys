@@ -22,6 +22,13 @@ licencje „source-available” (np. Blockscout ≥ v11) oraz licencje wykluczaj
 | zod                            | 4.6.7   | MIT               | walidacja danych wejściowych i konfiguracji                   | packages/core                      |
 | big.js                         | 7.0.1   | MIT               | dokładna arytmetyka dziesiętna (kwoty, PLN)                   | packages/core                      |
 | yaml                           | 2.9.1   | ISC               | odczyt plików konfiguracyjnych w testach                      | packages/core (dev)                |
+| @noble/hashes                  | 2.4.0   | MIT               | SHA-256 i Keccak-256 (sumy kontrolne base58check i EIP-55)    | packages/address-extractor         |
+| @scure/base                    | 2.4.0   | MIT               | dekodowanie bech32/bech32m i base58check                      | packages/address-extractor         |
+| @scure/bip39                   | 2.4.0   | MIT               | listy słów BIP-39 do wykrywania i maskowania fraz seed        | packages/address-extractor         |
+| parse5                         | 8.1.1   | MIT               | parser HTML z pozycjami w źródle (widoki tekstu)              | packages/address-extractor         |
+| entities                       | 9.0.0   | BSD-2-Clause      | dekodowanie encji HTML przy normalizacji                      | packages/address-extractor         |
+| yaml                           | 2.9.1   | ISC               | odczyt listy wykluczeń `config/rules/deny-list.v1.yaml`       | packages/address-extractor         |
+| Unicode TR39 (confusables)     | —       | Unicode-3.0       | dane: ręcznie wybrana tabela homoglifów (cyrylica/greka)      | packages/address-extractor         |
 | Fastify                        | 5.12.8  | MIT               | API HTTP                                                      | apps/api                           |
 | React / React DOM              | 19.3.1  | MIT               | interfejs                                                     | apps/web                           |
 | Vite                           | 8.3.8   | MIT               | budowanie i serwer deweloperski interfejsu                    | apps/web                           |
