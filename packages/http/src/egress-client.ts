@@ -118,9 +118,13 @@ function secretNames(extra: readonly string[] = []): Set<string> {
   return new Set([...DEFAULT_SECRET_PARAMS, ...extra].map((s) => s.toLowerCase()));
 }
 
-/** Redacts secret query parameters (by name, case-insensitive) in a URL. */
+/** Redacts embedded credentials (`user:password@`) and secret query parameters (by name, case-insensitive). */
 export function redactUrl(raw: string, secretParams: readonly string[] = []): string {
   const url = new URL(raw);
+  if (url.username || url.password) {
+    url.username = 'REDACTED';
+    url.password = '';
+  }
   const secrets = secretNames(secretParams);
   for (const key of Array.from(url.searchParams.keys())) {
     if (secrets.has(key.toLowerCase())) url.searchParams.set(key, 'REDACTED');
@@ -452,8 +456,10 @@ export function createEgressClient(options: EgressClientOptions): EgressClient {
         };
       } else {
         fetched = await fetchLive(request, source, runId);
-        // Hash-only requests (persistBody: false) are never written to disk, not even as cassettes.
-        if (options.record && options.mode === 'live' && !isLocal(firstHost) && request.persistBody !== false) {
+        // Everything replay serves from cassettes is recordable (fixture site included); internal services stay live
+        // in replay and are not recorded. Hash-only requests (persistBody: false) are never written to disk.
+        const recordable = !(LIVE_IN_REPLAY.has(source.kind) && isLocal(firstHost)) && request.persistBody !== false;
+        if (options.record && recordable) {
           await writeCassette(request.sourceId, hash, {
             request: { method, url: urlRedacted },
             status: fetched.status,

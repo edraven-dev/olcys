@@ -411,3 +411,41 @@ describe('robots.txt — RFC 9309 details', () => {
     expect(await unreachable.isAllowed('https://api.example.test/a', 'api')).toBe(false);
   });
 });
+
+describe('egress client — second review', () => {
+  it('redacts credentials embedded in URLs, even for denied requests', async () => {
+    const { client, logs } = setup();
+    await expect(client.fetch(req('https://user:API_KEY@not-allowed.test/a'))).rejects.toBeInstanceOf(
+      EgressDeniedError,
+    );
+    expect(JSON.stringify(logs)).not.toContain('API_KEY');
+    expect(logs[0]?.urlRedacted).toBe('https://REDACTED@not-allowed.test/a');
+  });
+
+  it('records fixture-site responses so that replay can serve them, but not internal services', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'olcys-cassettes-'));
+    const sources = [source('fixture_site', { kind: 'fixture' }), source('gotenberg', { kind: 'internal_service' })];
+    const live = setup({ mode: 'offline', cassetteDir: dir, record: true, enabledSources: sources });
+    await live.client.fetch(req('http://127.0.0.1:4100/forum/profile', 'fixture_site'));
+    await live.client.fetch(req('http://gotenberg:3000/health', 'gotenberg'));
+    expect(await readdir(dir)).toEqual(['fixture_site']);
+
+    const replay = setup({ mode: 'replay', cassetteDir: dir, enabledSources: sources });
+    const res = await replay.client.fetch(req('http://127.0.0.1:4100/forum/profile', 'fixture_site'));
+    expect(res.json<{ url: string }>().url).toBe('http://127.0.0.1:4100/forum/profile');
+    expect(replay.calls).toEqual([]);
+  });
+
+  it('refreshes cached robots.txt rules after their lifetime', async () => {
+    let now = 0;
+    let body = 'User-agent: *\nDisallow:\n';
+    const { client } = setup({}, (url) => (url.endsWith('/robots.txt') ? new Response(body) : new Response('page')));
+    const robots = new RobotsCache(client, 'OLCYS/0.1', { cacheTtlMs: 1000, now: () => now });
+    expect(await robots.isAllowed('https://api.example.test/private/x', 'api')).toBe(true);
+    body = 'User-agent: *\nDisallow: /private/\n';
+    now = 999;
+    expect(await robots.isAllowed('https://api.example.test/private/x', 'api')).toBe(true);
+    now = 1000;
+    expect(await robots.isAllowed('https://api.example.test/private/x', 'api')).toBe(false);
+  });
+});

@@ -116,17 +116,21 @@ export function isAllowedByRobots(groups: Group[], userAgent: string, path: stri
 export interface RobotsCacheOptions {
   /** Milliseconds before an unreachable robots.txt is fetched again (default 60 s). */
   retryAfterFailureMs?: number;
+  /** Milliseconds a fetched robots.txt (or a 4xx answer) stays valid (default 24 h, RFC 9309 §2.4). */
+  cacheTtlMs?: number;
   now?: () => number;
 }
 
 /**
  * Fetches and caches `/robots.txt` per origin through the egress client (RFC 9309 §2.3.1): 2xx → parsed rules,
- * 4xx → no restrictions, 5xx or an unreachable file → complete disallow until a retry after `retryAfterFailureMs`.
+ * 4xx → no restrictions (both cached for `cacheTtlMs`, default 24 h), 5xx or an unreachable file → complete disallow
+ * until a retry after `retryAfterFailureMs`.
  */
 export class RobotsCache {
   private readonly client: EgressClient;
   private readonly userAgent: string;
   private readonly retryAfterFailureMs: number;
+  private readonly cacheTtlMs: number;
   private readonly now: () => number;
   private readonly cache = new Map<string, { rules: Promise<RobotsRules>; expiresAt: number }>();
 
@@ -134,6 +138,7 @@ export class RobotsCache {
     this.client = client;
     this.userAgent = userAgent;
     this.retryAfterFailureMs = options.retryAfterFailureMs ?? 60_000;
+    this.cacheTtlMs = options.cacheTtlMs ?? 24 * 60 * 60 * 1000;
     this.now = options.now ?? Date.now;
   }
 
@@ -148,7 +153,7 @@ export class RobotsCache {
       const created = { rules: this.load(target.origin, sourceId), expiresAt: Number.POSITIVE_INFINITY };
       this.cache.set(target.origin, created);
       const rules = await created.rules;
-      if (rules.kind === 'disallow_all') created.expiresAt = this.now() + this.retryAfterFailureMs;
+      created.expiresAt = this.now() + (rules.kind === 'disallow_all' ? this.retryAfterFailureMs : this.cacheTtlMs);
       entry = created;
     }
     const rules = await entry.rules;
