@@ -1,7 +1,8 @@
 /**
  * The MVP's synchronous analysis pipeline: stages run in order inside one process, report progress on the run
- * record, persist their own results through the repository ports, and finish with the comparison against the
- * previous completed run of the case. A later version replaces the loop with per-step jobs; stages stay the same.
+ * record and persist their own results through the repository ports. The comparison against the previous completed
+ * run of the case is built in at the `diff.previous` step; stages of later steps (the report) run after it. A later
+ * version replaces the loop with per-step jobs; stages stay the same.
  */
 import type {
   AnalysisRun,
@@ -16,7 +17,7 @@ import type {
   RunStep,
   RunWithProgress,
 } from '@olcys/core';
-import { newId, nowIso } from '@olcys/core';
+import { newId, nowIso, RUN_STEPS } from '@olcys/core';
 import { diffRuns, type RunSnapshot } from '@olcys/evidence';
 
 export interface StageContext {
@@ -121,6 +122,19 @@ export async function diffWithPrevious(repos: Repositories, run: RunWithProgress
   return changes;
 }
 
+/**
+ * Places the built-in comparison step by `RUN_STEPS` order: stages of later steps (the report) run after it and
+ * see the change events of this run.
+ */
+function orderWithDiff(stages: readonly Stage[], diff: Stage): Stage[] {
+  const at = RUN_STEPS.indexOf('diff.previous');
+  return [
+    ...stages.filter((s) => RUN_STEPS.indexOf(s.step) <= at),
+    diff,
+    ...stages.filter((s) => RUN_STEPS.indexOf(s.step) > at),
+  ];
+}
+
 export async function runPipeline(runId: Id, deps: PipelineDeps): Promise<RunWithProgress> {
   const { repos, logger } = deps;
   const queued = await repos.runs.get(runId);
@@ -128,7 +142,14 @@ export async function runPipeline(runId: Id, deps: PipelineDeps): Promise<RunWit
   const kase = await repos.cases.get(queued.caseId);
   if (!kase) throw new Error(`case ${queued.caseId} not found`);
 
-  const total = deps.stages.length + 1;
+  let changes: ChangeEvent[] = [];
+  const stages = orderWithDiff(deps.stages, {
+    step: 'diff.previous',
+    async run(stageCtx) {
+      changes = await diffWithPrevious(repos, stageCtx.run);
+    },
+  });
+  const total = stages.length;
   let progress: Record<string, unknown> = { step: 'run.start', done: 0, total };
   const partial: string[] = [];
   await repos.runs.update(runId, { status: 'running', startedAt: nowIso(), progress });
@@ -149,17 +170,15 @@ export async function runPipeline(runId: Id, deps: PipelineDeps): Promise<RunWit
   };
 
   try {
-    for (const [index, stage] of deps.stages.entries()) {
-      progress = { step: stage.step, done: index, total };
+    for (const [index, stage] of stages.entries()) {
+      // Reasons recorded so far stay visible to later stages (the report states that the analysis is incomplete).
+      progress = { step: stage.step, done: index, total, ...(partial.length ? { partial: [...partial] } : {}) };
       // Sequential on purpose: every stage consumes what the previous stages stored.
       // oxlint-disable-next-line no-await-in-loop
       await repos.runs.update(runId, { progress });
       // oxlint-disable-next-line no-await-in-loop
       await stage.run(ctx);
     }
-    progress = { step: 'diff.previous', done: deps.stages.length, total };
-    await repos.runs.update(runId, { progress });
-    const changes = await diffWithPrevious(repos, ctx.run);
     await repos.runs.update(runId, {
       status: partial.length ? 'partial' : 'succeeded',
       finishedAt: nowIso(),

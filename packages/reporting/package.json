@@ -9,5 +9,9 @@
   },
   "dependencies": {
     "@olcys/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@olcys/db": "workspace:*",
+    "@olcys/evidence": "workspace:*"
   }
 }
