@@ -25,6 +25,8 @@ licencje „source-available” (np. Blockscout ≥ v11) oraz licencje wykluczaj
 | @noble/hashes                  | 2.4.0   | MIT               | generator danych syntetycznych: SHA-256, RIPEMD-160, Keccak-256  | apps/fixture-site (dev)            |
 | @scure/base                    | 2.4.0   | MIT               | generator danych syntetycznych: bech32, base58check, base64      | apps/fixture-site (dev)            |
 | yaml                           | 2.9.1   | ISC               | odczyt plików konfiguracyjnych w testach                         | packages/core (dev)                |
+| yaml                           | 2.9.1   | ISC               | odczyt rejestru źródeł `config/sources.yaml`                     | packages/collectors                |
+| linkedom                       | 0.18.15 | ISC               | parsowanie HTML zebranych stron (DOM bez przeglądarki)           | packages/collectors                |
 | Kysely                         | 0.29.9  | MIT               | typowany konstruktor zapytań SQL                                 | packages/db                        |
 | pg (node-postgres)             | 8.23.1  | MIT               | sterownik PostgreSQL                                             | packages/db                        |
 | Fastify                        | 5.12.8  | MIT               | API HTTP                                                         | apps/api                           |
