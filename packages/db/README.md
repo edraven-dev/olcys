@@ -8,6 +8,7 @@ Schemat PostgreSQL, migracje SQL i typowane repozytoria dla magazynu dowodów dz
 ## Publiczne API
 
 - `createDb(url)` — instancja Kysely związana ze schematem `olcys`.
+- `createMemoryRepositories()` — implementacja tych samych portów w pamięci (testy, demonstracja bez bazy).
 - `createSqlRepositories(db)` — implementacje SQL portów repozytoriów z `@olcys/core` (`cases`, `runs`, `evidence`,
   `chain`, `analysis`, `labels`). Dowody są tylko do dopisywania; rola `olcys_app` nie ma praw UPDATE/DELETE.
 - `labels.upsert` pomija dokładny ponowny import etykiety; poprawiona wersja rekordu z tego samego zbioru danych jest
