@@ -343,3 +343,17 @@ describe('review regressions', () => {
     expect(oneFile.candidates.every((c) => c.context.roleCues.includes('listing'))).toBe(true);
   });
 });
+
+describe('secret propagation cost', () => {
+  it('handles a page with thousands of secrets without per-secret rescans', async () => {
+    const keys = Array.from({ length: 2000 }, (_unused, i) => gen.wif(`perf-secret-${i}`));
+    const payee = gen.p2wpkh('perf-payee');
+    const html = `<html><body>${keys.map((k) => `<p>klucz: ${k}</p>`).join('')}<p>Adres: ${payee}</p></body></html>`;
+    const started = performance.now();
+    const result = await extractCapture(htmlCapture(html), { denyList });
+    const elapsed = performance.now() - started;
+    expect(result.candidates.map((c) => c.address.address)).toContain(payee);
+    expect(JSON.stringify(result)).not.toContain(keys[0]);
+    expect(elapsed).toBeLessThan(5000);
+  });
+});

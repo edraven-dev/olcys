@@ -154,7 +154,54 @@ function overlapsSpan(a: Range, b: Range): boolean {
   return a.nStart < b.nEnd && b.nStart < a.nEnd;
 }
 
-/** Secrets seen in one view are redacted in every other view: by shared source range and by identical text. */
+interface SecretRange {
+  start: number;
+  end: number;
+  kind: SecretFinding['kind'];
+}
+
+/** Sorted, merged source ranges per artifact: overlapping or repeated secrets collapse into one range. */
+function mergedRanges(sources: readonly (SecretRange & { artifact: number })[]): Map<number, SecretRange[]> {
+  const byArtifact = new Map<number, SecretRange[]>();
+  for (const src of sources) {
+    const list = byArtifact.get(src.artifact) ?? [];
+    list.push({ start: src.start, end: src.end, kind: src.kind });
+    byArtifact.set(src.artifact, list);
+  }
+  for (const [artifact, list] of byArtifact) {
+    const merged: SecretRange[] = [];
+    for (const range of list.toSorted((a, b) => a.start - b.start || a.end - b.end)) {
+      const last = merged.at(-1);
+      if (last && range.start <= last.end) last.end = Math.max(last.end, range.end);
+      else merged.push({ ...range });
+    }
+    byArtifact.set(artifact, merged);
+  }
+  return byArtifact;
+}
+
+/** Index of the range containing `offset`, or -1 (binary search over sorted, disjoint ranges). */
+function rangeIndex(ranges: readonly SecretRange[], offset: number): number {
+  let lo = 0;
+  let hi = ranges.length - 1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    const range = ranges[mid];
+    if (!range) return -1;
+    if (offset < range.start) hi = mid - 1;
+    else if (offset >= range.end) lo = mid + 1;
+    else return mid;
+  }
+  return -1;
+}
+
+const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/**
+ * Secrets seen in one view are redacted in every other view: by shared source range and by identical text.
+ * One pass per view over its source map (binary search into merged ranges) and one regex pass for the literal
+ * strings, so the cost does not grow with views × secrets × length.
+ */
 function propagateSecrets(states: ViewState[]): void {
   const own = states.flatMap((st) => st.secrets.map((s) => ({ st, s })));
   if (own.length === 0) return;
@@ -164,9 +211,21 @@ function propagateSecrets(states: ViewState[]): void {
     const normalised = st.norm.text.slice(s.nStart, s.nEnd);
     for (const value of [original, normalised]) if (value.length >= GUARD_WINDOW) strings.set(value, s.finding.kind);
   }
-  const sources = own.flatMap(({ st, s }) =>
-    sourcesOf(st, s.finding.span).map((src) => Object.assign(src, { kind: s.finding.kind })),
+  const ranges = mergedRanges(
+    own.flatMap(({ st, s }) =>
+      sourcesOf(st, s.finding.span).map((src) => Object.assign(src, { kind: s.finding.kind })),
+    ),
   );
+  const literal =
+    strings.size > 0
+      ? new RegExp(
+          [...strings.keys()]
+            .toSorted((a, b) => b.length - a.length)
+            .map(escapeRegExp)
+            .join('|'),
+          'g',
+        )
+      : undefined;
 
   for (const st of states) {
     const derived: ViewState['secrets'] = [];
@@ -183,27 +242,40 @@ function propagateSecrets(states: ViewState[]): void {
       }
       derived.push({ finding: { kind, view: st.view.view, span: { start, end } }, nStart, nEnd, derived: true });
     };
-    const artifact = st.view.artifactIndex ?? 0;
     const map = st.view.sourceMap;
-    for (const src of sources) {
-      if (src.artifact !== artifact || !map) continue;
-      // Exact characters of the secret in this view (separators inside the run are included).
+    const artifactRanges = ranges.get(st.view.artifactIndex ?? 0);
+    if (map && artifactRanges?.length) {
+      // Exact characters of each secret in this view; separators without a source (-1) do not break a run.
+      let runRange = -1;
       let runStart = -1;
       let runEnd = -1;
-      for (let p = 0; p <= map.length; p += 1) {
-        const offset = p < map.length ? (map[p] ?? -1) : -2;
-        if (offset >= src.start && offset < src.end) {
-          if (runStart < 0) runStart = p;
-          runEnd = p + 1;
-        } else if (offset !== -1 && runStart >= 0) {
-          add(src.kind, runStart, runEnd);
-          runStart = -1;
+      const close = (): void => {
+        const range = artifactRanges[runRange];
+        if (runRange >= 0 && range) add(range.kind, runStart, runEnd);
+        runRange = -1;
+      };
+      for (let p = 0; p < map.length; p += 1) {
+        const offset = map[p] ?? -1;
+        if (offset === -1) continue;
+        const index = offset < 0 ? -1 : rangeIndex(artifactRanges, offset);
+        if (index < 0) {
+          close();
+          continue;
         }
+        if (index !== runRange) {
+          close();
+          runRange = index;
+          runStart = p;
+        }
+        runEnd = p + 1;
       }
+      close();
     }
-    for (const [value, kind] of strings) {
-      for (let at = st.view.text.indexOf(value); at >= 0; at = st.view.text.indexOf(value, at + value.length)) {
-        add(kind, at, at + value.length);
+    if (literal) {
+      for (const match of st.view.text.matchAll(literal)) {
+        const at = match.index ?? 0;
+        const kind = strings.get(match[0]);
+        if (kind) add(kind, at, at + match[0].length);
       }
     }
     st.secrets.push(...derived);
