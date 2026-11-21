@@ -100,10 +100,11 @@ P(ścieżka) = P(osoba ↔ konto) × P(konto ↔ adres).
   `post.author` albo konto wykryte na tej stronie); dopiero potem ten sam post tej samej platformy w innym
   przechwyceniu. Kopia archiwalna dziedziczy autora oryginału. Bez autora wzmianka nie tworzy roszczenia.
 - **Podpis BIP-137** wiąże adres z kontem tylko wtedy, gdy treść wprost wskazuje to konto: zwrot („I am”, „jestem”,
-  „user”, „konto” …) z pełnym uchwytem albo identyfikator konta w kontekście „uid” / „user id” / `u=`. Poprawny podpis
+  „user”, „konto” …) z pełnym uchwytem (porównanie po NFC i wielkości liter, bez usuwania znaków diakrytycznych) albo identyfikator konta w kontekście „uid” / „user id” / `u=`. Poprawny podpis
   dowodzi kontroli klucza przez podpisującego, nie przez publikującego: skopiowana wiadomość nie daje E1 (notatka
   `signed_message_unbound`).
-- **Konta wykryte kilka razy** (ta sama platforma i identyfikator, albo uchwyt bez identyfikatora) są scalane: liczą się
+- **Konta wykryte kilka razy** (ta sama platforma i identyfikator, albo dokładnie ten sam uchwyt bez identyfikatora —
+  podobne uchwyty, np. `demo-user` i `demo_user`, to osobne konta i tylko cecha tożsamości) są scalane: liczą się
   uchwyty, nazwy wyświetlane, adresy profili i strony wykrycia wszystkich rekordów.
 - **Relacja roszczenia:** pierwszeństwo CUSTODIAL_EXCHANGE > SELF_DECLARED > PAYMENT_ENDPOINT > MENTION_UNCLEAR (także
   dla wzmianek zastąpionych przez E1/E2); decyzja `reclassified` z relacją ją zastępuje. Poziom = najlepszy poziom cech.

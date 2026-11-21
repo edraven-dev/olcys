@@ -17,7 +17,7 @@ import { verifyBip137, type Bip137Result } from '../bip137.ts';
 import { compareText } from '../compare.ts';
 import type { AccountIndex, AccountInfo } from './accounts.ts';
 import type { Authorship } from './authorship.ts';
-import { baseProperty, factIndex, foldText, normaliseHandle, sameAddressText, truncate } from './normalise.ts';
+import { accountHandleKey, baseProperty, factIndex, sameAddressText, truncate } from './normalise.ts';
 import type { FeatureNote } from './types.ts';
 
 /** One address-hop item with the relation and tier it implies (modifiers imply neither). */
@@ -253,27 +253,31 @@ function checkResult(check: string): Bip137Result {
   return 'unsupported_format';
 }
 
-/** „I am <handle>”, „user: <handle>”, „jestem <handle>” … (on folded text); the handle is one complete token. */
+/**
+ * „I am <handle>”, „user: <handle>”, „jestem <handle>”, „użytkownik <handle>” …: the phrases match case- and
+ * accent-tolerantly, the handle is one complete token taken from the NFC text as written (accents kept).
+ */
 const HANDLE_BINDING =
-  /(?:^|[^\p{L}\p{N}_])(?:i\s+am|i'm|jestem|username|user|nickname|nick|login|account|konto|uzytkownik)(?:\s*[:=]\s*|\s+)@?([\p{L}\p{N}_][\p{L}\p{N}_.-]*)/gu;
+  /(?:^|[^\p{L}\p{N}_])(?:i\s+am|i['’]m|jestem|username|user|nickname|nick|login|account|konto|u[zż]ytkownik)(?:\s*[:=]\s*|\s+)@?([\p{L}\p{N}_][\p{L}\p{N}_.-]*)/giu;
 /** „uid 900001”, „user id: 900001”, „…;u=900001”: a platform id only counts with such context, as a whole number. */
 const ID_BINDING =
-  /(?:(?:^|[^\p{L}\p{N}_])(?:uid|user[\s_-]?id|userid|user|id)(?:\s*[:=#]\s*|\s+)|[?;&]u=)(\d+)(?!\d)/gu;
+  /(?:(?:^|[^\p{L}\p{N}_])(?:uid|user[\s_-]?id|userid|user|id)(?:\s*[:=#]\s*|\s+)|[?;&]u=)(\d+)(?!\d)/giu;
 
 /**
  * The signed message binds itself to this account: an explicit phrase names one of the account's handles as a
- * complete token, or its platform id in uid/user/id context. A valid signature proves control of the key by the
- * signer, not by whoever posts it, so a copied message that names someone else binds nobody.
+ * complete token (compared with `accountHandleKey` on both sides: NFC and case only), or its platform id in
+ * uid/user/id context. A valid signature proves control of the key by the signer, not by whoever posts it, so a
+ * copied message that names someone else binds nobody.
  */
 export function namesAccount(text: string, account: AccountInfo): boolean {
-  const folded = foldText(text);
-  const handles = new Set(account.records.map((r) => normaliseHandle(r.handle)));
-  for (const match of folded.matchAll(HANDLE_BINDING)) {
+  const message = text.normalize('NFC');
+  const handles = new Set(account.records.map((r) => accountHandleKey(r.handle)));
+  for (const match of message.matchAll(HANDLE_BINDING)) {
     const token = (match[1] ?? '').replace(/[.-]+$/, '');
-    if (token && handles.has(normaliseHandle(token))) return true;
+    if (token && handles.has(accountHandleKey(token))) return true;
   }
   const ids = new Set(account.records.flatMap((r) => (r.platformUserId ? [r.platformUserId.toLowerCase()] : [])));
-  for (const match of folded.matchAll(ID_BINDING)) if (ids.has(match[1] ?? '')) return true;
+  for (const match of message.matchAll(ID_BINDING)) if (ids.has(match[1] ?? '')) return true;
   return false;
 }
 

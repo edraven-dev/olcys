@@ -1,6 +1,6 @@
 import type { Identifier, Observation, OnlineAccount } from '@olcys/core';
 import { compareText } from '../compare.ts';
-import { baseProperty, normaliseHandle } from './normalise.ts';
+import { accountHandleKey, baseProperty } from './normalise.ts';
 
 /** One platform account, merged over duplicate discoveries. */
 export interface AccountInfo {
@@ -29,7 +29,7 @@ export function accountKey(account: OnlineAccount): string {
 
 function aliasesOf(account: OnlineAccount): string[] {
   const platform = account.platform.toLowerCase();
-  const values = [account.handle.toLowerCase(), normaliseHandle(account.handle)];
+  const values = [accountHandleKey(account.handle)];
   if (account.platformUserId) values.push(account.platformUserId.toLowerCase());
   return values.map((value) => `${platform}:${value}`);
 }
@@ -40,14 +40,15 @@ function isAnchorAccount(account: OnlineAccount, anchors: readonly Identifier[])
   return anchors.some(
     (id) =>
       id.platform?.toLowerCase() === platform &&
-      (normaliseHandle(id.value) === normaliseHandle(account.handle) ||
+      (accountHandleKey(id.value) === accountHandleKey(account.handle) ||
         (account.platformUserId !== undefined && id.value.trim() === account.platformUserId)),
   );
 }
 
 /**
  * Groups discoveries of one account: same platform and platform id; a record without a platform id joins the group
- * with the same platform and handle.
+ * with the same platform and exactly the same handle (`accountHandleKey`). Similar handles are never merged — they are
+ * only same-nick evidence for the identity hop.
  */
 function groupDiscoveries(accounts: readonly OnlineAccount[]): OnlineAccount[][] {
   const sorted = accounts.toSorted((a, b) => compareText(a.id, b.id));
@@ -63,12 +64,12 @@ function groupDiscoveries(accounts: readonly OnlineAccount[]): OnlineAccount[][]
     const platform = a.platform.toLowerCase();
     const key = `${platform}:#${a.platformUserId.toLowerCase()}`;
     push(key, a);
-    const handleKey = `${platform}:${normaliseHandle(a.handle)}`;
+    const handleKey = `${platform}:${accountHandleKey(a.handle)}`;
     if (!byHandle.has(handleKey)) byHandle.set(handleKey, key);
   }
   for (const a of sorted) {
     if (a.platformUserId !== undefined) continue;
-    const handleKey = `${a.platform.toLowerCase()}:${normaliseHandle(a.handle)}`;
+    const handleKey = `${a.platform.toLowerCase()}:${accountHandleKey(a.handle)}`;
     push(byHandle.get(handleKey) ?? `${handleKey}@`, a);
   }
   return [...groups.values()];
@@ -116,11 +117,9 @@ export function buildAccountIndex(
   return {
     list,
     resolve(raw: string) {
-      const key = raw.trim().toLowerCase();
-      const direct = aliases.get(key);
-      if (direct) return direct;
-      const colon = key.indexOf(':');
-      return colon > 0 ? aliases.get(`${key.slice(0, colon)}:${normaliseHandle(key.slice(colon + 1))}`) : undefined;
+      const colon = raw.indexOf(':');
+      if (colon <= 0) return undefined;
+      return aliases.get(`${raw.slice(0, colon).trim().toLowerCase()}:${accountHandleKey(raw.slice(colon + 1))}`);
     },
     byId: (id: string) => ids.get(id),
   };

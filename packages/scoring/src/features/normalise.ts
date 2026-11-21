@@ -13,6 +13,15 @@ export function normaliseHandle(h: string): string {
     .replace(/[-_.]+/g, '_');
 }
 
+/**
+ * Account identity of a handle on one platform: NFC, lower case, one leading `@` removed — nothing else is folded
+ * (`demo-user` and `demo_user` stay two accounts; `żółw` is not `zolw`). Used for merging discoveries, anchors,
+ * resolving keys and signed-message bindings; the looser `normaliseHandle` is only same-nick evidence.
+ */
+export function accountHandleKey(h: string): string {
+  return h.normalize('NFC').trim().replace(/^@/, '').toLowerCase();
+}
+
 /** Name tokens without diacritics (`ł` → `l`), lower case, sorted: „Fikcyjny Kacper” ≡ „Kacper Fikcyjny”. */
 export function nameTokens(name: string): string[] {
   return name
@@ -24,16 +33,6 @@ export function nameTokens(name: string): string[] {
     .split(/[^\p{L}\p{N}]+/u)
     .filter(Boolean)
     .toSorted();
-}
-
-/** Lower case without diacritics (`ł` → `l`): „Jestem” ≡ „jestem”, „użytkownik” ≡ „uzytkownik”. */
-export function foldText(text: string): string {
-  return text
-    .normalize('NFKD')
-    .replace(/\p{M}+/gu, '')
-    .replaceAll('ł', 'l')
-    .replaceAll('Ł', 'L')
-    .toLowerCase();
 }
 
 export function sameName(a: string, b: string): boolean {

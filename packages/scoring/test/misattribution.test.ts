@@ -207,6 +207,70 @@ describe('misattribution guards', () => {
     ]);
     expect(tron1?.score).toBe(57);
   });
+
+  it('similar handles are separate accounts: a numeric-id anchor never extends to a look-alike handle', () => {
+    const input = personaInputs();
+    input.identifiers.push({
+      ...input.identifiers[0]!,
+      id: 'idf-forum2',
+      kind: 'social_login',
+      value: '555',
+      platform: 'forum2',
+    });
+    input.accounts.push(
+      forum2('acc-f2-a', 'demo-user', { platformUserId: '555' }),
+      forum2('acc-f2-b', 'demo_user', {
+        discoveredVia: { sourceId: 'fixture_site', method: 'search', captureId: 'cap-f2' },
+      }),
+    );
+    const index = buildAccountIndex(input.accounts, input.identifiers);
+    const anchored = index.resolve('forum2:555');
+    const lookalike = index.resolve('forum2:demo_user');
+    expect(anchored?.anchor).toBe(true);
+    expect(lookalike).toBeDefined();
+    expect(lookalike).not.toBe(anchored);
+    expect(lookalike?.anchor).toBe(false);
+    expect(index.resolve('forum2:demo-user')).toBe(anchored);
+
+    input.captures.push(capture('cap-f2', 'https://forum2.example.org/u/demo_user'));
+    input.observations.push(
+      fact(
+        'obs-f2',
+        'cap-f2',
+        { type: 'account', key: 'forum2:demo_user' },
+        'profile.ethereum_address',
+        slot('LISTING-05').address,
+      ),
+    );
+    extraction(input, 'cap-f2').candidates.push(candidate('cand-f2', 'cap-f2', 'LISTING-05', ['unclear']));
+    const { assessments, notes } = score(input);
+    expect(find(assessments, 'LISTING-05')).toBeUndefined();
+    expect(notes.some((n) => n.code === 'no_identity_path' && n.detail.includes('forum2:demo_user'))).toBe(true);
+    expect(find(assessments, 'BTC-1')?.score).toBe(99);
+  });
+
+  it('accented handles keep their signed-message binding (NFC and case only, no accent folding)', () => {
+    const index = buildAccountIndex([account('acc-zolw', 'żółw', '900005')], []);
+    const zolw = index.resolve('bitcointalk:900005');
+    if (!zolw) throw new Error('account not indexed');
+    expect(namesAccount('Jestem żółw.', zolw)).toBe(true);
+    expect(namesAccount('JESTEM ŻÓŁW', zolw)).toBe(true);
+    expect(namesAccount('Jestem żółw.'.normalize('NFD'), zolw)).toBe(true);
+    expect(namesAccount('Użytkownik: żółw', zolw)).toBe(true);
+    expect(namesAccount('Jestem zolw.', zolw)).toBe(false);
+    expect(index.resolve('bitcointalk:ŻÓŁW')).toBe(zolw);
+    expect(index.resolve('bitcointalk:zolw')).toBeUndefined();
+  });
+});
+
+const forum2 = (id: string, handle: string, extra: Partial<OnlineAccount> = {}): OnlineAccount => ({
+  id,
+  runId: 'run-persona',
+  platform: 'forum2',
+  handle,
+  profileUrl: `https://forum2.example.org/u/${handle}`,
+  discoveredVia: { sourceId: 'fixture_site', method: 'cross_link' },
+  ...extra,
 });
 
 function account(id: string, handle: string, uid: string): OnlineAccount {
