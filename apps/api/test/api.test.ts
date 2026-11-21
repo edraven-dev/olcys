@@ -172,6 +172,14 @@ describe('api', () => {
       payload: { trigger: 'rescore' },
     });
     expect(missing.statusCode).toBe(400);
+    const ownRun = (await app.inject(`/api/cases/${caseId}/runs`)).json().items[0].id as string;
+    const upper = await app.inject({
+      method: 'POST',
+      url: `/api/cases/${caseId.toUpperCase()}/runs`,
+      payload: { trigger: 'rescore', rescoreOfRunId: ownRun },
+    });
+    expect(upper.statusCode).toBe(202);
+    await runtime.idle();
   });
 
   it('lists the source register and serves evidence only as downloads', async () => {
