@@ -1118,7 +1118,7 @@
     }
   ],
   "expected": {
-    "weights": "weights.v1",
+    "weights": "weights.v2",
     "v1": {
       "links": [
         {
@@ -1132,7 +1132,7 @@
         },
         {
           "slot": "TRON-1",
-          "score": null,
+          "score": 77,
           "basis": "engine",
           "evidence": [
             "social-network post \"mój portfel\"",
