@@ -33,10 +33,11 @@ function snapshot(runId: string, parts: Partial<RunSnapshot> = {}): RunSnapshot 
   };
 }
 
-const link = (score: number) => ({
-  id: `l${score}`,
+const link = (score: number, relation: 'SELF_DECLARED' | 'THIRD_PARTY_ATTRIBUTION' = 'SELF_DECLARED') => ({
+  id: `l${score}${relation}`,
   identityId: 'i1',
   address: { chain: 'bitcoin' as const, address: 'bc1qx' },
+  relation,
   score,
 });
 
@@ -122,6 +123,22 @@ describe('diffRuns', () => {
       ['ADDED', 'c'],
       ['REMOVED', 'a'],
     ]);
+  });
+
+  it('keeps two relations for one address as two claims', () => {
+    const claims = [link(80), link(30, 'THIRD_PARTY_ATTRIBUTION')];
+    expect(diffRuns(snapshot('r1', { assessments: claims }), snapshot('r2', { assessments: claims })).events).toEqual(
+      [],
+    );
+  });
+
+  it('reports facts of a page that is now gone (not_found) as REMOVED', () => {
+    const before = snapshot('r1', {
+      captures: [capture('c1', 'ok')],
+      observations: [obs('r1', 'c1', 'profile.bitcoin_address', 'bc1qold', LOC)],
+    });
+    const after = snapshot('r2', { captures: [capture('c2', 'not_found')] });
+    expect(diffRuns(before, after).events.map((e) => e.kind)).toEqual(['REMOVED']);
   });
 
   it('attributes score changes to data, algorithm or both', () => {

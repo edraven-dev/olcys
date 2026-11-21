@@ -9,6 +9,7 @@ import {
   dAdd,
   dCmp,
   dDiv,
+  DenyListSchema,
   dMul,
   dRound,
   dSum,
@@ -113,6 +114,9 @@ describe('schemas', () => {
     for (const file of ['config/rules/exclusion.v1.yaml', 'config/rules/cashout.v1.yaml']) {
       expect(parse(RuleSetSchema, loadYaml(file)).version).toMatch(/\.v1$/);
     }
+    const denyList = parse(DenyListSchema, loadYaml('config/rules/deny-list.v1.yaml'));
+    expect(denyList.version).toBe('deny-list.v1');
+    expect(denyList.entries.length).toBeGreaterThan(0);
   });
 
   it('rejects a RED source enabled by default', () => {

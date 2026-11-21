@@ -19,7 +19,7 @@ export interface RunSnapshot {
   algorithm: { algorithmVersion: string; weightsVersion: string };
   captures: Pick<Capture, 'id' | 'url' | 'finalUrl' | 'status'>[];
   observations: Observation[];
-  assessments: Pick<LinkAssessment, 'id' | 'identityId' | 'address' | 'score'>[];
+  assessments: Pick<LinkAssessment, 'id' | 'identityId' | 'address' | 'relation' | 'score'>[];
 }
 
 export type ChangeEventDraft = Omit<ChangeEvent, 'id' | 'detectedAt'> & {
@@ -74,7 +74,8 @@ function suppression(previous: Observation, before: RunSnapshot, after: RunSnaps
   if (!page) return 'not_collected';
   const now = after.captures.find((c) => c.url === page.url || c.finalUrl === page.finalUrl);
   if (!now) return 'not_collected';
-  if (now.status === 'ok') return undefined;
+  // A page that loaded, or is confirmed gone (not_found), shows real removals.
+  if (now.status === 'ok' || now.status === 'not_found') return undefined;
   if (now.status === 'blocked' || now.status === 'login_wall' || now.status === 'captcha') return now.status;
   return 'error';
 }
@@ -132,14 +133,16 @@ export function diffRuns(before: RunSnapshot, after: RunSnapshot, options: { sco
   const algorithmChanged =
     before.algorithm.algorithmVersion !== after.algorithm.algorithmVersion ||
     before.algorithm.weightsVersion !== after.algorithm.weightsVersion;
-  const linkKey = (a: RunSnapshot['assessments'][number]) => `${a.identityId}|${addressKey(a.address)}`;
+  // A claim is (identity, address, relation): two relations for one address are two claims.
+  const linkKey = (a: RunSnapshot['assessments'][number]) => `${a.identityId}|${addressKey(a.address)}|${a.relation}`;
+  const linkLocator = (a: RunSnapshot['assessments'][number]) => `${addressKey(a.address)}#${a.relation}`;
   const oldLinks = new Map(before.assessments.map((a) => [linkKey(a), a]));
   for (const link of after.assessments) {
     const old = oldLinks.get(linkKey(link));
     const key: Key = {
       identityId: link.identityId,
       platform: 'link',
-      locator: addressKey(link.address),
+      locator: linkLocator(link),
       property: 'link.score',
     };
     if (!old) {
@@ -162,7 +165,7 @@ export function diffRuns(before: RunSnapshot, after: RunSnapshot, options: { sco
     const key: Key = {
       identityId: old.identityId,
       platform: 'link',
-      locator: addressKey(old.address),
+      locator: linkLocator(old),
       property: 'link.score',
     };
     push({ kind: 'REMOVED', key, before: String(old.score), scoreBefore: old.score, wallet: false });
