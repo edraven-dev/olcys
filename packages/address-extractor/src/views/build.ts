@@ -30,6 +30,7 @@ function buildTextView(captureId: string, text: string, artifactIndex: number): 
           source: { start: offset, end: offset + content.length },
         },
         { tag: '#text', container: 0, headingPath: [] },
+        Int32Array.from({ length: content.length }, (_, i) => offset + i),
       );
     }
     builder.newline();
@@ -46,6 +47,7 @@ function buildTextView(captureId: string, text: string, artifactIndex: number): 
     blocks: builder.blocks,
     warnings: builder.truncated ? ['view_truncated'] : [],
     artifactIndex,
+    sourceMap: builder.sourceMap(),
   };
 }
 
@@ -63,6 +65,7 @@ function buildJsonArtifactView(captureId: string, text: string, artifactIndex: n
     blocks: builder.blocks,
     warnings,
     artifactIndex,
+    sourceMap: builder.sourceMap(),
   };
 }
 

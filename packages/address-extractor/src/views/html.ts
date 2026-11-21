@@ -5,7 +5,8 @@
 import type { TextView } from '@olcys/core';
 import { parse, type DefaultTreeAdapterMap } from 'parse5';
 import type { ViewText } from '../pipeline-types.ts';
-import { FlowBuilder, LineBuilder, type BlockContext, type SegmentMeta } from './builders.ts';
+import { alignDecoded } from './align.ts';
+import { collapsedValue, FlowBuilder, LineBuilder, type BlockContext, type SegmentMeta } from './builders.ts';
 import { appendJsonDocument, type JsonViewState } from './json.ts';
 
 type ParentNode = DefaultTreeAdapterMap['parentNode'];
@@ -252,7 +253,14 @@ export function buildHtmlViews(captureId: string, html: string, artifactIndex: n
         if (target && text) labelFor.set(target, text);
       }
       if (tag === 'title') {
-        const text = textContent(child);
+        const titleNode = child.childNodes.find(isText);
+        const titleLoc = titleNode?.sourceCodeLocation;
+        const { text, sources } = collapsedValue(
+          titleNode?.value ?? '',
+          titleNode && titleLoc
+            ? alignDecoded(html, titleLoc.startOffset, titleLoc.endOffset, titleNode.value, 'text')
+            : undefined,
+        );
         const loc = child.sourceCodeLocation;
         meta.append(
           text,
@@ -268,6 +276,7 @@ export function buildHtmlViews(captureId: string, html: string, artifactIndex: n
               : {}),
           },
           { tag: 'title', container: 0, headingPath: [], structuralLabel: 'title' },
+          sources,
         );
         continue;
       }
@@ -294,6 +303,7 @@ export function buildHtmlViews(captureId: string, html: string, artifactIndex: n
               headingPath: [],
               ...(cleanLabel(name) ? { structuralLabel: name.trim() } : {}),
             },
+            range ? alignDecoded(html, range.start, range.end, content, 'attribute') : undefined,
           );
         }
         continue;
@@ -302,8 +312,9 @@ export function buildHtmlViews(captureId: string, html: string, artifactIndex: n
         const type = attr(child, 'type');
         const textNode = child.childNodes.find(isText);
         if (type && JSON_SCRIPT.test(type) && textNode?.value.trim()) {
-          const offset = textNode.sourceCodeLocation?.startOffset ?? 0;
-          if (!appendJsonDocument(json, textNode.value, offset, jsonState)) warnings.push('json_parse_failed');
+          const loc = textNode.sourceCodeLocation;
+          const base = loc ? alignDecoded(html, loc.startOffset, loc.endOffset, textNode.value, 'raw') : 0;
+          if (!appendJsonDocument(json, textNode.value, base, jsonState)) warnings.push('json_parse_failed');
         }
         continue;
       }
@@ -376,7 +387,7 @@ export function buildHtmlViews(captureId: string, html: string, artifactIndex: n
       const name = a.name;
       if (!ATTRIBUTE_NAMES.has(name) && !name.startsWith('data-')) continue;
       if (name === 'content' && el.tagName === 'meta') continue;
-      const value = a.value.replace(/[\r\n]+/g, ' ');
+      const value = a.value.replace(/[\r\n]/g, ' ');
       if (value.trim().length === 0) continue;
       const range = attributeValueRange(el, name, html, a.value);
       const base = segmentMeta(el.tagName, inh);
@@ -385,6 +396,7 @@ export function buildHtmlViews(captureId: string, html: string, artifactIndex: n
         value,
         { ...base, attribute: name, ...(href ? { href } : {}), ...(range ? { source: range } : {}) },
         blockContext(el.tagName, inh),
+        range ? alignDecoded(html, range.start, range.end, a.value, 'attribute') : undefined,
       );
     }
   };
@@ -404,11 +416,12 @@ export function buildHtmlViews(captureId: string, html: string, artifactIndex: n
           ...(loc ? { source: { start: loc.startOffset, end: loc.endOffset } } : {}),
         };
         const block = blockContext(isElement(node) ? node.tagName : '#text', inh);
-        visible.appendText(child.value, inh.preserve, metaInfo, block);
+        const sources = loc ? alignDecoded(html, loc.startOffset, loc.endOffset, child.value, 'text') : undefined;
+        visible.appendText(child.value, inh.preserve, metaInfo, block, sources);
         if (inh.inCode) {
           if (child.value.trim().length > 0) joined.newline();
         } else {
-          joined.appendText(child.value, inh.preserve, metaInfo, block);
+          joined.appendText(child.value, inh.preserve, metaInfo, block, sources);
         }
         continue;
       }
@@ -529,6 +542,7 @@ export function buildHtmlViews(captureId: string, html: string, artifactIndex: n
       ...(lang ? { lang } : {}),
       warnings: [...extra, ...(builder.truncated ? ['view_truncated'] : [])],
       artifactIndex,
+      sourceMap: builder.sourceMap(),
     });
   };
   push('visible_text', visible);

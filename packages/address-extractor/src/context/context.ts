@@ -4,6 +4,7 @@
  */
 import type { AddressCandidate, SecretFinding } from '@olcys/core';
 import { redactText } from '../patterns/redact.ts';
+import { SecretScrubber } from '../patterns/scrub.ts';
 import type { AttributedCandidate, NormalisedText, ViewBlock, ViewSegment, ViewText } from '../pipeline-types.ts';
 import { blockOf, containerRange, segmentAt } from '../views/segments.ts';
 import { detectRoleCues } from './cues.ts';
@@ -13,8 +14,13 @@ export interface PageStats {
   distinctAddresses: number;
   /** Key: canonical address. */
   occurrences: ReadonlyMap<string, number>;
-  /** Key: `${view}:${container}`; distinct addresses per container. */
+  /** Key: `containerKey(view, container)`; distinct addresses per container. */
   containerAddressCounts: ReadonlyMap<string, number>;
+}
+
+/** Identifies one container of one view of one artifact (container numbers restart per artifact and view). */
+export function containerKey(view: ViewText, container: number): string {
+  return `${view.artifactIndex ?? 0}:${view.view}:${container}`;
 }
 
 const SNIPPET_CHARS = 200;
@@ -86,6 +92,7 @@ export function buildContext(
   _norm: NormalisedText,
   secrets: readonly SecretFinding[],
   page: PageStats,
+  scrubber: SecretScrubber = new SecretScrubber(),
 ): AddressCandidate['context'] {
   const segment = segmentAt(view, c.span.start);
   const block = blockOf(view, segment);
@@ -97,16 +104,20 @@ export function buildContext(
 
   const window = view.text.slice(from, to);
   const nearby = secrets.filter((s) => s.span.start < to && s.span.end > from);
-  const snippet = redactText(window, nearby, from);
+  // Every free-text field is scrubbed: labels, anchors and headings can come from text no view contains.
+  const snippet = scrubber.scrub(redactText(window, nearby, from));
   const roleCues = detectRoleCues(maskSecrets(window, nearby, from), c.span.start - from, {
     quoted: segment?.quoted ?? false,
     ...(c.payment?.params['memo'] ? { memo: c.payment.params['memo'] } : {}),
-    containerAddresses: page.containerAddressCounts.get(`${view.view}:${container.container}`) ?? 1,
+    containerAddresses: page.containerAddressCounts.get(containerKey(view, container.container)) ?? 1,
     pageAddresses: page.distinctAddresses,
     candidateLength: c.span.end - c.span.start,
   });
-  const label = labelOf(c, view, segment, block, container.start);
-  const heading = block?.headingPath.at(-1);
+  const rawLabel = labelOf(c, view, segment, block, container.start);
+  const label = rawLabel === undefined ? undefined : scrubber.scrub(rawLabel);
+  const rawHeading = block?.headingPath.at(-1);
+  const heading = rawHeading === undefined ? undefined : scrubber.scrub(rawHeading);
+  const anchor = segment?.anchor === undefined ? undefined : scrubber.scrub(segment.anchor);
 
   return {
     snippet,
@@ -116,6 +127,6 @@ export function buildContext(
     roleCues,
     pageAddressDensity: page.distinctAddresses,
     occurrencesInCapture: page.occurrences.get(c.canonical) ?? 1,
-    ...(segment?.anchor ? { anchor: segment.anchor } : {}),
+    ...(anchor ? { anchor } : {}),
   };
 }

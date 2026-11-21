@@ -4,8 +4,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { base64 } from '@scure/base';
 import { createDenyList, parseDenyList } from '../src/deny-list.ts';
 import { EXTRACTOR_VERSION, extractCapture } from '../src/extract.ts';
+import { buildViews } from '../src/views/build.ts';
 import type { CaptureContent } from '../src/pipeline-types.ts';
-import { bytes, fragments, gen, homoglyphOf, htmlCapture, jsonCapture } from './helpers.ts';
+import { bytes, fragments, gen, homoglyphOf, htmlCapture, jsonCapture, textCapture } from './helpers.ts';
 
 const repoRoot = join(import.meta.dirname, '..', '..', '..');
 const denyList = parseDenyList(readFileSync(join(repoRoot, 'config/rules/deny-list.v1.yaml'), 'utf8'));
@@ -265,5 +266,80 @@ describe('offline and robustness', () => {
     console.info(`extraction of ${(html.length / 1e6).toFixed(2)} MB with 2,000 addresses: ${ms.toFixed(0)} ms`);
     expect(result.candidates).toHaveLength(2000);
     expect(ms).toBeLessThan(15_000);
+  });
+});
+
+/** A synthetic text file with `count` address lines. */
+function addressFile(n: number, count: number): string {
+  return Array.from({ length: count }, (_, i) => `Adres ${i}: ${gen.p2wpkh(`file-${n}-${i}`)}`).join('\n');
+}
+
+describe('review regressions', () => {
+  it('redacts secrets in context fields that no view contains (JSON keys, anchors) and in headings', async () => {
+    const wif = gen.wif('ctx-field-wif');
+    const words = gen.mnemonic12('ctx-field-words');
+    const address = gen.p2wpkh('ctx-field-addr');
+    const fromKey = await extractCapture(jsonCapture(JSON.stringify({ [wif]: address })), { denyList });
+    expect(fromKey.candidates[0]?.context.label).toBe('[REDACTED:wif]');
+    expect(fromKey.warnings).toContain('context_secret_redacted:wif');
+    const fromAnchor = await extractCapture(htmlCapture(`<a name="${wif}"></a><p>Adres: ${address}</p>`), { denyList });
+    expect(fromAnchor.candidates[0]?.context.anchor).toBe('[REDACTED:wif]');
+    const fromHeading = await extractCapture(htmlCapture(`<h2>Seed: ${words}</h2><p>Adres: ${address}</p>`), {
+      denyList,
+    });
+    expect(fromHeading.candidates[0]?.context.heading).toBe('Seed: [REDACTED:seed_phrase]');
+    for (const result of [fromKey, fromAnchor, fromHeading]) {
+      const serialised = JSON.stringify(result);
+      for (const piece of [...fragments(wif), ...fragments(words)]) expect(serialised).not.toContain(piece);
+    }
+  });
+
+  it('keeps two mentions of one address in one text node apart', async () => {
+    const address = gen.evm('two-mentions');
+    const filler = 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. '.repeat(5);
+    const html = `<p>Oszust podaje adres ${address}. ${filler} Mój portfel: ${address}</p>`;
+    const result = await extractCapture(htmlCapture(html), { denyList });
+    expect(result.candidates).toHaveLength(2);
+    expect(result.candidates.map((c) => c.context.occurrencesInCapture)).toEqual([2, 2]);
+    expect(result.candidates.map((c) => c.context.roleCues[0])).toEqual(['scam_report', 'first_person_owner']);
+  });
+
+  it('maps escaped JSON strings to their own source and keeps them apart from a secret elsewhere', async () => {
+    const address = gen.evm('escaped-json').toLowerCase();
+    const key = gen.hex64('escaped-json-key');
+    const escaped = `\\u0030${address.slice(1)}`;
+    const json = `{"note":"klucz prywatny: ${key}","wallet":{"address":"${escaped}"}}`;
+    const result = await extractCapture(jsonCapture(json), { denyList });
+    expect(result.secrets.map((s) => s.kind)).toEqual(['hex64_private_key_context']);
+    expect(result.candidates.map((c) => c.address.address)).toEqual([address]);
+    const [view] = buildViews(jsonCapture(json));
+    const segment = view?.segments.find((s) => s.jsonPointer === '/wallet/address');
+    expect(json.slice(segment?.source?.start, segment?.source?.end)).toBe(escaped);
+    for (const piece of fragments(key)) expect(JSON.stringify(result)).not.toContain(piece);
+  });
+
+  it('rejects a percent-encoded EIP-681 token contract shown as link text', async () => {
+    const contract = gen.evm('e2e-contract');
+    const payee = gen.evm('e2e-payee');
+    const html = `<p><a href="ethereum:${contract}%401/transfer?address=${payee}">${contract}</a></p>`;
+    const result = await extractCapture(htmlCapture(html), { denyList });
+    expect(result.candidates.map((c) => c.address.address)).toEqual([payee.toLowerCase()]);
+    expect(result.candidates[0]?.address.chain).toBe('evm:1');
+    expect(result.rejected.map((r) => [r.view, r.reason])).toEqual([
+      ['visible_text', 'uri_token_contract: transfer'],
+      ['attribute', 'uri_token_contract: transfer'],
+    ]);
+  });
+
+  it('counts listing density per artifact, not across files', async () => {
+    const twoFiles = {
+      ...textCapture(addressFile(0, 5)),
+      artifacts: [addressFile(1, 5), addressFile(2, 5)].flatMap((t) => textCapture(t).artifacts),
+    };
+    const separate = await extractCapture(twoFiles, { denyList });
+    expect(separate.candidates).toHaveLength(10);
+    expect(separate.candidates.some((c) => c.context.roleCues.includes('listing'))).toBe(false);
+    const oneFile = await extractCapture(textCapture(addressFile(3, 10)), { denyList });
+    expect(oneFile.candidates.every((c) => c.context.roleCues.includes('listing'))).toBe(true);
   });
 });

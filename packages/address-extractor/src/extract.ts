@@ -15,12 +15,13 @@ import {
 } from '@olcys/core';
 import { applyPageChain, attributeChains, pageChainPrior } from './attribution/cascade.ts';
 import { findPaymentContexts, URI_RULES_VERSION } from './attribution/contexts.ts';
-import { buildContext, type PageStats } from './context/context.ts';
+import { buildContext, containerKey, type PageStats } from './context/context.ts';
 import { LEXICON_VERSION } from './context/lexicon.ts';
 import type { DenyList } from './deny-list.ts';
 import { normaliseView, toNormalised } from './normalise/normalise.ts';
 import { PATTERNS_VERSION } from './patterns/patterns.ts';
 import { scanCandidates } from './patterns/scan.ts';
+import { SecretScrubber } from './patterns/scrub.ts';
 import { analyseSecrets, type Range } from './patterns/secrets.ts';
 import type {
   AttributedCandidate,
@@ -86,8 +87,21 @@ interface Occurrence<T> {
   rank: number;
 }
 
+/** Exact source range of a match (from the per-character source map), else the ranges of its segments. */
 function sourcesOf(state: ViewState, span: TextSpan): Occurrence<unknown>['sources'] {
   const artifact = state.view.artifactIndex ?? 0;
+  const map = state.view.sourceMap;
+  if (map) {
+    let min = Number.POSITIVE_INFINITY;
+    let max = -1;
+    for (let i = span.start; i < Math.max(span.end, span.start + 1) && i < map.length; i += 1) {
+      const offset = map[i] ?? -1;
+      if (offset < 0) continue;
+      min = Math.min(min, offset);
+      max = Math.max(max, offset);
+    }
+    if (max >= 0) return [{ artifact, start: min, end: max + 1 }];
+  }
   return segmentsIn(state.view, span.start, Math.max(span.end, span.start + 1))
     .filter((s) => s.source)
     .map((s) => ({ artifact, start: s.source?.start ?? 0, end: s.source?.end ?? 0 }));
@@ -170,11 +184,22 @@ function propagateSecrets(states: ViewState[]): void {
       derived.push({ finding: { kind, view: st.view.view, span: { start, end } }, nStart, nEnd, derived: true });
     };
     const artifact = st.view.artifactIndex ?? 0;
-    for (const segment of st.view.segments) {
-      const src = segment.source;
-      if (!src) continue;
-      const hit = sources.find((x) => x.artifact === artifact && x.start < src.end && src.start < x.end);
-      if (hit) add(hit.kind, segment.start, segment.end);
+    const map = st.view.sourceMap;
+    for (const src of sources) {
+      if (src.artifact !== artifact || !map) continue;
+      // Exact characters of the secret in this view (separators inside the run are included).
+      let runStart = -1;
+      let runEnd = -1;
+      for (let p = 0; p <= map.length; p += 1) {
+        const offset = p < map.length ? (map[p] ?? -1) : -2;
+        if (offset >= src.start && offset < src.end) {
+          if (runStart < 0) runStart = p;
+          runEnd = p + 1;
+        } else if (offset !== -1 && runStart >= 0) {
+          add(src.kind, runStart, runEnd);
+          runStart = -1;
+        }
+      }
     }
     for (const [value, kind] of strings) {
       for (let at = st.view.text.indexOf(value); at >= 0; at = st.view.text.indexOf(value, at + value.length)) {
@@ -203,6 +228,7 @@ function guardStrings(result: ExtractCaptureResult): string[] {
   const out: string[] = [];
   for (const c of result.candidates) {
     out.push(c.raw, c.context.snippet);
+    if (c.chainAttribution.detail) out.push(c.chainAttribution.detail);
     if (c.context.label) out.push(c.context.label);
     if (c.context.heading) out.push(c.context.heading);
     if (c.context.anchor) out.push(c.context.anchor);
@@ -211,9 +237,15 @@ function guardStrings(result: ExtractCaptureResult): string[] {
   return out;
 }
 
-/** Throws `SecretLeakError` when any 12-character fragment of a secret occurs in the result. */
-function assertNoSecretLeak(result: ExtractCaptureResult, states: ViewState[]): void {
+/**
+ * Throws `SecretLeakError` when any output string contains a 12-character fragment of a known secret, or anything
+ * the secret detectors flag when run on that string on its own.
+ */
+function assertNoSecretLeak(result: ExtractCaptureResult, states: ViewState[], scrubber: SecretScrubber): void {
   const fragments = new Set<string>();
+  for (const value of scrubber.removed) {
+    for (let i = 0; i + GUARD_WINDOW <= value.length; i += 1) fragments.add(value.slice(i, i + GUARD_WINDOW));
+  }
   for (const st of states) {
     for (const s of st.secrets) {
       if (s.derived) continue;
@@ -225,9 +257,10 @@ function assertNoSecretLeak(result: ExtractCaptureResult, states: ViewState[]): 
       }
     }
   }
-  if (fragments.size === 0) return;
   let leaks = 0;
   for (const text of guardStrings(result)) {
+    if (scrubber.find(text).length > 0) leaks += 1;
+    if (fragments.size === 0) continue;
     for (let i = 0; i + GUARD_WINDOW <= text.length; i += 1) {
       if (fragments.has(text.slice(i, i + GUARD_WINDOW))) leaks += 1;
     }
@@ -303,7 +336,7 @@ function extract(content: CaptureContent, options: ExtractOptions): ExtractCaptu
   for (const [state, list] of attributedByView) {
     for (const c of list) {
       const container = segmentAt(state.view, c.span.start)?.container ?? 0;
-      const key = `${state.view.view}:${container}`;
+      const key = containerKey(state.view, container);
       containerSets.set(key, (containerSets.get(key) ?? new Set()).add(c.canonical));
       occurrences.push({
         item: c,
@@ -324,6 +357,7 @@ function extract(content: CaptureContent, options: ExtractOptions): ExtractCaptu
     containerAddressCounts: new Map([...containerSets].map(([k, set]) => [k, set.size])),
   };
 
+  const scrubber = new SecretScrubber();
   const candidates: AddressCandidate[] = kept.map(({ item: c, state }) => {
     const secrets = state.secrets.map((s) => s.finding);
     return {
@@ -337,7 +371,7 @@ function extract(content: CaptureContent, options: ExtractOptions): ExtractCaptu
       view: reportedView(state, c.span),
       span: c.span,
       transforms: c.transforms,
-      context: buildContext(c, state.view, state.norm, secrets, page),
+      context: buildContext(c, state.view, state.norm, secrets, page, scrubber),
       reviewRequired: c.reviewRequired,
     };
   });
@@ -382,6 +416,7 @@ function extract(content: CaptureContent, options: ExtractOptions): ExtractCaptu
   }));
   secrets.sort((a, b) => viewOrder(a.view) - viewOrder(b.view) || a.span.start - b.span.start);
 
+  for (const kind of scrubber.kinds) warnings.add(`context_secret_redacted:${kind}`);
   const result: ExtractCaptureResult = {
     captureId: content.captureId,
     candidates,
@@ -390,7 +425,7 @@ function extract(content: CaptureContent, options: ExtractOptions): ExtractCaptu
     extractorVersion: EXTRACTOR_VERSION,
     warnings: [...warnings].toSorted(),
   };
-  assertNoSecretLeak(result, states);
+  assertNoSecretLeak(result, states, scrubber);
   return result;
 }
 

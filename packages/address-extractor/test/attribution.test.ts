@@ -40,7 +40,7 @@ describe('payment URIs', () => {
       payment: { role: 'recipient', params: { uint256: '1e18' } },
     });
     expect(byAddress(result.attributed, token)).toBeUndefined();
-    expect(result.rejected).toMatchObject([{ reason: 'uri_token_contract', raw: token }]);
+    expect(result.rejected).toMatchObject([{ reason: 'uri_token_contract: transfer', raw: token }]);
   });
 
   it('BIP-21: chain, params and QR-style upper case', () => {
@@ -70,6 +70,41 @@ describe('payment URIs', () => {
     const recipient = byAddress(attribute(link).attributed, payee);
     expect(recipient?.transforms).toEqual(['url_decode']);
     expect(recipient?.payment?.role).toBe('recipient');
+  });
+});
+
+describe('EIP-681 function calls', () => {
+  it('treats the target of any function call as a contract and its arguments as non-payees', () => {
+    const contract = gen.evm('call-contract');
+    const spender = gen.evm('call-spender');
+    const result = attribute(plainView(`ethereum:${contract}@1/approve?address=${spender}&uint256=1`));
+    expect(result.rejected).toMatchObject([{ reason: 'uri_token_contract: approve', raw: contract }]);
+    const argument = byAddress(result.attributed, spender);
+    expect(argument).toMatchObject({ chain: 'evm:1', chainAttribution: { method: 'uri_chain_id' } });
+    expect(argument?.payment).toBeUndefined();
+  });
+
+  it('rejects a called contract even without a chain id; plain payments keep their recipient', () => {
+    const contract = gen.evm('mint-contract');
+    expect(attribute(plainView(`ethereum:${contract}/mint`)).rejected).toMatchObject([
+      { reason: 'uri_token_contract: mint', raw: contract },
+    ]);
+    const payee = gen.evm('plain-payee');
+    expect(byAddress(attribute(plainView(`ethereum:pay-${payee}@1?value=1e18`)).attributed, payee)?.payment?.role).toBe(
+      'recipient',
+    );
+  });
+
+  it('decodes link hrefs like the attribute view, so the token contract is rejected in link text too', () => {
+    const contract = gen.evm('href-contract');
+    const payee = gen.evm('href-payee');
+    const view = viewsOf(
+      `<p><a href="ethereum:${contract}%401/transfer?address=${payee}">${contract}</a></p>`,
+    ).visible_text;
+    if (!view) throw new Error('no view');
+    const result = attribute(view);
+    expect(byAddress(result.attributed, contract)).toBeUndefined();
+    expect(result.rejected).toMatchObject([{ reason: 'uri_token_contract: transfer', raw: contract }]);
   });
 });
 

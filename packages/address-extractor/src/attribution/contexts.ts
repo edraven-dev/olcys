@@ -143,20 +143,24 @@ export function findContextsInText(text: string): PaymentContext[] {
     const { params, offsets } = parseQuery(query);
     const range = { nStart: m.index, nEnd: m.index + m[0].length };
     const base = { kind: 'uri' as const, scheme: 'ethereum', ...(chainId ? { chainId } : {}), params, range };
-    if (fn === 'transfer') {
+    if (fn) {
+      // A function call: the target is a contract, never a payee. Only `transfer` names a payee (`address=`);
+      // addresses passed to any other function (e.g. an `approve` spender) are arguments, not recipients.
       contexts.push({
         ...base,
         role: 'token_contract',
+        function: fn,
         target: { nStart: targetStart, nEnd: targetStart + target.length },
       });
-      const recipient = params['address'];
+      const argument = params['address'];
       const offset = offsets['address'];
-      if (recipient && offset !== undefined && query) {
+      if (argument && offset !== undefined && query) {
         const queryStart = m.index + m[0].length - query.length;
         const rawValue = /^[^&#]*/.exec(query.slice(offset))?.[0] ?? '';
         contexts.push({
           ...base,
-          role: 'recipient',
+          role: fn === 'transfer' ? 'recipient' : 'argument',
+          function: fn,
           target: { nStart: queryStart + offset, nEnd: queryStart + offset + rawValue.length },
         });
       }

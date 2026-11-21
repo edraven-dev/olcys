@@ -4,7 +4,7 @@
  * Formats valid on one chain only short-circuit with `format_unique`.
  */
 import { chainFamily, type ChainAttributionMethod, type ChainId } from '@olcys/core';
-import { toNormalised } from '../normalise/normalise.ts';
+import { normaliseView, toNormalised } from '../normalise/normalise.ts';
 import type {
   AttributedCandidate,
   NormalisedText,
@@ -150,9 +150,36 @@ function isEvm(chain: ChainId): boolean {
 }
 
 /** Contexts of the candidate's own `<a href>` whose target is the candidate's address. */
+/** The href as the attribute view reads it (same normalisation, e.g. `%40` → `@`), so every view agrees. */
+function normalisedHref(href: string): string {
+  const view: ViewText = {
+    captureId: 'href',
+    view: 'attribute',
+    text: href,
+    segments: [
+      {
+        start: 0,
+        end: href.length,
+        tag: 'a',
+        path: 'a',
+        attribute: 'href',
+        inCode: false,
+        quoted: false,
+        hidden: false,
+        blockIndex: 0,
+        container: 0,
+      },
+    ],
+    blocks: [{ index: 0, start: 0, end: href.length, tag: 'a', container: 0, headingPath: [] }],
+    warnings: [],
+  };
+  return normaliseView(view).text;
+}
+
 function hrefContexts(c: ValidatedCandidate, view: ViewText): PaymentContext[] {
-  const href = segmentAt(view, c.span.start)?.href;
-  if (!href || c.view === 'attribute') return [];
+  const raw = segmentAt(view, c.span.start)?.href;
+  if (!raw || c.view === 'attribute') return [];
+  const href = normalisedHref(raw);
   return findContextsInText(href).filter(
     (ctx) => ctx.target && href.slice(ctx.target.nStart, ctx.target.nEnd).toLowerCase() === c.canonical.toLowerCase(),
   );
@@ -169,8 +196,10 @@ function attributeOne(
     ...contexts.filter((ctx) => ctx.target && ctx.target.nStart <= c.nStart && c.nEnd <= ctx.target.nEnd),
     ...hrefContexts(c, view),
   ];
-  if (own.some((ctx) => ctx.role === 'token_contract')) {
-    return { raw: c.raw, reason: 'uri_token_contract', view: c.view, span: c.span, patternId: c.patternId };
+  const called = own.find((ctx) => ctx.role === 'token_contract');
+  if (called) {
+    const reason = called.function ? `uri_token_contract: ${called.function}` : 'uri_token_contract';
+    return { raw: c.raw, reason, view: c.view, span: c.span, patternId: c.patternId };
   }
   const payment = own.find((ctx) => ctx.kind === 'uri' && ctx.role === 'recipient');
   const done = (chain: ChainId, method: ChainAttributionMethod, detail?: string): AttributedCandidate => ({

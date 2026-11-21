@@ -72,6 +72,8 @@ export interface ViewText {
   warnings: string[];
   /** Index of the artifact in `CaptureContent.artifacts` the view was built from (source ranges refer to it). */
   artifactIndex?: number;
+  /** Per character of `text`: UTF-16 offset in the decoded artifact, `-1` for separators inserted by the view. */
+  sourceMap?: Int32Array;
 }
 
 /** A normalisation step applied to `[start, end)` of the normalised text; `start === end` for removals. */
@@ -184,7 +186,13 @@ export interface PaymentContext {
   scheme?: string;
   host?: string;
   chainId?: ChainId;
-  role: 'recipient' | 'token_contract' | 'reference' | 'account';
+  /**
+   * `recipient` = payee of a payment; `token_contract` = contract called by the URI (EIP-681 with a function);
+   * `argument` = address passed to a contract function other than a token transfer (never a payee).
+   */
+  role: 'recipient' | 'token_contract' | 'argument' | 'reference' | 'account';
+  /** EIP-681 function name (`transfer`, `approve`, …) when the URI calls a contract. */
+  function?: string;
   /** amount, label, message, memo, … (percent-decoded). */
   params: Record<string, string>;
   /** Whole URI / link in the normalised view. */
