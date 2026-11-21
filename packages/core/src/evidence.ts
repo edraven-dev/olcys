@@ -27,6 +27,27 @@ export interface TimestampToken {
 }
 
 /**
+ * How a capture was made (Berkeley Protocol Annex IV "services used", ¶154 transformations): the request chain, the
+ * robots.txt decision, access-barrier signals and the software that produced the artifacts.
+ */
+export interface CaptureTechnicalReport {
+  method: 'http' | 'browser';
+  startedAt: IsoDateTime;
+  /** Live URL the request stands for when it was served by the synthetic fixture site (offline mode). */
+  logicalUrl?: string;
+  /** Every hop before the final response (manual redirect following). */
+  redirects: { url: string; status: number }[];
+  robots?: { allowed: boolean; robotsUrl: string; reason?: string };
+  /** Signals that classified the response as a block, login wall or CAPTCHA (collection stopped there). */
+  barrier?: { status: CaptureStatus; signals: string[] };
+  /** Tools and parser versions, e.g. `{ name: 'parser:bitcointalk', version: 'smf1.v1' }`. */
+  software: { name: string; version: string }[];
+  /** Transformations applied to derive artifacts or observations, e.g. `charset decode (utf-8)`. */
+  transformations: string[];
+  notes: string[];
+}
+
+/**
  * A preserved copy of one fetched resource, with the Berkeley Protocol collection fields
  * (URL, source, full capture, collector, machine, synced time, hash at collection).
  */
@@ -55,6 +76,8 @@ export interface Capture {
   fetchIds: Id[];
   /** Set when the capture is an archived copy (e.g. a Wayback Machine snapshot). */
   archive?: { provider: 'wayback'; snapshotTimestamp: string; originalUrl: string };
+  /** How the capture was made (redirects, robots.txt, barrier signals, logical URL, software). */
+  technical?: CaptureTechnicalReport;
 }
 
 export const ACCOUNT_DISCOVERY_METHODS = ['input', 'enumeration', 'cross_link', 'search', 'protocol_lookup'] as const;
