@@ -106,6 +106,8 @@ export interface AddressCandidate {
     /** Number of distinct addresses on the page; listing pages (> 50) are penalised. */
     pageAddressDensity: number;
     occurrencesInCapture: number;
+    /** DOM anchor of the enclosing authored item (data-post value, item id or preceding a[name]), e.g. `msg65000101`. */
+    anchor?: string;
   };
   /** Set for deobfuscated, gap-joined or OCR-repaired matches: needs analyst confirmation. */
   reviewRequired: boolean;
