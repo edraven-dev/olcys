@@ -27,3 +27,4 @@ export { detectRoleCues, type RoleCueExtra } from './context/cues.ts';
 export { LEXICON_VERSION, ROLE_LEXICON, type LexiconEntry } from './context/lexicon.ts';
 export { PATTERNS_VERSION } from './patterns/patterns.ts';
 export { URI_RULES_VERSION } from './attribution/contexts.ts';
+export { createSecretRedactor } from './redactor.ts';

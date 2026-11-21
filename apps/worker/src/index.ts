@@ -3,6 +3,7 @@ export { loadConfig, REPO_ROOT, TOOL_VERSION, type LoadedConfig } from './config
 export {
   createRun,
   diffWithPrevious,
+  evidenceRunIdOf,
   runPipeline,
   type PipelineDeps,
   type Stage,
@@ -10,3 +11,11 @@ export {
   type StartRunInput,
 } from './pipeline.ts';
 export { consoleLogger, createRuntime, type Runtime, type RuntimeOptions } from './runtime.ts';
+export {
+  createCollectStage,
+  createExtractStage,
+  createScoreStage,
+  defaultStages,
+  USER_AGENT,
+  type StageOptions,
+} from './stages.ts';

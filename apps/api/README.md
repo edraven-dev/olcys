@@ -32,3 +32,8 @@ w pamięci (ostrzeżenie w dzienniku). Tryb pobierania określa `OLCYS_MODE` (`o
 ## Testy
 
 `pnpm vitest run --project @olcys/api` — przebiegi na magazynie w pamięci, bez sieci.
+
+## Kontrola zakresu źródeł
+
+`POST /api/cases` odrzuca (400 `invalid_scope`) źródła RED, nieznane identyfikatory źródeł oraz źródła AMBER bez
+uzasadnienia (co najmniej 20 znaków) — niezależnie od interfejsu. Kolektory sprawdzają to samo ponownie przy zbieraniu.

@@ -14,6 +14,7 @@ const walletByRun: string[] = ['bc1qstaryadres', 'bc1qnowyadres'];
 const fakeCollect: Stage = {
   step: 'collect.source',
   async run(ctx) {
+    if (ctx.evidenceRunId !== ctx.run.id) return; // a rescore never collects
     const value = walletByRun.shift() ?? 'bc1qnowyadres';
     const capture: Capture = {
       id: newId(),
@@ -83,6 +84,11 @@ const newCase = {
   scope: { enabledSources: ['fixture_site'], amberJustifications: {}, chains: [], maxPivotDepth: 2 },
 };
 
+const withSources = (enabledSources: string[], amberJustifications: Record<string, string> = {}) => ({
+  ...newCase,
+  scope: { ...newCase.scope, enabledSources, amberJustifications },
+});
+
 describe('api', () => {
   it('validates and creates cases', async () => {
     const bad = await app.inject({ method: 'POST', url: '/api/cases', payload: { title: '' } });
@@ -126,6 +132,24 @@ describe('api', () => {
     ]);
     expect((await app.inject(`/api/runs/${runId}/observations`)).json().items).toHaveLength(1);
     expect((await app.inject(`/api/cases/${caseId}/runs`)).json().items).toHaveLength(2);
+  });
+
+  it('shows a rescore the evidence of the run that collected it', async () => {
+    const caseId = (await app.inject('/api/cases')).json().items[0].id as string;
+    const runs = (await app.inject(`/api/cases/${caseId}/runs`)).json().items as { id: string; trigger: string }[];
+    const collected = runs.find((r) => r.trigger === 'manual')!.id;
+    const rescore = await app.inject({
+      method: 'POST',
+      url: `/api/cases/${caseId}/runs`,
+      payload: { trigger: 'rescore', rescoreOfRunId: collected },
+    });
+    expect(rescore.statusCode).toBe(202);
+    await runtime.idle();
+    const id = rescore.json().id as string;
+    const own = (await app.inject(`/api/runs/${collected}/captures`)).json().items as { id: string }[];
+    expect(own.length).toBeGreaterThan(0);
+    expect((await app.inject(`/api/runs/${id}/captures`)).json().items).toEqual(own);
+    expect((await app.inject(`/api/runs/${id}/observations`)).json().items.length).toBeGreaterThan(0);
   });
 
   it('marks a run failed when a stage throws', async () => {
@@ -180,6 +204,30 @@ describe('api', () => {
     });
     expect(upper.statusCode).toBe(202);
     await runtime.idle();
+  });
+
+  it('refuses RED, unknown and unjustified AMBER sources server-side', async () => {
+    const sources = (await app.inject('/api/sources')).json().items as { id: string; compliance: string }[];
+    const red = sources.find((s) => s.compliance === 'RED')?.id;
+    const amber = sources.find((s) => s.compliance === 'AMBER')?.id;
+    for (const payload of [withSources([red!]), withSources(['no_such_source']), withSources([amber!])]) {
+      // oxlint-disable-next-line no-await-in-loop
+      const response = await app.inject({ method: 'POST', url: '/api/cases', payload });
+      expect(response.statusCode).toBe(400);
+      expect(response.json()).toMatchObject({ error: 'invalid_scope' });
+    }
+    const tooShort = await app.inject({
+      method: 'POST',
+      url: '/api/cases',
+      payload: withSources([amber!], { [amber!]: 'za krótko' }),
+    });
+    expect(tooShort.statusCode).toBe(400);
+    const justified = await app.inject({
+      method: 'POST',
+      url: '/api/cases',
+      payload: withSources([amber!], { [amber!]: 'Uzasadnienie sprawy testowej na danych syntetycznych' }),
+    });
+    expect(justified.statusCode).toBe(201);
   });
 
   it('lists the source register and serves evidence only as downloads', async () => {

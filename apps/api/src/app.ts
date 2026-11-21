@@ -4,6 +4,7 @@
  */
 import type { BlobStore, Repositories, RunWithProgress, SourceDescriptor } from '@olcys/core';
 import { ContractError, CORE_CONTRACTS_VERSION, CreateCaseSchema, parse, StartRunSchema } from '@olcys/core';
+import { evidenceRunIdOf } from '@olcys/worker';
 import Fastify, { type FastifyInstance, type FastifyReply } from 'fastify';
 
 export interface ApiDeps {
@@ -30,6 +31,35 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
  * then see the same spelling (PostgreSQL's uuid type ignores case, the in-memory store does not).
  */
 const idOf = (value: string): string | undefined => (UUID.test(value) ? value.toLowerCase() : undefined);
+
+/** Minimum length of an AMBER justification (matches the collectors' scope lock). */
+export const MIN_AMBER_JUSTIFICATION = 20;
+
+/**
+ * Server-side scope check (the console checks the same): RED sources are never enabled, AMBER sources need a
+ * justification, unknown source ids are refused. The collectors refuse the same again at collection time.
+ */
+export function scopeProblems(
+  scope: { enabledSources: readonly string[]; amberJustifications: Readonly<Record<string, string>> },
+  sources: readonly SourceDescriptor[],
+): string[] {
+  const byId = new Map(sources.map((s) => [s.id, s]));
+  const problems: string[] = [];
+  for (const id of scope.enabledSources) {
+    const source = byId.get(id);
+    if (!source) problems.push(`unknown source ${id}`);
+    else if (source.compliance === 'RED') problems.push(`source ${id} is RED and can never be enabled`);
+    else if (
+      source.compliance === 'AMBER' &&
+      (scope.amberJustifications[id] ?? '').trim().length < MIN_AMBER_JUSTIFICATION
+    ) {
+      problems.push(
+        `source ${id} is AMBER and needs a justification of at least ${MIN_AMBER_JUSTIFICATION} characters`,
+      );
+    }
+  }
+  return problems;
+}
 
 export function buildApp(deps: ApiDeps): FastifyInstance {
   const app = Fastify({ logger: deps.httpLog ?? false });
@@ -71,6 +101,9 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
 
   app.post('/api/cases', async (request, reply) => {
     const input = parse(CreateCaseSchema, request.body);
+    const problems = scopeProblems(input.scope, deps.sources);
+    if (problems.length)
+      return reply.code(400).send({ error: 'invalid_scope', message: problems.join('; '), problems });
     return reply.code(201).send(await repos.cases.create(input, analyst));
   });
 
@@ -113,19 +146,24 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
     return run ?? notFound(reply, 'run');
   });
 
-  const runList = <T>(path: string, load: (runId: string) => Promise<T[]>) =>
+  /**
+   * Run-scoped lists. Collected evidence (captures, observations, accounts, egress log) is read from the run that
+   * collected it — for a rescore, the rescored run — while candidates, scores and other results stay per run.
+   */
+  const runList = <T>(path: string, load: (runId: string) => Promise<T[]>, scope: 'evidence' | 'run' = 'run') =>
     app.get<{ Params: { runId: string } }>(`/api/runs/:runId/${path}`, async (request, reply) => {
       const runId = idOf(request.params.runId);
-      if (!runId || !(await repos.runs.get(runId))) return notFound(reply, 'run');
-      return { items: await load(runId) };
+      const run = runId ? await repos.runs.get(runId) : undefined;
+      if (!run) return notFound(reply, 'run');
+      return { items: await load(scope === 'evidence' ? evidenceRunIdOf(run) : run.id) };
     });
-  runList('captures', (id) => repos.evidence.listCaptures(id));
-  runList('observations', (id) => repos.evidence.listObservations(id));
-  runList('accounts', (id) => repos.evidence.listAccounts(id));
+  runList('captures', (id) => repos.evidence.listCaptures(id), 'evidence');
+  runList('observations', (id) => repos.evidence.listObservations(id), 'evidence');
+  runList('accounts', (id) => repos.evidence.listAccounts(id), 'evidence');
   runList('candidates', (id) => repos.evidence.listCandidates(id));
   // Extraction results include the matches rejected at validation (homoglyphs, transaction hashes, test vectors).
   runList('extractions', (id) => repos.evidence.listExtractionResults(id));
-  runList('egress', (id) => repos.evidence.listEgressLog(id));
+  runList('egress', (id) => repos.evidence.listEgressLog(id), 'evidence');
   runList('transfers', (id) => repos.chain.listTransfers(id));
   runList('links', (id) => repos.analysis.listLinks(id));
   runList('exclusions', (id) => repos.analysis.listExclusions(id));
