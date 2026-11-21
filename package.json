@@ -1,0 +1,32 @@
+{
+  "name": "olcys",
+  "version": "0.0.0",
+  "private": true,
+  "description": "OŁCyŚ (Osintowy łapacz cyfrowych śladów): OSINT tool that links public web traces to crypto addresses and analyses their on-chain activity. HackNation 2026, KAS challenge.",
+  "type": "module",
+  "scripts": {
+    "dev:deps": "docker compose up -d --wait",
+    "dev:deps:down": "docker compose down",
+    "dev": "pnpm --parallel --filter \"./apps/*\" run dev",
+    "typecheck": "tsc -p tsconfig.json && tsc -p apps/web/tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "oxlint --deny-warnings",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check",
+    "licenses:check": "pnpm -r --include-workspace-root --no-bail exec license-checker-rseidelsohn --excludePrivatePackages --summary --onlyAllow \"$(node -p \"require('./config/licenses.json').allowed.join(';')\")\"",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm licenses:check && pnpm test"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.6",
+    "license-checker-rseidelsohn": "5.0.1",
+    "oxfmt": "0.79.0",
+    "oxlint": "1.94.0",
+    "typescript": "7.0.2",
+    "vitest": "5.1.1"
+  },
+  "engines": {
+    "node": ">=26.13.1"
+  },
+  "packageManager": "pnpm@12.22.0"
+}

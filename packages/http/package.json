@@ -1,0 +1,13 @@
+{
+  "name": "@olcys/http",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Egress-guarded HTTP client: allow-list, per-host rate limits, robots.txt, provenance envelopes, record/replay/offline modes. The only module allowed to open network connections.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@olcys/core": "workspace:*"
+  }
+}

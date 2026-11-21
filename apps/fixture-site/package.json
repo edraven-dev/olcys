@@ -1,0 +1,12 @@
+{
+  "name": "@olcys/fixture-site",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Synthetic persona website for demos and tests: forum profile, posts, code-hosting page, channel preview and decoys, in two variants (v1/v2) to demonstrate change detection. Node built-ins only.",
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch --env-file-if-exists=../../.env src/server.ts",
+    "dev:v2": "FIXTURE_VARIANT=v2 node --watch src/server.ts",
+    "start": "node src/server.ts"
+  }
+}

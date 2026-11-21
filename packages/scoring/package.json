@@ -1,0 +1,13 @@
+{
+  "name": "@olcys/scoring",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Two-hop likelihood-ratio Confidence Score with explainable per-feature contributions.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@olcys/core": "workspace:*"
+  }
+}

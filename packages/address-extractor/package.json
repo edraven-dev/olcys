@@ -1,0 +1,13 @@
+{
+  "name": "@olcys/address-extractor",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Detects, validates (checksums) and contextualises crypto addresses in captured content; redacts secrets.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@olcys/core": "workspace:*"
+  }
+}

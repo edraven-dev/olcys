@@ -1,0 +1,13 @@
+{
+  "name": "@olcys/collectors",
+  "version": "0.0.0",
+  "private": true,
+  "description": "OSINT source adapters behind the SourceCollector port (Bitcointalk, BitList, ENS, Keybase, GitHub, Farcaster, Nostr, Telegram preview, registries, Maigret client, search, Wayback) plus the pivot planner.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@olcys/core": "workspace:*"
+  }
+}

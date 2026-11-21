@@ -1,0 +1,11 @@
+[project]
+name = "olcys-osint"
+version = "0.0.0"
+description = "OŁCyŚ Python worker: Maigret username enumeration + socid-extractor, PDF signing with pyHanko."
+readme = "README.md"
+requires-python = ">=3.15"
+# Pinned to exact newest stable releases. Maigret, socid-extractor and pyHanko are added with those features.
+dependencies = ["fastapi==0.165.0", "uvicorn==0.54.0"]
+
+[tool.uv]
+package = false

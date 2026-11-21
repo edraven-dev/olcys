@@ -1,0 +1,13 @@
+{
+  "name": "@olcys/llm",
+  "version": "0.0.0",
+  "private": true,
+  "description": "OpenAI-compatible model client, versioned prompt registry, JSON-schema outputs and call logging. Suggestions only; never part of the score.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@olcys/core": "workspace:*"
+  }
+}

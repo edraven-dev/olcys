@@ -1,0 +1,477 @@
+# Source & provider register (single source of truth for compliance and the egress allow-list).
+#
+# compliance: GREEN usable by default · AMBER off by default, enabled per case with a logged justification ·
+#             RED never contacted automatically (enforced in code).
+# The egress allow-list = union of allowedHosts over sources enabled for the run.
+# Statuses reflect a review of public terms of service and documentation on 2026-11-21. Re-check before go-live.
+# Keys mirror @olcys/core SourceDescriptor.
+
+version: sources.v1
+
+sources:
+  # --- Synthetic fixtures (demo, tests) ---------------------------------------------------------------
+  fixture_site:
+    name: OŁCyŚ synthetic fixture site
+    kind: fixture
+    compliance: GREEN
+    complianceNote: Synthetic persona served locally (apps/fixture-site). No real data.
+    enabledByDefault: true
+    requiresApiKey: false
+    sendsIdentifiersExternally: false
+    reliability: B
+    rateLimit: { requests: 10, perSeconds: 1 }
+    allowedHosts: [127.0.0.1, localhost, fixture-site]
+
+  # --- Crypto-native forums and identity bridges --------------------------------------------------------
+  bitcointalk:
+    name: Bitcointalk (guest pages)
+    kind: forum
+    compliance: AMBER
+    complianceNote: Forum tolerates polite bots at <= 1 request/s and bans violators; guest-visible pages only, no login.
+    tosUrl: https://bitcointalk.org/index.php?topic=5240891.0
+    enabledByDefault: false
+    requiresApiKey: false
+    sendsIdentifiersExternally: true
+    reliability: B
+    rateLimit: { requests: 1, perSeconds: 1 }
+    allowedHosts: [bitcointalk.org]
+
+  bitlist:
+    name: BitList (ninjastic.space) Bitcointalk archive API
+    kind: archive
+    compliance: AMBER
+    complianceNote: Keyless API with no published terms or rate limits; every query discloses the identifier to a private operator. Prefer public dumps in production.
+    enabledByDefault: false
+    requiresApiKey: false
+    sendsIdentifiersExternally: true
+    reliability: B
+    rateLimit: { requests: 1, perSeconds: 2 }
+    allowedHosts: [api.ninjastic.space]
+
+  ens:
+    name: ENS (via configured Ethereum RPC / ENSNode)
+    kind: identity_protocol
+    compliance: GREEN
+    complianceNote: Public on-chain records; ENSv2 live since 2026-10-27, use ENSv2-ready libraries. Self-hosted RPC keeps queries private.
+    enabledByDefault: true
+    requiresApiKey: false
+    sendsIdentifiersExternally: true
+    reliability: A
+    rateLimit: { requests: 5, perSeconds: 1 }
+    allowedHosts: [] # set to the RPC / ENSNode host in deployment config
+
+  farcaster:
+    name: Farcaster / Network State Protocol (Snapchain node)
+    kind: identity_protocol
+    compliance: AMBER
+    complianceNote: Verifications are signed and public; ownership changed twice in 2026, re-check terms. Self-hosting a node keeps queries private.
+    enabledByDefault: false
+    requiresApiKey: false
+    sendsIdentifiersExternally: true
+    reliability: A
+    rateLimit: { requests: 2, perSeconds: 1 }
+    allowedHosts: [haatz.quilibrium.com]
+
+  keybase:
+    name: Keybase lookup API
+    kind: identity_protocol
+    compliance: GREEN
+    complianceNote: Public lookup API; signed cryptocurrency_addresses. Maintenance mode, mostly pre-2020 data.
+    tosUrl: https://keybase.io/docs/api/1.0/call/user/lookup
+    enabledByDefault: true
+    requiresApiKey: false
+    sendsIdentifiersExternally: true
+    reliability: A
+    rateLimit: { requests: 1, perSeconds: 1 }
+    allowedHosts: [keybase.io]
+
+  github:
+    name: GitHub REST API
+    kind: code_hosting
+    compliance: AMBER
+    complianceNote: API use permitted, but the Acceptable Use Policies limit personal data to purposes the user authorised; commit search needs a token (10/min).
+    tosUrl: https://docs.github.com/en/site-policy/acceptable-use-policies/github-acceptable-use-policies
+    enabledByDefault: false
+    requiresApiKey: true
+    sendsIdentifiersExternally: true
+    reliability: B
+    rateLimit: { requests: 10, perSeconds: 60 }
+    allowedHosts: [api.github.com, raw.githubusercontent.com]
+
+  nostr:
+    name: Nostr (NIP-05 + relays)
+    kind: identity_protocol
+    compliance: GREEN
+    complianceNote: Public protocol. NIP-05 identifies, it does not verify; lud16 Lightning addresses are often custodial.
+    enabledByDefault: true
+    requiresApiKey: false
+    sendsIdentifiersExternally: true
+    reliability: C
+    rateLimit: { requests: 2, perSeconds: 1 }
+    allowedHosts: [] # NIP-05 domains and relays are dynamic: allow-list per case
+
+  telegram_preview:
+    name: Telegram public channel web preview (t.me/s)
+    kind: messenger_public
+    compliance: AMBER
+    complianceNote: Public channel previews only, no API/MTProto, no groups. API-sourced Telegram data may not be used for AI; keep Telegram content out of the LLM path.
+    enabledByDefault: false
+    requiresApiKey: false
+    sendsIdentifiersExternally: true
+    reliability: C
+    rateLimit: { requests: 1, perSeconds: 2 }
+    allowedHosts: [t.me]
+
+  wykop:
+    name: Wykop API v3
+    kind: social
+    compliance: AMBER
+    complianceNote: Requires app key + secret (JWT); key issuance and terms unconfirmed. Feature-flagged.
+    tosUrl: https://doc.wykop.pl/
+    enabledByDefault: false
+    requiresApiKey: true
+    sendsIdentifiersExternally: true
+    reliability: C
+    rateLimit: { requests: 1, perSeconds: 1 }
+    allowedHosts: [wykop.pl]
+
+  maigret:
+    name: Maigret username enumeration (services/osint-py)
+    kind: username_enumeration
+    compliance: AMBER
+    complianceNote: Contacts many third-party sites with the username. Pinned DB, tag allow-list (crypto, finance, pl, social, coding, messaging), no proxies, no CAPTCHA bypass, no --ai, no X GraphQL probe.
+    enabledByDefault: false
+    requiresApiKey: false
+    sendsIdentifiersExternally: true
+    reliability: C
+    rateLimit: { requests: 4, perSeconds: 1 }
+    allowedHosts: [] # osint-py runs its own allow-listed egress; the Node side only calls OSINT_PY_URL
+
+  # --- Polish public registries ----------------------------------------------------------------------
+  ceidg:
+    name: CEIDG API v3
+    kind: registry
+    compliance: GREEN
+    complianceNote: Official API; the only one that searches by first and last name. Token required (application).
+    enabledByDefault: false
+    requiresApiKey: true
+    sendsIdentifiersExternally: true
+    reliability: A
+    rateLimit: { requests: 1, perSeconds: 1 }
+    allowedHosts: [dane.biznes.gov.pl]
+
+  krs:
+    name: KRS Open API
+    kind: registry
+    compliance: GREEN
+    complianceNote: Official API; lookup by KRS number only.
+    enabledByDefault: true
+    requiresApiKey: false
+    sendsIdentifiersExternally: true
+    reliability: A
+    rateLimit: { requests: 1, perSeconds: 1 }
+    allowedHosts: [api-krs.ms.gov.pl]
+
+  vat_whitelist:
+    name: Wykaz podatników VAT (biała lista)
+    kind: registry
+    compliance: GREEN
+    complianceNote: Official API; moved to wykazpodatnikowvat.mf.gov.pl/api (old wl-api host stops 2026-12-01).
+    enabledByDefault: true
+    requiresApiKey: false
+    sendsIdentifiersExternally: true
+    reliability: A
+    rateLimit: { requests: 1, perSeconds: 1 }
+    allowedHosts: [wykazpodatnikowvat.mf.gov.pl]
+
+  # --- Search and archives ----------------------------------------------------------------------------
+  mock_search:
+    name: Mock search provider (fixtures)
+    kind: search
+    compliance: GREEN
+    complianceNote: Returns fixture-site results; used in demos so no identifier leaves the machine.
+    enabledByDefault: true
+    requiresApiKey: false
+    sendsIdentifiersExternally: false
+    reliability: C
+    rateLimit: { requests: 10, perSeconds: 1 }
+    allowedHosts: []
+
+  brave_search:
+    name: Brave Search API
+    kind: search
+    compliance: AMBER
+    complianceNote: Paid per query; the query (identifier) goes to Brave; check result-storage terms before keeping results as evidence.
+    enabledByDefault: false
+    requiresApiKey: true
+    sendsIdentifiersExternally: true
+    reliability: C
+    rateLimit: { requests: 1, perSeconds: 1 }
+    allowedHosts: [api.search.brave.com]
+
+  mojeek_search:
+    name: Mojeek Search API
+    kind: search
+    compliance: AMBER
+    complianceNote: Paid per query; DPA with no sub-processors and zero retention available on request (preferred for production).
+    enabledByDefault: false
+    requiresApiKey: true
+    sendsIdentifiersExternally: true
+    reliability: C
+    rateLimit: { requests: 1, perSeconds: 1 }
+    allowedHosts: [api.mojeek.com]
+
+  wayback_cdx:
+    name: Internet Archive Wayback CDX / Availability API (read-only)
+    kind: archive
+    compliance: GREEN
+    complianceNote: Read-only lookups at <= 20 requests/min. NEVER use Save Page Now on suspect pages (publishes the capture).
+    enabledByDefault: true
+    requiresApiKey: false
+    sendsIdentifiersExternally: true
+    reliability: B
+    rateLimit: { requests: 20, perSeconds: 60 }
+    allowedHosts: [web.archive.org, archive.org]
+
+  # --- RED: never contacted automatically ---------------------------------------------------------------
+  x_twitter:
+    {
+      name: X / Twitter,
+      kind: social,
+      compliance: RED,
+      complianceNote: Developer Agreement forbids investigating or tracking users; scraping prohibited.,
+      enabledByDefault: false,
+      requiresApiKey: true,
+      sendsIdentifiersExternally: true,
+      reliability: F,
+      rateLimit: { requests: 0, perSeconds: 1 },
+      allowedHosts: [],
+    }
+  reddit:
+    {
+      name: Reddit,
+      kind: social,
+      compliance: RED,
+      complianceNote: No new API access after 2026-10-31; unauthenticated JSON closed; public API closes March 2027.,
+      enabledByDefault: false,
+      requiresApiKey: true,
+      sendsIdentifiersExternally: true,
+      reliability: F,
+      rateLimit: { requests: 0, perSeconds: 1 },
+      allowedHosts: [],
+    }
+  discord:
+    {
+      name: Discord,
+      kind: social,
+      compliance: RED,
+      complianceNote: Developer Policy bans scraping and profiling users.,
+      enabledByDefault: false,
+      requiresApiKey: true,
+      sendsIdentifiersExternally: true,
+      reliability: F,
+      rateLimit: { requests: 0, perSeconds: 1 },
+      allowedHosts: [],
+    }
+  youtube:
+    {
+      name: YouTube,
+      kind: social,
+      compliance: RED,
+      complianceNote: Policies ban identifying users without consent; 30-day storage cap conflicts with evidence retention.,
+      enabledByDefault: false,
+      requiresApiKey: true,
+      sendsIdentifiersExternally: true,
+      reliability: F,
+      rateLimit: { requests: 0, perSeconds: 1 },
+      allowedHosts: [],
+    }
+  meta:
+    {
+      name: Facebook / Instagram,
+      kind: social,
+      compliance: RED,
+      complianceNote: Automated collection forbidden without permission.,
+      enabledByDefault: false,
+      requiresApiKey: true,
+      sendsIdentifiersExternally: true,
+      reliability: F,
+      rateLimit: { requests: 0, perSeconds: 1 },
+      allowedHosts: [],
+    }
+  linkedin:
+    {
+      name: LinkedIn,
+      kind: social,
+      compliance: RED,
+      complianceNote: Automated collection forbidden without permission.,
+      enabledByDefault: false,
+      requiresApiKey: true,
+      sendsIdentifiersExternally: true,
+      reliability: F,
+      rateLimit: { requests: 0, perSeconds: 1 },
+      allowedHosts: [],
+    }
+  linktree:
+    {
+      name: Linktree,
+      kind: web,
+      compliance: RED,
+      complianceNote: Terms ban bots and scraping.,
+      enabledByDefault: false,
+      requiresApiKey: false,
+      sendsIdentifiersExternally: true,
+      reliability: F,
+      rateLimit: { requests: 0, perSeconds: 1 },
+      allowedHosts: [],
+    }
+  allegro:
+    {
+      name: Allegro / Allegro Lokalnie,
+      kind: web,
+      compliance: RED,
+      complianceNote: Regulamin bans bots and data-extraction tools; API is for sellers' own sales.,
+      enabledByDefault: false,
+      requiresApiKey: true,
+      sendsIdentifiersExternally: true,
+      reliability: F,
+      rateLimit: { requests: 0, perSeconds: 1 },
+      allowedHosts: [],
+    }
+  olx:
+    {
+      name: OLX,
+      kind: web,
+      compliance: RED,
+      complianceNote: Terms ban bots and scraping (current clause to be re-checked).,
+      enabledByDefault: false,
+      requiresApiKey: false,
+      sendsIdentifiersExternally: true,
+      reliability: F,
+      rateLimit: { requests: 0, perSeconds: 1 },
+      allowedHosts: [],
+    }
+  gravatar:
+    {
+      name: Gravatar API v3,
+      kind: identity_protocol,
+      compliance: RED,
+      complianceNote: crypto_wallets only with an API key; free plan limited to "your active users". RED until KAS holds a paid or negotiated plan.,
+      enabledByDefault: false,
+      requiresApiKey: true,
+      sendsIdentifiersExternally: true,
+      reliability: B,
+      rateLimit: { requests: 0, perSeconds: 1 },
+      allowedHosts: [],
+    }
+
+# Chain data, prices, timestamping and label datasets.
+providers:
+  mempool_space:
+    name: mempool.space Esplora REST (Bitcoin)
+    kind: chain_data
+    compliance: GREEN
+    complianceNote: Public API with undisclosed per-IP limits; ~1 request/s. Discloses queried addresses; production uses a self-hosted Esplora/electrs.
+    enabledByDefault: true
+    requiresApiKey: false
+    sendsIdentifiersExternally: true
+    reliability: A
+    rateLimit: { requests: 1, perSeconds: 1 }
+    allowedHosts: [mempool.space]
+
+  blockstream_esplora:
+    name: Blockstream Esplora (Bitcoin)
+    kind: chain_data
+    compliance: GREEN
+    complianceNote: Same Esplora REST shape; managed API has a free monthly quota.
+    enabledByDefault: false
+    requiresApiKey: false
+    sendsIdentifiersExternally: true
+    reliability: A
+    rateLimit: { requests: 1, perSeconds: 1 }
+    allowedHosts: [blockstream.info]
+
+  etherscan_v2:
+    name: Etherscan API V2 (multichain)
+    kind: chain_data
+    compliance: AMBER
+    complianceNote: Free tier 3 calls/s, 100k/day, licensed "Personal & Research use only", attribution required; several chains are paid-only. Prototype only; production uses Erigon + Otterscan.
+    tosUrl: https://etherscan.io/apiterms
+    enabledByDefault: false
+    requiresApiKey: true
+    sendsIdentifiersExternally: true
+    reliability: A
+    rateLimit: { requests: 3, perSeconds: 1 }
+    allowedHosts: [api.etherscan.io]
+
+  trongrid:
+    name: TronGrid (TRON)
+    kind: chain_data
+    compliance: AMBER
+    complianceNote: Own free key; quotas unpublished (reported 10k-100k/day). Production uses java-tron + TRC-20 indexer.
+    enabledByDefault: false
+    requiresApiKey: true
+    sendsIdentifiersExternally: true
+    reliability: A
+    rateLimit: { requests: 5, perSeconds: 1 }
+    allowedHosts: [api.trongrid.io]
+
+  solana_public_rpc:
+    name: Solana public RPC
+    kind: chain_data
+    compliance: AMBER
+    complianceNote: 100 requests / 10 s per IP, not for production.
+    enabledByDefault: false
+    requiresApiKey: false
+    sendsIdentifiersExternally: true
+    reliability: A
+    rateLimit: { requests: 5, perSeconds: 1 }
+    allowedHosts: [api.mainnet-beta.solana.com]
+
+  nbp_api:
+    name: NBP Web API (exchange rates)
+    kind: price_fx
+    compliance: GREEN
+    complianceNote: Free, keyless, HTTPS-only; <= 93 days per query. Queries reveal only dates/currencies.
+    enabledByDefault: true
+    requiresApiKey: false
+    sendsIdentifiersExternally: false
+    reliability: A
+    rateLimit: { requests: 2, perSeconds: 1 }
+    allowedHosts: [api.nbp.pl]
+
+  freetsa:
+    name: FreeTSA RFC 3161 timestamping
+    kind: timestamping
+    compliance: GREEN
+    complianceNote: Only SHA-256 digests leave the system. Demo only (not a qualified TSA); production uses a qualified Polish TSA.
+    enabledByDefault: true
+    requiresApiKey: false
+    sendsIdentifiersExternally: false
+    reliability: B
+    rateLimit: { requests: 1, perSeconds: 1 }
+    allowedHosts: [freetsa.org]
+
+  sandbox_esplora:
+    name: Sandbox Bitcoin regtest (local Esplora)
+    kind: chain_data
+    compliance: GREEN
+    complianceNote: Local regtest network in compose profile "sandbox"; demo wallets only, no public network. Allowed live in offline mode.
+    enabledByDefault: false
+    requiresApiKey: false
+    sendsIdentifiersExternally: false
+    reliability: A
+    rateLimit: { requests: 20, perSeconds: 1 }
+    allowedHosts: [127.0.0.1, localhost, esplora-regtest]
+
+  sandbox_anvil:
+    name: Sandbox EVM (local Anvil, Otterscan API)
+    kind: chain_data
+    compliance: GREEN
+    complianceNote: Local EVM chain in compose profile "sandbox" (chain id 1); demo wallets only, no public network. Allowed live in offline mode.
+    enabledByDefault: false
+    requiresApiKey: false
+    sendsIdentifiersExternally: false
+    reliability: A
+    rateLimit: { requests: 50, perSeconds: 1 }
+    allowedHosts: [127.0.0.1, localhost, anvil]

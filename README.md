@@ -19,8 +19,8 @@ między śladami Web2 a aktywnością Web3, oraz to, co otrzymuje analityk._
 - Wyłącznie publicznie dostępne, legalne źródła (OSINT): bez naruszania regulaminów, bez logowania na cudze konta,
   bez wycieków danych i bez obchodzenia zabezpieczeń. Rejestr źródeł ze statusem zgodności:
   [`config/sources.yaml`](config/sources.yaml), podsumowanie: [`docs/compliance/sources.md`](docs/compliance/sources.md).
-- Demonstracja i testy korzystają **wyłącznie z danych syntetycznych** (strona testowa z fikcyjną personą oraz
-  portfele demonstracyjne kontrolowane przez zespół).
+- Demonstracja i testy korzystają **wyłącznie z danych syntetycznych** (strona testowa z fikcyjną personą;
+  portfele demonstracyjne wyłącznie w lokalnych sieciach testowych — bez transakcji w publicznych sieciach).
 - Dane, wyniki ani telemetria nie opuszczają systemu poza zatwierdzonymi, rejestrowanymi zapytaniami; model AI działa
   lokalnie za API zgodnym z OpenAI i można go wymienić samą konfiguracją.
 - Wskaźnik opisuje powiązanie, a nie osobę; każdy wynik pokazuje źródła i przesłanki; fakty źródłowe, wyniki obliczeń
