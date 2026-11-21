@@ -26,6 +26,16 @@ export function nameTokens(name: string): string[] {
     .toSorted();
 }
 
+/** Lower case without diacritics (`ł` → `l`): „Jestem” ≡ „jestem”, „użytkownik” ≡ „uzytkownik”. */
+export function foldText(text: string): string {
+  return text
+    .normalize('NFKD')
+    .replace(/\p{M}+/gu, '')
+    .replaceAll('ł', 'l')
+    .replaceAll('Ł', 'L')
+    .toLowerCase();
+}
+
 export function sameName(a: string, b: string): boolean {
   const x = nameTokens(a);
   const y = nameTokens(b);

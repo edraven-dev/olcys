@@ -30,11 +30,18 @@ function addTo<K, V>(map: Map<K, Set<V>>, key: K, value: V): void {
 
 const only = <T>(set: ReadonlySet<T> | undefined): T | undefined => (set?.size === 1 ? [...set][0] : undefined);
 
+/** Platform prefix of a subject key or locator (`bitcointalk:msg=65000101#…` → `bitcointalk`). */
+function platformOf(key: string): string | undefined {
+  const colon = key.indexOf(':');
+  return colon > 0 ? key.slice(0, colon).toLowerCase() : undefined;
+}
+
 /**
- * Authorship rules, in order: (1) the candidate's post anchor matches a post whose author is known (a page subject
- * with `post.author`, or an account fact located in that post); (2) the capture evidences exactly one author, or it
- * evidences none and exactly one account was discovered on it; (3) otherwise unattributed. Archived copies
- * (`Capture.archive`) inherit the authorship of the original URL's capture.
+ * Authorship rules, in order: (1) the candidate's post anchor matches a post of this capture whose author is known (a
+ * page subject with `post.author`, or an account fact located in that post); (2) the capture evidences exactly one
+ * author, or none and exactly one account was discovered on it; (3) the same post on the same platform in another
+ * capture; (4) otherwise unattributed. Archived copies (`Capture.archive`) inherit the authorship of the original
+ * URL's capture.
  */
 export function buildAuthorship(
   captures: readonly Capture[],
@@ -50,35 +57,48 @@ export function buildAuthorship(
     }
     return f;
   };
-  const globalPosts = new Map<string, Set<AccountInfo>>();
+  /** `<platform> <post token>` → authors: posts are only matched across captures of the same platform. */
+  const platformPosts = new Map<string, Set<AccountInfo>>();
+  const capturePlatforms = new Map<Id, Set<string>>();
   const pageAuthors = new Map<string, AccountInfo>();
+  const notePost = (captureId: Id, key: string, token: string, author: AccountInfo): void => {
+    const platform = platformOf(key);
+    if (!platform) return;
+    addTo(capturePlatforms, captureId, platform);
+    addTo(platformPosts, `${platform}\u0000${token}`, author);
+  };
 
   for (const o of observations) {
     if (o.subject.type === 'page' && baseProperty(o.property) === 'post.author') {
       const author = index.resolve(o.value);
       if (!author) continue;
       const f = factsOf(o.captureId);
+      const token = postToken(o.subject.key);
       f.authors.add(author);
-      f.posts.set(postToken(o.subject.key), author);
-      addTo(globalPosts, postToken(o.subject.key), author);
+      f.posts.set(token, author);
+      notePost(o.captureId, o.subject.key, token, author);
       pageAuthors.set(`${o.captureId}\u0000${o.subject.key}`, author);
     } else if (o.subject.type === 'account') {
       const owner = index.resolve(o.subject.key);
       if (!owner) continue;
       const f = factsOf(o.captureId);
       f.authors.add(owner);
+      const platform = platformOf(o.subject.key);
+      if (platform) addTo(capturePlatforms, o.captureId, platform);
       const located = postToken(o.locator);
       if (POST_TOKEN.test(located)) {
         if (!f.posts.has(located)) f.posts.set(located, owner);
-        addTo(globalPosts, located, owner);
+        notePost(o.captureId, o.locator, located, owner);
       }
     }
   }
 
   const discovered = new Map<Id, Set<AccountInfo>>();
   for (const info of index.list) {
-    const captureId = info.account.discoveredVia.captureId;
-    if (captureId) addTo(discovered, captureId, info);
+    for (const record of info.records) {
+      const captureId = record.discoveredVia.captureId;
+      if (captureId) addTo(discovered, captureId, info);
+    }
   }
 
   const byUrl = new Map<string, Id>();
@@ -102,13 +122,19 @@ export function buildAuthorship(
     return only(discovered.get(captureId));
   };
 
+  /**
+   * Local evidence first (the post in this capture, then the capture's sole author); only then the same post token
+   * on the same platform in another capture of the run.
+   */
   const resolveIn = (captureId: Id, anchor: string | undefined): AccountInfo | undefined => {
-    if (anchor) {
-      const token = postToken(anchor);
-      const byPost = facts.get(captureId)?.posts.get(token) ?? only(globalPosts.get(token));
-      if (byPost) return byPost;
+    const token = anchor ? postToken(anchor) : undefined;
+    const local = (token ? facts.get(captureId)?.posts.get(token) : undefined) ?? soleAuthor(captureId);
+    if (local || !token) return local;
+    const authors = new Set<AccountInfo>();
+    for (const platform of capturePlatforms.get(captureId) ?? []) {
+      for (const author of platformPosts.get(`${platform}\u0000${token}`) ?? []) authors.add(author);
     }
-    return soleAuthor(captureId);
+    return only(authors);
   };
 
   return {

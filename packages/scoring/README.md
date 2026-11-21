@@ -73,8 +73,9 @@ P(ścieżka) = P(osoba ↔ konto) × P(konto ↔ adres).
   `commit_email_match` (`account.commit_email`), `contact_email_match` (nowa w `weights.v2`: inna obserwacja e-mail
   konta, np. `profile.email`, `profile.public_email`, `post.contact_email`, równa e-mailowi z wejścia),
   `same_avatar_phash` (`profile.avatar_phash`, różnica ≤ 6/64 bitów).
-- **Cechy adresu** — obserwacja liczy się tylko, gdy ten sam adres ma poprawny kandydat ekstraktora (najpierw z tego
-  samego przechwycenia):
+- **Cechy adresu** — obserwacja liczy się tylko, gdy ten sam adres ma poprawny kandydat ekstraktora z tego samego
+  przechwycenia. Kandydat z innej strony wystarczy tylko wtedy, gdy łańcuch wynika z samego formatu adresu — sieć EVM
+  nigdy nie jest przejmowana z innej strony (notatka `observation_address_unconfirmed`):
 
 | Materiał                                                                                                            | Cecha                         | Stopień | Relacja                 | Poziom |
 | ------------------------------------------------------------------------------------------------------------------- | ----------------------------- | ------- | ----------------------- | ------ |
@@ -90,14 +91,22 @@ P(ścieżka) = P(osoba ↔ konto) × P(konto ↔ adres).
 | wzmianka, `quote`                                                                                                   | `quoted_or_reposted`          | A       | MENTION_UNCLEAR         | E3     |
 | wzmianka, `scam_report` / `warning`                                                                                 | osobne roszczenie bez ścieżek | —       | THIRD_PARTY_ATTRIBUTION | E4     |
 
-- Wzmianki konta, które ma już E1/E2 dla tego adresu, są pomijane. Do wzmianki dochodzą modyfikatory (stopień A):
+- Wzmianki konta, które ma już E1/E2 dla tego adresu, nie wnoszą bitów, ale ich relacja zostaje: wpis „wpłaciłem na
+  giełdę” obok pola profilu nadal daje relację CUSTODIAL_EXCHANGE. Do wzmianki dochodzą modyfikatory (stopień A):
   `unchecksummed_uncorroborated`, `listing_code_or_docs` (lista, blok kodu, domena dokumentacji),
   `deobfuscated_or_ocr_repaired`.
-- **Autorstwo wzmianki:** kotwica posta z ekstraktora (`context.anchor`, np. `msg65000101`) zgodna z postem o znanym
-  `post.author`; w przeciwnym razie jedyny autor przechwycenia (podmiot obserwacji kont, `post.author` albo konto
-  wykryte na tej stronie); kopia archiwalna dziedziczy autora oryginału. Bez autora wzmianka nie tworzy roszczenia.
-- **Relacja roszczenia:** pierwszeństwo CUSTODIAL_EXCHANGE > SELF_DECLARED > PAYMENT_ENDPOINT > MENTION_UNCLEAR;
-  decyzja `reclassified` z relacją ją zastępuje. Poziom = najlepszy poziom cech.
+- **Autorstwo wzmianki:** kotwica posta z ekstraktora (`context.anchor`, np. `msg65000101`) zgodna z postem tego
+  przechwycenia o znanym `post.author`; w przeciwnym razie jedyny autor przechwycenia (podmiot obserwacji kont,
+  `post.author` albo konto wykryte na tej stronie); dopiero potem ten sam post tej samej platformy w innym
+  przechwyceniu. Kopia archiwalna dziedziczy autora oryginału. Bez autora wzmianka nie tworzy roszczenia.
+- **Podpis BIP-137** wiąże adres z kontem tylko wtedy, gdy treść wprost wskazuje to konto: zwrot („I am”, „jestem”,
+  „user”, „konto” …) z pełnym uchwytem albo identyfikator konta w kontekście „uid” / „user id” / `u=`. Poprawny podpis
+  dowodzi kontroli klucza przez podpisującego, nie przez publikującego: skopiowana wiadomość nie daje E1 (notatka
+  `signed_message_unbound`).
+- **Konta wykryte kilka razy** (ta sama platforma i identyfikator, albo uchwyt bez identyfikatora) są scalane: liczą się
+  uchwyty, nazwy wyświetlane, adresy profili i strony wykrycia wszystkich rekordów.
+- **Relacja roszczenia:** pierwszeństwo CUSTODIAL_EXCHANGE > SELF_DECLARED > PAYMENT_ENDPOINT > MENTION_UNCLEAR (także
+  dla wzmianek zastąpionych przez E1/E2); decyzja `reclassified` z relacją ją zastępuje. Poziom = najlepszy poziom cech.
 
 ## Przykład (persona syntetyczna, `weights.v2`)
 

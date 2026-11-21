@@ -132,7 +132,11 @@ export function buildClaims(
 
   for (const [key, entries] of byAddress) {
     const items = entries.flatMap((e) => e.items);
-    const relations = new Set(items.flatMap((item) => (item.relation ? [item.relation] : [])));
+    // Superseded mentions still count for the relation: a deposit cue wins over a profile field of the same address.
+    const relations = new Set([
+      ...items.flatMap((item) => (item.relation ? [item.relation] : [])),
+      ...entries.flatMap((e) => e.supersededRelations),
+    ]);
     const reclassified = exclusionsFor(key).find((d) => d.outcome === 'reclassified' && d.relation);
     const relation = reclassified?.relation ?? PRECEDENCE.find((r) => relations.has(r)) ?? 'MENTION_UNCLEAR';
     const tiers = new Set(items.flatMap((item) => (item.tier ? [item.tier] : [])));

@@ -29,6 +29,7 @@ export interface FeatureExtractionInput {
 /** Why some collected evidence did not become a feature (shown next to the links, never scored). */
 export const FEATURE_NOTE_CODES = [
   'observation_address_invalid',
+  'observation_address_unconfirmed',
   'signature_invalid',
   'signature_unsupported_format',
   'signed_message_incomplete',

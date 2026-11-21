@@ -4,7 +4,10 @@ import { baseProperty, normaliseHandle } from './normalise.ts';
 
 /** One platform account, merged over duplicate discoveries. */
 export interface AccountInfo {
+  /** The canonical record, with `platformUserId` and `displayName` filled in from duplicate discoveries. */
   account: OnlineAccount;
+  /** Every discovery of this account (sorted by id): handles, names, profile URLs and capture ids all count. */
+  records: OnlineAccount[];
   /** `<platform>:<platformUserId ?? handle in lower case>`, e.g. `bitcointalk:900001`. */
   key: string;
   /** `acct:<key>`: everything the account authored is one origin group. */
@@ -42,31 +45,73 @@ function isAnchorAccount(account: OnlineAccount, anchors: readonly Identifier[])
   );
 }
 
+/**
+ * Groups discoveries of one account: same platform and platform id; a record without a platform id joins the group
+ * with the same platform and handle.
+ */
+function groupDiscoveries(accounts: readonly OnlineAccount[]): OnlineAccount[][] {
+  const sorted = accounts.toSorted((a, b) => compareText(a.id, b.id));
+  const groups = new Map<string, OnlineAccount[]>();
+  const byHandle = new Map<string, string>();
+  const push = (key: string, account: OnlineAccount): void => {
+    const group = groups.get(key);
+    if (group) group.push(account);
+    else groups.set(key, [account]);
+  };
+  for (const a of sorted) {
+    if (a.platformUserId === undefined) continue;
+    const platform = a.platform.toLowerCase();
+    const key = `${platform}:#${a.platformUserId.toLowerCase()}`;
+    push(key, a);
+    const handleKey = `${platform}:${normaliseHandle(a.handle)}`;
+    if (!byHandle.has(handleKey)) byHandle.set(handleKey, key);
+  }
+  for (const a of sorted) {
+    if (a.platformUserId !== undefined) continue;
+    const handleKey = `${a.platform.toLowerCase()}:${normaliseHandle(a.handle)}`;
+    push(byHandle.get(handleKey) ?? `${handleKey}@`, a);
+  }
+  return [...groups.values()];
+}
+
+/** The first record with a platform id (else the first record), completed with fields only other discoveries carry. */
+function mergeRecords(records: readonly OnlineAccount[]): OnlineAccount {
+  const first = records.find((r) => r.platformUserId !== undefined) ?? records[0];
+  if (!first) throw new Error('empty account group');
+  const platformUserId = first.platformUserId ?? records.find((r) => r.platformUserId)?.platformUserId;
+  const displayName = first.displayName ?? records.find((r) => r.displayName)?.displayName;
+  return {
+    ...first,
+    ...(platformUserId === undefined ? {} : { platformUserId }),
+    ...(displayName === undefined ? {} : { displayName }),
+  };
+}
+
 export function buildAccountIndex(
   accounts: readonly OnlineAccount[],
   identifiers: readonly Identifier[],
 ): AccountIndex {
   const anchors = identifiers.filter((id) => id.isAnchor);
-  const byKey = new Map<string, AccountInfo>();
-  for (const account of accounts.toSorted((a, b) => compareText(a.id, b.id))) {
-    const key = accountKey(account);
-    const current = byKey.get(key);
-    if (current) {
-      // Duplicate discovery of the same account: keep the first record, but an anchor stays an anchor.
-      if (!current.anchor && isAnchorAccount(account, anchors)) current.anchor = true;
-      continue;
-    }
-    byKey.set(key, { account, key, originGroup: `acct:${key}`, anchor: isAnchorAccount(account, anchors) });
-  }
-  const list = [...byKey.values()].toSorted((a, b) => compareText(a.key, b.key));
+  const list = groupDiscoveries(accounts)
+    .map((records): AccountInfo => {
+      const account = mergeRecords(records);
+      const key = accountKey(account);
+      return {
+        account,
+        records,
+        key,
+        originGroup: `acct:${key}`,
+        anchor: records.some((r) => isAnchorAccount(r, anchors)),
+      };
+    })
+    .toSorted((a, b) => compareText(a.key, b.key));
   const aliases = new Map<string, AccountInfo>();
   const ids = new Map<string, AccountInfo>();
   for (const info of list) {
-    for (const alias of aliasesOf(info.account)) if (!aliases.has(alias)) aliases.set(alias, info);
-  }
-  for (const account of accounts) {
-    const info = byKey.get(accountKey(account));
-    if (info) ids.set(account.id, info);
+    for (const record of info.records) {
+      ids.set(record.id, info);
+      for (const alias of aliasesOf(record)) if (!aliases.has(alias)) aliases.set(alias, info);
+    }
   }
   return {
     list,

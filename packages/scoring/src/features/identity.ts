@@ -6,10 +6,19 @@ import {
   type Id,
   type Identifier,
   type Observation,
+  type OnlineAccount,
 } from '@olcys/core';
 import type { ScoringWeights } from '../weights.ts';
 import type { AccountIndex, AccountInfo } from './accounts.ts';
-import { baseProperty, normaliseEmail, normaliseHandle, normaliseUrl, sameName, truncate } from './normalise.ts';
+import {
+  baseProperty,
+  nameTokens,
+  normaliseEmail,
+  normaliseHandle,
+  normaliseUrl,
+  sameName,
+  truncate,
+} from './normalise.ts';
 import type { FeatureNote } from './types.ts';
 
 export interface IdentityContext {
@@ -55,37 +64,53 @@ export function identityItems(info: AccountInfo, ctx: IdentityContext): Evidence
   const fullNames = ctx.identifiers.filter((i) => i.kind === 'full_name').map((i) => i.value);
   const emails = new Set(ctx.identifiers.filter((i) => i.kind === 'email').map((i) => normaliseEmail(i.value)));
   const anchors = ctx.index.list.filter((a) => a.anchor && a !== info);
-  const { account } = info;
 
-  const add = (feature: string, detail: string, source: { observation?: Observation }): void => {
+  const add = (
+    feature: string,
+    detail: string,
+    source: { observation?: Observation; record?: OnlineAccount },
+  ): void => {
     const weight = ctx.weights.features.get(feature);
     if (!weight) {
       ctx.note({ code: 'feature_not_in_weights', detail: `${feature} is not in ${ctx.weights.version}` });
       return;
     }
     const o = source.observation;
-    const captureId = o?.captureId ?? account.discoveredVia.captureId;
+    const discovery = (source.record ?? info.account).discoveredVia;
+    const captureId = o?.captureId ?? discovery.captureId;
     items.push({
       hop: 'identity',
       feature,
-      reliability: ctx.grade(weight.defaultGrade ?? 'C', o?.sourceId ?? account.discoveredVia.sourceId),
+      reliability: ctx.grade(weight.defaultGrade ?? 'C', o?.sourceId ?? discovery.sourceId),
       originGroup: info.originGroup,
       evidence: { ...(captureId ? { captureId } : {}), ...(o ? { observationId: o.id } : {}) },
       detail: truncate(detail),
     });
   };
 
-  if (handles.has(normaliseHandle(account.handle)))
-    add('exact_username_or_name', `handle ${account.handle} equals an input identifier`, {});
-  if (account.displayName && fullNames.some((n) => sameName(n, account.displayName ?? ''))) {
-    add('exact_username_or_name', 'display name equals the input full name', {});
+  // Every discovery of the account counts: a name or handle seen only in a duplicate discovery is not lost.
+  const seen = new Set<string>();
+  for (const record of info.records) {
+    const handle = normaliseHandle(record.handle);
+    if (handles.has(handle) && !seen.has(`h:${handle}`)) {
+      seen.add(`h:${handle}`);
+      add('exact_username_or_name', `handle ${record.handle} equals an input identifier`, { record });
+    }
+    const displayName = record.displayName;
+    const nameKey = `n:${displayName ? nameTokens(displayName).join(' ') : ''}`;
+    if (displayName && !seen.has(nameKey) && fullNames.some((n) => sameName(n, displayName))) {
+      seen.add(nameKey);
+      add('exact_username_or_name', 'display name equals the input full name', { record });
+    }
   }
 
   const anchorUrls = new Map(
-    anchors.flatMap((a) => {
-      const url = normaliseUrl(a.account.profileUrl);
-      return url ? [[url, a] as const] : [];
-    }),
+    anchors.flatMap((a) =>
+      a.records.flatMap((r) => {
+        const url = normaliseUrl(r.profileUrl);
+        return url ? [[url, a] as const] : [];
+      }),
+    ),
   );
   const anchorPhashes = anchors.flatMap((a) =>
     (ctx.observationsByAccount.get(a.key) ?? []).filter((o) => baseProperty(o.property) === 'profile.avatar_phash'),
@@ -110,7 +135,9 @@ export function identityItems(info: AccountInfo, ctx: IdentityContext): Evidence
         (url ? anchorUrls.get(url) : undefined) ??
         [ctx.index.resolve(o.value)].find((a) => a !== undefined && a.anchor && a !== info) ??
         anchors.find(
-          (a) => base.startsWith('verification.') && normaliseHandle(o.value) === normaliseHandle(a.account.handle),
+          (a) =>
+            base.startsWith('verification.') &&
+            a.records.some((r) => normaliseHandle(o.value) === normaliseHandle(r.handle)),
         );
       if (!anchor) continue;
       if (base.startsWith('verification.')) {

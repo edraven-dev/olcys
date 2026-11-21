@@ -17,7 +17,7 @@ import { verifyBip137, type Bip137Result } from '../bip137.ts';
 import { compareText } from '../compare.ts';
 import type { AccountIndex, AccountInfo } from './accounts.ts';
 import type { Authorship } from './authorship.ts';
-import { baseProperty, factIndex, normaliseHandle, sameAddressText, truncate } from './normalise.ts';
+import { baseProperty, factIndex, foldText, normaliseHandle, sameAddressText, truncate } from './normalise.ts';
 import type { FeatureNote } from './types.ts';
 
 /** One address-hop item with the relation and tier it implies (modifiers imply neither). */
@@ -34,6 +34,11 @@ export interface AccountAddressEvidence {
   account: AccountInfo;
   address: AddressRef;
   items: AddressItem[];
+  /**
+   * Relations of the account's mentions whose arithmetic a proof or profile field superseded. They still take part in
+   * relation precedence: a deposit cue keeps the claim CUSTODIAL_EXCHANGE (never a holding) next to a profile field.
+   */
+  supersededRelations: Relation[];
 }
 
 export interface AddressEvidence {
@@ -96,13 +101,43 @@ const strength = (a: AddressCandidate, b: AddressCandidate): number =>
   b.checksum.bits - a.checksum.bits ||
   compareText(a.id, b.id);
 
-/** The candidate confirming an observed address value: same capture first, then any capture of the run. */
-function confirm(value: string, captureId: Id, ctx: AddressContext): AddressCandidate | undefined {
-  const matches = (c: AddressCandidate): boolean =>
+const textMatch =
+  (value: string) =>
+  (c: AddressCandidate): boolean =>
     sameAddressText(value, c.address.address) || sameAddressText(value, c.raw);
+
+/**
+ * The candidate confirming an observed address value. Only a candidate of the same capture may set the chain; another
+ * capture's candidate is accepted only when its chain follows from the address format alone, so an EVM address never
+ * borrows another page's network (and never escapes exclusions decided for its real chain).
+ */
+function confirm(value: string, captureId: Id, ctx: AddressContext): AddressCandidate | undefined {
+  const matches = textMatch(value);
   const local = (ctx.candidates.get(captureId) ?? []).filter(matches).toSorted(strength)[0];
   if (local) return local;
-  return [...ctx.candidates.values()].flat().filter(matches).toSorted(strength)[0];
+  return [...ctx.candidates.values()]
+    .flat()
+    .filter((c) => matches(c) && c.chainAttribution.method === 'format_unique')
+    .toSorted(strength)[0];
+}
+
+/** Why an observed address did not become a feature: no valid candidate at all, or only context-attributed elsewhere. */
+function unconfirmed(
+  value: string,
+  base: string,
+  ctx: AddressContext,
+  where: { captureId: Id; observationId: Id },
+): void {
+  const elsewhere = [...ctx.candidates.values()].flat().some(textMatch(value));
+  ctx.note(
+    elsewhere
+      ? {
+          code: 'observation_address_unconfirmed',
+          detail: `${base}: no validated candidate in the same capture; the chain is not borrowed from another page`,
+          ...where,
+        }
+      : { code: 'observation_address_invalid', detail: `${base} failed validation`, ...where },
+  );
 }
 
 function ownerOf(o: Observation, ctx: AddressContext): AccountInfo | undefined {
@@ -127,7 +162,15 @@ class Collector {
     const key = `${account.key} ${addressKey(item.candidate.address)}`;
     const entry = this.byAccount.get(key);
     if (entry) entry.items.push(item);
-    else this.byAccount.set(key, { account, address: item.candidate.address, items: [item] });
+    else this.byAccount.set(key, { account, address: item.candidate.address, items: [item], supersededRelations: [] });
+  }
+
+  /** Records the relation of a mention whose contribution a proof of the same account supersedes. */
+  supersede(account: AccountInfo, item: AddressItem): void {
+    const entry = this.byAccount.get(`${account.key} ${addressKey(item.candidate.address)}`);
+    if (entry && item.relation && !entry.supersededRelations.includes(item.relation)) {
+      entry.supersededRelations.push(item.relation);
+    }
   }
 
   hasProof(account: AccountInfo, address: AddressRef): boolean {
@@ -210,15 +253,28 @@ function checkResult(check: string): Bip137Result {
   return 'unsupported_format';
 }
 
-/** The message names the account (handle or platform id), so the signature binds the address to this account. */
-function namesAccount(text: string, account: AccountInfo): boolean {
-  const lower = text.toLowerCase();
-  const { handle, platformUserId } = account.account;
-  return (
-    lower.includes(handle.toLowerCase()) ||
-    normaliseHandle(text).includes(normaliseHandle(handle)) ||
-    (platformUserId !== undefined && new RegExp(`(^|\\D)${platformUserId}(\\D|$)`).test(text))
-  );
+/** „I am <handle>”, „user: <handle>”, „jestem <handle>” … (on folded text); the handle is one complete token. */
+const HANDLE_BINDING =
+  /(?:^|[^\p{L}\p{N}_])(?:i\s+am|i'm|jestem|username|user|nickname|nick|login|account|konto|uzytkownik)(?:\s*[:=]\s*|\s+)@?([\p{L}\p{N}_][\p{L}\p{N}_.-]*)/gu;
+/** „uid 900001”, „user id: 900001”, „…;u=900001”: a platform id only counts with such context, as a whole number. */
+const ID_BINDING =
+  /(?:(?:^|[^\p{L}\p{N}_])(?:uid|user[\s_-]?id|userid|user|id)(?:\s*[:=#]\s*|\s+)|[?;&]u=)(\d+)(?!\d)/gu;
+
+/**
+ * The signed message binds itself to this account: an explicit phrase names one of the account's handles as a
+ * complete token, or its platform id in uid/user/id context. A valid signature proves control of the key by the
+ * signer, not by whoever posts it, so a copied message that names someone else binds nobody.
+ */
+export function namesAccount(text: string, account: AccountInfo): boolean {
+  const folded = foldText(text);
+  const handles = new Set(account.records.map((r) => normaliseHandle(r.handle)));
+  for (const match of folded.matchAll(HANDLE_BINDING)) {
+    const token = (match[1] ?? '').replace(/[.-]+$/, '');
+    if (token && handles.has(normaliseHandle(token))) return true;
+  }
+  const ids = new Set(account.records.flatMap((r) => (r.platformUserId ? [r.platformUserId.toLowerCase()] : [])));
+  for (const match of folded.matchAll(ID_BINDING)) if (ids.has(match[1] ?? '')) return true;
+  return false;
 }
 
 function signedMessageItems(ctx: AddressContext, out: Collector): void {
@@ -263,7 +319,7 @@ function signedMessageItems(ctx: AddressContext, out: Collector): void {
     }
     const candidate = confirm(g.address.value, g.address.captureId, ctx);
     if (!candidate) {
-      ctx.note({ code: 'observation_address_invalid', detail: `${SIGNED}address failed validation`, ...where });
+      unconfirmed(g.address.value, `${SIGNED}address`, ctx, where);
       continue;
     }
     out.add(
@@ -329,7 +385,7 @@ function factItems(ctx: AddressContext, out: Collector): void {
     }
     const candidate = confirm(o.value, o.captureId, ctx);
     if (!candidate) {
-      ctx.note({ code: 'observation_address_invalid', detail: `${base} failed validation`, ...where });
+      unconfirmed(o.value, base, ctx, where);
       continue;
     }
     out.add(account, makeItem(rule, account, candidate, ctx, { observation: o, sourceId: o.sourceId, detail: base }));
@@ -406,8 +462,10 @@ function mentionItems(ctx: AddressContext, out: Collector): void {
   }
   // A proof or profile field of the same account supersedes its mentions of that address.
   for (const { account, items } of pending) {
-    if (items[0] && !out.hasProof(account, items[0].candidate.address))
-      for (const item of items) out.add(account, item);
+    const [main] = items;
+    if (!main) continue;
+    if (out.hasProof(account, main.candidate.address)) out.supersede(account, main);
+    else for (const item of items) out.add(account, item);
   }
   for (const [captureId, count] of unattributed) {
     ctx.note({
