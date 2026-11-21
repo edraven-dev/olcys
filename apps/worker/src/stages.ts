@@ -50,6 +50,7 @@ import { parse as parseYaml } from 'yaml';
 import { createSecretRedactor, extractCapture, parseDenyList, type CaptureContent } from '@olcys/address-extractor';
 import { collectCase, loadCollectorConfig, loadSourceRegistry, type SourceRegistry } from '@olcys/collectors';
 import { createEgressClient, RobotsCache } from '@olcys/http';
+import { createReportStage } from '@olcys/reporting';
 import { loadWeights, scoreRun } from '@olcys/scoring';
 import { REPO_ROOT, TOOL_VERSION } from './config.ts';
 import type { Stage, StageContext } from './pipeline.ts';
@@ -189,7 +190,7 @@ export function createScoreStage(options: Pick<StageOptions, 'sources'>): Stage 
         ctx.repos.evidence.listAccounts(ctx.evidenceRunId),
         ctx.repos.evidence.listObservations(ctx.evidenceRunId),
         ctx.repos.evidence.listExtractionResults(runId),
-        ctx.repos.analysis.listExclusions(runId),
+        ctx.repos.analysis.listExclusions(ctx.evidenceRunId),
       ]);
       const { assessments, notes } = scoreRun(
         {
@@ -263,7 +264,7 @@ export function createChainStage(options: StageOptions): Stage {
         .map((s) => {
           const fixtureSite = options.sources.find((x) => x.id === 'fixture_site');
           return options.mode !== 'live' && fixtureSite && s.id !== NBP_SOURCE
-            ? { ...s, rateLimit: fixtureSite.rateLimit }
+            ? Object.assign({}, s, { rateLimit: fixtureSite.rateLimit })
             : s;
         }),
     };
@@ -272,6 +273,11 @@ export function createChainStage(options: StageOptions): Stage {
   return {
     step: 'chain.fetch',
     async run(ctx: StageContext) {
+      // Chain data is collected evidence: a rescore uses the rescored run's chain analysis and fetches nothing.
+      if (ctx.evidenceRunId !== ctx.run.id) {
+        await ctx.progress({ chainAnalysisOf: ctx.evidenceRunId });
+        return;
+      }
       const c = await setup();
       const runId = ctx.run.id;
       const cassetteSet = env['OLCYS_CASSETTE_SET'];
@@ -440,5 +446,12 @@ export function createChainStage(options: StageOptions): Stage {
 
 /** The stages of a run, in pipeline order (the comparison with the previous run is built in). */
 export function defaultStages(options: StageOptions): Stage[] {
-  return [createCollectStage(options), createExtractStage(), createChainStage(options), createScoreStage(options)];
+  return [
+    createCollectStage(options),
+    createExtractStage(),
+    createChainStage(options),
+    createScoreStage(options),
+    // Runs after the built-in comparison with the previous run, so the report includes the changes.
+    createReportStage({ sources: options.sources, weightsStatus: 'uncalibrated' }),
+  ];
 }

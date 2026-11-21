@@ -99,7 +99,17 @@ describe('demo scenario on the synthetic persona', () => {
       const exclusions = await runtime.repos.analysis.listExclusions(first.id);
       const ruleOf = (slot: string) =>
         exclusions.filter((d) => d.address.address.toLowerCase() === addressOf(slot)).map((d) => d.ruleId);
-      for (const { slot, rule } of manifest.expected.v1.rejected)
+      // A documentation vector (A8) is already rejected by the extractor's deny list, before it becomes a candidate.
+      const extracted = await runtime.repos.evidence.listExtractionResults(first.id);
+      const rejectedByExtractor = new Set(
+        extracted
+          .flatMap((r) => r.rejected)
+          .filter((r) => r.reason.startsWith('documentation_example'))
+          .map((r) => r.raw.toLowerCase()),
+      );
+      for (const { slot, rule } of manifest.expected.v1.rejected.filter(
+        (r) => !(r.rule === 'A8' && rejectedByExtractor.has(addressOf(r.slot))),
+      ))
         expect([slot, ruleOf(slot)]).toEqual([slot, expect.arrayContaining([rule])]);
       const cashOuts = await runtime.repos.analysis.listCashOuts(first.id);
       const cashOutOf = (slot: string) =>
@@ -111,11 +121,22 @@ describe('demo scenario on the synthetic persona', () => {
       expect(score('CONTRACT-1').every((s) => s === 0)).toBe(true);
       expect((await runtime.repos.analysis.listActivity(first.id)).length).toBeGreaterThan(0);
 
+      expect([...rejectedByExtractor]).toContain(addressOf('D2'));
+      // The Polish report of the run is stored and self-contained.
+      const report = await runtime.repos.analysis.latestReport(first.id, 'html');
+      expect(report?.mediaType).toContain('text/html');
+      const html = new TextDecoder().decode(await runtime.blobs.get(report!.blobSha256));
+      expect(html).toContain('lang="pl"');
+      expect(html).toContain(manifest.addresses['BTC-1']!.address);
+
       // Nothing secret or third-party-only becomes an ownership link with a positive score.
       expect(score('TRON-2').every((s) => s === 0)).toBe(true);
       const egress = await runtime.repos.evidence.listEgressLog(first.id);
       expect(egress.length).toBeGreaterThan(0);
-      expect(egress.every((e) => e.host === '127.0.0.1')).toBe(true);
+      // Offline nothing leaves the machine: every request sent went to the local fixture host; anything else (e.g. NBP
+      // rates without recordings) was refused before sending.
+      expect(egress.filter((e) => e.allowed).every((e) => e.host === '127.0.0.1')).toBe(true);
+      expect(egress.filter((e) => e.host !== '127.0.0.1').every((e) => !e.allowed)).toBe(true);
 
       const switched = await fetch(`${server.url}/__fixture/variant`, { method: 'POST', body: 'v2' });
       expect(switched.status).toBe(204);
@@ -124,6 +145,9 @@ describe('demo scenario on the synthetic persona', () => {
       expect((await runtime.repos.runs.get(second.id))?.previousRunId).toBe(first.id);
       const changes = await runtime.repos.analysis.listChanges(second.id);
       const swap = changes.find((c) => c.kind === 'VALUE_CHANGED' && c.key.property === 'profile.bitcoin_address');
+      const secondReport = await runtime.repos.analysis.latestReport(second.id, 'html');
+      const secondHtml = new TextDecoder().decode(await runtime.blobs.get(secondReport!.blobSha256));
+      expect(secondHtml).toContain(manifest.addresses['BTC-2']!.address);
       expect(swap).toMatchObject({
         before: manifest.addresses['BTC-1']?.address,
         after: manifest.addresses['BTC-2']?.address,

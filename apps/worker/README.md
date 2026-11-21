@@ -29,8 +29,14 @@ Etapy (zbieranie, wyodrębnianie adresów, analiza łańcucha, punktacja, raport
    i fraz seed przed zapisem (`createSecretRedactor()` z pakietu wyodrębniania adresów).
 2. **Wyodrębnianie adresów** (`extract.capture`) — dla każdego udanego przechwycenia; lista wykluczeń
    `config/rules/deny-list.v1.yaml`.
-3. **Punktacja** (`score.links`) — Wskaźnik Pewności dla powiązań; migawka konfiguracji przebiegu zapisuje wersję
+3. **Analiza łańcucha** (`chain.fetch`) — wstępna selekcja (lista wykluczeń, etykiety), dane łańcucha przez klienta ruchu
+   wychodzącego (offline ze strony testowej), reguły odrzucania A1/A2/A4/A8, rozszerzenie o kontrahentów, aktywność
+   i wskaźniki wyjścia do fiat wyceniane w PLN (NBP). Adres giełdy nigdy nie jest przypisywany osobie, ale interakcja
+   jest rejestrowana; trop KYC tylko dla adresu podanego w pierwszej osobie.
+4. **Punktacja** (`score.links`) — Wskaźnik Pewności dla powiązań; migawka konfiguracji przebiegu zapisuje wersję
    i skrót SHA-256 wag używanych przez punktację.
+5. **Raport** (`report.render`) — po wbudowanym porównaniu z poprzednim przebiegiem (`diff.previous`), więc raport
+   zawiera wykryte zmiany.
 
-Porównanie z poprzednim przebiegiem jest wbudowane (`diff.previous`). Analiza łańcucha i raport dołączają do listy etapów
-wraz z ich pakietami.
+Ponowna ocena (`rescore`) niczego nie pobiera: używa zebranych dowodów i analizy łańcucha ocenianego przebiegu,
+ponownie wyodrębnia adresy i liczy wskaźniki.

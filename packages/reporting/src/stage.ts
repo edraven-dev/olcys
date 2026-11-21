@@ -3,7 +3,7 @@
  * self-contained, stores both in the blob store and records them as the run's `html` and `data_json` reports.
  * Structurally compatible with the worker's `Stage` (this package does not depend on the worker).
  */
-import type { AnalysisRun, BlobRef, BlobStore, Clock, Logger, Repositories, SourceDescriptor } from '@olcys/core';
+import type { AnalysisRun, BlobRef, BlobStore, Clock, Id, Logger, Repositories, SourceDescriptor } from '@olcys/core';
 import { buildReportData } from './build.ts';
 import { renderReport } from './render/document.ts';
 import { assertSelfContainedHtml } from './self-contained.ts';
@@ -16,6 +16,8 @@ export const REPORT_KINDS = { html: 'html', data: 'data_json' } as const;
 
 export interface ReportStageContext {
   run: AnalysisRun;
+  /** The run whose collected evidence is reported (for a rescore: the rescored run). */
+  evidenceRunId?: Id;
   repos: Repositories;
   blobs: BlobStore;
   logger?: Logger;
@@ -72,6 +74,7 @@ export function createReportStage(options: ReportStageOptions = {}): ReportStage
         ...(options.sources ? { sources: options.sources } : {}),
         ...(options.weightsStatus ? { weightsStatus: options.weightsStatus } : {}),
         generatedAt: clock.now().toISOString(),
+        ...(ctx.evidenceRunId ? { evidenceRunId: ctx.evidenceRunId } : {}),
       });
       const stored = await storeReport(ctx, data);
       await ctx.progress?.({ report: stored.html.sha256 });
