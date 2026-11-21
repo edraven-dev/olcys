@@ -7,6 +7,7 @@ import { readFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import type { RunConfigSnapshot, SourceDescriptor } from '@olcys/core';
 import { parse, SourcesConfigSchema } from '@olcys/core';
+import { loadWeights } from '@olcys/scoring';
 import { parse as parseYaml } from 'yaml';
 
 export const REPO_ROOT = resolve(import.meta.dirname, '..', '..', '..');
@@ -22,8 +23,8 @@ const sha256 = (text: string): string => createHash('sha256').update(text).diges
 
 export async function loadConfig(root: string = REPO_ROOT): Promise<LoadedConfig> {
   const sourcesText = await readFile(join(root, 'config', 'sources.yaml'), 'utf8');
-  const weightsText = await readFile(join(root, 'config', 'scoring', 'weights.v1.yaml'), 'utf8');
   const config = parse(SourcesConfigSchema, parseYaml(sourcesText));
+  const weights = await loadWeights();
   const sources = [...Object.entries(config.sources), ...Object.entries(config.providers)].map(
     ([id, entry]) => Object.assign({ id }, entry) as SourceDescriptor,
   );
@@ -32,8 +33,9 @@ export async function loadConfig(root: string = REPO_ROOT): Promise<LoadedConfig
     snapshot: {
       toolVersion: TOOL_VERSION,
       sourcesConfigSha256: sha256(sourcesText),
-      weightsVersion: 'weights.v1',
-      weightsSha256: sha256(weightsText),
+      // The weights the scoring stage loads (version and SHA-256 of the file bytes).
+      weightsVersion: weights.version,
+      weightsSha256: weights.sha256,
       rulesVersions: { exclusion: 'exclusion.v1', cashout: 'cashout.v1' },
     },
   };

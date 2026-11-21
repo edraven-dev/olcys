@@ -3,6 +3,8 @@
 Wykrywa, weryfikuje (sumy kontrolne) i opisuje kontekstem adresy kryptowalutowe w zabezpieczonych treściach; maskuje sekrety (klucze prywatne, frazy seed).
 
 - **Zależności:** wyłącznie kontrakty `@olcys/core`. Inne pakiety są dostępne przez porty łączone w `apps/worker`.
+- `createSecretRedactor()` — implementacja portu `SecretRedactor` z `@olcys/core`: maskuje klucze prywatne i frazy seed
+  w dowolnym tekście (np. treści stron przed zapisem przez kolektory); wyniki zawierają rodzaj i pozycję, nigdy wartość.
 - **Testy:** `test/*.test.ts`, uruchamiane poleceniem `pnpm vitest run --project @olcys/address-extractor`.
 - **Bez sieci:** biblioteka jest czysta i deterministyczna — przyjmuje bajty zabezpieczonej strony i zwraca wynik; niczego nie pobiera, nie loguje i nie zapisuje.
 

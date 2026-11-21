@@ -22,6 +22,11 @@ import { diffRuns, type RunSnapshot } from '@olcys/evidence';
 
 export interface StageContext {
   run: RunWithProgress;
+  /**
+   * The run whose collected evidence this run analyses: the run itself, or for a rescore the rescored run. A rescore
+   * never collects; it re-extracts and re-scores the saved evidence, so its changes isolate algorithm changes.
+   */
+  evidenceRunId: Id;
   case: CaseWithIdentifiers;
   repos: Repositories;
   blobs: BlobStore;
@@ -57,13 +62,18 @@ export async function createRun(
   input: StartRunInput,
   config: RunConfigSnapshot,
 ): Promise<AnalysisRun> {
-  const previous = await repos.runs.latestCompleted(input.caseId);
+  // A rescore compares with the run it rescores (same evidence); other runs with the latest completed one.
+  const target = input.rescoreOfRunId ? await repos.runs.get(input.rescoreOfRunId) : undefined;
+  if (input.rescoreOfRunId && !target) throw new Error(`rescore target ${input.rescoreOfRunId} not found`);
+  const previous = target ?? (await repos.runs.latestCompleted(input.caseId));
+  // `rescoreOfRunId` names the run that collected the evidence, also when a rescore is rescored again.
+  const evidenceRunId = target ? evidenceRunIdOf(target) : undefined;
   const run: AnalysisRun = {
     id: newId(),
     caseId: input.caseId,
     ...(previous ? { previousRunId: previous.id } : {}),
     trigger: input.trigger ?? 'manual',
-    ...(input.rescoreOfRunId ? { rescoreOfRunId: input.rescoreOfRunId } : {}),
+    ...(evidenceRunId ? { rescoreOfRunId: evidenceRunId } : {}),
     mode: input.mode,
     status: 'queued',
     config,
@@ -73,10 +83,16 @@ export async function createRun(
   return run;
 }
 
+/** The run whose collected evidence `run` analyses (itself, or the rescored run). */
+export function evidenceRunIdOf(run: Pick<AnalysisRun, 'id' | 'trigger' | 'rescoreOfRunId'>): Id {
+  return run.trigger === 'rescore' && run.rescoreOfRunId ? run.rescoreOfRunId : run.id;
+}
+
 async function snapshotOf(repos: Repositories, run: RunWithProgress): Promise<RunSnapshot> {
+  const evidenceRunId = evidenceRunIdOf(run);
   const [captures, observations, assessments] = await Promise.all([
-    repos.evidence.listCaptures(run.id),
-    repos.evidence.listObservations(run.id),
+    repos.evidence.listCaptures(evidenceRunId),
+    repos.evidence.listObservations(evidenceRunId),
     repos.analysis.listLinks(run.id),
   ]);
   return {
@@ -139,6 +155,7 @@ export async function runPipeline(runId: Id, deps: PipelineDeps): Promise<RunWit
   await repos.runs.update(runId, { status: 'running', startedAt: nowIso(), progress });
   const ctx: StageContext = {
     run: { ...queued, status: 'running' },
+    evidenceRunId: evidenceRunIdOf(queued),
     case: kase,
     repos,
     blobs: deps.blobs,

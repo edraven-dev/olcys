@@ -19,3 +19,18 @@ zgłoszone przez etapy (`markPartial`) są od razu zapisywane w `progress.partia
 
 Etapy (zbieranie, wyodrębnianie adresów, analiza łańcucha, punktacja, raport) rejestruje proces API
 (`apps/api/src/stages.ts`).
+
+## Etapy przebiegu
+
+`defaultStages({ mode, sources, env })` zwraca etapy MVP w kolejności potoku:
+
+1. **Zbieranie** (`collect.source`) — kolektory przez jednego klienta ruchu wychodzącego na przebieg (lista dozwolonych hostów,
+   robots.txt, dziennik ruchu i koperty pochodzenia zapisywane w magazynie). Treść stron jest maskowana z kluczy prywatnych
+   i fraz seed przed zapisem (`createSecretRedactor()` z pakietu wyodrębniania adresów).
+2. **Wyodrębnianie adresów** (`extract.capture`) — dla każdego udanego przechwycenia; lista wykluczeń
+   `config/rules/deny-list.v1.yaml`.
+3. **Punktacja** (`score.links`) — Wskaźnik Pewności dla powiązań; migawka konfiguracji przebiegu zapisuje wersję
+   i skrót SHA-256 wag używanych przez punktację.
+
+Porównanie z poprzednim przebiegiem jest wbudowane (`diff.previous`). Analiza łańcucha i raport dołączają do listy etapów
+wraz z ich pakietami.
