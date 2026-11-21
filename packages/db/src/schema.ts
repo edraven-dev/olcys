@@ -54,6 +54,7 @@ export interface RunsTable {
   id: string;
   case_id: string;
   previous_run_id: string | null;
+  rescore_of_run_id: string | null;
   trigger: AnalysisRun['trigger'];
   mode: AnalysisRun['mode'];
   status: AnalysisRun['status'];
@@ -151,6 +152,8 @@ export interface AddressLabelsTable {
   entity: string;
   category: string;
   dataset: string;
+  lastmod: Timestamp;
+  record_sha256: string;
   record: Json<AddressLabel>;
 }
 

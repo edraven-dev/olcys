@@ -1,4 +1,4 @@
-import type { AnalysisRun, Capture, LinkAssessment, Observation } from '@olcys/core';
+import type { AddressLabel, AddressRef, AnalysisRun, Capture, LinkAssessment, Observation } from '@olcys/core';
 import { newId } from '@olcys/core';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createDb, createSqlRepositories, migrate, type Db } from '../src/index.ts';
@@ -127,5 +127,63 @@ describe.skipIf(!enabled)('SQL repositories (integration: needs OLCYS_TEST_DATAB
       /permission denied/,
     );
     expect(repos).toBeDefined();
+  });
+
+  it('keeps rescore source and timestamps of a created run', async () => {
+    const repos = createSqlRepositories(db);
+    const [base] = await db.selectFrom('runs').selectAll().limit(1).execute();
+    expect(base).toBeDefined();
+    const run: AnalysisRun = {
+      id: newId(),
+      caseId: base!.case_id,
+      previousRunId: base!.id,
+      trigger: 'rescore',
+      rescoreOfRunId: base!.id,
+      mode: 'replay',
+      status: 'succeeded',
+      config: base!.config,
+      queuedAt: '2026-11-20T10:00:00.000Z',
+      startedAt: '2026-11-20T10:00:01.000Z',
+      finishedAt: '2026-11-20T10:00:05.000Z',
+    };
+    await repos.runs.create(run);
+    expect(await repos.runs.get(run.id)).toMatchObject({
+      rescoreOfRunId: base!.id,
+      previousRunId: base!.id,
+      startedAt: run.startedAt,
+      finishedAt: run.finishedAt,
+    });
+  });
+
+  it('keeps label corrections and ignores exact re-imports', async () => {
+    const repos = createSqlRepositories(db);
+    const address: AddressRef = { chain: 'evm:1', address: `0x${newId().replaceAll('-', '').padEnd(40, '0')}` };
+    const label = (category: AddressLabel['category'], lastmod: string): AddressLabel => ({
+      id: newId(),
+      address,
+      entity: 'Fikcyjna Giełda (test)',
+      category,
+      attributes: {},
+      provenance: {
+        datasetId: 'demo-curated',
+        url: 'http://127.0.0.1:4100/labels.json',
+        license: 'CC0-1.0',
+        lastmod,
+        retrievedAt: new Date().toISOString(),
+      },
+      confidence: 90,
+    });
+    const mine = async () => (await repos.labels.list()).filter((l) => l.address.address === address.address);
+    await repos.labels.upsert([label('unknown_service', '2026-11-01T00:00:00.000Z')]);
+    await repos.labels.upsert([label('unknown_service', '2026-11-01T00:00:00.000Z')]);
+    expect(await db.selectFrom('address_labels').where('address', '=', address.address).execute()).toHaveLength(1);
+    await repos.labels.upsert([label('exchange', '2026-11-15T00:00:00.000Z')]);
+    expect((await mine()).map((l) => l.category)).toEqual(['exchange']);
+  });
+
+  it('migration history is not writable by the application role', async () => {
+    await expect(
+      db.insertInto('schema_migrations').values({ version: '9999', name: 'forged', sha256: 'x' }).execute(),
+    ).rejects.toThrow(/permission denied/);
   });
 });

@@ -5,6 +5,7 @@ interface RunRow {
   id: string;
   case_id: string;
   previous_run_id: string | null;
+  rescore_of_run_id: string | null;
   trigger: AnalysisRun['trigger'];
   mode: AnalysisRun['mode'];
   status: AnalysisRun['status'];
@@ -24,6 +25,7 @@ function toRun(row: RunRow): RunWithProgress {
     caseId: row.case_id,
     ...(row.previous_run_id ? { previousRunId: row.previous_run_id } : {}),
     trigger: row.trigger,
+    ...(row.rescore_of_run_id ? { rescoreOfRunId: row.rescore_of_run_id } : {}),
     mode: row.mode,
     status: row.status,
     config: row.config,
@@ -44,11 +46,14 @@ export function sqlRunRepository(db: Db): RunRepository {
           id: run.id,
           case_id: run.caseId,
           previous_run_id: run.previousRunId ?? null,
+          rescore_of_run_id: run.rescoreOfRunId ?? null,
           trigger: run.trigger,
           mode: run.mode,
           status: run.status,
           config: json(run.config),
           queued_at: run.queuedAt,
+          started_at: run.startedAt ?? null,
+          finished_at: run.finishedAt ?? null,
         })
         .execute();
     },

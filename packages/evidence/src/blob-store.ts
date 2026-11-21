@@ -97,7 +97,8 @@ export class InMemoryBlobStore implements BlobStore {
   async get(sha256: Sha256Hex): Promise<Uint8Array> {
     const data = this.blobs.get(sha256);
     if (!data) throw new BlobNotFoundError(sha256);
-    return data;
+    // A copy, like FileBlobStore: callers must not be able to alter stored evidence.
+    return new Uint8Array(data);
   }
 
   async has(sha256: Sha256Hex): Promise<boolean> {

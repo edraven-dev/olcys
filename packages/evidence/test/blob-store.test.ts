@@ -51,4 +51,14 @@ describe('InMemoryBlobStore', () => {
     expect(await store.has(ref.sha256)).toBe(true);
     expect(new TextDecoder().decode(await store.get(ref.sha256))).toBe('x');
   });
+
+  it('isolates stored bytes from callers', async () => {
+    const store = new InMemoryBlobStore();
+    const input = bytes('evidence');
+    const ref = await store.put(input, 'text/plain');
+    input[0] = 0;
+    const first = await store.get(ref.sha256);
+    first[1] = 0;
+    expect(new TextDecoder().decode(await store.get(ref.sha256))).toBe('evidence');
+  });
 });

@@ -30,6 +30,8 @@ CREATE TABLE runs (
   id              uuid PRIMARY KEY DEFAULT uuidv7(),
   case_id         uuid NOT NULL REFERENCES cases (id),
   previous_run_id uuid REFERENCES runs (id),
+  -- rescore runs re-process the captures of this run; previous_run_id is the run used for the diff
+  rescore_of_run_id uuid REFERENCES runs (id),
   trigger         text NOT NULL CHECK (trigger IN ('manual', 'schedule', 'rescore')),
   mode            text NOT NULL CHECK (mode IN ('live', 'replay', 'offline')),
   status          text NOT NULL CHECK (status IN ('queued', 'running', 'succeeded', 'partial', 'failed', 'cancelled')),
@@ -139,9 +141,14 @@ CREATE TABLE address_labels (
   entity   text NOT NULL,
   category text NOT NULL,
   dataset  text NOT NULL,
+  -- dataset version of the record; a corrected re-import is a new row, the newest one is current
+  lastmod  timestamptz NOT NULL,
+  -- SHA-256 of the canonical label content (without id and retrieval time): exact re-imports are no-ops
+  record_sha256 text NOT NULL,
   record   jsonb NOT NULL,
-  UNIQUE (chain, address, entity, dataset)
+  UNIQUE (chain, address, entity, dataset, record_sha256)
 );
+CREATE INDEX address_labels_current ON address_labels (chain, address, entity, dataset, lastmod DESC);
 
 CREATE TABLE exclusion_decisions (
   id      uuid PRIMARY KEY,

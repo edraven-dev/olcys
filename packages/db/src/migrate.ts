@@ -46,6 +46,23 @@ async function ensureTable(db: Db): Promise<void> {
     version text PRIMARY KEY, name text NOT NULL, sha256 text NOT NULL, applied_at timestamptz NOT NULL DEFAULT now())`.execute(
     db,
   );
+  // Default privileges in schema olcys grant INSERT to the application role. Migration history is trusted by
+  // migrate(), so only the owner may write it: revoke write privileges from every other grantee.
+  await sql`DO $$
+    DECLARE grantee text;
+    BEGIN
+      FOR grantee IN
+        SELECT DISTINCT r.rolname
+        FROM pg_class c
+        CROSS JOIN LATERAL aclexplode(c.relacl) a
+        JOIN pg_roles r ON r.oid = a.grantee
+        WHERE c.oid = 'olcys.schema_migrations'::regclass
+          AND a.grantee <> c.relowner
+          AND a.privilege_type IN ('INSERT', 'UPDATE', 'DELETE', 'TRUNCATE')
+      LOOP
+        EXECUTE format('REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON olcys.schema_migrations FROM %I', grantee);
+      END LOOP;
+    END $$`.execute(db);
 }
 
 async function appliedHashes(db: Db): Promise<Map<string, string>> {

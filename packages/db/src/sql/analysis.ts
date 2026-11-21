@@ -1,5 +1,21 @@
-import type { AnalysisRepository, ChainDataRepository, LabelRepository } from '@olcys/core';
+import { createHash } from 'node:crypto';
+import type { AddressLabel, AnalysisRepository, ChainDataRepository, LabelRepository } from '@olcys/core';
+import { canonicalJson } from '@olcys/core';
 import { json, type Db } from '../client.ts';
+
+/** Content identity of a label: everything except the import-specific id and retrieval time. */
+export function labelContentSha256(label: AddressLabel): string {
+  const { datasetId, url, license, lastmod } = label.provenance;
+  const content = {
+    address: label.address,
+    entity: label.entity,
+    category: label.category,
+    attributes: label.attributes,
+    confidence: label.confidence,
+    provenance: { datasetId, url, license, lastmod },
+  };
+  return createHash('sha256').update(canonicalJson(content)).digest('hex');
+}
 
 export function sqlChainDataRepository(db: Db): ChainDataRepository {
   return {
@@ -190,15 +206,30 @@ export function sqlLabelRepository(db: Db): LabelRepository {
             entity: l.entity,
             category: l.category,
             dataset: l.provenance.datasetId,
+            lastmod: l.provenance.lastmod,
+            record_sha256: labelContentSha256(l),
             record: json(l),
           })),
         )
-        .onConflict((oc) => oc.columns(['chain', 'address', 'entity', 'dataset']).doNothing())
+        // Exact re-imports are no-ops; a corrected record is a new row (append-only) and becomes current.
+        .onConflict((oc) => oc.columns(['chain', 'address', 'entity', 'dataset', 'record_sha256']).doNothing())
         .execute();
     },
 
+    /** Current labels: the newest dataset version per (chain, address, entity, dataset). */
     async list() {
-      return (await db.selectFrom('address_labels').select('record').execute()).map((r) => r.record);
+      const rows = await db
+        .selectFrom('address_labels')
+        .distinctOn(['chain', 'address', 'entity', 'dataset'])
+        .select('record')
+        .orderBy('chain')
+        .orderBy('address')
+        .orderBy('entity')
+        .orderBy('dataset')
+        .orderBy('lastmod', 'desc')
+        .orderBy('id', 'desc')
+        .execute();
+      return rows.map((r) => r.record);
     },
   };
 }
