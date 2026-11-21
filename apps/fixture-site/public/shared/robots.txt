@@ -1,3 +1,6 @@
-# Synthetic fixture site: collectors are allowed everywhere except /private/ (used to test robots.txt handling).
+# OŁCyŚ synthetic fixture site (SYNTHETIC TEST DATA). /private/ tests robots.txt handling.
+User-agent: OLCYS
+Disallow: /private/
+
 User-agent: *
 Disallow: /private/

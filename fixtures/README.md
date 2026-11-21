@@ -2,14 +2,16 @@
 
 Wszystko w tym katalogu jest **syntetyczne lub zanonimizowane**. Nigdy nie umieszczaj tu prawdziwych imion i nazwisk,
 nicków, adresów e-mail, adresów profili ani adresów powiązanych z prawdziwymi osobami. Adresy muszą być wygenerowane od
-nowa; nigdy nie używaj adresów z dokumentacji ani wektorów testowych (są na liście odrzucanych).
+nowa. Adresy z dokumentacji i wektorów testowych występują wyłącznie jako opisane w manifeście wabiki, które sprawdzają
+listę odrzucanych adresów.
 
-Portfele demonstracyjne istnieją wyłącznie w lokalnych sieciach testowych uruchamianych w piaskownicy (Bitcoin regtest,
-Anvil dla EVM). Żadna transakcja nie trafia do publicznej sieci; dane TRON w demonstracji są w pełni syntetyczne.
-Nagrania odpowiedzi z tych sieci są oznaczone jako dane demonstracyjne.
+Historia transakcji persony jest w pełni syntetyczna: strona testowa serwuje ją w formatach Esplora, Etherscan V2
+i TronGrid, a żadna z tych transakcji nie istnieje w publicznej sieci. Klucze prywatne powstają tylko w pamięci
+generatora (podpis wiadomości) i nigdy nie są zapisywane.
 
-| Katalog      | Zawartość                                                                                           |
-| ------------ | --------------------------------------------------------------------------------------------------- |
-| `cassettes/` | nagrane wymiany HTTP dla trybów `offline`/`replay`, indeksowane skrótem zapytania                   |
-| `labels/`    | etykiety demonstracyjne (gorące portfele giełd, bramki płatnicze) z informacją o pochodzeniu        |
-| `corpus/`    | korpus testowy wyodrębniania adresów (przykłady pozytywne, trudne negatywne, zaciemnienia, sekrety) |
+| Katalog      | Zawartość                                                                                                                                                                                           |
+| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `cassettes/` | nagrane wymiany HTTP dla trybów `offline`/`replay`, indeksowane skrótem zapytania                                                                                                                   |
+| `persona/`   | manifest syntetycznej persony (adresy, podpis, wabiki, oczekiwane wyniki, skróty plików) i wektory testowe podpisów BIP-137; generowane przez `pnpm --filter @olcys/fixture-site fixtures:generate` |
+| `labels/`    | etykiety demonstracyjne (gorące portfele giełd, bramki płatnicze) z informacją o pochodzeniu; `demo-curated.json` powstaje razem z personą                                                          |
+| `corpus/`    | korpus testowy wyodrębniania adresów (przykłady pozytywne, trudne negatywne, zaciemnienia, sekrety)                                                                                                 |

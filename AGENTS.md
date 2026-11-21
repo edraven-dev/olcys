@@ -66,7 +66,8 @@ before your first change.
 pnpm install                 # install workspace
 pnpm dev:deps                # docker compose up -d --wait (postgres 19, gotenberg 9, fixture-site)
 docker compose --profile osint --profile llm up -d --wait   # + Python worker, + local LLM (Ollama)
-pnpm dev                     # api (:4000), worker, web (:5173), fixture-site (:4100) on the host
+pnpm dev                     # api (:4000), worker, web (:5173) on the host (fixture site runs in compose)
+pnpm dev:fixture             # fixture site on the host instead (stop its container first)
 pnpm check                   # format:check + lint + typecheck + test — must pass before a change is done
 pnpm format                  # oxfmt --write
 ```
