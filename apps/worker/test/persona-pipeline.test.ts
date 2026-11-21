@@ -105,5 +105,19 @@ describe('demo scenario on the synthetic persona', () => {
       before: manifest.addresses['BTC-1']?.address,
       after: manifest.addresses['BTC-2']?.address,
     });
+
+    // A rescore of the first run re-scores its saved evidence: no fetching, the v1 data, no data changes.
+    const rescore = await runtime.startRun(kase.id, { trigger: 'rescore', rescoreOfRunId: first.id });
+    await runtime.idle();
+    const rescored = await runtime.repos.runs.get(rescore.id);
+    expect(rescored).toMatchObject({ status: 'succeeded', previousRunId: first.id, rescoreOfRunId: first.id });
+    expect(await runtime.repos.evidence.listCaptures(rescore.id)).toEqual([]);
+    expect(await runtime.repos.evidence.listEgressLog(rescore.id)).toEqual([]);
+    const rescoredLinks = await runtime.repos.analysis.listLinks(rescore.id);
+    const rescoredScore = (slot: string) =>
+      rescoredLinks.filter((l) => l.address.address.toLowerCase() === addressOf(slot)).map((l) => l.score);
+    expect(rescoredScore('BTC-1')).toContain(99);
+    expect(rescoredScore('BTC-2')).toEqual([]);
+    expect(await runtime.repos.analysis.listChanges(rescore.id)).toEqual([]);
   });
 });

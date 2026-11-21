@@ -44,6 +44,11 @@ export function createCollectStage(options: StageOptions): Stage {
   return {
     step: 'collect.source',
     async run(ctx: StageContext) {
+      // A rescore analyses the rescored run's saved evidence and never fetches anything.
+      if (ctx.evidenceRunId !== ctx.run.id) {
+        await ctx.progress({ rescoreOf: ctx.evidenceRunId, captures: 0 });
+        return;
+      }
       const sources = await registry();
       const scope = sources.resolveScope(ctx.case.scope, options.mode);
       const cassetteSet = env['OLCYS_CASSETTE_SET'];
@@ -106,7 +111,7 @@ export function createExtractStage(): Stage {
     step: 'extract.capture',
     async run(ctx: StageContext) {
       const list = await denyList();
-      const captures = (await ctx.repos.evidence.listCaptures(ctx.run.id)).filter((c) => c.status === 'ok');
+      const captures = (await ctx.repos.evidence.listCaptures(ctx.evidenceRunId)).filter((c) => c.status === 'ok');
       let candidates = 0;
       for (const capture of captures) {
         const artifacts: CaptureContent['artifacts'] = [];
@@ -140,9 +145,9 @@ export function createScoreStage(options: Pick<StageOptions, 'sources'>): Stage 
       const runId = ctx.run.id;
       const [w, captures, accounts, observations, extractions, exclusions] = await Promise.all([
         weights(),
-        ctx.repos.evidence.listCaptures(runId),
-        ctx.repos.evidence.listAccounts(runId),
-        ctx.repos.evidence.listObservations(runId),
+        ctx.repos.evidence.listCaptures(ctx.evidenceRunId),
+        ctx.repos.evidence.listAccounts(ctx.evidenceRunId),
+        ctx.repos.evidence.listObservations(ctx.evidenceRunId),
         ctx.repos.evidence.listExtractionResults(runId),
         ctx.repos.analysis.listExclusions(runId),
       ]);

@@ -3,6 +3,7 @@ export { loadConfig, REPO_ROOT, TOOL_VERSION, type LoadedConfig } from './config
 export {
   createRun,
   diffWithPrevious,
+  evidenceRunIdOf,
   runPipeline,
   type PipelineDeps,
   type Stage,
