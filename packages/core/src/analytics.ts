@@ -39,6 +39,12 @@ export interface CashOutEvent {
   hops: number;
   explanation: string;
   rulesVersion: string;
+  /** B1 emitted by an exclusion decision (A4: the address is an exchange deposit address). */
+  exclusionDecisionId?: Id;
+  /** Aggregated events (B3 monthly, B5 windows): the legs, each valued on its own day. */
+  components?: { txHash: string; at: IsoDateTime; amount: DecimalString; valuation?: Valuation }[];
+  /** Sum of the components' PLN values (`valuation` is omitted then: NBP tables differ per day). */
+  plnTotal?: DecimalString;
 }
 
 export interface SwapEvent {
@@ -46,15 +52,27 @@ export interface SwapEvent {
   txHash: string;
   at: IsoDateTime;
   venue?: string;
+  /** For `detection: 'dex_inflow'` the sold leg is not visible in the fetched data: asset `UNKNOWN`, amount `0`. */
   sold: { asset: string; amount: DecimalString };
   bought: { asset: string; amount: DecimalString };
   intoStablecoin: boolean;
   valuation?: Valuation;
+  /**
+   * How the swap was recognised: both legs in one transaction confirmed by a DEX label (`dex_label`) or a swap method
+   * name (`method`), or only the proceeds received from a labelled DEX pool or router (`dex_inflow`).
+   */
+  detection?: 'dex_label' | 'method' | 'dex_inflow';
 }
 
 export interface VolumeTotals {
+  /** Sum of the chain's native asset (incl. internal transfers), in whole units. */
   native: DecimalString;
+  /** Sum of the priced legs, each valued at its own NBP rate. */
   pln?: DecimalString;
+  /** Per asset (`assetKey`: `ETH`, `USDT`, or `SYMBOL:contract` for unknown tokens). */
+  byAsset?: { asset: string; contract?: string; amount: DecimalString; pln?: DecimalString }[];
+  /** Number of legs without a valuation (unknown token, no price or no NBP rate). */
+  unpriced?: number;
 }
 
 export interface ActivityIndicators {
@@ -86,6 +104,29 @@ export interface FlowEdge {
   amount: DecimalString;
   txHash: string;
   at: IsoDateTime;
+  /**
+   * Downstream (destination of funds) `1…N`, the edge leaving an analysed address is `1`; upstream (source of funds)
+   * `−1…−N`, the edge entering an analysed address is `−1`.
+   */
   hop: number;
   valuation?: Valuation;
+  /** True when the edge closes a loop back to an address already on the path (never expanded further). */
+  isCycle?: boolean;
+}
+
+/** One entry of the chronological fund-flow narrative (transfers, swaps and cash-out indicators). */
+export interface FlowTimelineEntry {
+  at: IsoDateTime;
+  kind: 'transfer' | 'swap' | 'cash_out';
+  txHashes: string[];
+  from?: AddressRef;
+  to?: AddressRef;
+  asset?: string;
+  amount?: DecimalString;
+  valuation?: Valuation;
+  hop?: number;
+  ruleId?: CashOutRuleId;
+  strength?: IndicatorStrength;
+  /** The service on the other side, when labelled (or inferred as an exchange deposit address). */
+  counterparty?: { address?: string; entity?: string; category?: EntityCategory };
 }

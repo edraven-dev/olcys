@@ -8,6 +8,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@olcys/core": "workspace:*"
+    "@olcys/core": "workspace:*",
+    "yaml": "2.9.1"
   }
 }

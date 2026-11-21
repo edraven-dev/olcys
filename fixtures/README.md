@@ -14,4 +14,5 @@ generatora (podpis wiadomości) i nigdy nie są zapisywane.
 | `cassettes/` | nagrane wymiany HTTP dla trybów `offline`/`replay`, indeksowane skrótem zapytania                                                                                                                   |
 | `persona/`   | manifest syntetycznej persony (adresy, podpis, wabiki, oczekiwane wyniki, skróty plików) i wektory testowe podpisów BIP-137; generowane przez `pnpm --filter @olcys/fixture-site fixtures:generate` |
 | `labels/`    | etykiety demonstracyjne (gorące portfele giełd, bramki płatnicze) z informacją o pochodzeniu; `demo-curated.json` powstaje razem z personą                                                          |
+| `prices/`    | syntetyczne miesięczne ceny referencyjne BTC/USD i ETH/USD do wyceny w demonstracji (to nie są dane rynkowe); `demo-prices.v1.json`, CC0-1.0                                                        |
 | `corpus/`    | korpus testowy wyodrębniania adresów (przykłady pozytywne, trudne negatywne, zaciemnienia, sekrety)                                                                                                 |
