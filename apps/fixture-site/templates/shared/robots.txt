@@ -1,0 +1,6 @@
+# OŁCyŚ synthetic fixture site (SYNTHETIC TEST DATA). /private/ tests robots.txt handling.
+User-agent: OLCYS
+Disallow: /private/
+
+User-agent: *
+Disallow: /private/

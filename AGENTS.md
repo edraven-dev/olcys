@@ -66,7 +66,8 @@ before your first change.
 pnpm install                 # install workspace
 pnpm dev:deps                # docker compose up -d --wait (postgres 19, gotenberg 9, fixture-site)
 docker compose --profile osint --profile llm up -d --wait   # + Python worker, + local LLM (Ollama)
-pnpm dev                     # api (:4000), worker, web (:5173), fixture-site (:4100) on the host
+pnpm dev                     # api (:4000), worker, web (:5173) on the host (fixture site runs in compose)
+pnpm dev:fixture             # fixture site on the host instead (stop its container first)
 pnpm check                   # format:check + lint + typecheck + test — must pass before a change is done
 pnpm format                  # oxfmt --write
 ```
@@ -80,6 +81,12 @@ Environment: copy `.env.example` to `.env`. Default `OLCYS_MODE=offline` (no net
 - [ ] New dependencies pinned exactly and listed in `docs/compliance/licenses.md`.
 - [ ] Synthetic data only; no secrets committed; telemetry stays off.
 - [ ] UI strings in Polish via the catalogue; READMEs and `docs/**` (Polish) updated where behaviour changed.
+
+## Agent skills
+
+Project skills live in `.claude/skills/`; use them at the matching step:
+`pre-pr-review` (before pushing), `pr-cycle` (PR, Greptile review, merge, releases), `demo-run` (launch and walk the
+synthetic demo), `ui-charts` (charts in the UI and report), `jury-deck` (Polish jury presentation).
 
 ## Git
 

@@ -9,6 +9,7 @@
     "apps/worker/test/**/*",
     "apps/fixture-site/src/**/*",
     "apps/fixture-site/test/**/*",
+    "apps/fixture-site/scripts/**/*",
     "scripts/**/*",
     "vitest.config.ts"
   ]

@@ -1,6 +1,22 @@
 /**
- * @olcys/http — Egress-guarded HTTP client: allow-list, per-host rate limits, robots.txt, provenance envelopes, record/replay/offline modes. The only module allowed to open network connections.
- *
- * Contracts (types and ports) come from @olcys/core.
+ * @olcys/http — the only module allowed to open network connections (lint-enforced). Allow-listed, rate-limited,
+ * logged requests with provenance envelopes; live / offline / replay modes.
  */
-export const PACKAGE_NAME = '@olcys/http';
+export {
+  createEgressClient,
+  DEFAULT_LOCAL_HOSTS,
+  normaliseHost,
+  redactUrl,
+  requestHash,
+  type EgressClientOptions,
+  type EgressSinks,
+} from './egress-client.ts';
+export { EgressDeniedError, ReplayMissError } from './errors.ts';
+export {
+  isAllowedByRobots,
+  normaliseRobotsPath,
+  parseRobots,
+  RobotsCache,
+  type RobotsCacheOptions,
+  type RobotsDecision,
+} from './robots.ts';
