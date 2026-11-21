@@ -1,5 +1,5 @@
 import type { AddressRef } from './chains.ts';
-import type { Id, IsoDate, IsoDateTime } from './common.ts';
+import type { DecimalString, Id, IsoDate, IsoDateTime } from './common.ts';
 import type { Relation } from './scoring.ts';
 
 /** Counterparty taxonomy (GraphSense categories + INTERPOL DW-VA inspired). */
@@ -26,6 +26,13 @@ export const ENTITY_CATEGORIES = [
 ] as const;
 export type EntityCategory = (typeof ENTITY_CATEGORIES)[number];
 
+/**
+ * Kind of label dataset, in trust order: an exchange's own proof-of-reserves file first, a curated note last.
+ * Only datasets whose licence and kind allow it may decide an exclusion (`LabelProvenance.deciding`).
+ */
+export const LABEL_SOURCE_TYPES = ['por_file', 'graphsense_tagpack', 'ofac', 'etherscan_derived', 'curated'] as const;
+export type LabelSourceType = (typeof LABEL_SOURCE_TYPES)[number];
+
 export interface LabelProvenance {
   /** e.g. `graphsense-tagpacks`, `ofac-0xb10c`, `okx-por-2026-11-20`, `esma-casps`, `demo-curated`. */
   datasetId: string;
@@ -34,6 +41,13 @@ export interface LabelProvenance {
   license: string;
   lastmod: IsoDateTime;
   retrievedAt: IsoDateTime;
+  /** Dataset version the label was read from. */
+  version?: string;
+  sourceType?: LabelSourceType;
+  /** True when the dataset may decide an exclusion on its own (licence and kind allow it). Missing means false. */
+  deciding?: boolean;
+  /** Set for synthetic demo datasets. */
+  synthetic?: boolean;
 }
 
 export interface AddressLabel {
@@ -98,7 +112,48 @@ export interface ExclusionDecision {
   ruleId: ExclusionRuleId;
   outcome: 'excluded' | 'reclassified' | 'kept' | 'flagged';
   relation?: Relation;
+  /** English engine sentence starting with the rule id, e.g. `A4: forwards …`; the UI shows Polish rule titles. */
   reason: string;
-  evidence: { labelIds?: Id[]; txHashes?: string[]; kappa?: number; fetchIds?: Id[] };
+  evidence: {
+    labelIds?: Id[];
+    txHashes?: string[];
+    kappa?: number;
+    fetchIds?: Id[];
+    /** A4: the labelled hot wallet the address forwards deposits to. */
+    forwardsTo?: { address: string; entity: string; category: EntityCategory; labelId: Id };
+    /** A4: matched receive → forward pairs (`delta` in blocks or seconds, see `params.clock`). */
+    pairs?: {
+      receiveTx: string;
+      forwardTx: string;
+      amountIn: DecimalString;
+      amountOut: DecimalString;
+      delta: number;
+      kappa: number;
+      /** The labelled hot wallet this forward went to (pairs of one address may reach different exchanges). */
+      forwardsTo?: { address: string; entity: string; category: EntityCategory; labelId: Id };
+      /**
+       * Identity of the matched transfers inside their transactions (one transaction may move several assets):
+       * the asset key (token contract, else native symbol), and the kind and index of each leg.
+       */
+      assetKey?: string;
+      receiveKind?: 'native' | 'token' | 'internal';
+      receiveIndex?: number;
+      forwardKind?: 'native' | 'token' | 'internal';
+      forwardIndex?: number;
+    }[];
+    /** A4: the subject published the deposit address (a KYC lead for the exchange). */
+    kycLead?: boolean;
+    /** A3: delegate of an EIP-7702 delegated account. */
+    delegate?: string;
+    /** A2/A3: first bytes and length of the deployed code. */
+    codePrefix?: string;
+    codeBytes?: number;
+    /** A8: the deny-list entry that matched. */
+    denyList?: { kind: string; name: string; source: string };
+    /** Rule parameters used, e.g. `{ tauBlocks: 3200, alpha: '0.01', clock: 'blocks' }`. */
+    params?: Record<string, number | string>;
+  };
+  /** Set when the decision is itself a cash-out indicator (A4 → B1). */
+  emitsCashOut?: 'B1';
   rulesVersion: string;
 }

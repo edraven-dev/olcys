@@ -59,8 +59,10 @@ function validate(descriptors: readonly SourceDescriptor[]): string[] {
       if (d.compliance === 'AMBER' && d.enabledByDefault) {
         problems.push(`${at}.enabledByDefault: AMBER sources are enabled per case only`);
       }
-      if (!Number.isInteger(d.rateLimit.requests) || d.rateLimit.requests < 1) {
-        problems.push(`${at}.rateLimit.requests: must be an integer >= 1`);
+      // Sources that reach the network need a positive rate limit; local datasets (no hosts) never send a request.
+      const minRequests = d.allowedHosts.length > 0 ? 1 : 0;
+      if (!Number.isInteger(d.rateLimit.requests) || d.rateLimit.requests < minRequests) {
+        problems.push(`${at}.rateLimit.requests: must be an integer >= ${minRequests}`);
       }
       if (!(d.rateLimit.perSeconds > 0)) problems.push(`${at}.rateLimit.perSeconds: must be > 0`);
     }

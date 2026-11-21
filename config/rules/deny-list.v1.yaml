@@ -97,3 +97,57 @@ entries:
     kind: documentation
     name: Bitcoin Wiki example bech32 address
     source: https://en.bitcoin.it/wiki/Invoice_address
+
+  # --- Burn addresses (provably unspendable) --------------------------------------------------------------------------
+  - chain: evm:1
+    address: '0x0000000000000000000000000000000000000000'
+    kind: burn
+    name: EVM zero address
+    source: https://ethereum.org/en/developers/docs/accounts/
+  - chain: evm:1
+    address: '0x000000000000000000000000000000000000dead'
+    kind: burn
+    name: EVM "dead" burn address
+    source: https://etherscan.io/address/0x000000000000000000000000000000000000dead
+  - chain: bitcoin
+    address: 1111111111111111111114oLvT2
+    kind: burn
+    name: Bitcoin P2PKH of the all-zero hash160 (burn)
+    source: https://en.bitcoin.it/wiki/Proof_of_burn
+  - chain: bitcoin
+    address: 1BitcoinEaterAddressDontSendf59kuE
+    kind: burn
+    name: Bitcoin Eater Address (vanity burn)
+    source: https://en.bitcoin.it/wiki/Proof_of_burn
+  - chain: tron
+    address: T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb
+    kind: burn
+    name: TRON zero address (black hole)
+    source: https://developers.tron.network/docs/account
+
+  # --- Major token contracts (an institutional contract is never a person's holding) ------------------------------------
+  - chain: evm:1
+    address: '0xdac17f958d2ee523a2206206994597c13d831ec7'
+    kind: token_contract
+    name: Tether USD (USDT) ERC-20 contract
+    source: https://tether.to/en/supported-protocols/
+  - chain: evm:1
+    address: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48'
+    kind: token_contract
+    name: USD Coin (USDC) ERC-20 contract
+    source: https://developers.circle.com/stablecoins/usdc-contract-addresses
+  - chain: evm:1
+    address: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2'
+    kind: token_contract
+    name: Wrapped Ether (WETH9) contract
+    source: https://etherscan.io/token/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2
+  - chain: evm:1
+    address: '0x6b175474e89094c44da98b954eedeac495271d0f'
+    kind: token_contract
+    name: Dai Stablecoin (DAI) contract
+    source: https://docs.makerdao.com/
+  - chain: tron
+    address: TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t
+    kind: token_contract
+    name: Tether USD (USDT) TRC-20 contract
+    source: https://tether.to/en/supported-protocols/

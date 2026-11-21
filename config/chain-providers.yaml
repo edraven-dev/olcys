@@ -1,0 +1,42 @@
+# Chain data providers — implemented in packages/chain-adapters.
+# Public APIs (demo) and self-hosted nodes (production) differ only in baseUrl: a deployment points baseUrl at its own
+# Esplora/electrs, Etherscan-compatible backend or java-tron indexer and registers that host in config/sources.yaml.
+# sourceId must exist under `providers:` in config/sources.yaml (compliance, hosts, rate limit); RED is refused.
+# API keys come only from the named environment variables and are redacted in logs and cassettes.
+# Offline/replay demo: base URLs are mapped to the fixture site with the manifest's hostPrefixes.
+
+version: chain-providers.v1
+
+providers:
+  - id: esplora-mempool
+    kind: esplora
+    sourceId: mempool_space
+    baseUrl: https://mempool.space/api
+    chains: [bitcoin]
+    priority: 1
+
+  - id: esplora-blockstream
+    kind: esplora
+    sourceId: blockstream_esplora
+    baseUrl: https://blockstream.info/api
+    chains: [bitcoin]
+    priority: 2
+
+  - id: etherscan-v2
+    kind: etherscan
+    sourceId: etherscan_v2
+    baseUrl: https://api.etherscan.io/v2/api
+    apiKeyEnv: ETHERSCAN_API_KEY
+    # Free-tier chains of Etherscan V2 among the known chains; paid-only chains are not configured.
+    chains: ['evm:1', 'evm:137', 'evm:42161', 'evm:59144']
+    priority: 1
+    options:
+      pageSize: 1000
+
+  - id: trongrid
+    kind: trongrid
+    sourceId: trongrid
+    baseUrl: https://api.trongrid.io
+    apiKeyEnv: TRONGRID_API_KEY
+    chains: [tron]
+    priority: 1

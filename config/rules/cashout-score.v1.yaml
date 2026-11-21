@@ -1,0 +1,16 @@
+# Cash-out score, version 1 — implemented in packages/analytics. Uncalibrated starting weights.
+# Kept separate from the link Confidence Score: it rates how strongly an address's flows point to a fiat exit, never
+# who controls the address. Events are grouped by counterparty (entity, else address): many deposits to one venue
+# count once, different venues add up.
+#   group weight w_g = max over the group of weight(strength) × hopDecay^hops
+#   score = round(100 × (1 − Π(1 − w_g)))
+
+version: cashout-score.v1
+
+weights:
+  strong: 0.6
+  medium: 0.3
+  weak: 0.1
+  flag: 0 # a risk flag is never evidence of a fiat exit
+
+hopDecay: 0.5

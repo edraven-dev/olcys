@@ -321,12 +321,18 @@ importers:
       '@olcys/core':
         specifier: workspace:*
         version: link:../core
+      yaml:
+        specifier: 2.9.1
+        version: 2.9.1
 
   packages/chain-adapters:
     dependencies:
       '@olcys/core':
         specifier: workspace:*
         version: link:../core
+      yaml:
+        specifier: 2.9.1
+        version: 2.9.1
 
   packages/collectors:
     dependencies:
@@ -393,6 +399,9 @@ importers:
       '@olcys/core':
         specifier: workspace:*
         version: link:../core
+      yaml:
+        specifier: 2.9.1
+        version: 2.9.1
 
   packages/llm:
     dependencies:

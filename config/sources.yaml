@@ -397,6 +397,7 @@ providers:
     compliance: AMBER
     complianceNote: Free tier 3 calls/s, 100k/day, licensed "Personal & Research use only", attribution required; several chains are paid-only. Prototype only; production uses Erigon + Otterscan.
     tosUrl: https://etherscan.io/apiterms
+    attribution: Powered by Etherscan.io APIs
     enabledByDefault: false
     requiresApiKey: true
     sendsIdentifiersExternally: true
@@ -439,6 +440,18 @@ providers:
     reliability: A
     rateLimit: { requests: 2, perSeconds: 1 }
     allowedHosts: [api.nbp.pl]
+
+  demo_prices:
+    name: Synthetic demo crypto prices (local file fixtures/prices)
+    kind: price_fx
+    compliance: GREEN
+    complianceNote: Made-up monthly BTC/ETH reference closes for the synthetic persona, read from a local file; no network, no identifiers. Marked synthetic in every valuation. Production imports licensed candle archives (Kraken OHLCVT after legal review; Binance Vision refused, CC-BY-NC-SA).
+    enabledByDefault: true
+    requiresApiKey: false
+    sendsIdentifiersExternally: false
+    reliability: C
+    rateLimit: { requests: 0, perSeconds: 1 }
+    allowedHosts: []
 
   freetsa:
     name: FreeTSA RFC 3161 timestamping
