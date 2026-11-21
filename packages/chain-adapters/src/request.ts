@@ -25,14 +25,19 @@ export interface ChainRequest {
 
 /** Stops a provider for the rest of a run after a block (403, challenge page): no further requests are sent. */
 export class CircuitBreaker {
-  private readonly open = new Map<string, string>();
+  private readonly open = new Map<string, { kind: ChainErrorKind; reason: string }>();
 
   isOpen(runId: string): boolean {
     return this.open.has(runId);
   }
 
-  trip(runId: string, reason: string): void {
-    this.open.set(runId, reason);
+  /** Why the provider was stopped in this run (the first barrier wins). */
+  reason(runId: string): { kind: ChainErrorKind; reason: string } | undefined {
+    return this.open.get(runId);
+  }
+
+  trip(runId: string, kind: ChainErrorKind, reason: string): void {
+    if (!this.open.has(runId)) this.open.set(runId, { kind, reason });
   }
 }
 
@@ -52,18 +57,19 @@ export function statusKind(status: number): ChainErrorKind | undefined {
   if (status >= 200 && status < 300) return undefined;
   if (status === 400 || status === 422) return 'invalid_request';
   if (status === 401) return 'auth_error';
-  if (status === 403) return 'blocked';
+  if (status === 403 || status === 451) return 'blocked';
   if (status === 404) return 'not_found';
   if (status === 429 || status === 503) return 'rate_limited';
   return 'upstream_error';
 }
 
 async function send(ctx: RunContext, req: ChainRequest, breaker?: CircuitBreaker): Promise<EgressResponse> {
-  if (breaker?.isOpen(ctx.runId)) {
+  const stopped = breaker?.reason(ctx.runId);
+  if (stopped) {
     throw new ChainProviderError(
-      'blocked',
+      stopped.kind,
       req.providerId,
-      'provider blocked earlier in this run; not contacted again',
+      `provider stopped earlier in this run (${stopped.reason}); not contacted again`,
     );
   }
   try {
@@ -93,14 +99,36 @@ async function send(ctx: RunContext, req: ChainRequest, breaker?: CircuitBreaker
   }
 }
 
-/** Throws for a non-2xx status; a block (403) also opens the provider's circuit for the rest of the run. */
+/** Statuses that are barriers: the provider is stopped for the rest of the run, never retried around. */
+const BARRIER_STATUSES: ReadonlyMap<number, ChainErrorKind> = new Map<number, ChainErrorKind>([
+  [403, 'blocked'],
+  [429, 'rate_limited'],
+  [451, 'blocked'],
+]);
+
+/**
+ * Barrier check before any parsing: a challenge page (`cf-mitigated: challenge`, whatever its status) is `captcha`;
+ * 403/451 are `blocked`, a 429 that outlived the egress client's own retries is `rate_limited`. Each opens the
+ * provider's circuit for the rest of the run. Other non-2xx statuses throw without opening it.
+ */
 function failOnStatus(ctx: RunContext, req: ChainRequest, response: EgressResponse, breaker?: CircuitBreaker): void {
+  const fail = (kind: ChainErrorKind, reason: string): never => {
+    throw new ChainProviderError(kind, req.providerId, `${reason} from ${response.provenance.url}`, {
+      fetchId: response.provenance.fetchId,
+    });
+  };
+  const mitigated = Object.entries(response.headers).find(([name]) => name.toLowerCase() === 'cf-mitigated')?.[1];
+  if (mitigated !== undefined) {
+    breaker?.trip(ctx.runId, 'captcha', `challenge (cf-mitigated: ${mitigated})`);
+    fail('captcha', `challenge page (cf-mitigated: ${mitigated}, HTTP ${response.status})`);
+  }
+  const barrier = BARRIER_STATUSES.get(response.status);
+  if (barrier !== undefined) {
+    breaker?.trip(ctx.runId, barrier, `HTTP ${response.status}`);
+    fail(barrier, `HTTP ${response.status}`);
+  }
   const kind = statusKind(response.status);
-  if (kind === undefined) return;
-  if (kind === 'blocked') breaker?.trip(ctx.runId, `HTTP ${response.status}`);
-  throw new ChainProviderError(kind, req.providerId, `HTTP ${response.status} from ${response.provenance.url}`, {
-    fetchId: response.provenance.fetchId,
-  });
+  if (kind !== undefined) fail(kind, `HTTP ${response.status}`);
 }
 
 /** GET/POST returning a JSON body; integers beyond 2^53 and decimals keep their exact text. */

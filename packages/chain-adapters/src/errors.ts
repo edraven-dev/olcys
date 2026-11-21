@@ -16,6 +16,8 @@ export const CHAIN_ERROR_KINDS = [
   'invalid_response',
   'window_exceeded',
   'budget_exceeded',
+  /** A challenge or CAPTCHA page (e.g. `cf-mitigated: challenge`): never solved, the provider is stopped. */
+  'captcha',
 ] as const;
 export type ChainErrorKind = (typeof CHAIN_ERROR_KINDS)[number];
 

@@ -207,7 +207,11 @@ beforeAll(async () => {
     expansion.push(
       // oxlint-disable-next-line no-await-in-loop
       ...(await planCounterpartyExpansion(
-        { address: a, transfers: transfersOf(a, fetched.transfers) },
+        {
+          address: a,
+          transfers: transfersOf(a, fetched.transfers),
+          utxoTxs: fetched.utxoTxs.filter((tx) => [...tx.inputs, ...tx.outputs].some((io) => io.address === a.address)),
+        },
         { labels, assets },
         { fetched: fetchedKeys },
       )),

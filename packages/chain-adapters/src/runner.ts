@@ -35,6 +35,7 @@ export type ChainFetchStatus =
   | 'rate_limited'
   | 'egress_denied'
   | 'replay_miss'
+  | 'captcha'
   | 'error';
 
 export interface ChainFetchOutcome {
@@ -95,6 +96,7 @@ export interface ChainFetchOptions {
 /** Errors after which the address is retried on the next provider (cursors are provider-specific). */
 const FALLBACK_KINDS: ReadonlySet<ChainErrorKind> = new Set<ChainErrorKind>([
   'blocked',
+  'captcha',
   'rate_limited',
   'upstream_error',
 ]);
@@ -109,6 +111,7 @@ function statusOf(kind: ChainErrorKind): ChainFetchStatus {
     case 'rate_limited':
     case 'egress_denied':
     case 'replay_miss':
+    case 'captcha':
       return kind;
     case 'unsupported_chain':
     case 'unsupported_operation':

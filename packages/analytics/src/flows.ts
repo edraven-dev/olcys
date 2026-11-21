@@ -127,7 +127,8 @@ export async function buildFundFlow(
  * address shows itself only through its own sweeps). Bounded, in time order; already fetched addresses skipped.
  */
 export async function planCounterpartyExpansion(
-  input: Pick<AddressAnalysisInput, 'address' | 'transfers'>,
+  /** Bitcoin: pass `utxoTxs` — outgoing payments are found from the inputs (a co-spender is not the named sender). */
+  input: Pick<AddressAnalysisInput, 'address' | 'transfers' | 'utxoTxs'>,
   deps: { labels: LabelLookup; assets: AnalyticsDeps['assets'] },
   options: { fetched?: ReadonlySet<string>; limit?: number } = {},
 ): Promise<AddressRef[]> {
