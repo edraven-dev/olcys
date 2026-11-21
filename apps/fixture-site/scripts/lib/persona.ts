@@ -207,7 +207,7 @@ const ACCOUNTS: ManifestAccount[] = [
 
 /** Expected analysis outcome. `roadmap` values are fixed; `derived` and `engine` ones are confirmed by the scorer. */
 const EXPECTED = {
-  weights: 'weights.v1',
+  weights: 'weights.v2',
   v1: {
     links: [
       {
@@ -218,7 +218,7 @@ const EXPECTED = {
       },
       {
         slot: 'TRON-1',
-        score: null,
+        score: 77,
         basis: 'engine',
         evidence: ['social-network post "mój portfel"', 'P2P classified ad with name and e-mail'],
         note: 'two independent sources (trace synergy); the scoring engine fixes the value',

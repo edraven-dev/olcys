@@ -1,0 +1,112 @@
+# Confidence Score weights, version 2 — UNCALIBRATED starting values.
+# Model: two-hop likelihood ratio (Fellegi–Sunter style, see docs/architecture.md).
+#   P(identity↔address | path) = P(identity↔account) × P(account↔address)
+#   per hop: W = log2(prior odds) + Σ log2(BF'),  BF' = ρ·BF + (1 − ρ),  P = 2^W / (1 + 2^W)
+#   paths combine as 1 − Π(1 − P_path);  score = round(100·P)  (STIX 2.1 confidence)
+#   only the strongest path per service enters the combination (repeats within one service add nothing)
+# Only the strongest item per feature family per origin group counts (no double counting of reposts/mirrors).
+# Any change to this file = new version file + new weightsVersion; old runs keep their stored weightsSha256.
+#
+# Changes from weights.v1: new identity feature `contact_email_match` (an e-mail the account publishes as its
+# contact — classified ad, profile — equals an input e-mail). Every other value is unchanged.
+
+version: weights.v2
+status: uncalibrated
+
+# Admiralty source-reliability grade -> ρ. Grade F forces the analyst to grade the source before evidence counts.
+reliability:
+  A: 0.95
+  B: 0.8
+  C: 0.6
+  D: 0.4
+  E: 0.2
+  F: null
+
+identity:
+  # Investigator-supplied identifier on its stated platform: fixed probability, recorded as an assumption.
+  anchorProbability: 0.99
+  # Enumerated candidate account (e.g. Maigret hit): prior odds 1:9 (≈ −3.17 bits).
+  priorOdds: 0.1111111111
+  features:
+    verified_cross_proof:
+      {
+        bayesFactor: 256,
+        defaultGrade: A,
+        note: 'Keybase proof, Mastodon verified_at, Gravatar verified_accounts, reciprocal ENS record',
+      }
+    commit_email_match:
+      { bayesFactor: 64, defaultGrade: B, note: 'GitHub commit author e-mail equals the input e-mail' }
+    contact_email_match:
+      {
+        bayesFactor: 64,
+        defaultGrade: B,
+        note: 'Contact e-mail published by the account (classified ad, profile) equals the input e-mail',
+      }
+    profile_link_to_anchor:
+      { bayesFactor: 32, defaultGrade: B, note: 'Profile/bio link to an anchor account (socid-extractor links)' }
+    same_avatar_phash: { bayesFactor: 5, defaultGrade: A, note: 'Perceptual hash match of avatars' }
+    exact_username_or_name: { bayesFactor: 3, defaultGrade: A, note: 'Bare username or real-name equality' }
+    contradicting_attribute:
+      { bayesFactor: 0.25, defaultGrade: B, note: 'Language, location or active period contradicts the subject' }
+
+address:
+  # Address appearing in content authored by the account: prior odds 1:4 (−2 bits).
+  priorOdds: 0.25
+  features:
+    e1_cryptographic_binding:
+      {
+        bayesFactor: 1000,
+        defaultGrade: A,
+        tier: E1,
+        note: 'Signed staking post, Keybase sig_id, Farcaster claimSignature, Drips claim, forward-verified ENS primary name',
+      }
+    e2_self_assertion:
+      {
+        bayesFactor: 32,
+        defaultGrade: B,
+        tier: E2,
+        note: 'Profile wallet field, FUNDING file, bounty registration post',
+      }
+    e3_ownership_cue:
+      {
+        bayesFactor: 8,
+        defaultGrade: C,
+        tier: E3,
+        note: "First-person ownership/payment cue: 'mój portfel', 'wpłaty na', 'donate'",
+      }
+    e3_bare_mention: { bayesFactor: 2, defaultGrade: C, tier: E3, note: 'Address mentioned without a cue' }
+    second_independent_origin:
+      { bayesFactor: 8, note: 'Same address in a second independent origin group under the identity' }
+    onchain_consistency:
+      { bayesFactor: 2, defaultGrade: A, note: 'First funding precedes the post; bounty token inflow' }
+    unchecksummed_uncorroborated:
+      { bayesFactor: 0.25, note: 'Lower-case EVM, Solana, raw TON without URI, explorer link or chain label' }
+    listing_code_or_docs:
+      { bayesFactor: 0.125, note: 'Listing page (> 50 addresses), code block or documentation domain' }
+    deobfuscated_or_ocr_repaired:
+      { bayesFactor: 0.5, reviewRequired: true, note: 'Gap-joined, defanged or OCR-repaired match' }
+    quoted_or_reposted: { bayesFactor: 1, note: 'Quoted or reposted content (neutral)' }
+
+# Hard gates applied outside the arithmetic:
+#   invalid checksum -> no claim; THIRD_PARTY_ATTRIBUTION is a relation, not weak ownership evidence;
+#   exclusion rules A1–A8 move the claim to the rejected panel; LLM suggestions weigh 0 until an analyst confirms.
+
+scales:
+  # ICD 203 likelihood terms (use ICD 203's own table, not STIX's mapping).
+  icd203:
+    - { max: 0.05, term: almost no chance, pl: 'niemal wykluczone' }
+    - { max: 0.20, term: very unlikely, pl: 'bardzo mało prawdopodobne' }
+    - { max: 0.45, term: unlikely, pl: 'mało prawdopodobne' }
+    - { max: 0.55, term: roughly even chance, pl: 'mniej więcej równe szanse' }
+    - { max: 0.80, term: likely, pl: 'prawdopodobne' }
+    - { max: 0.95, term: very likely, pl: 'bardzo prawdopodobne' }
+    - { max: 1.00, term: almost certain, pl: 'niemal pewne' }
+  # ENFSI verbal equivalents of a likelihood ratio (per hop).
+  enfsi:
+    - { maxLr: 1, term: no support }
+    - { maxLr: 10, term: weak or limited support }
+    - { maxLr: 100, term: moderate support }
+    - { maxLr: 1000, term: moderately strong support }
+    - { maxLr: 10000, term: strong support }
+    - { maxLr: 1000000, term: very strong support }
+    - { maxLr: .inf, term: extremely strong support }
