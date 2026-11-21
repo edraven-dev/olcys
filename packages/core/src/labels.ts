@@ -131,6 +131,15 @@ export interface ExclusionDecision {
       kappa: number;
       /** The labelled hot wallet this forward went to (pairs of one address may reach different exchanges). */
       forwardsTo?: { address: string; entity: string; category: EntityCategory; labelId: Id };
+      /**
+       * Identity of the matched transfers inside their transactions (one transaction may move several assets):
+       * the asset key (token contract, else native symbol), and the kind and index of each leg.
+       */
+      assetKey?: string;
+      receiveKind?: 'native' | 'token' | 'internal';
+      receiveIndex?: number;
+      forwardKind?: 'native' | 'token' | 'internal';
+      forwardIndex?: number;
     }[];
     /** A4: the subject published the deposit address (a KYC lead for the exchange). */
     kycLead?: boolean;

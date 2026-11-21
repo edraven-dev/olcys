@@ -107,6 +107,8 @@ export interface TransferPage {
   nextCursor?: string;
   /** True when the provider could not read part of the history (e.g. one block fills a whole result window). */
   truncated?: boolean;
+  /** Rows the adapter could not represent (e.g. a token with more decimals than supported), skipped one by one. */
+  skipped?: { txHash: string; reason: 'unsupported_decimals' | 'invalid_amount' }[];
 }
 
 /** One blockchain data provider (packages/chain-adapters). Same interface for public APIs and self-hosted nodes. */

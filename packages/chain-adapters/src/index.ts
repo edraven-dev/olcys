@@ -53,4 +53,12 @@ export {
   type ChainFetchStatus,
 } from './runner.ts';
 export { createTronGridProvider, mapTrc20Items, USDT_TRC20, type TronCursor } from './trongrid.ts';
-export { baseUnitsToDecimal, decodeCursor, encodeCursor } from './units.ts';
+export {
+  baseUnitsToDecimal,
+  decodeCursor,
+  encodeCursor,
+  MAX_DECIMALS,
+  rowAmount,
+  supportedDecimals,
+  type SkipReason,
+} from './units.ts';

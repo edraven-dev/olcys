@@ -85,6 +85,10 @@ export interface Counterparty {
     entity?: string;
     category?: EntityCategory;
     labelId?: Id;
+    /** Identity of the matched incoming transfer (asset key, kind, index). */
+    assetKey?: string;
+    receiveKind?: NormalizedTransfer['kind'];
+    receiveIndex?: number;
   }[];
 }
 
@@ -102,13 +106,18 @@ export function createCounterpartyResolver(deps: AnalyticsDeps, input: AddressAn
     const key = (t: NormalizedTransfer) => assetKey(t.asset, deps.assets);
     const leg = (t: NormalizedTransfer): ForwardingLeg => ({ ...t, assetKey: key(t) });
     const receives: ForwardingLeg[] = [];
+    const sources = new Map<ForwardingLeg, NormalizedTransfer>();
     const forwards: {
       leg: ForwardingLeg;
       transfer: NormalizedTransfer;
       label: { id: Id; entity: string; category: EntityCategory; fiatCapable?: boolean };
     }[] = [];
     for (const t of transfers) {
-      if (sameAddress(chain, t.to, address) && !sameAddress(chain, t.from, address)) receives.push(leg(t));
+      if (sameAddress(chain, t.to, address) && !sameAddress(chain, t.from, address)) {
+        const l = leg(t);
+        receives.push(l);
+        sources.set(l, t);
+      }
       if (!sameAddress(chain, t.from, address) || sameAddress(chain, t.to, address)) continue;
       // oxlint-disable-next-line no-await-in-loop
       const top = (await deps.labels.labelsFor({ chain, address: t.to }, t.blockTime))[0];
@@ -143,12 +152,18 @@ export function createCounterpartyResolver(deps: AnalyticsDeps, input: AddressAn
       via: 'deposit_forwarding',
       sweeps: pairs.map((p) => {
         const reached = forwards.find((f) => f.leg === p.forward);
+        const received = sources.get(p.receive);
         const sweep: NonNullable<Counterparty['sweeps']>[number] = {
           receiveTx: p.receive.txHash,
           forwardTx: p.forward.txHash,
           forwardTo: reached?.transfer.to ?? '',
           kappa: p.kappa,
         };
+        if (received) {
+          sweep.assetKey = received.asset.contract ?? received.asset.symbol;
+          sweep.receiveKind = received.kind;
+          if (received.index !== undefined) sweep.receiveIndex = received.index;
+        }
         if (reached) {
           sweep.entity = reached.label.entity;
           sweep.category = reached.label.category;
@@ -182,7 +197,7 @@ export function createCounterpartyResolver(deps: AnalyticsDeps, input: AddressAn
               decisionId: decision.id,
               sweeps: (decision.evidence.pairs ?? []).map((p) => {
                 const reached = p.forwardsTo ?? forwardsTo;
-                return {
+                const sweep: NonNullable<Counterparty['sweeps']>[number] = {
                   receiveTx: p.receiveTx,
                   forwardTx: p.forwardTx,
                   forwardTo: reached.address,
@@ -191,6 +206,10 @@ export function createCounterpartyResolver(deps: AnalyticsDeps, input: AddressAn
                   category: reached.category,
                   labelId: reached.labelId,
                 };
+                if (p.assetKey !== undefined) sweep.assetKey = p.assetKey;
+                if (p.receiveKind !== undefined) sweep.receiveKind = p.receiveKind;
+                if (p.receiveIndex !== undefined) sweep.receiveIndex = p.receiveIndex;
+                return sweep;
               }),
             })
           : forwardingOf(chain, address);
@@ -230,8 +249,27 @@ export interface Leg {
 export function legsOf(input: AddressAnalysisInput, deps: Pick<AnalyticsDeps, 'assets'>): Leg[] {
   const { chain, address } = input.address;
   const legs: Leg[] = [];
+  // UTXO chains: the transfer view names one sender per output (the first input), so direction comes from the
+  // transaction itself: a payment is outgoing when the address spends an input of that transaction.
+  const spends =
+    chainFamily(chain) === 'bitcoin' && input.utxoTxs
+      ? new Set(input.utxoTxs.filter((tx) => tx.inputs.some((i) => i.address === address)).map((tx) => tx.txid))
+      : undefined;
   for (const t of input.transfers) {
     if (t.chain !== chain) continue; // transfers never cross chains
+    if (spends) {
+      const spent = spends.has(t.txHash);
+      const into = t.to === address;
+      if (spent !== into) {
+        legs.push({
+          transfer: t,
+          direction: spent ? 'out' : 'in',
+          counterparty: spent ? t.to : t.from,
+          asset: assetKey(t.asset, deps.assets),
+        });
+      }
+      continue;
+    }
     const out = sameAddress(chain, t.from, address);
     const into = sameAddress(chain, t.to, address);
     if (out === into) continue;
@@ -295,7 +333,7 @@ class VolumeBuilder {
   }
 }
 
-/** Swap methods (function names as reported by explorers). */
+/** Swap-specific methods (function names as reported by explorers): enough on their own to confirm a swap. */
 export const SWAP_METHODS: ReadonlySet<string> = new Set([
   'swapExactETHForTokens',
   'swapExactTokensForTokens',
@@ -307,10 +345,13 @@ export const SWAP_METHODS: ReadonlySet<string> = new Set([
   'exactInput',
   'exactOutputSingle',
   'exactOutput',
-  'execute',
-  'multicall',
   'swap',
 ]);
+/**
+ * General-purpose batch methods (Universal Router `execute`, `multicall`): they also batch deposits and loans, so a
+ * swap through them needs a DEX-labelled router or pool among the counterparties.
+ */
+export const GENERAL_PURPOSE_METHODS: ReadonlySet<string> = new Set(['execute', 'multicall']);
 
 /**
  * DEX swaps: (1) the address sends asset A and receives asset B in one transaction, confirmed by a DEX-labelled

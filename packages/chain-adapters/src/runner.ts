@@ -46,6 +46,8 @@ export interface ChainFetchOutcome {
   status: ChainFetchStatus;
   pages: number;
   items: number;
+  /** Rows the provider could not represent (e.g. unsupported token decimals): skipped, the rest is kept. */
+  skipped?: { txHash: string; reason: string }[];
   error?: { kind: ChainErrorKind | 'unexpected'; message: string };
 }
 
@@ -138,6 +140,7 @@ interface Fetched {
   utxoTxs: UtxoTransaction[];
   pages: number;
   truncated: boolean;
+  skipped: { txHash: string; reason: string }[];
 }
 
 async function fetchFrom(
@@ -148,7 +151,7 @@ async function fetchFrom(
   tip: ChainTip | undefined,
   ctx: RunContext,
 ): Promise<Fetched> {
-  const fetched: Fetched = { transfers: [], utxoTxs: [], pages: 0, truncated: false };
+  const fetched: Fetched = { transfers: [], utxoTxs: [], pages: 0, truncated: false, skipped: [] };
   if (want.summary) fetched.summary = await provider.getAddressSummary(address, ctx);
   if (want.code && provider.getCode) fetched.code = await provider.getCode(address, ctx);
   if (want.transfers) {
@@ -175,6 +178,7 @@ async function fetchFrom(
       fetched.pages += 1;
       fetched.transfers.push(...result.items);
       if (result.truncated) fetched.truncated = true;
+      if (result.skipped) fetched.skipped.push(...result.skipped);
       cursor = result.nextCursor;
       if (!cursor) break;
     }
@@ -294,6 +298,7 @@ export async function runChainFetch(
           status: fetched.truncated ? 'truncated' : 'ok',
           pages: fetched.pages,
           items: kept,
+          ...(fetched.skipped.length > 0 ? { skipped: fetched.skipped } : {}),
         });
         break;
       }

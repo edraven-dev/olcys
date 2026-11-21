@@ -17,7 +17,15 @@ import { apiKeyOf, type ChainProviderConfig, type ProviderDeps } from './config.
 import { ChainProviderError } from './errors.ts';
 import { integerText, isRecord } from './json.ts';
 import { CircuitBreaker, requestJson, type ChainRequest } from './request.ts';
-import { baseUnitsToDecimal, contentIndex, decodeCursor, encodeCursor, occurrences } from './units.ts';
+import {
+  baseUnitsToDecimal,
+  contentIndex,
+  decodeCursor,
+  encodeCursor,
+  occurrences,
+  rowAmount,
+  type SkipReason,
+} from './units.ts';
 
 /** Tether USD on TRON. Identify USDT by contract, never by symbol (fake "USDT" tokens exist). */
 export const USDT_TRC20 = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t';
@@ -40,14 +48,24 @@ interface Trc20Item {
 }
 
 /** Pure mapping of TRC-20 list items; only `Transfer` events move value. */
-export function mapTrc20Items(items: readonly Trc20Item[], fetchId: string): NormalizedTransfer[] {
+export function mapTrc20Items(
+  items: readonly Trc20Item[],
+  fetchId: string,
+  skipped: { txHash: string; reason: SkipReason }[] = [],
+): NormalizedTransfer[] {
   const occurrence = occurrences();
   const out: NormalizedTransfer[] = [];
   for (const item of items) {
     if (item.type !== undefined && item.type !== 'Transfer') continue;
-    const decimals = Number(item.token_info?.decimals);
-    const value = integerText(item.value);
-    if (!Number.isInteger(decimals) || value === undefined) continue;
+    const raw = item.token_info?.decimals;
+    const decimals = typeof raw === 'number' || (typeof raw === 'string' && /^\d+$/.test(raw)) ? Number(raw) : -1;
+    const converted = rowAmount(integerText(item.value), decimals);
+    // A row that cannot be represented is skipped and reported, never fatal for the listing.
+    if (!('amount' in converted)) {
+      skipped.push({ txHash: item.transaction_id, reason: converted.skip });
+      continue;
+    }
+    const value = integerText(item.value) ?? '0';
     // TRC-20 items carry no log index: a content-based index stays the same across pages and listings.
     const key = [item.transaction_id, item.token_info?.address ?? '', item.from, item.to, value].join('|');
     const index = contentIndex([key, occurrence(key)]);
@@ -65,7 +83,7 @@ export function mapTrc20Items(items: readonly Trc20Item[], fetchId: string): Nor
         decimals,
         contract: item.token_info?.address ?? '',
       },
-      amount: baseUnitsToDecimal(value, decimals),
+      amount: converted.amount,
       kind: 'token',
       fetchId,
     });
@@ -157,8 +175,11 @@ export function createTronGridProvider(config: ChainProviderConfig, deps: Provid
       }
       const meta = isRecord(data['meta']) ? data['meta'] : {};
       const fingerprint = typeof meta['fingerprint'] === 'string' ? meta['fingerprint'] : undefined;
+      const skipped: { txHash: string; reason: SkipReason }[] = [];
+      const items = mapTrc20Items(data['data'] as Trc20Item[], fetchId, skipped);
       return {
-        items: mapTrc20Items(data['data'] as Trc20Item[], fetchId),
+        items,
+        ...(skipped.length > 0 ? { skipped } : {}),
         ...(fingerprint ? { nextCursor: encodeCursor(config.id, { stream: 'trc20', fingerprint }) } : {}),
       };
     },

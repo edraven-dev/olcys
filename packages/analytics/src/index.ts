@@ -10,6 +10,7 @@ export {
   createCounterpartyResolver,
   detectSwaps,
   legsOf,
+  GENERAL_PURPOSE_METHODS,
   SWAP_METHODS,
   type AddressAnalysisInput,
   type AnalyticsDeps,

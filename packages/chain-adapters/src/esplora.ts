@@ -15,7 +15,7 @@ import type {
   RunContext,
   UtxoTransaction,
 } from '@olcys/core';
-import { dCmp, dSub } from '@olcys/core';
+import { dSub } from '@olcys/core';
 import type { ChainProviderConfig, ProviderDeps } from './config.ts';
 import { ChainProviderError } from './errors.ts';
 import { integerText, isRecord } from './json.ts';
@@ -103,21 +103,13 @@ export function deriveTransfers(tx: UtxoTransaction, address: string, blockHash?
     if (blockHash) t.blockHash = blockHash;
     return t;
   };
-  if (tx.inputs.some((input) => input.address === address)) {
-    return tx.outputs
-      .filter((out) => out.address !== undefined && out.address !== address)
-      .map((out) => transfer(out.n, address, out.address ?? '', out.value));
-  }
-  let sender = 'coinbase';
-  let largest: string | undefined;
-  for (const input of tx.inputs) {
-    if (input.address === undefined) continue;
-    if (largest === undefined || dCmp(input.value, largest) > 0) {
-      largest = input.value;
-      sender = input.address;
-    }
-  }
-  return tx.outputs.filter((out) => out.address === address).map((out) => transfer(out.n, sender, address, out.value));
+  // One representation per (txid, output), whichever address's history it is read from, so merged histories
+  // de-duplicate: the sender is the first input with an address in transaction input order.
+  const sender = tx.inputs.find((input) => input.address !== undefined)?.address ?? 'coinbase';
+  const spends = tx.inputs.some((input) => input.address === address);
+  return tx.outputs
+    .filter((out) => out.address !== undefined && (spends ? out.address !== address : out.address === address))
+    .map((out) => transfer(out.n, sender, out.address ?? '', out.value));
 }
 
 interface RawPage {

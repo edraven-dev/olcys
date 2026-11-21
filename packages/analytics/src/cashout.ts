@@ -32,6 +32,19 @@ function num(v: unknown, name: string): number {
   return n;
 }
 
+/** Native symbol or token contract: the key A4 pairs legs by. */
+const rawAssetKey = (leg: Leg): string => leg.transfer.asset.contract ?? leg.transfer.asset.symbol;
+
+/** True when `leg` is the transfer identified by hash and, when recorded, asset, kind and index. */
+function isLeg(leg: Leg, txHash: string, asset?: string, kind?: string, index?: number): boolean {
+  return (
+    leg.transfer.txHash === txHash &&
+    (asset === undefined || rawAssetKey(leg) === asset) &&
+    (kind === undefined || leg.transfer.kind === kind) &&
+    (index === undefined || leg.transfer.index === index)
+  );
+}
+
 const withValuation = (valuation: Valuation | undefined): { valuation?: Valuation } => (valuation ? { valuation } : {});
 
 export function loadCashOutRules(yamlText: string): CashOutRulesConfig {
@@ -98,12 +111,18 @@ export async function evaluateCashOut(
       ref.chain === input.requested.chain &&
       sameAddress(chain, ref.address, input.requested.address));
   const own = input.decisions.filter((d) => d.ruleId === 'A4' && d.emitsCashOut === 'B1' && isOwn(d.address));
-  const sweeps = new Set<string>();
+  const sweeps: Leg[] = [];
   for (const decision of own) {
     for (const pair of decision.evidence.pairs ?? []) {
-      sweeps.add(pair.forwardTx);
+      const sweep = legs.find(
+        (l) => l.direction === 'out' && isLeg(l, pair.forwardTx, pair.assetKey, pair.forwardKind, pair.forwardIndex),
+      );
+      if (sweep) sweeps.push(sweep);
       const forwardsTo = pair.forwardsTo ?? decision.evidence.forwardsTo;
-      const receive = legs.find((l) => l.direction === 'in' && l.transfer.txHash === pair.receiveTx);
+      // exactly the transfer A4 matched: one transaction may move several assets
+      const receive = legs.find(
+        (l) => l.direction === 'in' && isLeg(l, pair.receiveTx, pair.assetKey, pair.receiveKind, pair.receiveIndex),
+      );
       if (!receive || !forwardsTo) continue;
       // oxlint-disable-next-line no-await-in-loop
       const valuation = await valueLeg(receive, deps, ctx);
@@ -113,7 +132,7 @@ export async function evaluateCashOut(
           strength: 'strong',
           occurredAt: receive.transfer.blockTime,
           txHashes: [pair.receiveTx, pair.forwardTx],
-          amount: pair.amountIn,
+          amount: receive.transfer.amount,
           asset: receive.asset,
           ...withValuation(valuation),
           counterparty: {
@@ -131,9 +150,7 @@ export async function evaluateCashOut(
   }
 
   // B1 (b, c): outgoing legs to another deposit address of an exchange, or to a fiat-capable exchange.
-  const outgoing = legs.filter(
-    (l) => l.direction === 'out' && !sweeps.has(l.transfer.txHash) && dCmp(l.transfer.amount, '0') > 0,
-  );
+  const outgoing = legs.filter((l) => l.direction === 'out' && !sweeps.includes(l) && dCmp(l.transfer.amount, '0') > 0);
   const exits: { leg: Leg; event: CashOutEvent }[] = [];
   for (const leg of outgoing) {
     // oxlint-disable-next-line no-await-in-loop
@@ -141,7 +158,7 @@ export async function evaluateCashOut(
     if (!cp || cp.category !== 'exchange') continue;
     const deposit = cp.via !== 'label';
     if (!deposit && cp.fiatCapable !== true) continue; // unknown fiat capability → no B1
-    const sweep = cp.sweeps?.find((s) => s.receiveTx === leg.transfer.txHash);
+    const sweep = cp.sweeps?.find((s) => isLeg(leg, s.receiveTx, s.assetKey, s.receiveKind, s.receiveIndex));
     // oxlint-disable-next-line no-await-in-loop
     const valuation = await valueLeg(leg, deps, ctx);
     const e = event({

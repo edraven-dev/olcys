@@ -148,6 +148,7 @@ async function a4(facts: AddressFacts, deps: ExclusionDeps): Promise<ExclusionDe
   const forwards: ForwardingLeg[] = [];
   const hotWallet = new Map<ForwardingLeg, { transfer: NormalizedTransfer; label: AddressLabel }>();
   const senders = new Map<ForwardingLeg, string>();
+  const sources = new Map<ForwardingLeg, NormalizedTransfer>();
   for (const t of transfers) {
     const incoming = sameAddress(chain, t.to, self) && !sameAddress(chain, t.from, self);
     const outgoing = sameAddress(chain, t.from, self) && !sameAddress(chain, t.to, self);
@@ -155,6 +156,7 @@ async function a4(facts: AddressFacts, deps: ExclusionDeps): Promise<ExclusionDe
       const l = leg(t);
       receives.push(l);
       senders.set(l, t.from);
+      sources.set(l, t);
     } else if (outgoing) {
       // Sequential label lookups keep the decision deterministic; transfers per address are few in the MVP.
       // oxlint-disable-next-line no-await-in-loop
@@ -200,8 +202,17 @@ async function a4(facts: AddressFacts, deps: ExclusionDeps): Promise<ExclusionDe
           amountOut: p.forward.amount,
           delta: p.delta,
           kappa: p.kappa,
+          // exactly which transfers matched (a transaction may move several assets)
+          assetKey: p.receive.assetKey,
         };
+        const received = sources.get(p.receive);
+        if (received) {
+          pair.receiveKind = received.kind;
+          if (received.index !== undefined) pair.receiveIndex = received.index;
+        }
         if (reached) {
+          pair.forwardKind = reached.transfer.kind;
+          if (reached.transfer.index !== undefined) pair.forwardIndex = reached.transfer.index;
           pair.forwardsTo = {
             address: reached.transfer.to,
             entity: reached.label.entity,

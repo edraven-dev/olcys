@@ -9,8 +9,25 @@ import { ChainProviderError } from './errors.ts';
 export function baseUnitsToDecimal(raw: string | bigint | number, decimals: number): DecimalString {
   const text = typeof raw === 'number' ? (Number.isSafeInteger(raw) ? String(raw) : '') : String(raw);
   if (!/^\d+$/.test(text)) throw new TypeError(`not a non-negative integer amount: ${JSON.stringify(String(raw))}`);
-  if (!Number.isInteger(decimals) || decimals < 0 || decimals > 77) throw new TypeError(`bad decimals: ${decimals}`);
+  if (!supportedDecimals(decimals)) throw new TypeError(`bad decimals: ${decimals}`);
   return fromBaseUnits(text, decimals);
+}
+
+/** Largest token precision the converter supports (uint8 decimals beyond this never occur in real tokens). */
+export const MAX_DECIMALS = 77;
+
+export function supportedDecimals(decimals: number): boolean {
+  return Number.isInteger(decimals) && decimals >= 0 && decimals <= MAX_DECIMALS;
+}
+
+export type SkipReason = 'unsupported_decimals' | 'invalid_amount';
+
+/** Per-row conversion that never throws: a row it cannot represent is skipped with a reason. */
+export function rowAmount(raw: unknown, decimals: number): { amount: DecimalString } | { skip: SkipReason } {
+  if (!supportedDecimals(decimals)) return { skip: 'unsupported_decimals' };
+  const text = typeof raw === 'number' ? (Number.isSafeInteger(raw) ? String(raw) : '') : String(raw ?? '');
+  if (!/^\d+$/.test(text)) return { skip: 'invalid_amount' };
+  return { amount: fromBaseUnits(text, decimals) };
 }
 
 /** Opaque provider-specific cursor: base64url JSON `{ v: 1, p: providerId, …state }`. */

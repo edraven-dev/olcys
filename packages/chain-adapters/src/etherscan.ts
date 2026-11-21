@@ -9,6 +9,7 @@ import type {
   AddressRef,
   AddressSummary,
   ChainId,
+  DecimalString,
   ChainProvider,
   ChainTip,
   Id,
@@ -20,7 +21,16 @@ import { apiKeyOf, type ChainProviderConfig, type ProviderDeps } from './config.
 import { ChainProviderError, type ChainErrorKind } from './errors.ts';
 import { isRecord } from './json.ts';
 import { CircuitBreaker, requestJson, type ChainRequest } from './request.ts';
-import { baseUnitsToDecimal, contentIndex, decodeCursor, encodeCursor, isoFromSeconds, occurrences } from './units.ts';
+import {
+  baseUnitsToDecimal,
+  contentIndex,
+  decodeCursor,
+  encodeCursor,
+  isoFromSeconds,
+  occurrences,
+  rowAmount,
+  type SkipReason,
+} from './units.ts';
 
 export const ETHERSCAN_ATTRIBUTION = 'Powered by Etherscan.io APIs';
 const STREAMS = ['normal', 'internal', 'token'] as const;
@@ -94,8 +104,15 @@ export function mapEtherscanRows(
   rows: readonly Row[],
   chain: ChainId,
   fetchId: Id,
+  skipped: { txHash: string; reason: SkipReason }[] = [],
 ): NormalizedTransfer[] {
   const native = nativeAsset(chain);
+  const amountOf = (row: Row, decimals: number): DecimalString | undefined => {
+    const converted = rowAmount(row.value, decimals);
+    if ('amount' in converted) return converted.amount;
+    skipped.push({ txHash: row.hash.toLowerCase(), reason: converted.skip });
+    return undefined;
+  };
   const occurrence = occurrences();
   // Rows without a log index get a content-based index: stable across pages, windows and listings.
   const indexOf = (row: Row, extra: string): number => {
@@ -116,23 +133,27 @@ export function mapEtherscanRows(
     if (stream === 'normal') {
       if (row.isError === '1' || row.txreceipt_status === '0') continue; // value did not move
       const method = methodOf(row);
+      const amount = amountOf(row, native.decimals);
+      if (amount === undefined) continue;
       out.push({
         ...base,
         to: (row.to || row.contractAddress || '').toLowerCase(),
         asset: { chain, ...native },
-        amount: baseUnitsToDecimal(row.value, native.decimals),
+        amount,
         kind: 'native',
         ...(method ? { method } : {}),
       });
     } else if (stream === 'internal') {
       if (row.isError === '1' || /^0+$/.test(row.value)) continue;
       const index = indexOf(row, `internal:${row.traceId ?? ''}`);
+      const amount = amountOf(row, native.decimals);
+      if (amount === undefined) continue;
       out.push({
         ...base,
         index,
         to: (row.to || row.contractAddress || '').toLowerCase(),
         asset: { chain, ...native },
-        amount: baseUnitsToDecimal(row.value, native.decimals),
+        amount,
         kind: 'internal',
       });
     } else {
@@ -140,16 +161,19 @@ export function mapEtherscanRows(
         row.logIndex !== undefined && /^\d+$/.test(row.logIndex)
           ? Number(row.logIndex)
           : indexOf(row, `token:${(row.contractAddress ?? '').toLowerCase()}`);
-      const decimals = Number(row.tokenDecimal);
-      // Zero-value token transfers are address-poisoning spam; a token without decimals cannot be valued.
-      if (/^0+$/.test(row.value) || !Number.isInteger(decimals)) continue;
+      // Zero-value token transfers are address-poisoning spam (dropped silently).
+      if (/^0+$/.test(row.value)) continue;
+      // A token with missing or out-of-range decimals cannot be represented: skipped and reported, never fatal.
+      const decimals = row.tokenDecimal !== undefined && /^\d+$/.test(row.tokenDecimal) ? Number(row.tokenDecimal) : -1;
+      const amount = amountOf(row, decimals);
+      if (amount === undefined) continue;
       out.push({
         ...base,
         index,
         to: row.to.toLowerCase(),
         // Symbols are untrusted (fake "USDT" tokens exist): the contract identifies the asset.
         asset: { chain, symbol: row.tokenSymbol ?? '', decimals, contract: (row.contractAddress ?? '').toLowerCase() },
-        amount: baseUnitsToDecimal(row.value, decimals),
+        amount,
         kind: 'token',
       });
     }
@@ -282,9 +306,11 @@ export function createEtherscanProvider(config: ChainProviderConfig, deps: Provi
           next = { ...cursor, page: cursor.page + 1 };
         }
       }
-      const items = mapEtherscanRows(cursor.stream, rows, address.chain, fetchId);
+      const skipped: { txHash: string; reason: SkipReason }[] = [];
+      const items = mapEtherscanRows(cursor.stream, rows, address.chain, fetchId, skipped);
       return {
         items,
+        ...(skipped.length > 0 ? { skipped } : {}),
         ...(next ? { nextCursor: encodeCursor(config.id, { ...next }) } : {}),
         ...(truncated ? { truncated: true } : {}),
       };
