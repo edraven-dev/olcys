@@ -18,6 +18,7 @@ import type {
   IndicatorStrength,
   LinkGateId,
   Relation,
+  RunStatus,
   RunTrigger,
   TextView,
 } from '@olcys/core';
@@ -150,6 +151,9 @@ export const pl = {
     noPrevious: 'brak (pierwsze uruchomienie)',
     trigger: 'Sposób uruchomienia',
     mode: 'Tryb pracy',
+    status: 'Stan uruchomienia',
+    completeness: 'Kompletność analizy',
+    complete: 'brak zgłoszonych braków w chwili generowania raportu',
     queuedAt: 'Zlecono',
     startedAt: 'Rozpoczęto',
     versionsBlock: 'Wersje i sumy kontrolne (odtwarzalność)',
@@ -172,6 +176,14 @@ export const pl = {
     dataShaHint:
       'Dane wejściowe raportu są zapisywane obok raportu jako plik JSON o tym skrócie; ponowne wygenerowanie raportu z tych danych daje identyczny dokument.',
   },
+  runStatuses: {
+    queued: 'w kolejce',
+    running: 'w toku (raport generowany jako ostatni etap uruchomienia)',
+    succeeded: 'zakończone',
+    partial: 'zakończone częściowo — analiza niepełna',
+    failed: 'przerwane błędem',
+    cancelled: 'anulowane',
+  } satisfies Record<RunStatus, string>,
   triggers: {
     manual: 'ręcznie przez analityka',
     schedule: 'automatycznie według harmonogramu',
@@ -203,7 +215,12 @@ export const pl = {
     lead: 'Analiza objęła {identifiers} podane w sprawie. Narzędzie przeszukało publicznie dostępne źródła internetowe oraz publiczne dane blockchain wyłącznie metodami białego wywiadu (OSINT).',
     captures: 'Zabezpieczono {pages} z {services}; każdą kopię opatrzono czasem pobrania i skrótem SHA-256.',
     unavailable:
-      'Bez dostępu do treści: {pages} (blokada dostępu, wymóg logowania lub CAPTCHA) — zgodnie z zasadami OSINT nie próbowano obchodzić zabezpieczeń.',
+      'Bez dostępu do treści: {pages} (blokada dostępu, wymóg logowania, CAPTCHA lub błąd pobierania) — zgodnie z zasadami OSINT nie próbowano obchodzić zabezpieczeń.',
+    incomplete:
+      'Analiza niepełna: część źródeł była niedostępna — {details}. Brak danych z tych źródeł nie oznacza, że nie zawierają one śladów; wyniki dotyczą wyłącznie zebranych danych.',
+    incompletePages: '{pages} bez dostępu do treści ({sources})',
+    incompleteReasons: 'zgłoszone przez etapy analizy: {reasons}',
+    incompleteGeneric: 'uruchomienie zakończyło się jako częściowe',
     addresses: 'W treści zabezpieczonych stron znaleziono {addresses} o poprawnym formacie i sumie kontrolnej.',
     transfers: 'Z publicznych danych blockchain pobrano {transfers} dotyczące analizowanych adresów.',
     secrets:

@@ -90,6 +90,9 @@ export async function buildReportData(
     analysis.listFlows ? analysis.listFlows(runId) : Promise.resolve([] as FlowEdge[]),
   ]);
 
+  // Reasons the pipeline recorded so far (`markPartial`): sources or stages that could not deliver data.
+  const recorded = run.progress?.['partial'];
+  const partialReasons = Array.isArray(recorded) ? recorded.filter((r): r is string => typeof r === 'string') : [];
   const previousRunId = run.previousRunId ?? changes[0]?.previousRunId;
   const previous = previousRunId ? await repos.runs.get(previousRunId) : undefined;
 
@@ -132,6 +135,7 @@ export async function buildReportData(
     run: plainRun(run),
     ...(previous ? { previousRun: plainRun(previous) } : {}),
     ...(options.weightsStatus ? { weightsStatus: options.weightsStatus } : {}),
+    ...(partialReasons.length ? { partialReasons } : {}),
     sources: (options.sources ?? [])
       .filter((s) => usedSources.has(s.id))
       .map(toReportSource)

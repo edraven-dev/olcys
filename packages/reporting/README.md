@@ -12,7 +12,9 @@ potoku `report.render`, który raport generuje i zapisuje.
 1. Metryka raportu i parametry odtwarzalności — sprawa, cel i podstawa prawna, identyfikatory wejściowe, źródła
    włączone dla sprawy, identyfikator i tryb przebiegu, wersje narzędzia, algorytmu, wag i reguł ze skrótami SHA-256,
    model AI („nieużywany”, gdy go nie było), skrót SHA-256 danych wejściowych raportu.
-2. Podsumowanie ustaleń dla osób bez wiedzy informatycznej.
+2. Podsumowanie ustaleń dla osób bez wiedzy informatycznej. Gdy część źródeł była niedostępna (blokada, logowanie,
+   CAPTCHA, błąd pobierania) albo etap zgłosił braki (`progress.partial`), na początku podsumowania i w metryce widnieje
+   ostrzeżenie „Analiza niepełna”.
 3. Adresy powiązane z identyfikatorami — Wskaźnik Pewności 0–100, przedział z treści zadania (80–100 BARDZO WYSOKIE,
    60–79 PRAWDOPODOBNE, 40–59 ŚREDNIE, 10–39 NISKIE / SZUM, 0 WYKLUCZENIE), określenie ICD 203, osobno pewność
    analityczna, ścieżki i przesłanki z wkładem w wynik oraz synergia śladów. Przedział i synergię (niezależne serwisy,

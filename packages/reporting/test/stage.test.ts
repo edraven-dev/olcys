@@ -102,7 +102,9 @@ describe('report.render stage', () => {
 
   it('assembles the data from the repositories with stable ordering', async () => {
     const { repos, run } = await seed();
+    await repos.runs.update(run.id, { progress: { step: 'report.render', partial: ['keybase: blocked'] } });
     const data = await buildReportData(repos, run.id, { generatedAt: '2026-11-21T13:41:00.000Z', reportId: 'r1' });
+    expect(data.partialReasons).toEqual(['keybase: blocked']);
     expect(data.previousRun?.id).toBe('run-0001');
     expect(data.earlierCaptures.map((c) => c.id)).toEqual(['cap-0']);
     expect(data.captures.map((c) => c.id)).toEqual(data.captures.map((c) => c.id).toSorted());

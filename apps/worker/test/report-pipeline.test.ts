@@ -98,4 +98,34 @@ describe('pipeline with the report stage', () => {
     expect(html).toContain('bc1qstary');
     expect(html).toContain('bc1qnowy');
   });
+
+  it('passes reasons recorded with markPartial to the report', async () => {
+    const repos = createMemoryRepositories();
+    const blobs = new InMemoryBlobStore();
+    const kase = await repos.cases.create(
+      {
+        title: 'Kacper Fikcyjny (test)',
+        purpose: 'Test na danych syntetycznych',
+        legalBasis: 'demonstracja',
+        identifiers: [{ kind: 'nickname', value: 'fikcyjny_kacper', platform: 'bitcointalk', isAnchor: true }],
+        scope: { enabledSources: ['bitcointalk'], amberJustifications: {}, chains: [], maxPivotDepth: 1 },
+      },
+      'test',
+    );
+    // A stage that cannot deliver data records why, without producing any capture.
+    const chain: Stage = {
+      step: 'chain.fetch',
+      async run(ctx) {
+        ctx.markPartial('tron provider: timeout');
+      },
+    };
+    const run = await createRun(repos, { caseId: kase.id, mode: 'offline' }, config);
+    const deps = { repos, blobs, logger: silent, stages: [collectStage(['bc1qstary']), chain, createReportStage()] };
+    expect((await runPipeline(run.id, deps)).status).toBe('partial');
+    const report = await repos.analysis.latestReport(run.id, 'html');
+    const html = new TextDecoder().decode(await blobs.get(report?.blobSha256 ?? ''));
+    expect(html).toContain(
+      'Analiza niepełna: część źródeł była niedostępna — zgłoszone przez etapy analizy: tron provider: timeout',
+    );
+  });
 });

@@ -65,6 +65,7 @@ dl.kv dt{font-weight:bold;padding:2pt 6pt 2pt 0}
 dl.kv dd{margin:0;padding:2pt 0;overflow-wrap:anywhere}
 blockquote{margin:3pt 0 3pt 6pt;padding:2pt 6pt;border-left:2px solid var(--line);font-style:italic}
 .warning{color:var(--alert)}
+.alert-box{border:2px solid var(--alert);background:#fdf2f1;padding:6pt 8pt;margin:8pt 0;font-weight:bold}
 .technical{font-size:7.5pt;color:var(--muted);margin:2pt 0}
 .technical-label{font-weight:bold}
 .formula{font-family:"DejaVu Sans Mono","Liberation Mono",monospace;font-size:8.5pt;background:#f6f7f9;padding:4pt 6pt}

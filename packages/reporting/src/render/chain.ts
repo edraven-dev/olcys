@@ -122,17 +122,56 @@ function edgeValuation(view: View, tr: NormalizedTransfer): Valuation | undefine
   return view.data.flows.find((edge) => edge.valuation && edgeMatches(edge, tr))?.valuation;
 }
 
-/** Outgoing transfers of the event's address in the event's transactions (to the counterparty when known). */
-function eventLegs(view: View, e: CashOutEvent): NormalizedTransfer[] {
+/** One movement a cash-out event describes: the matching fetched transfer, if any, and the value of that movement. */
+interface EventMovement {
+  leg?: NormalizedTransfer;
+  key: string;
+  valuation?: Valuation;
+  pln?: DecimalString;
+}
+
+/** Outgoing transfer of the event's address to its counterparty with exactly this asset and amount. */
+function isEventLeg(e: CashOutEvent, tr: NormalizedTransfer, txHash: string, amount: DecimalString): boolean {
   const chain = e.address.chain;
   const to = e.counterparty?.address;
-  return view.data.transfers.filter(
-    (tr) =>
-      tr.chain === chain &&
-      (e.txHashes ?? []).includes(tr.txHash) &&
-      sameRef({ chain, address: tr.from }, e.address) &&
-      (!to || sameRef({ chain, address: tr.to }, { chain, address: to })),
+  return (
+    tr.chain === chain &&
+    tr.txHash === txHash &&
+    sameRef({ chain, address: tr.from }, e.address) &&
+    (!to || sameRef({ chain, address: tr.to }, { chain, address: to })) &&
+    (tr.asset?.symbol ?? '') === e.asset &&
+    sameAmount(tr.amount, amount)
   );
+}
+
+/**
+ * The movements behind a cash-out event: its `components` legs when present, otherwise the single fetched transfer
+ * that is exactly the event (chain, transaction, from the analysed address, to the counterparty, asset, amount).
+ * `undefined` when no such transfer is certain: the event is then shown as a computed indicator, never attached.
+ */
+function eventMovements(view: View, e: CashOutEvent): EventMovement[] | undefined {
+  const chain = e.address.chain;
+  const own = normAddress(e.address.address);
+  const components = extras(e).components ?? [];
+  if (components.length) {
+    return components.map((c) => {
+      const leg = view.data.transfers.find((tr) => isEventLeg(e, tr, c.txHash, c.amount));
+      const movement: EventMovement = { key: leg ? legKey(leg) : `${chain}|${c.txHash}|${own}|${e.asset}|${c.amount}` };
+      if (leg) movement.leg = leg;
+      if (c.valuation) {
+        movement.valuation = c.valuation;
+        movement.pln = c.valuation.pln;
+      }
+      return movement;
+    });
+  }
+  const exact = view.data.transfers.filter((tr) =>
+    (e.txHashes ?? []).some((txHash) => isEventLeg(e, tr, txHash, e.amount)),
+  );
+  if (exact.length !== 1) return undefined;
+  const leg = exact[0] as NormalizedTransfer;
+  const pln = eventPln(e);
+  return [{ leg, key: legKey(leg), ...(e.valuation ? { valuation: e.valuation } : {}), ...(pln ? { pln } : {}) }];
 }
 
 export interface MovementTotal {
@@ -144,7 +183,8 @@ export interface MovementTotal {
 
 /**
  * Value of the funds behind the cash-out indicators, each underlying movement counted once (chain + transaction +
- * leg), so an exit that meets several rules (e.g. B1 and B4) is not counted twice. Unpriced movements are counted.
+ * leg), so an exit that meets several rules (e.g. B1 and B4) is not counted twice. An event without a certain
+ * movement counts as one movement of its own. Unpriced movements are counted, never valued at zero.
  */
 export function cashOutMovements(view: View): MovementTotal {
   const legs = new Map<string, DecimalString | undefined>();
@@ -152,38 +192,14 @@ export function cashOutMovements(view: View): MovementTotal {
     if (!legs.has(key) || (legs.get(key) === undefined && pln !== undefined)) legs.set(key, pln);
   };
   for (const e of view.data.cashOuts.toSorted((a, b) => cmp(a.id, b.id))) {
-    const chain = e.address.chain;
-    const own = normAddress(e.address.address);
-    const legsOfEvent = eventLegs(view, e);
-    const components = extras(e).components ?? [];
-    if (components.length) {
-      for (const c of components) {
-        const leg = legsOfEvent.find((tr) => tr.txHash === c.txHash && sameAmount(tr.amount, c.amount));
-        put(leg ? legKey(leg) : `${chain}|${c.txHash}|${own}|${c.amount}`, c.valuation?.pln);
-      }
-      continue;
-    }
-    const value = eventPln(e);
-    const valuedAmount = e.valuation?.amount;
-    if (legsOfEvent.length === 1) {
-      const leg = legsOfEvent[0] as NormalizedTransfer;
-      const fits = valuedAmount !== undefined && sameAmount(valuedAmount, leg.amount);
-      put(legKey(leg), fits ? value : edgeValuation(view, leg)?.pln);
-      continue;
-    }
-    if (legsOfEvent.length > 1) {
-      const perLeg = legsOfEvent.map((leg) => edgeValuation(view, leg)?.pln);
-      const total = dSum(legsOfEvent.map((leg) => (isDecimalString(leg.amount) ? leg.amount : '0')));
-      if (perLeg.every((v) => v === undefined) && valuedAmount !== undefined && sameAmount(valuedAmount, total)) {
-        // The event values exactly these legs together: one movement group.
-        put(legsOfEvent.map(legKey).toSorted().join('+'), value);
-      } else {
-        for (const [i, leg] of legsOfEvent.entries()) put(legKey(leg), perLeg[i]);
-      }
+    const movements = eventMovements(view, e);
+    if (movements) {
+      for (const m of movements) put(m.key, m.pln ?? (m.leg ? edgeValuation(view, m.leg)?.pln : undefined));
       continue;
     }
     const txs = [...(e.txHashes ?? [])].toSorted().join(',');
-    put(`${chain}|${txs}|${own}|${normAddress(e.counterparty?.address ?? '')}`, value);
+    const to = normAddress(e.counterparty?.address ?? '');
+    put(`${e.address.chain}|${txs}|${normAddress(e.address.address)}|${to}|${e.asset}|${e.amount}`, eventPln(e));
   }
   const values = [...legs.values()].filter((v): v is DecimalString => v !== undefined && isDecimalString(v));
   return { count: legs.size, priced: values.length, ...(values.length ? { pln: dSum(values) } : {}) };
@@ -395,6 +411,8 @@ interface FlowStep {
   amount: DecimalString;
   asset: string;
   valuation?: Valuation;
+  /** Value of exactly this movement taken from an attached cash-out event (or its component leg). */
+  eventValuation?: Valuation;
   cashOuts: CashOutEvent[];
 }
 
@@ -459,16 +477,19 @@ export function flowSteps(view: View): FlowStep[] {
       });
   }
   for (const event of data.cashOuts) {
-    const matches = [...steps.values()].filter(
-      (s) =>
-        s.kind === 'transfer' &&
-        s.chain === event.address.chain &&
-        (event.txHashes ?? []).includes(s.txHashes[0] ?? '') &&
-        (sameRef({ chain: s.chain, address: s.from }, event.address) ||
-          sameRef({ chain: s.chain, address: s.to }, event.address)),
-    );
-    if (matches.length) {
-      for (const s of matches) s.cashOuts.push(event);
+    // Attach the rule (and its value) only to the event's own outgoing movement; anything less certain stays a
+    // separate computed indicator.
+    const movements = eventMovements(view, event);
+    const targets = movements?.map((m) => ({
+      step: m.leg ? steps.get(stepKey(m.leg.chain, m.leg.txHash, m.leg.index, m.leg.from, m.leg.to)) : undefined,
+      valuation: m.valuation,
+    }));
+    if (targets?.length && targets.every((x) => x.step)) {
+      for (const { step, valuation } of targets) {
+        if (!step) continue;
+        step.cashOuts.push(event);
+        if (!step.eventValuation && valuation) step.eventValuation = valuation;
+      }
       continue;
     }
     const key = `indicator|${event.id}`;
@@ -545,8 +566,7 @@ function flowItem(view: View, s: FlowStep): SafeHtml {
     ]);
     return markup`<li class="flow-step flow-indicator">${time}${statement('computed', computed)}${statement('inferences', inference)}</li>`;
   }
-  const value =
-    s.valuation ?? s.cashOuts.map((e) => e.valuation).find((v): v is Valuation => v !== undefined && fitsStep(s, v));
+  const value = s.valuation ?? (s.eventValuation && fitsStep(s, s.eventValuation) ? s.eventValuation : undefined);
   const fact = join([
     t(f.step, { amount: formatAmount(s.amount, s.asset), from, to }),
     ' ',

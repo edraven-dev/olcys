@@ -55,6 +55,8 @@ export function metadataSection(view: View): SafeHtml {
         [pl.meta.previousRunId, data.previousRun ? markup`<code>${data.previousRun.id}</code>` : pl.meta.noPrevious],
         [pl.meta.trigger, pl.triggers[run.trigger] ?? run.trigger],
         [pl.meta.mode, pl.modes[run.mode] ?? run.mode],
+        [pl.meta.status, pl.runStatuses[run.status] ?? run.status],
+        [pl.meta.completeness, incompleteDetails(view) ?? pl.meta.complete],
         [pl.meta.queuedAt, formatUtc(run.queuedAt)],
         [pl.meta.startedAt, run.startedAt ? formatUtc(run.startedAt) : pl.common.unknown],
       ]),
@@ -87,10 +89,33 @@ export function metadataSection(view: View): SafeHtml {
   );
 }
 
+/** Pages whose content could not be read: block, login wall, CAPTCHA or a fetch error (not "page does not exist"). */
+function unavailableCaptures(view: View) {
+  return view.data.captures.filter((c) => ['blocked', 'login_wall', 'captcha', 'error'].includes(c.status));
+}
+
+/** What made the analysis incomplete, or `undefined` when nothing was reported missing. */
+function incompleteDetails(view: View): SafeHtml | undefined {
+  const reasons = view.data.partialReasons ?? [];
+  const pages = unavailableCaptures(view);
+  if (!reasons.length && !pages.length && view.data.run.status !== 'partial') return undefined;
+  const sources = [...new Set(pages.map((c) => view.sourceName(c.sourceId)))].toSorted(cmp).join(', ');
+  const parts = [
+    pages.length ? t(pl.summary.incompletePages, { pages: plural(pages.length, pl.counts.pagesNom), sources }) : '',
+    reasons.length ? t(pl.summary.incompleteReasons, { reasons: reasons.join('; ') }) : '',
+  ].filter((p) => p !== '');
+  return parts.length ? join(parts, '; ') : markup`${pl.summary.incompleteGeneric}`;
+}
+
+function incompleteNotice(view: View): SafeHtml {
+  const details = incompleteDetails(view);
+  return details ? markup`<p class="alert-box">${t(pl.summary.incomplete, { details })}</p>` : markup``;
+}
+
 export function summarySection(view: View): SafeHtml {
   const { data } = view;
   const sourcesUsed = new Set(data.captures.map((c) => c.sourceId));
-  const unavailable = data.captures.filter((c) => ['blocked', 'login_wall', 'captcha'].includes(c.status));
+  const unavailable = unavailableCaptures(view);
   const distinctAddresses = new Set(data.candidates.map((c) => `${c.address.chain}:${c.address.address}`));
 
   const facts = list([
@@ -183,6 +208,7 @@ export function summarySection(view: View): SafeHtml {
     pl.sections.summary,
     join([
       para(t(pl.summary.lead, { identifiers: plural(data.case.identifiers.length, pl.counts.identifiers) })),
+      incompleteNotice(view),
       block('facts', facts),
       block('computed', computed),
       block('inferences', inferences.length ? list(inferences) : para(pl.summary.noInferences)),

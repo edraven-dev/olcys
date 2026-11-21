@@ -300,8 +300,23 @@ export function personaData(): ReportData {
     explanation: 'transfer to deposit address forwarding to labelled exchange hot wallet',
     rulesVersion: 'cashout.v1',
   };
-  const cashOutB5: CashOutEvent = {
-    ...cashOutB1,
+  const leg = (txHash: string, at: string) => ({
+    txHash,
+    at,
+    amount: '2400',
+    valuation: {
+      amount: '2400',
+      asset: 'USDT',
+      at,
+      pln: '617283.75',
+      method: 'nbp_table_a_previous_business_day' as const,
+      nbp: NBP,
+    },
+  });
+  // Aggregated B5 window: per-leg values in `components`, their sum in `plnTotal` (no single `valuation`).
+  const { valuation: _single, ...b1Rest } = cashOutB1;
+  const cashOutB5 = {
+    ...b1Rest,
     id: 'co-2',
     address: { chain: 'tron', address: A.TRON1 },
     ruleId: 'B5',
@@ -310,17 +325,11 @@ export function personaData(): ReportData {
     txHashes: ['tron-tx-1', 'tron-tx-2'],
     amount: '4800',
     asset: 'USDT',
-    valuation: {
-      amount: '4800',
-      asset: 'USDT',
-      at: '2026-11-02T12:00:00.000Z',
-      pln: '1234567.5',
-      method: 'nbp_table_a_previous_business_day',
-      nbp: NBP,
-    },
+    components: [leg('tron-tx-1', '2026-11-02T12:00:00.000Z'), leg('tron-tx-2', '2026-11-03T12:00:00.000Z')],
+    plnTotal: '1234567.5',
     counterparty: { address: A.TRON_BUYER },
     explanation: 'repeated round-number USDT-TRC20 transfers',
-  };
+  } as CashOutEvent;
 
   return {
     reportId: 'report-0001',

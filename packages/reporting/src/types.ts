@@ -59,6 +59,8 @@ export interface ReportData {
   previousRun?: AnalysisRun;
   /** Calibration status of the weights file (`uncalibrated` until calibrated on reference data). */
   weightsStatus?: string;
+  /** Why the run is incomplete (`progress.partial`, recorded by stages via `markPartial`), when it is. */
+  partialReasons?: string[];
   sources: ReportSource[];
   captures: Capture[];
   /** Captures of earlier runs cited by change events (the "before" side of a wallet swap). */

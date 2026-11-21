@@ -154,7 +154,8 @@ export async function runPipeline(runId: Id, deps: PipelineDeps): Promise<RunWit
 
   try {
     for (const [index, stage] of stages.entries()) {
-      progress = { step: stage.step, done: index, total };
+      // Reasons recorded so far stay visible to later stages (the report states that the analysis is incomplete).
+      progress = { step: stage.step, done: index, total, ...(partial.length ? { partial: [...partial] } : {}) };
       // Sequential on purpose: every stage consumes what the previous stages stored.
       // oxlint-disable-next-line no-await-in-loop
       await repos.runs.update(runId, { progress });
