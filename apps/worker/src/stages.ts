@@ -15,6 +15,7 @@ import type {
   NormalizedTransfer,
   RunContext,
   SourceDescriptor,
+  SourceKind,
 } from '@olcys/core';
 import { addressKey, newId, nowIso } from '@olcys/core';
 import {
@@ -36,6 +37,7 @@ import {
   withFixtureSite,
 } from '@olcys/chain-adapters';
 import {
+  canonicalAddress,
   classifyAddressType,
   DEMO_CURATED_DATASET,
   effectiveOutcome,
@@ -52,6 +54,7 @@ import { collectCase, loadCollectorConfig, loadSourceRegistry, type SourceRegist
 import { createEgressClient, RobotsCache } from '@olcys/http';
 import { createReportStage } from '@olcys/reporting';
 import { loadWeights, scoreRun } from '@olcys/scoring';
+import { incompleteHistories, isOwnStatement, transfersOf } from './chain-data.ts';
 import { REPO_ROOT, TOOL_VERSION } from './config.ts';
 import type { Stage, StageContext } from './pipeline.ts';
 
@@ -213,21 +216,18 @@ export function createScoreStage(options: Pick<StageOptions, 'sources'>): Stage 
 }
 
 const read = (path: string): Promise<string> => readFile(join(REPO_ROOT, path), 'utf8');
-const CHAIN_SOURCES = ['mempool_space', 'etherscan_v2', 'trongrid'];
-const NBP_SOURCE = 'nbp_api';
-/** Cues of a first-person statement: the address was published by its author, not merely mentioned. */
-const OWNER_CUES: ReadonlySet<string> = new Set(['first_person_owner', 'exchange_deposit']);
-
-const transfersOf = (a: AddressRef, transfers: readonly NormalizedTransfer[]): NormalizedTransfer[] =>
-  transfers.filter((t) => t.chain === a.chain && (t.from === a.address || t.to === a.address));
+/** The register entries the chain stage may contact: chain data providers and exchange rates. */
+const CHAIN_STAGE_KINDS: ReadonlySet<SourceKind> = new Set<SourceKind>(['chain_data', 'price_fx']);
 
 /**
  * Chain analysis: pre-screen (deny list, labels), chain data through the egress client (fixture site offline),
  * exclusions A1/A2/A4/A8, one-hop expansion of recipients, activity, cash-out indicators valued in PLN (NBP).
+ * Only the providers the case enables receive its addresses (AMBER ones with the analyst's justification).
  * Exchange addresses are never attributed to the person, but their interactions are recorded.
  */
 export function createChainStage(options: StageOptions): Stage {
   const env = options.env ?? process.env;
+  const sourceRegistry = lazy<SourceRegistry>(() => loadSourceRegistry());
   const setup = lazy(async () => {
     const [sourcesText, providersText, labelsText, exclusionText, denyText, cashOutText, scoreText, pricesText] =
       await Promise.all([
@@ -248,25 +248,14 @@ export function createChainStage(options: StageOptions): Stage {
       };
       providers = withFixtureSite(providers, fixture, manifest.hostPrefixes);
     }
-    const rules = loadExclusionRules(exclusionText);
     return {
-      registry: createChainProviderRegistry(providers, { env: { ...env } }),
-      labels: new MemoryLabelLookup(loadLabelDataset(labelsText, DEMO_CURATED_DATASET, { retrievedAt: nowIso() })),
-      rules,
+      providers,
+      datasetLabels: loadLabelDataset(labelsText, DEMO_CURATED_DATASET, { retrievedAt: nowIso() }),
+      rules: loadExclusionRules(exclusionText),
       denyList: loadDenyList(denyText),
       cashOutRules: loadCashOutRules(cashOutText),
       score: loadCashOutScoreConfig(scoreText),
       prices: createSeriesPriceSource(loadPriceDataset(pricesText)),
-      // Offline and replay every chain request goes to the fixture site (or its recordings): use its pace, as the
-      // collectors do; live runs keep each provider's own rate limit from the register.
-      descriptors: options.sources
-        .filter((s) => [...CHAIN_SOURCES, NBP_SOURCE].includes(s.id))
-        .map((s) => {
-          const fixtureSite = options.sources.find((x) => x.id === 'fixture_site');
-          return options.mode !== 'live' && fixtureSite && s.id !== NBP_SOURCE
-            ? Object.assign({}, s, { rateLimit: fixtureSite.rateLimit })
-            : s;
-        }),
     };
   });
 
@@ -278,13 +267,16 @@ export function createChainStage(options: StageOptions): Stage {
         await ctx.progress({ chainAnalysisOf: ctx.evidenceRunId });
         return;
       }
-      const c = await setup();
+      const [c, sources] = await Promise.all([setup(), sourceRegistry()]);
       const runId = ctx.run.id;
+      const scope = sources.resolveScope(ctx.case.scope, options.mode);
+      const chainSources = scope.enabled.filter((s) => s.kind === 'chain_data').map((s) => s.id);
       const cassetteSet = env['OLCYS_CASSETTE_SET'];
       const http = createEgressClient({
         mode: options.mode,
         runId,
-        enabledSources: c.descriptors,
+        // Offline and replay every request goes to the fixture site (or its recordings), at the fixture site's pace.
+        enabledSources: scope.egressSources.filter((s) => CHAIN_STAGE_KINDS.has(s.kind)),
         blobs: ctx.blobs,
         sinks: {
           log: (entry) => ctx.repos.evidence.addEgressLog([entry]),
@@ -295,6 +287,8 @@ export function createChainStage(options: StageOptions): Stage {
         ...(cassetteSet ? { cassetteDir: join(REPO_ROOT, 'fixtures', 'cassettes', cassetteSet) } : {}),
         record: env['OLCYS_RECORD'] === '1',
       });
+      // Providers per run: their page memos and circuit breakers belong to one run.
+      const providers = createChainProviderRegistry(c.providers, { env: { ...env } });
       const runCtx: RunContext = {
         runId,
         caseId: ctx.case.id,
@@ -304,22 +298,25 @@ export function createChainStage(options: StageOptions): Stage {
         clock: systemClock,
         logger: ctx.logger,
       };
+      // The labels used are stored (the report and the API show them); labels already in the store apply too.
+      await ctx.repos.labels.upsert(c.datasetLabels);
+      const labels = new MemoryLabelLookup(await ctx.repos.labels.list());
 
-      // Candidates found in the evidence and crypto addresses given as case identifiers.
+      // Candidates found in the evidence and crypto addresses given as case identifiers, in canonical form.
       const found = await ctx.repos.evidence.listCandidates(runId);
       const byKey = new Map<string, AddressRef>();
-      for (const candidate of found) byKey.set(addressKey(candidate.address), candidate.address);
+      const add = (address: AddressRef): void => {
+        const canonical = canonicalAddress(address);
+        byKey.set(addressKey(canonical), canonical);
+      };
+      for (const candidate of found) add(candidate.address);
       for (const identifier of ctx.case.identifiers) {
         if (identifier.kind === 'crypto_address' && identifier.chain) {
-          const address: AddressRef = { chain: identifier.chain, address: identifier.value };
-          byKey.set(addressKey(address), address);
+          add({ chain: identifier.chain, address: identifier.value });
         }
       }
       const candidates = [...byKey.values()];
-      const published = new Set(
-        found.filter((f) => f.context.roleCues.some((cue) => OWNER_CUES.has(cue))).map((f) => f.address.address),
-      );
-      const exclusionDeps = { labels: c.labels, rules: c.rules, denyList: c.denyList, runId };
+      const exclusionDeps = { labels, rules: c.rules, denyList: c.denyList, runId };
 
       // 1. Pre-screen: deny list and labels decide without chain data.
       const toFetch: AddressRef[] = [];
@@ -332,19 +329,23 @@ export function createChainStage(options: StageOptions): Stage {
       const tips = new TipCache();
       const fetched = await runChainFetch(
         toFetch.map((address) => ({ address })),
-        c.registry,
+        providers,
         runCtx,
-        { enabledSources: CHAIN_SOURCES, tips },
+        { enabledSources: chainSources, tips },
       );
-      const unavailable = fetched.outcomes.filter((o) =>
-        ['blocked', 'captcha', 'rate_limited', 'error'].includes(o.status),
-      );
-      if (unavailable.length) ctx.markPartial(`chain data unavailable for ${unavailable.length} address(es)`);
+      const gaps = incompleteHistories(fetched.outcomes);
+      if (gaps) ctx.markPartial(`chain data incomplete for ${gaps}`);
 
       // 2. Exclusions with chain data; evm:unknown candidates use the fetch's explicit resolution.
-      const resolvedOf = (a: AddressRef): AddressRef =>
-        fetched.resolved.find((r) => addressKey(r.requested) === addressKey(a))?.resolved ??
-        (a.chain.startsWith('evm:') ? { ...a, address: a.address.toLowerCase() } : a);
+      const resolvedOf = (a: AddressRef): AddressRef => {
+        const canonical = canonicalAddress(a);
+        return fetched.resolved.find((r) => addressKey(r.requested) === addressKey(canonical))?.resolved ?? canonical;
+      };
+      /** One key per on-chain account: the chain (as fetched for `evm:unknown`) and the canonical address. */
+      const targetOf = (a: AddressRef): string => addressKey(resolvedOf(a));
+      const published = new Set(
+        found.filter((f) => isOwnStatement(f.context.roleCues)).map((f) => targetOf(f.address)),
+      );
       const decisions: ExclusionDecision[] = [];
       for (const candidate of candidates) {
         const resolved = resolvedOf(candidate);
@@ -356,8 +357,8 @@ export function createChainStage(options: StageOptions): Stage {
               address: candidate,
               ...(candidate.chain === 'evm:unknown' ? { resolved } : {}),
               ...(code ? { classification: classifyAddressType(resolved, code.code, [code.fetchId]) } : {}),
-              transfers: transfersOf(resolved, fetched.transfers),
-              published: published.has(candidate.address),
+              transfers: transfersOf(resolved, fetched.transfers, fetched.utxoTxs),
+              published: published.has(targetOf(candidate)),
             },
             exclusionDeps,
           )),
@@ -367,42 +368,48 @@ export function createChainStage(options: StageOptions): Stage {
 
       // 3. One-hop expansion of unlabelled recipients (deposit addresses show themselves by their sweeps).
       const kept = candidates.filter(
-        (a) =>
-          effectiveOutcome(decisions.filter((d) => d.address.address.toLowerCase() === a.address.toLowerCase()))
-            .outcome !== 'excluded',
+        (a) => effectiveOutcome(decisions.filter((d) => targetOf(d.address) === targetOf(a))).outcome !== 'excluded',
       );
-      const analysed = kept.map(resolvedOf);
-      const requestedOf = new Map(kept.map((a) => [addressKey(resolvedOf(a)), a]));
+      const requestedOf = new Map(kept.map((a) => [targetOf(a), a]));
+      const analysed = [...new Map(kept.map((a) => [targetOf(a), resolvedOf(a)])).values()];
       const utxoOf = (a: AddressRef) =>
-        fetched.utxoTxs.filter((tx) => [...tx.inputs, ...tx.outputs].some((io) => io.address === a.address));
-      const assets = createAssetRegistry();
-      const fetchedKeys = new Set(analysed.map(addressKey));
-      const expansion: AddressRef[] = [];
-      for (const a of analysed) {
-        expansion.push(
-          // oxlint-disable-next-line no-await-in-loop
-          ...(await planCounterpartyExpansion(
-            { address: a, transfers: transfersOf(a, fetched.transfers), utxoTxs: utxoOf(a) },
-            { labels: c.labels, assets },
-            { fetched: fetchedKeys },
-          )),
+        fetched.utxoTxs.filter(
+          (tx) => tx.chain === a.chain && [...tx.inputs, ...tx.outputs].some((io) => io.address === a.address),
         );
+      const transfersByKey = new Map(
+        analysed.map((a) => [addressKey(a), transfersOf(a, fetched.transfers, fetched.utxoTxs)]),
+      );
+      const ownTransfers = (a: AddressRef): NormalizedTransfer[] => transfersByKey.get(addressKey(a)) ?? [];
+      const assets = createAssetRegistry();
+      const analysedKeys = new Set(analysed.map(addressKey));
+      const expansion = new Map<string, AddressRef>();
+      for (const a of analysed) {
+        // oxlint-disable-next-line no-await-in-loop
+        const planned = await planCounterpartyExpansion(
+          { address: a, transfers: ownTransfers(a), utxoTxs: utxoOf(a) },
+          { labels, assets },
+          { fetched: analysedKeys },
+        );
+        for (const counterparty of planned) expansion.set(addressKey(counterparty), counterparty);
       }
-      const hop = expansion.length
+      const hop = expansion.size
         ? await runChainFetch(
-            expansion.map((address) => ({ address, want: { summary: false, code: false, utxo: false } })),
-            c.registry,
+            // Bitcoin UTXO pages are the listing's own (memoised) requests; they show sweeps spent with other inputs.
+            [...expansion.values()].map((address) => ({ address, want: { summary: false, code: false } })),
+            providers,
             runCtx,
-            { enabledSources: CHAIN_SOURCES, tips },
+            { enabledSources: chainSources, tips },
           )
         : undefined;
+      const hopGaps = hop ? incompleteHistories(hop.outcomes) : undefined;
+      if (hopGaps) ctx.markPartial(`counterparty chain data incomplete for ${hopGaps}`);
       const counterpartyTransfers = new Map(
-        expansion.map((a) => [addressKey(a), transfersOf(a, hop?.transfers ?? [])]),
+        [...expansion].map(([key, a]) => [key, transfersOf(a, hop?.transfers ?? [], hop?.utxoTxs ?? [])]),
       );
 
       // 4. Activity, cash-out indicators and flows, valued in PLN at the NBP rate.
       const deps = {
-        labels: c.labels,
+        labels,
         assets,
         valuator: createValuator({ fx: createNbpFxRateSource({ http }), prices: c.prices, assets }),
         forwarding: c.rules.a4,
@@ -419,11 +426,11 @@ export function createChainStage(options: StageOptions): Stage {
           {
             address: a,
             ...(requested?.chain === 'evm:unknown' ? { requested } : {}),
-            transfers: transfersOf(a, fetched.transfers),
+            transfers: ownTransfers(a),
             utxoTxs: utxoOf(a),
             decisions,
             counterpartyTransfers,
-            analysed: new Set(analysed.map(addressKey)),
+            analysed: analysedKeys,
           },
           deps,
           runCtx,
@@ -431,11 +438,12 @@ export function createChainStage(options: StageOptions): Stage {
         indicators.push(analysis.indicators);
         events.push(...analysis.events);
         // oxlint-disable-next-line no-await-in-loop
-        await ctx.repos.chain.addTransfers(runId, a, transfersOf(a, fetched.transfers));
+        await ctx.repos.chain.addTransfers(runId, a, ownTransfers(a));
       }
       await ctx.repos.analysis.addActivity(runId, indicators);
       await ctx.repos.analysis.addCashOuts(events);
       await ctx.progress({
+        chainProviders: chainSources,
         chainAddresses: analysed.length,
         exclusions: decisions.length,
         cashOutEvents: events.length,

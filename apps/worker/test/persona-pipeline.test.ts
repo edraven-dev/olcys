@@ -68,12 +68,23 @@ describe('demo scenario on the synthetic persona', () => {
             { kind: 'email', value: 'kacper.fikcyjny@example.org', isAnchor: false },
           ],
           scope: {
-            enabledSources: ['bitcointalk', 'wykop', 'github', 'telegram_preview'],
+            enabledSources: [
+              'bitcointalk',
+              'wykop',
+              'github',
+              'telegram_preview',
+              'mempool_space',
+              'etherscan_v2',
+              'trongrid',
+              'nbp_api',
+            ],
             amberJustifications: {
               bitcointalk: JUSTIFICATION,
               wykop: JUSTIFICATION,
               github: JUSTIFICATION,
               telegram_preview: JUSTIFICATION,
+              etherscan_v2: JUSTIFICATION,
+              trongrid: JUSTIFICATION,
             },
             chains: [],
             maxPivotDepth: 2,
@@ -128,6 +139,8 @@ describe('demo scenario on the synthetic persona', () => {
       const html = new TextDecoder().decode(await runtime.blobs.get(report!.blobSha256));
       expect(html).toContain('lang="pl"');
       expect(html).toContain(manifest.addresses['BTC-1']!.address);
+      // The exchange label that rejected the deposit address is shown with it.
+      expect(html).toContain('Giełda Testowa (SYNTHETIC)');
 
       // Nothing secret or third-party-only becomes an ownership link with a positive score.
       expect(score('TRON-2').every((s) => s === 0)).toBe(true);
@@ -137,6 +150,16 @@ describe('demo scenario on the synthetic persona', () => {
       // rates without recordings) was refused before sending.
       expect(egress.filter((e) => e.allowed).every((e) => e.host === '127.0.0.1')).toBe(true);
       expect(egress.filter((e) => e.host !== '127.0.0.1').every((e) => !e.allowed)).toBe(true);
+      // Only sources the case enables were contacted; the labels the chain analysis used are stored for the report.
+      const contacted = new Set(egress.filter((e) => e.allowed).map((e) => e.sourceId));
+      expect([...contacted].filter((id) => id !== 'fixture_site' && !kase.scope.enabledSources.includes(id))).toEqual(
+        [],
+      );
+      expect(contacted).toContain('trongrid');
+      const stored = new Set((await runtime.repos.labels.list()).map((l) => l.id));
+      const used = exclusions.flatMap((d) => d.evidence.labelIds ?? []);
+      expect(used.length).toBeGreaterThan(0);
+      expect(used.filter((id) => !stored.has(id))).toEqual([]);
 
       const switched = await fetch(`${server.url}/__fixture/variant`, { method: 'POST', body: 'v2' });
       expect(switched.status).toBe(204);

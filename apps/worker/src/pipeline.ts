@@ -88,6 +88,12 @@ export function evidenceRunIdOf(run: Pick<AnalysisRun, 'id' | 'trigger' | 'resco
   return run.trigger === 'rescore' && run.rescoreOfRunId ? run.rescoreOfRunId : run.id;
 }
 
+/** Why a run is incomplete, as recorded with `markPartial` (`progress.partial`). */
+function partialReasonsOf(run: Pick<RunWithProgress, 'progress'> | undefined): string[] {
+  const recorded = run?.progress?.['partial'];
+  return Array.isArray(recorded) ? recorded.filter((r): r is string => typeof r === 'string') : [];
+}
+
 async function snapshotOf(repos: Repositories, run: RunWithProgress): Promise<RunSnapshot> {
   const evidenceRunId = evidenceRunIdOf(run);
   const [captures, observations, assessments] = await Promise.all([
@@ -151,11 +157,13 @@ export async function runPipeline(runId: Id, deps: PipelineDeps): Promise<RunWit
   });
   const total = stages.length;
   let progress: Record<string, unknown> = { step: 'run.start', done: 0, total };
-  const partial: string[] = [];
+  const evidenceRunId = evidenceRunIdOf(queued);
+  // A rescore re-analyses saved evidence: whatever that evidence lacked is still missing from the new analysis.
+  const partial = evidenceRunId === runId ? [] : partialReasonsOf(await repos.runs.get(evidenceRunId));
   await repos.runs.update(runId, { status: 'running', startedAt: nowIso(), progress });
   const ctx: StageContext = {
     run: { ...queued, status: 'running' },
-    evidenceRunId: evidenceRunIdOf(queued),
+    evidenceRunId,
     case: kase,
     repos,
     blobs: deps.blobs,
