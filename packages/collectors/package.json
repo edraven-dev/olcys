@@ -8,6 +8,11 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@olcys/core": "workspace:*"
+    "@olcys/core": "workspace:*",
+    "linkedom": "0.18.15",
+    "yaml": "2.9.1"
+  },
+  "devDependencies": {
+    "@olcys/http": "workspace:*"
   }
 }
