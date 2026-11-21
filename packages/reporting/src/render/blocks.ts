@@ -6,7 +6,7 @@ import type { ChainId, Id } from '@olcys/core';
 import { KNOWN_CHAINS } from '@olcys/core';
 import { join, markup, t, type Html, type SafeHtml } from '../html.ts';
 import { pl } from '../i18n/pl.ts';
-import { scoreBand, type View } from '../view.ts';
+import type { BandId, View } from '../view.ts';
 
 export const STATEMENT_CLASSES = ['facts', 'computed', 'inferences'] as const;
 export type StatementClass = (typeof STATEMENT_CLASSES)[number];
@@ -89,9 +89,8 @@ export function capped<T>(items: readonly T[], max: number, render: (item: T) =>
   return join([list(shown), note]);
 }
 
-/** The challenge brief's score band next to a score (`excluded` only for addresses rejected by a rule). */
-export function bandBadge(score: number, excluded = false): SafeHtml {
-  const band = scoreBand(score, excluded);
+/** The challenge brief's score band (`excluded` only for addresses rejected by a rule). */
+export function bandBadge(band: BandId): SafeHtml {
   return markup`<span class="band band-${band}">${pl.bands[band].label}</span>`;
 }
 

@@ -116,7 +116,20 @@ export const pl = {
       few: 'pośrednio, {count} przeskoki',
       many: 'pośrednio, {count} przeskoków',
     },
+    independentSources: {
+      one: '{count} niezależne źródło',
+      few: '{count} niezależne źródła',
+      many: '{count} niezależnych źródeł',
+    },
+    sourcesLoc: { one: '{count} źródle', few: '{count} źródłach', many: '{count} źródłach' },
+    mentionsLoc: { one: '{count} wzmiance', few: '{count} wzmiankach', many: '{count} wzmiankach' },
+    movements: { one: '{count} przepływ', few: '{count} przepływy', many: '{count} przepływów' },
+    movementsGen: { one: '{count} przepływu', few: '{count} przepływów', many: '{count} przepływów' },
   } satisfies Record<string, PluralForms>,
+  values: {
+    unavailable: 'wartość niedostępna (brak wycen w PLN)',
+    partial: '{pln} — suma częściowa, bez wyceny: {count}',
+  },
   meta: {
     caseBlock: 'Sprawa',
     title: 'Tytuł sprawy',
@@ -200,7 +213,8 @@ export const pl = {
     confidence: 'Pewność analityczna powyższych ocen (najniższa z nich): {level}.',
     rejected:
       'Odrzucono {rejected} — m.in. adresy giełd i usług, smart kontrakty, przykłady z dokumentacji i zapisy zmanipulowane (rozdział 4).',
-    cashOut: 'Wykryto {cashOuts} o łącznej wartości {pln} (rozdział 5).',
+    cashOut:
+      'Wykryto {cashOuts} dotyczących {movements}; wartość tych przepływów (każdy liczony raz, choć może spełniać kilka reguł): {value} (rozdział 5).',
     noCashOut: 'Nie wykryto przesłanek wyjścia do walut tradycyjnych.',
     changes: 'Względem poprzedniego uruchomienia wykryto {changes}, w tym {swaps} (rozdział 7).',
     firstRun: 'To pierwsze uruchomienie analizy w tej sprawie — brak wyniku do porównania.',
@@ -258,11 +272,18 @@ export const pl = {
     gateFailed: 'niespełniony',
     synergyTitle: 'Synergia śladów',
     synergyYes:
-      'TAK — adres wystąpił w {count} niezależnych źródłach różnego pochodzenia: {sources}. Potwierdzenie w niezależnych źródłach podnosi Wskaźnik Pewności.',
+      'TAK — algorytm uznał {independent} (najsilniejsza ścieżka z każdego serwisu): {sources}. Premia za synergię: +{bonus} pkt względem najsilniejszej pojedynczej ścieżki ({best}/100).',
     synergyNo:
-      'NIE — adres wystąpił tylko w jednym źródle: {sources}. Wielokrotne wystąpienie adresu w ramach jednego serwisu nie stanowi dodatkowego potwierdzenia.',
+      'NIE — algorytm uznał tylko jedno niezależne źródło: {sources}. Powtórzenia w ramach jednego serwisu lub jednej grupy pochodzenia nie stanowią dodatkowego potwierdzenia.',
+    synergyRepeats:
+      'Nieuwzględnione powtórzenia: ścieżki tego samego serwisu — {paths}; przesłanki z tej samej grupy pochodzenia — {items}.',
+    appearances:
+      'Adres wystąpił w {sources}: {list}. Algorytm oceny nie podał oceny niezależności tych źródeł — liczba wystąpień nie jest synergią śladów.',
     synergyNone: 'Adres nie wystąpił w treści stron zabezpieczonych w tym uruchomieniu.',
     synergySource: '{source} ({occurrences})',
+    pathNotCounted: 'nieuwzględniona w wyniku — silniejsza ścieżka tego samego serwisu',
+    originGroup: 'Grupa pochodzenia: {group}',
+    notCountedUngraded: 'nie — źródło bez oceny wiarygodności (wymaga oceny analityka)',
     versions: 'Algorytm {algorithm} · wagi {weights} (SHA-256 {sha}) · reguły {rules} · obliczono {at}',
     noFacts: 'Brak zapisanych obserwacji dla tego powiązania w tym uruchomieniu.',
     computedCheck: '{property}: {value} — na podstawie: {ref}',
@@ -286,6 +307,8 @@ export const pl = {
   facts: {
     observation: '{source} · {subject}: {property} — {value}',
     candidate: 'Adres wystąpił na stronie {url} ({source}).',
+    author: 'Autor wpisu według źródła: {authors}.',
+    authorUnknown: 'Autora wzmianki nie ustalono.',
     snippet: 'Kontekst w źródle: „{snippet}”',
     account: 'Konto {handle} w serwisie {platform}: {url}',
     meta: 'Zebrano {at} · {ref} · SHA-256 manifestu {sha}',
@@ -417,12 +440,21 @@ export const pl = {
     exclusion: 'brak reguły wykluczenia',
     analyst_grading: 'źródło ma ocenę wiarygodności',
     review_required: 'dopasowanie nie wymaga przeglądu analityka',
+    checksum: 'suma kontrolna adresu (schemat i siła)',
+    llm_zero_weight: 'sugestie AI bez wagi do czasu potwierdzenia przez analityka',
+    identity_anchor: 'kotwica tożsamości: P = 0,99 jako założenie analityka',
   } satisfies Record<LinkGateId, string> as Record<string, string>,
   rejected: {
     intro:
       'Adresów nie usuwa się — przeklasyfikowuje się je z podaniem reguły i dowodów. Adres giełdy, usługi lub smart kontraktu nie jest przypisywany osobie (Wskaźnik Pewności 0 — WYKLUCZENIE), ale interakcje analizowanych adresów z nim są odnotowywane.',
     rulesTitle: 'Odrzucone regułami wykluczeń (A1–A8)',
     rulesNone: 'Żaden adres nie został odrzucony regułami wykluczeń.',
+    flaggedTitle: 'Ostrzeżenia reguł (adresy nie są odrzucane)',
+    flaggedIntro:
+      'Reguła oznaczyła adres do weryfikacji (np. zachowanie usługi, CoinJoin, zapadnięcie klastra), ale go nie odrzuciła: adres pozostaje w analizie, a ostrzeżenie widnieje także na jego karcie w rozdziale 3.',
+    flaggedLinked: 'adres pozostaje powiązany (rozdział 3)',
+    authorshipUnconfirmed:
+      'Adres wymieniono w {mentions}, ale nie potwierdzono, że opublikowała go osoba z identyfikatorów sprawy — autorstwo wymaga weryfikacji; dopiero po jej potwierdzeniu adres jest tropem KYC.',
     keptTitle: 'Sprawdzone regułami i zachowane',
     thirdPartyTitle: 'Przypisania przez stronę trzecią',
     thirdPartyNone: 'Brak przypisań przez stronę trzecią.',
@@ -587,8 +619,11 @@ export const pl = {
       'Opis przepływów środków w kolejności chronologicznej, zbudowany z transakcji pobranych z publicznych danych blockchain. Każdy wpis zawiera fakt (co zapisano w łańcuchu bloków), wynik obliczeń (wycena, reguły) i — jeśli dotyczy — wniosek do weryfikacji.',
     none: 'Brak przepływów środków do opisania w tym uruchomieniu.',
     overview: 'Od {from} do {to} odnotowano {flows} z udziałem {addresses}.',
-    cashOutTotal: 'Łączna wartość przepływów ocenionych jako przesłanki wyjścia do walut tradycyjnych: {pln}.',
+    cashOutTotal:
+      'Wartość przepływów ocenionych jako przesłanki wyjścia do walut tradycyjnych (każdy przepływ liczony raz, choć może spełniać kilka reguł): {value}.',
     step: '{amount} przesłano z adresu {from} na adres {to}.',
+    indicator:
+      'Reguła wyjścia do walut tradycyjnych wskazała przepływ {amount} z adresu {from} na adres {to} (transakcje: {txs}, sieć {chain}); tej transakcji nie ma w danych blockchain pobranych w tym uruchomieniu — to wynik reguły, a nie zapis z łańcucha bloków.',
     tx: 'Transakcja {tx} w sieci {chain}.',
     valuation: 'Wartość: {value}.',
     noValuation: 'Brak wyceny w PLN.',

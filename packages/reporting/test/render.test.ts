@@ -119,10 +119,17 @@ describe('renderReport', () => {
     expect(links).toContain('nie — silniejsza przesłanka tej samej rodziny');
     expect(links).toContain('Kotwica: P = 0,99');
     expect(links).toContain('podpis poprawny');
-    expect(links).toMatch(
-      /TAK — adres wystąpił w 2 niezależnych źródłach różnego pochodzenia: Ogłoszenia P2P \(1 wystąpienie\), Wykop/,
+    // Synergy comes from the scoring engine (independent services, bonus, ignored repeats) …
+    expect(links).toContain(
+      'TAK — algorytm uznał 2 niezależne źródła (najsilniejsza ścieżka z każdego serwisu): Ogłoszenia P2P, Wykop. Premia za synergię: +16 pkt względem najsilniejszej pojedynczej ścieżki (50/100).',
     );
-    expect(links).toMatch(/NIE — adres wystąpił tylko w jednym źródle: Bitcointalk \(forum\) \(2 wystąpienia\)/);
+    expect(links).toContain('NIE — algorytm uznał tylko jedno niezależne źródło: Bitcointalk (forum).');
+    expect(links).toContain('przesłanki z tej samej grupy pochodzenia — 1');
+    // … and without it the report only counts appearances, with no independence claim.
+    expect(links).toContain(
+      'Adres wystąpił w 1 źródle: GitHub (1 wystąpienie). Algorytm oceny nie podał oceny niezależności tych źródeł',
+    );
+    expect(links).toContain('Grupa pochodzenia: acct:wykop:fikcyjny_kacper');
     expect(links).toContain(
       'Silny dowód kontroli adresu przez konto github / fikcyjny-kacper nie przenosi się na osobę',
     );
@@ -183,7 +190,10 @@ describe('renderReport', () => {
     // The B5 event values 4800 USDT; each 2400 USDT transfer is not given the event's total value.
     expect(flow).not.toContain(`Wartość: <strong>1${NBSP}234${NBSP}567,50`);
     expect(flow).toContain('(powiązany z „fikcyjny_kacper”, 99/100)');
-    expect(flow).toMatch(
+    expect(flow).toContain(
+      `przesłanki wyjścia do walut tradycyjnych (każdy przepływ liczony raz, choć może spełniać kilka reguł): 1${NBSP}236${NBSP}087,87${NBSP}zł`,
+    );
+    expect(flow).not.toMatch(
       /Łączna wartość przepływów ocenionych jako przesłanki wyjścia do walut tradycyjnych: 1\u00A0236\u00A0087,87\u00A0zł/,
     );
   });

@@ -15,17 +15,21 @@ potoku `report.render`, który raport generuje i zapisuje.
 2. Podsumowanie ustaleń dla osób bez wiedzy informatycznej.
 3. Adresy powiązane z identyfikatorami — Wskaźnik Pewności 0–100, przedział z treści zadania (80–100 BARDZO WYSOKIE,
    60–79 PRAWDOPODOBNE, 40–59 ŚREDNIE, 10–39 NISKIE / SZUM, 0 WYKLUCZENIE), określenie ICD 203, osobno pewność
-   analityczna, ścieżki i przesłanki z wkładem w wynik oraz synergia śladów (ten sam adres w niezależnych źródłach).
-4. Odrzucone przypisania — reguły A1–A8 z wynikiem i dowodami (adres depozytowy giełdy, usługa oznaczona etykietą, smart
-   kontrakt, lista wykluczeń), przypisania przez stronę trzecią oraz zapisy odrzucone przy weryfikacji adresu (przykład
-   z dokumentacji, homoglify). Interakcje z giełdami są odnotowywane, a nie przypisywane osobie.
+   analityczna, ścieżki i przesłanki z wkładem w wynik oraz synergia śladów. Przedział i synergię (niezależne serwisy,
+   premia, pominięte powtórzenia) podaje algorytm oceny; bez jego oceny raport tylko liczy wystąpienia adresu.
+4. Odrzucone przypisania — reguły A1–A8 z wynikiem `excluded` lub `reclassified` i dowodami (adres depozytowy giełdy,
+   usługa oznaczona etykietą, smart kontrakt, lista wykluczeń), przypisania przez stronę trzecią oraz zapisy odrzucone
+   przy weryfikacji adresu (przykład z dokumentacji, homoglify). Wynik `flagged` jest ostrzeżeniem, a nie odrzuceniem.
+   Trop KYC tylko wtedy, gdy analiza ustaliła autorstwo publikacji (`evidence.kycLead`); inne wzmianki są wymienione
+   z autorami jako nieprzesądzające. Interakcje z giełdami są odnotowywane, a nie przypisywane osobie.
 5. Aktywność on-chain i przesłanki wyjścia do walut tradycyjnych — wartości w PLN z tabelą, datą i kursem NBP.
 6. Chronologia przepływu środków — zdania w kolejności czasu, zbudowane z transakcji, krawędzi przepływu i zdarzeń
-   wyjścia do walut tradycyjnych.
-7. Zmiany od poprzedniego uruchomienia — alert podmiany adresu portfela z oboma zabezpieczeniami.
-8. Rejestr materiału dowodowego — każda strona z adresem URL, czasem pobrania, statusem i skrótami SHA-256 oraz
-   podsumowanie dziennika połączeń wychodzących.
-9. Metodyka i ograniczenia.
+   wyjścia do walut tradycyjnych. Zdarzenie bez pobranej transakcji jest wynikiem reguły, a nie przelewem; wycena
+   krawędzi trafia tylko do tego samego przepływu (sieć, transakcja, adresy, aktywo, kwota). Sumy liczą każdy
+   przepływ raz (także gdy spełnia kilka reguł), a brak wyceny nigdy nie jest zerem.
+
+Adresy są zawsze rozróżniane według sieci i adresu (ten sam adres EVM w Ethereum i Polygon to dwa różne adresy). 7. Zmiany od poprzedniego uruchomienia — alert podmiany adresu portfela z oboma zabezpieczeniami. 8. Rejestr materiału dowodowego — każda strona z adresem URL, czasem pobrania, statusem i skrótami SHA-256 oraz
+podsumowanie dziennika połączeń wychodzących. 9. Metodyka i ograniczenia.
 
 Każda treść należy do jednej z trzech klas, renderowanych w osobnych, opisanych blokach (`data-statement="fakty"`,
 `"obliczenia"`, `"wnioski"`) z różnym obramowaniem (ciągłe, podwójne, przerywane — czytelne także w druku czarno-białym).

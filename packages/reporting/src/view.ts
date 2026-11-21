@@ -1,11 +1,13 @@
 /**
  * Derived, read-only indexes over `ReportData` used by every section: capture register numbers, address roles,
- * accepted vs rejected links, score bands and trace synergy. Pure and deterministic (code-unit ordering only).
+ * accepted vs rejected links and score bands. Addresses are always keyed by chain and address, so the same string on
+ * two chains (e.g. an EVM address on Ethereum and on Polygon) never shares results. Pure and deterministic.
  */
 import { createHash } from 'node:crypto';
 import type {
   AddressCandidate,
   AddressLabel,
+  AddressRef,
   AnalyticConfidence,
   Capture,
   ExclusionDecision,
@@ -14,8 +16,9 @@ import type {
   LinkAssessment,
   Observation,
   OnlineAccount,
+  ScoreBand,
 } from '@olcys/core';
-import { canonicalJson, isAddressValuedProperty } from '@olcys/core';
+import { addressKey, canonicalJson, isAddressValuedProperty } from '@olcys/core';
 import { pl } from './i18n/pl.ts';
 import type { ReportData } from './types.ts';
 
@@ -29,6 +32,19 @@ export function scoreBand(score: number, excluded = false): BandId {
   if (score >= 60) return 'probable';
   if (score >= 40) return 'medium';
   return 'low';
+}
+
+const SCORE_BAND_IDS: Record<ScoreBand, BandId> = {
+  BARDZO_WYSOKIE: 'very_high',
+  PRAWDOPODOBNE: 'probable',
+  SREDNIE: 'medium',
+  NISKIE: 'low',
+  WYKLUCZENIE: 'excluded',
+};
+
+/** Band of a link: the scoring engine's `band` when present, otherwise derived from the score. */
+export function linkBand(link: Pick<LinkAssessment, 'score' | 'band'>): BandId {
+  return (link.band ? SCORE_BAND_IDS[link.band] : undefined) ?? scoreBand(link.score);
 }
 
 /** ICD 203 likelihood scale (upper bounds), identical to `scales.icd203` in config/scoring/weights.v1.yaml. */
@@ -65,12 +81,21 @@ export function timeOf(iso: string | undefined): number {
   return Number.isNaN(ms) ? 0 : ms;
 }
 
-/** Case-insensitive comparison key for hex (EVM) and bech32 addresses; other encodings are case-sensitive. */
+/** Case-insensitive comparison form for hex (EVM) and bech32 addresses; other encodings are case-sensitive. */
 export function normAddress(address: string): string {
   return /^0x[0-9a-f]+$/i.test(address) || /^(bc|tb|bcrt|ltc)1/i.test(address) ? address.toLowerCase() : address;
 }
 
+/** Chain-aware comparison key, `<chain>:<address>`. */
+export function refKey(ref: AddressRef): string {
+  return addressKey({ chain: ref.chain, address: normAddress(ref.address) });
+}
+
+export const sameRef = (a: AddressRef, b: AddressRef): boolean => refKey(a) === refKey(b);
+
+/** Only these outcomes reject an address; `flagged` is a warning and `kept` a passed check. */
 const REMOVING_OUTCOMES = new Set<ExclusionDecision['outcome']>(['excluded', 'reclassified']);
+export const isRemoving = (e: ExclusionDecision): boolean => REMOVING_OUTCOMES.has(e.outcome);
 const NON_OWNERSHIP = new Set<string>(['THIRD_PARTY_ATTRIBUTION', 'CUSTODIAL_EXCHANGE']);
 
 export interface AddressRole {
@@ -80,7 +105,8 @@ export interface AddressRole {
   label?: AddressLabel;
 }
 
-export interface SynergySource {
+/** Pages of one source on which the address appeared (an appearance count, not an independence assessment). */
+export interface AppearanceSource {
   sourceId: string;
   pages: number;
 }
@@ -98,17 +124,19 @@ export interface View {
   /** Accepted ownership links, highest score first. */
   linked: LinkAssessment[];
   thirdParty: LinkAssessment[];
-  /** Exclusion decisions that remove or reclassify the address (A1–A8), ordered by rule and address. */
+  /** Decisions that exclude or reclassify the address (A1–A8), ordered by rule and address. */
   removing: ExclusionDecision[];
+  /** Warnings (`flagged`, e.g. A5–A7): the address is not rejected. */
+  flagged: ExclusionDecision[];
   kept: ExclusionDecision[];
   sourceName(id: string): string;
-  labelsFor(address: string): AddressLabel[];
-  exclusionsFor(address: string): ExclusionDecision[];
-  candidatesFor(address: string): AddressCandidate[];
-  /** Address-valued observations whose value is the address. */
-  observationsFor(address: string): Observation[];
-  roleOf(address: string): AddressRole;
-  synergy(address: string): SynergySource[];
+  labelsFor(ref: AddressRef): AddressLabel[];
+  exclusionsFor(ref: AddressRef): ExclusionDecision[];
+  candidatesFor(ref: AddressRef): AddressCandidate[];
+  /** Address-valued observations whose value is the address (on a page that does not attribute it to another chain). */
+  observationsFor(ref: AddressRef): Observation[];
+  roleOf(ref: AddressRef): AddressRole;
+  appearances(ref: AddressRef): AppearanceSource[];
   identityLabel(identityId: Id): string;
 }
 
@@ -125,7 +153,7 @@ function group<T>(items: readonly T[], key: (item: T) => string): Map<string, T[
 
 function isRemoved(link: LinkAssessment, exclusions: readonly ExclusionDecision[]): boolean {
   if (NON_OWNERSHIP.has(link.relation)) return true;
-  if (exclusions.some((e) => REMOVING_OUTCOMES.has(e.outcome))) return true;
+  if (exclusions.some(isRemoving)) return true;
   return (link.gates ?? []).some((g) => g.gate === 'exclusion' && !g.passed);
 }
 
@@ -139,7 +167,7 @@ export function reportDataJson(data: ReportData): string {
 
 const byTime = (a: Capture, b: Capture) => timeOf(a.collectedAt) - timeOf(b.collectedAt) || cmp(a.id, b.id);
 const exclusionOrder = (a: ExclusionDecision, b: ExclusionDecision) =>
-  cmp(a.ruleId, b.ruleId) || cmp(a.address.address, b.address.address) || cmp(a.id, b.id);
+  cmp(a.ruleId, b.ruleId) || cmp(refKey(a.address), refKey(b.address)) || cmp(a.id, b.id);
 
 export function buildView(data: ReportData): View {
   const dataSha256 = createHash('sha256').update(reportDataJson(data)).digest('hex');
@@ -151,26 +179,29 @@ export function buildView(data: ReportData): View {
   const captureById = new Map(captures.map((c) => [c.id, c]));
 
   const sourceNames = new Map(data.sources.map((s) => [s.id, s.name]));
-  const labelsByAddr = group(data.labels, (l) => normAddress(l.address.address));
-  const exclusionsByAddr = group(data.exclusions, (e) => normAddress(e.address.address));
-  const candidatesByAddr = group(data.candidates, (c) => normAddress(c.address.address));
+  const labelsByRef = group(data.labels, (l) => refKey(l.address));
+  const exclusionsByRef = group(data.exclusions, (e) => refKey(e.address));
+  const candidatesByRef = group(data.candidates, (c) => refKey(c.address));
+  // Chains the extractor attributed to an address on a page: an observation of that page belongs to those chains.
+  const pageChains = new Map<string, Set<string>>();
+  for (const c of data.candidates) {
+    const key = `${c.captureId}|${normAddress(c.address.address)}`;
+    pageChains.set(key, (pageChains.get(key) ?? new Set<string>()).add(c.address.chain));
+  }
   const addressObservations = group(
     data.observations.filter((o) => isAddressValuedProperty(o.property)),
     (o) => normAddress(o.value.trim()),
   );
-  const exclusionsFor = (address: string) => exclusionsByAddr.get(normAddress(address)) ?? [];
+  const exclusionsFor = (ref: AddressRef) => exclusionsByRef.get(refKey(ref)) ?? [];
 
   const links = data.links.toSorted(
-    (a, b) => b.score - a.score || cmp(a.address.address, b.address.address) || cmp(a.id, b.id),
+    (a, b) => b.score - a.score || cmp(refKey(a.address), refKey(b.address)) || cmp(a.id, b.id),
   );
-  const linked = links.filter((l) => !isRemoved(l, exclusionsFor(l.address.address)));
+  const linked = links.filter((l) => !isRemoved(l, exclusionsFor(l.address)));
   const thirdParty = links.filter(
-    (l) =>
-      l.relation === 'THIRD_PARTY_ATTRIBUTION' &&
-      !exclusionsFor(l.address.address).some((e) => REMOVING_OUTCOMES.has(e.outcome)),
+    (l) => l.relation === 'THIRD_PARTY_ATTRIBUTION' && !exclusionsFor(l.address).some(isRemoving),
   );
-  const removing = data.exclusions.filter((e) => e.outcome !== 'kept').toSorted(exclusionOrder);
-  const kept = data.exclusions.filter((e) => e.outcome === 'kept').toSorted(exclusionOrder);
+  const decisions = data.exclusions.toSorted(exclusionOrder);
   const identityById = new Map(data.case.identifiers.map((i) => [i.id, i]));
 
   const view: View = {
@@ -185,39 +216,42 @@ export function buildView(data: ReportData): View {
     candidateById: new Map(data.candidates.map((c) => [c.id, c])),
     linked,
     thirdParty,
-    removing,
-    kept,
+    removing: decisions.filter(isRemoving),
+    flagged: decisions.filter((e) => e.outcome === 'flagged'),
+    kept: decisions.filter((e) => e.outcome === 'kept'),
     sourceName: (id) => sourceNames.get(id) ?? id,
-    labelsFor: (address) =>
-      (labelsByAddr.get(normAddress(address)) ?? []).toSorted(
-        (a, b) => b.confidence - a.confidence || cmp(a.entity, b.entity),
-      ),
+    labelsFor: (ref) =>
+      (labelsByRef.get(refKey(ref)) ?? []).toSorted((a, b) => b.confidence - a.confidence || cmp(a.entity, b.entity)),
     exclusionsFor,
-    candidatesFor: (address) => candidatesByAddr.get(normAddress(address)) ?? [],
-    observationsFor: (address) => addressObservations.get(normAddress(address)) ?? [],
-    roleOf(address) {
-      const exclusion = exclusionsFor(address).find((e) => e.outcome !== 'kept');
-      const label = view.labelsFor(address)[0];
+    candidatesFor: (ref) => candidatesByRef.get(refKey(ref)) ?? [],
+    observationsFor: (ref) =>
+      (addressObservations.get(normAddress(ref.address)) ?? []).filter((o) => {
+        const chains = pageChains.get(`${o.captureId}|${normAddress(o.value.trim())}`);
+        return !chains || chains.has(ref.chain);
+      }),
+    roleOf(ref) {
+      const exclusion = exclusionsFor(ref).find(isRemoving);
+      const label = view.labelsFor(ref)[0];
       if (exclusion) return { kind: 'excluded', exclusion, ...(label ? { label } : {}) };
-      const link = linked.find((l) => normAddress(l.address.address) === normAddress(address));
+      const link = linked.find((l) => sameRef(l.address, ref));
       if (link) return { kind: 'linked', link };
-      const third = thirdParty.find((l) => normAddress(l.address.address) === normAddress(address));
+      const third = thirdParty.find((l) => sameRef(l.address, ref));
       if (third) return { kind: 'third_party', link: third };
       if (label) return { kind: 'labelled', label };
       return { kind: 'unknown' };
     },
-    synergy(address) {
+    appearances(ref) {
       const pages = new Map<string, Set<string>>();
       const add = (sourceId: string, captureId: string) => {
         const set = pages.get(sourceId) ?? new Set<string>();
         set.add(captureId);
         pages.set(sourceId, set);
       };
-      for (const c of view.candidatesFor(address)) {
+      for (const c of view.candidatesFor(ref)) {
         const capture = captureById.get(c.captureId);
         if (capture) add(capture.sourceId, c.captureId);
       }
-      for (const o of view.observationsFor(address)) add(o.sourceId, o.captureId);
+      for (const o of view.observationsFor(ref)) add(o.sourceId, o.captureId);
       return [...pages.entries()]
         .map(([sourceId, set]) => ({ sourceId, pages: set.size }))
         .toSorted((a, b) => cmp(a.sourceId, b.sourceId));

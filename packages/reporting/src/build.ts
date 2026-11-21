@@ -15,7 +15,7 @@ import type {
 } from '@olcys/core';
 import { addressKey, newId, nowIso } from '@olcys/core';
 import { REPORT_TEMPLATE_VERSION, type ReportData, type ReportSource } from './types.ts';
-import { cmp, normAddress } from './view.ts';
+import { cmp, refKey } from './view.ts';
 
 export interface BuildReportOptions {
   /** Source register (`config/sources.yaml`) for display names and compliance status. */
@@ -105,14 +105,17 @@ export async function buildReportData(
   // Reference labels are global: keep those of addresses this run touched.
   const relevant = new Set(
     [
-      ...links.map((l) => l.address.address),
-      ...exclusions.map((e) => e.address.address),
-      ...candidates.map((c) => c.address.address),
-      ...transfers.flatMap((t) => [t.from, t.to]),
-      ...cashOuts.flatMap((e) => [e.address.address, e.counterparty?.address ?? '']),
-      ...activity.map((a) => a.address.address),
-      ...flows.flatMap((f) => [f.from.address, f.to.address]),
-    ].map(normAddress),
+      ...links.map((l) => l.address),
+      ...exclusions.map((e) => e.address),
+      ...candidates.map((c) => c.address),
+      ...transfers.flatMap((t) => [
+        { chain: t.chain, address: t.from },
+        { chain: t.chain, address: t.to },
+      ]),
+      ...cashOuts.flatMap((e) => [e.address, { chain: e.address.chain, address: e.counterparty?.address ?? '' }]),
+      ...activity.map((a) => a.address),
+      ...flows.flatMap((f) => [f.from, f.to]),
+    ].map(refKey),
   );
   const labelIds = new Set(exclusions.flatMap((e) => e.evidence?.labelIds ?? []));
   const usedSources = new Set([
@@ -161,7 +164,7 @@ export async function buildReportData(
     ),
     links: byId(links),
     exclusions: byId(exclusions),
-    labels: byId(labels.filter((l) => relevant.has(normAddress(l.address.address)) || labelIds.has(l.id))),
+    labels: byId(labels.filter((l) => relevant.has(refKey(l.address)) || labelIds.has(l.id))),
     activity: activity.toSorted((a, b) => cmp(addressKey(a.address), addressKey(b.address))),
     cashOuts: byId(cashOuts),
     changes: byId(changes),

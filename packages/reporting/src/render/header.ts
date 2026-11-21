@@ -1,12 +1,11 @@
 /** Chapter 1 (metadata and reproducibility) and chapter 2 (summary for readers without IT background). */
-import { dSum, isDecimalString } from '@olcys/core';
 import { formatLongDate, formatPln, formatUtc, plural } from '../format.ts';
 import { join, markup, t, type SafeHtml } from '../html.ts';
 import { pl } from '../i18n/pl.ts';
-import { cmp, icdTerm, lowestConfidence, scoreBand, type View } from '../view.ts';
+import { cmp, icdTerm, linkBand, lowestConfidence, type View } from '../view.ts';
 import { isWalletSwap, changeWhere } from './annex.ts';
 import { addr, bandBadge, block, chainName, hash, kv, list, para, section, table } from './blocks.ts';
-import { counterpartyLabel } from './chain.ts';
+import { cashOutMovements, counterpartyLabel, movementValue } from './chain.ts';
 import { isKycLead, uniqueRejected } from './links.ts';
 
 export function metadataSection(view: View): SafeHtml {
@@ -110,12 +109,12 @@ export function summarySection(view: View): SafeHtml {
     addr(l.address.address),
     chainName(l.address.chain),
     markup`<strong>${l.score}/100</strong>`,
-    bandBadge(l.score),
+    bandBadge(linkBand(l)),
     icdTerm(l),
   ]);
   const c = pl.summary.tableColumns;
   const confidence = lowestConfidence(view.linked.map((l) => l.analyticConfidence));
-  const valued = data.cashOuts.map((e) => e.valuation?.pln).filter((v): v is string => !!v && isDecimalString(v));
+  const movements = cashOutMovements(view);
   const swaps = data.changes.filter(isWalletSwap);
   const rejectedCount = view.removing.length + view.thirdParty.length + uniqueRejected(data).length;
 
@@ -132,7 +131,8 @@ export function summarySection(view: View): SafeHtml {
       data.cashOuts.length
         ? t(pl.summary.cashOut, {
             cashOuts: plural(data.cashOuts.length, pl.counts.cashOuts),
-            pln: formatPln(valued.length ? dSum(valued) : '0'),
+            movements: plural(movements.count, pl.counts.movementsGen),
+            value: movementValue(movements),
           })
         : pl.summary.noCashOut,
       data.previousRun || data.changes.length
@@ -154,11 +154,11 @@ export function summarySection(view: View): SafeHtml {
           identity: view.identityLabel(l.identityId),
           term: icdTerm(l),
           score: l.score,
-          band: pl.bands[scoreBand(l.score)].label,
+          band: pl.bands[linkBand(l)].label,
         }),
       ),
     ...view.removing
-      .filter((e) => isKycLead(view, e))
+      .filter((e) => isKycLead(e))
       .map((e) => t(pl.summary.inferenceKyc, { address: addr(e.address.address) })),
     ...data.cashOuts
       .toSorted((a, b) => cmp(a.occurredAt, b.occurredAt) || cmp(a.id, b.id))

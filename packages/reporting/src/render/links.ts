@@ -2,6 +2,7 @@
 import type {
   AddressCandidate,
   AddressLabel,
+  AddressRef,
   ExclusionDecision,
   FeatureContribution,
   HopResult,
@@ -14,7 +15,7 @@ import { formatBits, formatFactor, formatProbability, formatUtc, plural, shortHa
 import { codePoint, fill, join, markup, t, type Html, type SafeHtml } from '../html.ts';
 import { pl } from '../i18n/pl.ts';
 import type { RejectedCandidate, ReportData } from '../types.ts';
-import { cmp, icdTerm, normAddress, scoreBand, type View } from '../view.ts';
+import { cmp, icdTerm, linkBand, sameRef, type View } from '../view.ts';
 import {
   addr,
   bandBadge,
@@ -65,13 +66,25 @@ export function observationFact(view: View, o: Observation): SafeHtml {
   })}<br>${captureMeta(view, o.captureId)}`;
 }
 
-export function candidateFact(view: View, c: AddressCandidate): SafeHtml {
+/** Post authors the source shows for the item containing the mention (by DOM anchor when known). */
+function authorsOf(view: View, c: AddressCandidate): string[] {
+  const onPage = view.data.observations.filter((o) => o.captureId === c.captureId && o.property === 'post.author');
+  const anchor = c.context?.anchor;
+  const matched = anchor ? onPage.filter((o) => o.locator.includes(anchor)) : [];
+  return [...new Set((matched.length ? matched : onPage).map((o) => o.value))].toSorted(cmp);
+}
+
+export function candidateFact(view: View, c: AddressCandidate, withAuthor = false): SafeHtml {
   const capture = view.captureById.get(c.captureId);
   const snippet = c.context?.snippet;
+  const authors = withAuthor ? authorsOf(view, c) : [];
+  const author = withAuthor
+    ? markup`<br>${authors.length ? t(pl.facts.author, { authors: authors.join(', ') }) : pl.facts.authorUnknown}`
+    : '';
   return markup`${t(pl.facts.candidate, {
     url: url(capture?.url ?? c.captureId),
     source: capture ? view.sourceName(capture.sourceId) : pl.common.unknown,
-  })}${snippet ? markup`<blockquote>${t(pl.facts.snippet, { snippet })}</blockquote>` : ''}${captureMeta(view, c.captureId)}`;
+  })}${snippet ? markup`<blockquote>${t(pl.facts.snippet, { snippet })}</blockquote>` : ''}${author}<br>${captureMeta(view, c.captureId)}`;
 }
 
 function accountFact(view: View, a: OnlineAccount): SafeHtml {
@@ -100,8 +113,8 @@ function linkEvidence(view: View, link: LinkAssessment) {
       }
     }
   }
-  for (const o of view.observationsFor(link.address.address)) observations.set(o.id, o);
-  for (const c of view.candidatesFor(link.address.address)) candidates.set(c.id, c);
+  for (const o of view.observationsFor(link.address)) observations.set(o.id, o);
+  for (const c of view.candidatesFor(link.address)) candidates.set(c.id, c);
   // Checks OŁCyŚ computed on the cited pages (e.g. the signed-message verification) are shown as computed results.
   const cited = new Set([...observations.values(), ...candidates.values()].map((x) => x.captureId));
   for (const o of view.data.observations)
@@ -125,11 +138,11 @@ function evidenceCell(view: View, c: FeatureContribution): SafeHtml {
   return markup`${capture ? view.sourceName(capture.sourceId) : ''} ${captureRef(view, captureId)}${c.detail ? markup`<br>${muted(c.detail)}` : ''}`;
 }
 
-function hopRows(view: View, hop: HopResult | undefined): Html[][] {
+function hopRows(view: View, hop: HopResult | undefined, anchor?: boolean): Html[][] {
   if (!hop) return [];
   const label = pl.hopsShort[hop.hop] ?? hop.hop;
   const contributions = hop.contributions ?? [];
-  const isAnchor = contributions.length === 0 && Math.abs(hop.probability - 0.99) < 1e-6;
+  const isAnchor = anchor ?? (contributions.length === 0 && Math.abs(hop.probability - 0.99) < 1e-6);
   const prior: Html[] = [
     label,
     isAnchor ? pl.links.anchor : pl.links.prior,
@@ -151,7 +164,11 @@ function hopRows(view: View, hop: HopResult | undefined): Html[][] {
       formatFactor(c.rho),
       formatFactor(c.discountedBayesFactor),
       formatBits(c.bits),
-      c.counted ? pl.links.counted : pl.links.notCounted,
+      c.counted
+        ? pl.links.counted
+        : c.uncountedReason === 'ungraded'
+          ? pl.links.notCountedUngraded
+          : pl.links.notCounted,
       evidenceCell(view, c),
     ]),
   ];
@@ -167,32 +184,50 @@ function hopLine(hop: HopResult | undefined): SafeHtml {
   });
 }
 
-function synergyText(view: View, address: string): SafeHtml {
-  const sources = view.synergy(address);
+/**
+ * Trace synergy as assessed by the scoring engine (independent services, bonus, ignored repeats). Without the
+ * engine's assessment the report only counts where the address appeared and makes no independence claim.
+ */
+function synergyText(view: View, link: LinkAssessment): SafeHtml {
+  const s = link.synergy;
+  if (s) {
+    const services = s.independentSources.map((id) => view.sourceName(id)).join(', ');
+    const main =
+      s.independentSources.length >= 2
+        ? t(pl.links.synergyYes, {
+            independent: plural(s.independentSources.length, pl.counts.independentSources),
+            sources: services,
+            bonus: s.bonusPoints,
+            best: s.bestSingleScore,
+          })
+        : t(pl.links.synergyNo, { sources: services || pl.common.none });
+    const repeats =
+      s.repeatedPaths || s.repeatedItems
+        ? para(t(pl.links.synergyRepeats, { paths: s.repeatedPaths, items: s.repeatedItems }))
+        : '';
+    return join([para(main), repeats]);
+  }
+  const sources = view.appearances(link.address);
   if (!sources.length) return para(pl.links.synergyNone);
   const names = join(
-    sources.map((s) =>
+    sources.map((x) =>
       t(pl.links.synergySource, {
-        source: view.sourceName(s.sourceId),
-        occurrences: plural(s.pages, pl.counts.occurrences),
+        source: view.sourceName(x.sourceId),
+        occurrences: plural(x.pages, pl.counts.occurrences),
       }),
     ),
     ', ',
   );
-  return para(
-    sources.length >= 2
-      ? t(pl.links.synergyYes, { count: sources.length, sources: names })
-      : t(pl.links.synergyNo, { sources: names }),
-  );
+  return para(t(pl.links.appearances, { sources: plural(sources.length, pl.counts.sourcesLoc), list: names }));
 }
 
 function linkCard(view: View, link: LinkAssessment): SafeHtml {
   const address = link.address.address;
   const identity = view.identityById.get(link.identityId);
   const ev = linkEvidence(view, link);
-  const band = scoreBand(link.score);
+  const band = linkBand(link);
   const paths = link.paths ?? [];
-  const flagged = view.exclusionsFor(address).filter((e) => e.outcome === 'flagged');
+  const flagged = view.exclusionsFor(link.address).filter((e) => e.outcome === 'flagged');
   const c = pl.links.columns;
 
   const facts = list([
@@ -205,13 +240,15 @@ function linkCard(view: View, link: LinkAssessment): SafeHtml {
     const account = p.accountId ? view.accountById.get(p.accountId) : undefined;
     return markup`${t(pl.links.path, {
       n: i + 1,
-      account: account ? `${account.platform} / ${account.handle}` : pl.links.pathNoAccount,
+      account: account ? `${account.platform} / ${account.handle}` : (p.service ?? pl.links.pathNoAccount),
       pIdentity: formatProbability(p.identityHop?.probability ?? Number.NaN),
       pAddress: formatProbability(p.addressHop?.probability ?? Number.NaN),
       p: formatProbability(p.probability),
-    })}<br>${muted(hopLine(p.identityHop))}<br>${muted(hopLine(p.addressHop))}`;
+    })}${p.counted === false ? markup` <strong class="warning">${pl.links.pathNotCounted}</strong>` : ''}${
+      p.originGroup ? markup`<br>${muted(t(pl.links.originGroup, { group: p.originGroup }))}` : ''
+    }<br>${muted(hopLine(p.identityHop))}<br>${muted(hopLine(p.addressHop))}`;
   });
-  const rows = paths.flatMap((p) => [...hopRows(view, p.identityHop), ...hopRows(view, p.addressHop)]);
+  const rows = paths.flatMap((p) => [...hopRows(view, p.identityHop, p.anchor), ...hopRows(view, p.addressHop)]);
   const gates = (link.gates ?? []).map((g) =>
     join([
       pl.gates[g.gate] ?? g.gate,
@@ -222,7 +259,7 @@ function linkCard(view: View, link: LinkAssessment): SafeHtml {
   );
 
   const computed = join([
-    markup`<p class="score-line"><span class="score">${link.score}/100</span> ${bandBadge(link.score)} <span class="term">${icdTerm(link)}</span></p>`,
+    markup`<p class="score-line"><span class="score">${link.score}/100</span> ${bandBadge(band)} <span class="term">${icdTerm(link)}</span></p>`,
     kv([
       [pl.summary.tableColumns.score, t(pl.links.score, { score: link.score })],
       [pl.summary.tableColumns.band, t(pl.links.band, { band: pl.bands[band].label, range: pl.bands[band].range })],
@@ -248,7 +285,7 @@ function linkCard(view: View, link: LinkAssessment): SafeHtml {
         )
       : '',
     markup`<h4>${pl.links.synergyTitle}</h4>`,
-    synergyText(view, address),
+    synergyText(view, link),
     paths.length ? markup`<h4>${pl.links.pathsTitle}</h4>${list(pathItems)}` : '',
     para(t(pl.links.combined, { p: formatProbability(link.probability), score: link.score })),
     rows.length
@@ -336,34 +373,36 @@ function nonAscii(raw: string): string {
   return points.map((ch) => `${codePoint(ch.codePointAt(0) ?? 0)} (${ch})`).join(', ');
 }
 
-/** A4 deposit address that the subject's own sources published: a KYC lead. */
-export function isKycLead(view: View, e: ExclusionDecision): boolean {
-  return (
-    e.ruleId === 'A4' &&
-    (view.candidatesFor(e.address.address).length > 0 || view.observationsFor(e.address.address).length > 0)
-  );
+/**
+ * A4 deposit address that the subject published: a KYC lead. Only the analytics decision can say so
+ * (`evidence.kycLead`, set when authorship is established); a mention alone is not authorship.
+ */
+export function isKycLead(e: ExclusionDecision): boolean {
+  return e.ruleId === 'A4' && (e.evidence as { kycLead?: boolean } | undefined)?.kycLead === true;
 }
 
-function interactions(view: View, address: string): number {
-  const key = normAddress(address);
+function interactions(view: View, ref: AddressRef): number {
   const txs = new Set(
     view.data.transfers
-      .filter((tr) => normAddress(tr.from) === key || normAddress(tr.to) === key)
+      .filter(
+        (tr) =>
+          sameRef({ chain: tr.chain, address: tr.from }, ref) || sameRef({ chain: tr.chain, address: tr.to }, ref),
+      )
       .map((tr) => `${tr.txHash}#${tr.index ?? ''}`),
   );
   return txs.size;
 }
 
-function tracesFacts(view: View, address: string): SafeHtml[] {
+function tracesFacts(view: View, ref: AddressRef, withAuthor = false): SafeHtml[] {
   return [
     ...view
-      .observationsFor(address)
+      .observationsFor(ref)
       .toSorted(byCapture(view))
       .map((o) => observationFact(view, o)),
     ...view
-      .candidatesFor(address)
+      .candidatesFor(ref)
       .toSorted(byCapture(view))
-      .map((c) => candidateFact(view, c)),
+      .map((c) => candidateFact(view, c, withAuthor)),
   ];
 }
 
@@ -381,19 +420,17 @@ function labelFact(l: AddressLabel, other: boolean): SafeHtml {
 
 function exclusionCard(view: View, e: ExclusionDecision): SafeHtml {
   const address = e.address.address;
-  const removes = e.outcome === 'excluded' || e.outcome === 'reclassified';
   const labelIds = new Set(e.evidence?.labelIds ?? []);
-  const own = view.labelsFor(address);
+  const own = view.labelsFor(e.address);
   // Labels cited by the rule that describe another address (e.g. the hot wallet a deposit address forwards to).
-  const cited = view.data.labels.filter(
-    (l) => labelIds.has(l.id) && normAddress(l.address.address) !== normAddress(address),
-  );
+  const cited = view.data.labels.filter((l) => labelIds.has(l.id) && !sameRef(l.address, e.address));
+  const mentions = view.candidatesFor(e.address).length + view.observationsFor(e.address).length;
   const facts = list([
     ...own.map((l) => labelFact(l, false)),
     ...cited.map((l) => labelFact(l, true)),
-    ...tracesFacts(view, address),
+    ...tracesFacts(view, e.address, true),
   ]);
-  const count = interactions(view, address);
+  const count = interactions(view, e.address);
   const txHashes = e.evidence?.txHashes ?? [];
   const computed = join([
     para(
@@ -404,7 +441,7 @@ function exclusionCard(view: View, e: ExclusionDecision): SafeHtml {
       e.relation ? t(pl.rejected.newRelation, { relation: pl.relations[e.relation] ?? e.relation }) : '',
       typeof e.evidence?.kappa === 'number' ? t(pl.rejected.kappa, { kappa: formatProbability(e.evidence.kappa) }) : '',
       txHashes.length ? t(pl.rejected.transactions, { hashes: join(txHashes.map(hash), ', ') }) : '',
-      removes ? t(pl.rejected.score, { band: bandBadge(0, true) }) : '',
+      t(pl.rejected.score, { band: bandBadge('excluded') }),
       count > 0
         ? t(pl.rejected.interactions, { count: plural(count, pl.counts.transfers) })
         : pl.rejected.noInteractions,
@@ -413,20 +450,24 @@ function exclusionCard(view: View, e: ExclusionDecision): SafeHtml {
   ]);
   const cashOuts = view.data.cashOuts.filter(
     (c) =>
-      normAddress(c.address.address) === normAddress(address) ||
-      normAddress(c.counterparty?.address ?? '') === normAddress(address),
+      sameRef(c.address, e.address) ||
+      (!!c.counterparty?.address && sameRef({ chain: c.address.chain, address: c.counterparty.address }, e.address)),
   );
+  const kyc = isKycLead(e);
   const inferences = list([
-    isKycLead(view, e) ? pl.rejected.kycLead : '',
+    kyc ? pl.rejected.kycLead : '',
+    !kyc && e.ruleId === 'A4' && mentions > 0
+      ? t(pl.rejected.authorshipUnconfirmed, { mentions: plural(mentions, pl.counts.mentionsLoc) })
+      : '',
     cashOuts.length ? pl.rejected.cashOutLink : '',
-    ['A1', 'A2', 'A4', 'A5'].includes(e.ruleId) ? pl.rejected.serviceInference : '',
+    ['A1', 'A2', 'A4'].includes(e.ruleId) ? pl.rejected.serviceInference : '',
   ]);
   return markup`<article class="card card-rejected" id="odrzucony-${e.id}"><h3>${addr(address)}</h3><p class="card-sub">${t(pl.links.chain, { chain: chainName(e.address.chain) })}</p>${block('facts', facts)}${block('computed', computed)}${block('inferences', inferences)}</article>`;
 }
 
 function thirdPartyCard(view: View, link: LinkAssessment): SafeHtml {
   const address = link.address.address;
-  return markup`<article class="card card-rejected" id="strona-trzecia-${link.id}"><h3>${addr(address)}</h3><p class="card-sub">${t(pl.links.chain, { chain: chainName(link.address.chain) })}</p>${block('facts', list(tracesFacts(view, address)))}${block(
+  return markup`<article class="card card-rejected" id="strona-trzecia-${link.id}"><h3>${addr(address)}</h3><p class="card-sub">${t(pl.links.chain, { chain: chainName(link.address.chain) })}</p>${block('facts', list(tracesFacts(view, link.address, true)))}${block(
     'computed',
     join([
       para(t(pl.rejected.thirdPartyScore, { relation: pl.relations[link.relation] ?? link.relation })),
@@ -459,6 +500,22 @@ export function rejectedSection(view: View): SafeHtml {
       para(pl.rejected.intro),
       markup`<h3>${pl.rejected.rulesTitle}</h3>`,
       view.removing.length ? view.removing.map((e) => exclusionCard(view, e)) : para(pl.rejected.rulesNone, 'empty'),
+      view.flagged.length
+        ? markup`<h3>${pl.rejected.flaggedTitle}</h3>${para(pl.rejected.flaggedIntro)}${block(
+            'computed',
+            list(
+              view.flagged.map(
+                (e) =>
+                  markup`${addr(e.address.address)} (${chainName(e.address.chain)}) — ${t(pl.rejected.rule, {
+                    id: e.ruleId,
+                    name: pl.exclusionRules[e.ruleId] ?? e.ruleId,
+                  })}: ${pl.outcomes[e.outcome]}${
+                    view.roleOf(e.address).kind === 'linked' ? markup` · ${pl.rejected.flaggedLinked}` : ''
+                  }${technical(t(pl.rejected.reason, { reason: e.reason, version: e.rulesVersion }))}`,
+              ),
+            ),
+          )}`
+        : '',
       view.kept.length
         ? markup`<h3>${pl.rejected.keptTitle}</h3>${list(
             view.kept.map(
