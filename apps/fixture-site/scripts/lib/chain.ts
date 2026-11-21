@@ -35,6 +35,14 @@ export function derive(seed: string, label: string): string {
 }
 
 const seconds = (iso: string): number => Math.floor(Date.parse(iso) / 1000);
+const sum = (values: readonly bigint[]): bigint => values.reduce((acc, v) => acc + v, 0n);
+/** Provider formats (Esplora) carry satoshi as JSON numbers; convert only at write time, exactly. */
+function jsonNumber(value: bigint): number {
+  if (value > BigInt(Number.MAX_SAFE_INTEGER) || value < BigInt(Number.MIN_SAFE_INTEGER)) {
+    throw new Error(`amount ${value} does not fit a JSON number exactly`);
+  }
+  return Number(value);
+}
 const json = (value: unknown): string => `${JSON.stringify(value, null, 2)}\n`;
 const mark = <T extends object>(value: T): T & { _synthetic: string } => ({ _synthetic: SYNTHETIC_MARK, ...value });
 
@@ -42,15 +50,16 @@ const mark = <T extends object>(value: T): T & { _synthetic: string } => ({ _syn
 
 type Slots = Readonly<Record<string, string>>;
 
+/** Amounts are exact integers in base units (satoshi, wei, token units) — bigint, never floats. */
 interface BtcOutput {
   slot: string;
-  value: number;
+  value: bigint;
 }
 interface BtcInput {
   /** `external:<label>` for funding outside the story, else `<txLabel>:<vout>`. */
   from: string;
   slot: string;
-  value: number;
+  value: bigint;
 }
 interface BtcStoryTx {
   label: string;
@@ -64,59 +73,59 @@ export const BTC_STORY: readonly BtcStoryTx[] = [
   {
     label: 'btc-fund-1',
     time: '2025-03-07T15:02:44Z',
-    inputs: [{ from: 'external:src1', slot: 'BTC-SRC-1', value: 30_020_000 }],
-    outputs: [{ slot: 'BTC-CP-1', value: 30_000_000 }],
+    inputs: [{ from: 'external:src1', slot: 'BTC-SRC-1', value: 30_020_000n }],
+    outputs: [{ slot: 'BTC-CP-1', value: 30_000_000n }],
   },
   {
     label: 'btc-fund-2',
     time: '2025-08-28T10:31:09Z',
-    inputs: [{ from: 'external:src2', slot: 'BTC-SRC-2', value: 20_015_000 }],
-    outputs: [{ slot: 'BTC-CP-2', value: 20_000_000 }],
+    inputs: [{ from: 'external:src2', slot: 'BTC-SRC-2', value: 20_015_000n }],
+    outputs: [{ slot: 'BTC-CP-2', value: 20_000_000n }],
   },
   {
     label: 'btc-a',
     time: '2025-03-14T09:21:05Z',
-    inputs: [{ from: 'btc-fund-1:0', slot: 'BTC-CP-1', value: 30_000_000 }],
+    inputs: [{ from: 'btc-fund-1:0', slot: 'BTC-CP-1', value: 30_000_000n }],
     outputs: [
-      { slot: 'BTC-1', value: 25_000_000 },
-      { slot: 'BTC-CP-1', value: 4_990_000 },
+      { slot: 'BTC-1', value: 25_000_000n },
+      { slot: 'BTC-CP-1', value: 4_990_000n },
     ],
   },
   {
     label: 'btc-b',
     time: '2025-09-02T17:44:30Z',
-    inputs: [{ from: 'btc-fund-2:0', slot: 'BTC-CP-2', value: 20_000_000 }],
+    inputs: [{ from: 'btc-fund-2:0', slot: 'BTC-CP-2', value: 20_000_000n }],
     outputs: [
-      { slot: 'BTC-1', value: 10_000_000 },
-      { slot: 'BTC-CP-2', value: 9_990_000 },
+      { slot: 'BTC-1', value: 10_000_000n },
+      { slot: 'BTC-CP-2', value: 9_990_000n },
     ],
   },
   {
     label: 'btc-c',
     time: '2026-02-11T12:03:51Z',
-    inputs: [{ from: 'btc-a:0', slot: 'BTC-1', value: 25_000_000 }],
+    inputs: [{ from: 'btc-a:0', slot: 'BTC-1', value: 25_000_000n }],
     outputs: [
-      { slot: 'BTC-CP-3', value: 15_000_000 },
-      { slot: 'BTC-1', value: 9_980_000 },
+      { slot: 'BTC-CP-3', value: 15_000_000n },
+      { slot: 'BTC-1', value: 9_980_000n },
     ],
   },
   {
     label: 'btc-d',
     time: '2026-10-30T08:12:40Z',
-    inputs: [{ from: 'btc-a:1', slot: 'BTC-CP-1', value: 4_990_000 }],
+    inputs: [{ from: 'btc-a:1', slot: 'BTC-CP-1', value: 4_990_000n }],
     outputs: [
-      { slot: 'BTC-1', value: 4_000_000 },
-      { slot: 'BTC-CP-1', value: 980_000 },
+      { slot: 'BTC-1', value: 4_000_000n },
+      { slot: 'BTC-CP-1', value: 980_000n },
     ],
   },
   {
     label: 'btc-e',
     time: '2026-11-18T19:30:00Z',
     inputs: [
-      { from: 'btc-b:0', slot: 'BTC-1', value: 10_000_000 },
-      { from: 'btc-c:1', slot: 'BTC-1', value: 9_980_000 },
+      { from: 'btc-b:0', slot: 'BTC-1', value: 10_000_000n },
+      { from: 'btc-c:1', slot: 'BTC-1', value: 9_980_000n },
     ],
-    outputs: [{ slot: 'BTC-2', value: 19_960_000 }],
+    outputs: [{ slot: 'BTC-2', value: 19_960_000n }],
   },
 ];
 
@@ -213,7 +222,7 @@ interface TronStoryTransfer {
   from: string;
   to: string;
   /** USDT in whole units (6 decimals on chain). */
-  usdt: number;
+  usdt: bigint;
 }
 
 /**
@@ -222,20 +231,30 @@ interface TronStoryTransfer {
  * TRON-2 is the scam address reported by a third-party channel.
  */
 export const TRON_STORY: readonly TronStoryTransfer[] = [
-  { label: 'tron-swap', time: '2026-08-20T12:00:00Z', from: 'TRON-DEX', to: 'TRON-1', usdt: 5000 },
-  { label: 'tron-deposit', time: '2026-08-22T09:00:00Z', from: 'TRON-1', to: 'TRON-DEP', usdt: 3000 },
-  { label: 'tron-sweep', time: '2026-08-22T11:30:00Z', from: 'TRON-DEP', to: 'TRON-HOT', usdt: 3000 },
-  { label: 'tron-income', time: '2026-10-01T10:00:00Z', from: 'TRON-CP-1', to: 'TRON-1', usdt: 4000 },
-  { label: 'tron-p2p-1', time: '2026-10-14T18:20:00Z', from: 'TRON-1', to: 'TRON-P2P-1', usdt: 500 },
-  { label: 'tron-p2p-2', time: '2026-10-18T09:45:00Z', from: 'TRON-1', to: 'TRON-P2P-2', usdt: 1000 },
-  { label: 'tron-p2p-3', time: '2026-10-22T20:10:00Z', from: 'TRON-1', to: 'TRON-P2P-3', usdt: 500 },
-  { label: 'tron-p2p-4', time: '2026-10-27T13:05:00Z', from: 'TRON-1', to: 'TRON-P2P-4', usdt: 1000 },
-  { label: 'tron-p2p-5', time: '2026-11-01T16:40:00Z', from: 'TRON-1', to: 'TRON-P2P-5', usdt: 500 },
-  { label: 'tron-p2p-6', time: '2026-11-05T11:15:00Z', from: 'TRON-1', to: 'TRON-P2P-6', usdt: 500 },
-  { label: 'tron-victim-1', time: '2026-11-09T14:00:00Z', from: 'TRON-CP-2', to: 'TRON-2', usdt: 1200 },
-  { label: 'tron-victim-2', time: '2026-11-11T08:30:00Z', from: 'TRON-CP-3', to: 'TRON-2', usdt: 800 },
-  { label: 'tron-victim-3', time: '2026-11-13T21:50:00Z', from: 'TRON-CP-4', to: 'TRON-2', usdt: 2500 },
+  { label: 'tron-swap', time: '2026-08-20T12:00:00Z', from: 'TRON-DEX', to: 'TRON-1', usdt: 5000n },
+  { label: 'tron-deposit', time: '2026-08-22T09:00:00Z', from: 'TRON-1', to: 'TRON-DEP', usdt: 3000n },
+  { label: 'tron-sweep', time: '2026-08-22T11:30:00Z', from: 'TRON-DEP', to: 'TRON-HOT', usdt: 3000n },
+  { label: 'tron-income', time: '2026-10-01T10:00:00Z', from: 'TRON-CP-1', to: 'TRON-1', usdt: 4000n },
+  { label: 'tron-p2p-1', time: '2026-10-14T18:20:00Z', from: 'TRON-1', to: 'TRON-P2P-1', usdt: 500n },
+  { label: 'tron-p2p-2', time: '2026-10-18T09:45:00Z', from: 'TRON-1', to: 'TRON-P2P-2', usdt: 1000n },
+  { label: 'tron-p2p-3', time: '2026-10-22T20:10:00Z', from: 'TRON-1', to: 'TRON-P2P-3', usdt: 500n },
+  { label: 'tron-p2p-4', time: '2026-10-27T13:05:00Z', from: 'TRON-1', to: 'TRON-P2P-4', usdt: 1000n },
+  { label: 'tron-p2p-5', time: '2026-11-01T16:40:00Z', from: 'TRON-1', to: 'TRON-P2P-5', usdt: 500n },
+  { label: 'tron-p2p-6', time: '2026-11-05T11:15:00Z', from: 'TRON-1', to: 'TRON-P2P-6', usdt: 500n },
+  { label: 'tron-victim-1', time: '2026-11-09T14:00:00Z', from: 'TRON-CP-2', to: 'TRON-2', usdt: 1200n },
+  { label: 'tron-victim-2', time: '2026-11-11T08:30:00Z', from: 'TRON-CP-3', to: 'TRON-2', usdt: 800n },
+  { label: 'tron-victim-3', time: '2026-11-13T21:50:00Z', from: 'TRON-CP-4', to: 'TRON-2', usdt: 2500n },
 ];
+
+/** Opening USDT balances (whole units) of senders whose funding lies outside the story. */
+const TRON_OPENING: Readonly<Record<string, bigint>> = {
+  'TRON-DEX': 250_000n,
+  'TRON-CP-1': 10_000n,
+  'TRON-CP-2': 5_000n,
+  'TRON-CP-3': 5_000n,
+  'TRON-CP-4': 5_000n,
+};
+const USDT_UNIT = 1_000_000n;
 
 /** Slots used by the stories (beyond the persona's own), with their manifest roles. */
 export const STORY_SLOTS: Readonly<Record<string, { chain: string; role: string }>> = {
@@ -271,22 +290,22 @@ export const STORY_SLOTS: Readonly<Record<string, { chain: string; role: string 
 const btcHeight = (iso: string): number =>
   977_000 + Math.round((Date.parse(iso) - Date.parse('2026-11-01T00:00:00Z')) / 600_000);
 
-function scriptPubKey(address: string, value: number) {
+function scriptPubKey(address: string, value: bigint) {
   const program = hex.encode(segwitProgram(address));
   return {
     scriptpubkey: `0014${program}`,
     scriptpubkey_asm: `OP_0 OP_PUSHBYTES_20 ${program}`,
     scriptpubkey_type: 'v0_p2wpkh',
     scriptpubkey_address: address,
-    value,
+    value: jsonNumber(value),
   };
 }
 
 function esploraTxs(seed: string, slots: Slots) {
   const txid = (label: string) => derive(seed, `btc-txid:${label}`);
   return BTC_STORY.map((tx) => {
-    const inSum = tx.inputs.reduce((sum, i) => sum + i.value, 0);
-    const outSum = tx.outputs.reduce((sum, o) => sum + o.value, 0);
+    const fee = sum(tx.inputs.map((i) => i.value)) - sum(tx.outputs.map((o) => o.value));
+    if (fee < 0n) throw new Error(`${tx.label} creates value`);
     const vsize = 11 + 68 * tx.inputs.length + 31 * tx.outputs.length;
     const height = btcHeight(tx.time);
     return {
@@ -315,7 +334,7 @@ function esploraTxs(seed: string, slots: Slots) {
         vout: tx.outputs.map((output) => scriptPubKey(slots[output.slot] ?? '', output.value)),
         size: vsize + 30 * tx.inputs.length,
         weight: vsize * 4,
-        fee: inSum - outSum,
+        fee: jsonNumber(fee),
         status: {
           confirmed: true,
           block_height: height,
@@ -337,14 +356,16 @@ function renderEsplora(seed: string, slots: Slots, btcSlots: readonly string[]):
     );
     const funded = BTC_STORY.flatMap((tx) => tx.outputs.filter((o) => o.slot === slot));
     const spent = BTC_STORY.flatMap((tx) => tx.inputs.filter((i) => i.slot === slot));
-    if (funded.reduce((sum, o) => sum + o.value, 0) < spent.reduce((sum, i) => sum + i.value, 0)) {
+    const fundedSum = sum(funded.map((o) => o.value));
+    const spentSum = sum(spent.map((i) => i.value));
+    if (fundedSum < spentSum) {
       throw new Error(`${slot} spends more than it received in the BTC story`);
     }
     const stats = {
       funded_txo_count: funded.length,
-      funded_txo_sum: funded.reduce((sum, o) => sum + o.value, 0),
+      funded_txo_sum: jsonNumber(fundedSum),
       spent_txo_count: spent.length,
-      spent_txo_sum: spent.reduce((sum, i) => sum + i.value, 0),
+      spent_txo_sum: jsonNumber(spentSum),
       tx_count: involved.length,
     };
     const empty = { funded_txo_count: 0, funded_txo_sum: 0, spent_txo_count: 0, spent_txo_sum: 0, tx_count: 0 };
@@ -485,10 +506,11 @@ function renderTrongrid(seed: string, slots: Slots, tronSlots: readonly string[]
         from: slots[t.from] ?? '',
         to: slots[t.to] ?? '',
         type: 'Transfer',
-        value: String(t.usdt * 1_000_000),
+        value: String(t.usdt * USDT_UNIT),
       }))
       .toReversed();
-    const usdt = mine.reduce((sum, t) => sum + (t.to === slot ? t.usdt : -t.usdt), 0);
+    const usdt = (TRON_OPENING[slot] ?? 0n) + sum(mine.map((t) => (t.to === slot ? t.usdt : -t.usdt)));
+    if (usdt < 0n) throw new Error(`${slot} has a negative USDT balance in the TRON story`);
     const base = `chain/trongrid/v1/accounts/${address}`;
     files.push(
       {
@@ -504,7 +526,7 @@ function renderTrongrid(seed: string, slots: Slots, tronSlots: readonly string[]
                 address: tronHex(address),
                 balance: 35_000_000,
                 create_time: mine.length ? Date.parse(mine[0]?.time ?? DEMO_NOW) - 86_400_000 : at,
-                trc20: usdt > 0 ? [{ [USDT_TRC20]: String(usdt * 1_000_000) }] : [],
+                trc20: usdt > 0n ? [{ [USDT_TRC20]: String(usdt * USDT_UNIT) }] : [],
               },
             ],
             success: true,

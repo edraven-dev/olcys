@@ -5,7 +5,11 @@
       "address": "417f5146eadda98da64853db162e13845e5efbe3f6",
       "balance": 35000000,
       "create_time": 1794299400000,
-      "trc20": []
+      "trc20": [
+        {
+          "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t": "4200000000"
+        }
+      ]
     }
   ],
   "success": true,

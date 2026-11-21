@@ -10,6 +10,11 @@
   },
   "dependencies": {
     "@olcys/core": "workspace:*",
+    "@olcys/worker": "workspace:*",
     "fastify": "5.12.8"
+  },
+  "devDependencies": {
+    "@olcys/db": "workspace:*",
+    "@olcys/evidence": "workspace:*"
   }
 }

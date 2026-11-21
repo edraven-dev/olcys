@@ -199,9 +199,19 @@ importers:
       '@olcys/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@olcys/worker':
+        specifier: workspace:*
+        version: link:../worker
       fastify:
         specifier: 5.12.8
         version: 5.12.8
+    devDependencies:
+      '@olcys/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      '@olcys/evidence':
+        specifier: workspace:*
+        version: link:../../packages/evidence
 
   apps/fixture-site:
     devDependencies:
@@ -278,6 +288,9 @@ importers:
       '@olcys/scoring':
         specifier: workspace:*
         version: link:../../packages/scoring
+      yaml:
+        specifier: 2.9.1
+        version: 2.9.1
 
   packages/address-extractor:
     dependencies:
