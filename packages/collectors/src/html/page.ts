@@ -133,7 +133,17 @@ export async function fetchPage(http: SourceHttp, request: PageRequest): Promise
     const location = response.headers['location'];
     if (response.status < 300 || response.status >= 400 || !location) break;
     redirects.push({ url, status: response.status });
-    let next = new URL(location, url).toString();
+    let next: string;
+    try {
+      next = new URL(location, url).toString();
+    } catch {
+      // A redirect target that is not a URL ends this page with a typed error; the collection goes on.
+      return {
+        status: 'error',
+        logicalUrl: http.logicalUrl(url),
+        notes: [note('redirect_invalid', `${http.logicalUrl(url)} → ${location.slice(0, 200)}`)],
+      };
+    }
     if (usesFixtures(http.deps.mode) && !http.hostAllowed(next)) {
       // A redirect to a live host of a mapped platform is followed on the fixture site; others are refused above.
       try {

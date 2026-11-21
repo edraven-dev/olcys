@@ -126,6 +126,36 @@ describe('secrets are redacted in memory and never stored', () => {
   });
 });
 
+describe('invalid redirect targets end the page, not the collection', () => {
+  it('returns a typed error for an unparsable Location and keeps collecting', async () => {
+    const fetchImpl = (async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.endsWith('action=profile;u=123456')) {
+        return new Response(null, { status: 302, headers: { location: 'https://[' } });
+      }
+      return new Response('', { status: 404 });
+    }) as typeof fetch;
+    const scope = registry.resolveScope(
+      { enabledSources: ['bitcointalk'], amberJustifications: { bitcointalk: JUSTIFICATION } },
+      'live',
+    );
+    const test = createTestRun(scope, 'live', 'run-bad-redirect', { fetchImpl });
+    const result = await collectCase({
+      identifiers: [identifier('nickname', '123456', { platform: 'bitcointalk' })],
+      scope,
+      sources: registry,
+      ctx: test.ctx,
+      config: createCollectorConfig({ mode: 'live' }),
+      robots: test.robots,
+      redactor: TEST_REDACTOR,
+      maxPivotDepth: 0,
+    });
+    const notes = JSON.stringify(result);
+    expect(notes).toContain('redirect_invalid');
+    expect(result.captures.every((c) => c.status !== 'ok')).toBe(true);
+  });
+});
+
 /** Test-side cassette generator for synthetic fixture pages (same key as the egress client's replay lookup). */
 function recorder(inner: EgressClient, dir: string): EgressClient {
   return {

@@ -29,6 +29,7 @@ export const NOTE_CODES = [
   'unrecognised_markup',
   'malformed_link',
   'redirect_limit',
+  'redirect_invalid',
   'truncated',
 ] as const;
 export type NoteCode = (typeof NOTE_CODES)[number];
