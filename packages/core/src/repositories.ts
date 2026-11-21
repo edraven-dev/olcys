@@ -4,15 +4,16 @@
  * append-only: they add and read, never update or delete.
  */
 import type { ActivityIndicators, CashOutEvent } from './analytics.ts';
-import type { AnalysisRun, Case, Identifier } from './case.ts';
+import type { AnalysisRun, Case, CaseSchedule, Identifier } from './case.ts';
 import type { ChangeEvent } from './changes.ts';
 import type { NormalizedTransfer } from './chain-data.ts';
 import type { AddressRef } from './chains.ts';
-import type { Id } from './common.ts';
+import type { Id, IsoDateTime } from './common.ts';
 import type { Capture, Observation, OnlineAccount } from './evidence.ts';
 import type { AddressCandidate, ExtractionResult } from './extraction.ts';
 import type { AddressLabel, ExclusionDecision } from './labels.ts';
 import type { EgressLogEntry, ProvenanceEnvelope } from './provenance.ts';
+import type { CaseScheduleChange, ScheduleTick, ScheduleTickOutcome } from './schedule.ts';
 import type { CreateCaseInput } from './schemas.ts';
 import type { LinkAssessment } from './scoring.ts';
 
@@ -48,6 +49,60 @@ export interface RunRepository {
   listByCase(caseId: Id): Promise<RunWithProgress[]>;
   /** Latest `succeeded` or `partial` run of the case. */
   latestCompleted(caseId: Id, excludeRunId?: Id): Promise<RunWithProgress | undefined>;
+}
+
+// --- scheduling ------------------------------------------------------------------------------------------------
+
+/** An open case with an enabled schedule, as the scheduler evaluates it. */
+export interface ActiveSchedule {
+  caseId: Id;
+  schedule: CaseSchedule;
+  /** When the current schedule was set (the latest change; the case's creation when no change is recorded). */
+  changedAt: IsoDateTime;
+  /** The occurrence handled by the case's latest tick. */
+  lastScheduledFor?: IsoDateTime;
+}
+
+/** What a tick decision sees, read while the case's schedule lock is held. */
+export interface ScheduleTickContext {
+  case: Case;
+  /** Runs of the case that are `queued` or `running`. */
+  activeRunIds: Id[];
+  /** Latest `succeeded` or `partial` run of the case, any trigger. */
+  previousRunId?: Id;
+}
+
+export type ScheduleTickDecision =
+  | { outcome: Exclude<ScheduleTickOutcome, 'started'> }
+  | { outcome: 'started'; run: AnalysisRun };
+
+export type ScheduleChangeResult =
+  | { ok: true; change: CaseScheduleChange }
+  | { ok: false; error: 'case_not_found' | 'case_closed' };
+
+/** Schedules, their change log and ticks. Changes and ticks are append-only; only `cases.schedule` is replaced. */
+export interface ScheduleRepository {
+  /** Replaces the schedule of an open case and records the change (who, why, before, after) atomically. */
+  setSchedule(
+    caseId: Id,
+    schedule: CaseSchedule,
+    change: { changedBy: string; reason: string; at: IsoDateTime },
+  ): Promise<ScheduleChangeResult>;
+  /** Newest first. */
+  listChanges(caseId: Id, limit: number): Promise<CaseScheduleChange[]>;
+  /** Newest occurrence first. */
+  listTicks(caseId: Id, limit: number): Promise<ScheduleTick[]>;
+  /** Open cases with an enabled schedule. */
+  listActive(): Promise<ActiveSchedule[]>;
+  /**
+   * Handles one occurrence at most once. Serialised per case, also across processes. When `claim.jobId` already has a
+   * tick, returns it with `claimed: false` and decides nothing. Otherwise `decide` runs with the current state of the
+   * case, and its tick — with the run it starts, if any — is stored atomically (`claimed: true`).
+   */
+  fire(
+    claim: Pick<ScheduleTick, 'caseId' | 'jobId' | 'scheduledFor' | 'firedAt'>,
+    decide: (context: ScheduleTickContext) => ScheduleTickDecision,
+  ): Promise<{ tick: ScheduleTick; claimed: boolean }>;
 }
 
 /** Collection and extraction artefacts. */
@@ -105,4 +160,6 @@ export interface Repositories {
   chain: ChainDataRepository;
   analysis: AnalysisRepository;
   labels: LabelRepository;
+  /** Periodic re-runs (both `@olcys/db` implementations provide it). */
+  schedules?: ScheduleRepository;
 }

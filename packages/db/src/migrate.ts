@@ -73,6 +73,9 @@ async function appliedHashes(db: Db): Promise<Map<string, string>> {
 export async function migrate(ownerUrl: string, dir: string = MIGRATIONS_DIR): Promise<{ applied: string[] }> {
   const db = createDb(ownerUrl, { max: 1 });
   try {
+    // One migrator at a time (parallel test files, two deployments): the single pooled connection holds the session
+    // lock until `destroy()` closes it, and the applied set is read only once the lock is held.
+    await sql`SELECT pg_advisory_lock(hashtext('olcys:migrate'))`.execute(db);
     await ensureTable(db);
     const done = await appliedHashes(db);
     const applied: string[] = [];
