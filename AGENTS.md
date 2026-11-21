@@ -81,6 +81,12 @@ Environment: copy `.env.example` to `.env`. Default `OLCYS_MODE=offline` (no net
 - [ ] Synthetic data only; no secrets committed; telemetry stays off.
 - [ ] UI strings in Polish via the catalogue; READMEs and `docs/**` (Polish) updated where behaviour changed.
 
+## Agent skills
+
+Project skills live in `.claude/skills/`; use them at the matching step:
+`pre-pr-review` (before pushing), `pr-cycle` (PR, Greptile review, merge, releases), `demo-run` (launch and walk the
+synthetic demo), `ui-charts` (charts in the UI and report), `jury-deck` (Polish jury presentation).
+
 ## Git
 
 Short-lived branches; commit messages `<area>: <imperative summary>` (e.g. `collectors: add Keybase adapter`).
