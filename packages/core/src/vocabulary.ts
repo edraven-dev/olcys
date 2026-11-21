@@ -51,12 +51,19 @@ export type RunStep = (typeof RUN_STEPS)[number];
 /** ICD 203 term used for links that carry no ownership claim (e.g. third-party attributions). */
 export const NOT_ASSESSED = 'not assessed';
 
-/** Hard gates applied outside the score arithmetic. */
+/**
+ * Gates applied outside the score arithmetic. Hard gates (`relation`, `exclusion`) fail with `passed: false`; the
+ * others are informational (`checksum` scheme and strength, ungraded items, review flag, unconfirmed LLM suggestions
+ * excluded, anchor assumption P = 0.99).
+ */
 export const LINK_GATE_IDS = [
   'invalid_checksum',
   'relation',
   'exclusion',
   'analyst_grading',
   'review_required',
+  'checksum',
+  'llm_zero_weight',
+  'identity_anchor',
 ] as const;
 export type LinkGateId = (typeof LINK_GATE_IDS)[number];
