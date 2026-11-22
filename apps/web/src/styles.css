@@ -1198,12 +1198,14 @@ details > summary {
   overflow-wrap: anywhere;
 }
 
-.ai-suggestion {
-  border-style: dashed;
 /* --- page timeline (case timeline) ------------------------------------------------------------------------- */
 .timeline-moment {
   display: inline-flex;
   flex-wrap: wrap;
   gap: 0.3rem;
   align-items: center;
+}
+
+.ai-suggestion {
+  border-style: dashed;
 }
