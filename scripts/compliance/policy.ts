@@ -128,19 +128,28 @@ function evaluateId(id: string, policy: LicencePolicy): { verdict: Verdict; rule
   return { verdict: 'review', rule: `unknown:${id}` };
 }
 
-function evaluateNode(node: Node, policy: LicencePolicy): { verdict: Verdict; rule: string } {
+interface Evaluated {
+  verdict: Verdict;
+  rule: string;
+  /** An unknown/unresolved term is part of the expression in addition to a separate-service restriction. */
+  unresolved?: boolean;
+}
+
+function evaluateNode(node: Node, policy: LicencePolicy): Evaluated {
   if (node.kind === 'id') return evaluateId(node.id, policy);
   const left = evaluateNode(node.left, policy);
   const right = evaluateNode(node.right, policy);
-  const leftWins =
-    node.kind === 'or'
-      ? RANK_OR[left.verdict] <= RANK_OR[right.verdict]
-      : RANK_AND[left.verdict] >= RANK_AND[right.verdict];
-  return leftWins ? left : right;
+  const hasUnresolved = (e: Evaluated): boolean => e.verdict === 'review' || e.unresolved === true;
+  if (node.kind === 'or') return RANK_OR[left.verdict] <= RANK_OR[right.verdict] ? left : right;
+  // AND: every branch applies. The most restrictive known term survives, and an unknown term stays flagged so a
+  // separate-service allowance cannot clear it.
+  const worst = RANK_AND[left.verdict] >= RANK_AND[right.verdict] ? left : right;
+  const unresolved = hasUnresolved(left) || hasUnresolved(right);
+  return worst.verdict === 'review' || !unresolved ? worst : { ...worst, unresolved: true };
 }
 
 /** Verdict for one licence expression. `null`/empty is a missing licence (`review`). */
-export function evaluateLicence(expr: string | null, policy: LicencePolicy): { verdict: Verdict; rule: string } {
+export function evaluateLicence(expr: string | null, policy: LicencePolicy): Evaluated {
   const text = expr?.trim();
   if (!text) return { verdict: 'review', rule: 'missing' };
   if (/^UNLICENSED$/i.test(text)) return { verdict: 'deny', rule: 'deny:UNLICENSED' };
@@ -185,7 +194,11 @@ export function decideComponent(
 ): ComponentDecision {
   if (forbiddenMatch(component, policy)) return { verdict: 'deny', rule: 'forbidden-tool' };
   const first = evaluateLicence(component.licence, policy);
-  if (first.verdict !== 'review') return settle(first, component);
+  if (first.verdict === 'separate_service_only' && first.unresolved) {
+    // Being a separate service satisfies the copyleft term only; the unknown term still needs a review.
+    if (!(component.ecosystem === 'image' && component.separateService === true)) return settle(first, component);
+    first.verdict = 'review';
+  } else if (first.verdict !== 'review') return settle(first, component);
   // Unresolved licence: a human-reviewed exception supplies the licence, which is judged by the same policy
   // (a reviewed GPL-3.0-only is still a separate service only; a reviewed BUSL-1.1 is still denied).
   const exception = exceptions.find((e) => e.package === `${component.name}@${component.version}`);
@@ -194,10 +207,7 @@ export function decideComponent(
   return { verdict: reviewed.verdict, rule: `exception:${exception.package}:${reviewed.rule}` };
 }
 
-function settle(
-  result: { verdict: Verdict; rule: string },
-  component: ComponentLicence & { separateService?: boolean },
-): ComponentDecision {
+function settle(result: Evaluated, component: ComponentLicence & { separateService?: boolean }): ComponentDecision {
   if (result.verdict === 'allow' || result.verdict === 'deny' || result.verdict === 'review') {
     return { verdict: result.verdict, rule: result.rule };
   }

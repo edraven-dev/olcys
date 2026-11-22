@@ -155,6 +155,15 @@ describe('exceptions and unknown terms', () => {
     expect(decideComponent(gplAnd, policy, [{ ...exception('MIT'), package: 'pkg@1.0.0' }]).verdict).toBe('deny');
   });
 
+  it('does not let separateService clear an unknown AND term of an image', () => {
+    const spec = { ...image('acme/tool', '1'), licence: 'GPL-3.0-only AND LicenseRef-Custom', separateService: true };
+    expect(decideComponent(spec, policy).verdict).toBe('review');
+    expect(decideComponent({ ...spec, separateService: false }, policy).verdict).toBe('deny');
+    const reviewed = { ...exception('GPL-3.0-only AND MIT'), package: 'acme/tool@1' };
+    expect(decideComponent(spec, policy, [reviewed]).verdict).toBe('allow');
+    expect(decideComponent({ ...spec, licence: 'GPL-3.0-only AND MIT' }, policy).verdict).toBe('allow');
+  });
+
   it('matches forbidden images like the dependency scan (registry prefix, version limit)', () => {
     expect(decideComponent(image('redis', '7.4'), policy).verdict).toBe('allow');
     expect(decideComponent(image('redis', '8.0'), policy).verdict).toBe('deny');
