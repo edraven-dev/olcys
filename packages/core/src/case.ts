@@ -75,7 +75,11 @@ export interface RunConfigSnapshot {
   weightsSha256: Sha256Hex;
   /** e.g. `{ exclusion: 'exclusion.v1', cashout: 'cashout.v1' }` */
   rulesVersions: Record<string, string>;
-  llm?: { baseUrl: string; model: string; modelDigest?: string };
+  /**
+   * The model server of the run: `baseUrl` without credentials or query, the model id, its digest (`none` when none is
+   * configured) and whether suggestions were enabled.
+   */
+  llm?: { baseUrl: string; model: string; modelDigest?: string; enabled?: boolean };
   /**
    * Rescore runs: ids of the analyst overrides the run applies, fixed when it was queued (those recorded until then,
    * oldest first). Scoring and reports use exactly this set; `rulesVersions.overrides` labels it.

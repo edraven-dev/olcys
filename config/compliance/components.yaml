@@ -62,6 +62,9 @@ images:
   ollama/ollama:
     licence: MIT
     purpose: 'lokalne środowisko modeli z API zgodnym z OpenAI (opcjonalne, profil llm)'
+  ghcr.io/ggml-org/llama.cpp:
+    licence: MIT
+    purpose: 'lokalny serwer modeli llama.cpp z API zgodnym z OpenAI (opcjonalny, profil llm-llamacpp)'
   blockstream/esplora:
     licence: MIT
     purpose: 'lokalny węzeł Bitcoin regtest z API Esplora (profil sandbox, dane demonstracyjne)'

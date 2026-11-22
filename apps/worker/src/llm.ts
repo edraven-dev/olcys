@@ -3,7 +3,15 @@
  * named by `LLM_SOURCE_ID` (default `local_llm`), so the model endpoint is allow-listed, rate-limited and logged like
  * every other source. Every call is appended to `llm_call`. The model only suggests (zero score weight).
  */
-import type { BlobStore, FetchMode, LlmClient, Repositories, SourceDescriptor } from '@olcys/core';
+import type {
+  BlobStore,
+  EgressClient,
+  FetchMode,
+  LlmClient,
+  Repositories,
+  RunConfigSnapshot,
+  SourceDescriptor,
+} from '@olcys/core';
 import { createEgressClient } from '@olcys/http';
 import { createLlmClient, llmConfigFromEnv, llmSourceProblem, type LlmConfig } from '@olcys/llm';
 import { TOOL_VERSION } from './config.ts';
@@ -11,6 +19,28 @@ import { TOOL_VERSION } from './config.ts';
 export interface LlmRuntime {
   client: LlmClient;
   config: LlmConfig;
+  /** The egress client of the model source (the same one the model client uses). */
+  http: EgressClient;
+}
+
+/**
+ * The model identity recorded in a run's config snapshot: endpoint without credentials or query, model id, the
+ * configured digest (`none` when the server reports none and `LLM_MODEL_DIGEST` is empty) and the enabled flag.
+ */
+export function llmSnapshot(config: LlmConfig): NonNullable<RunConfigSnapshot['llm']> {
+  let baseUrl = config.baseUrl;
+  try {
+    const url = new URL(config.baseUrl);
+    url.username = '';
+    url.password = '';
+    url.search = '';
+    url.hash = '';
+    baseUrl = url.toString().replace(/\/+$/, '');
+  } catch {
+    // An unparsable URL is stored as typed only when the model is disabled; enabled configs fail at the first call.
+    baseUrl = config.baseUrl.replace(/[?#].*$/, '').replace(/\/\/[^/@]*@/, '//');
+  }
+  return { baseUrl, model: config.model, modelDigest: config.modelDigest ?? 'none', enabled: config.enabled };
 }
 
 export interface LlmRuntimeOptions {
@@ -61,5 +91,5 @@ export function createLlmRuntime(options: LlmRuntimeOptions): LlmRuntime {
     config,
     source,
   });
-  return { client, config };
+  return { client, config, http };
 }
