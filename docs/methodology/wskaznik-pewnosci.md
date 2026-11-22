@@ -91,11 +91,11 @@ pnpm --filter @olcys/scoring calibrate --oracle --propose  # dodatkowo propozycj
 
 Wyniki trafiają do `data/calibration/<algorytm>/<wagi>/<ziarno>[-oracle]/` (katalog ignorowany przez git):
 `report.json`, `reliability.svg` (diagram niezawodności) i `report.md`. Raport zawiera SHA-256 wag, wersje algorytmu
-i reguł, SHA-256 zbioru danych oraz ziarno; te same dane wejściowe i to samo ziarno dają identyczne bajty.
+i reguł, SHA-256 zbioru danych oraz seed; te same dane wejściowe i ten sam seed dają identyczne bajty.
 
 ### Metoda
 
-- **Generator** (ziarnowany, deterministyczny) tworzy na poziomie silnika roszczenia z etykietą: 1 — prawdziwe
+- **Generator** (z seedem, deterministyczny) tworzy na poziomie silnika roszczenia z etykietą: 1 — prawdziwe
   powiązanie własnościowe, 0 — fałszywe. Cechy są losowane niezależnie (Bernoulli), kopie tej samej cechy mogą
   pochodzić z jednej lub wielu grup pochodzenia (sprawdzenie, że lustrzane kopie nie są liczone wielokrotnie).
   Roszczenia `THIRD_PARTY_ATTRIBUTION` nie są generowane (nie są oceniane).
@@ -127,7 +127,7 @@ i reguł, SHA-256 zbioru danych oraz ziarno; te same dane wejściowe i to samo z
   reszta jest kopiowana. Zatwierdzenie pliku jako nowej wersji wag jest decyzją człowieka — kod nigdy nie zmienia
   `config/scoring/`.
 
-### Ostatnie wyniki (dane syntetyczne, wagi `weights.v2`, algorytm `two-hop-llr/1.0.0`, n = 20 000, ziarno 20261121)
+### Ostatnie wyniki (dane syntetyczne, wagi `weights.v2`, algorytm `two-hop-llr/1.0.0`, n = 20 000, seed 20261121)
 
 | Miara                         | `oracle`                  | `scenarios`               |
 | ----------------------------- | ------------------------- | ------------------------- |

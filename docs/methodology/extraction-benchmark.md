@@ -10,7 +10,7 @@ adresów kryptowalutowych oraz maskowania sekretów — i jakie wyniki daje pomi
 
 Nie istnieje publiczny, oznaczony zbiór stron internetowych z adresami kryptowalut, a zgodność kilku narzędzi nie jest
 prawdą wzorcową. Korpus (`fixtures/corpus/`, opis w `fixtures/corpus/README.md`) powstaje więc razem z prawdą
-wzorcową: generator z ustalonym ziarnem renderuje szablony (39 polskich, 9 angielskich) i zapisuje każde wystąpienie
+wzorcową: generator z ustalonym seedem renderuje szablony (39 polskich, 9 angielskich) i zapisuje każde wystąpienie
 adresu, trudnego negatywu i sekretu z dokładnym zakresem znaków. Adresy pochodzą z losowych bajtów — nikt nie ma do
 nich kluczy. Sekrety istnieją wyłącznie w pamięci podczas pomiaru.
 
@@ -42,7 +42,7 @@ Lightning, `xpub`) są w raporcie oznaczone „nieobsługiwane — nie mierzono�
   rekurencyjnie i w postaci, w jakiej wypisałaby je konsola) i gotowy raport i szuka każdego 12-znakowego fragmentu
   każdego sekretu, także we frazie zapisanej innymi separatorami (nowe wiersze, numeracja, przecinki, sekwencje
   ucieczki JSON).
-- **Przedziały ufności:** bootstrap po dokumentach, 1 000 prób, stałe ziarno (raport jest powtarzalny); próby,
+- **Przedziały ufności:** bootstrap po dokumentach, 1 000 prób, stały seed (raport jest powtarzalny); próby,
   w których wskaźnik jest nieokreślony (brak przewidywań lub pozytywów w próbie), są dla niego pomijane.
 - **SpiderFoot:** wyrażenia regularne modułów `sfp_bitcoin` i `sfp_ethereum` przepisane w TypeScript (licencja MIT,
   © Steve Micallef; tekst licencji w nagłówku `packages/address-extractor/bench/baselines/spiderfoot.ts`), uruchomione

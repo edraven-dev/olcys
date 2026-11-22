@@ -134,15 +134,15 @@ w 500 dokumentach z 48 szablonów (39 polskich), ponad 1 300 trudnych negatywów
 200 sekretów wypełnianych wyłącznie w pamięci. Metodyka i wyniki: `docs/methodology/extraction-benchmark.md`.
 
 ```bash
-pnpm --filter @olcys/address-extractor corpus:generate   # odtwarza korpus z szablonów i ziarna (deterministycznie)
+pnpm --filter @olcys/address-extractor corpus:generate   # odtwarza korpus z szablonów i seedu (deterministycznie)
 pnpm --filter @olcys/address-extractor corpus:check      # sprawdza, czy pliki korpusu są aktualne (kod 1 przy różnicy)
 pnpm --filter @olcys/address-extractor bench             # raport → data/bench/<EXTRACTOR_VERSION>/report.{json,md}
 ```
 
 - `bench/` — runner (`runBenchmark`), dopasowanie do prawdy wzorcowej (poziom adresów i wystąpień), metryki
-  z przedziałami ufności (bootstrap po dokumentach, stałe ziarno), progi (`bench/thresholds.ts`), raport po polsku
+  z przedziałami ufności (bootstrap po dokumentach, stały seed), progi (`bench/thresholds.ts`), raport po polsku
   (`bench/report.ts`, teksty w katalogu `bench/pl.ts`) i linia bazowa SpiderFoot (`bench/baselines/spiderfoot.ts`,
-  MIT). Sekrety (`bench/secrets.ts`) powstają z ziarna korpusu tylko w pamięci; wyniki, logi i raport są sprawdzane
+  MIT). Sekrety (`bench/secrets.ts`) powstają z seedu korpusu tylko w pamięci; wyniki, logi i raport są sprawdzane
   pod kątem ich fragmentów, a raport nie zostanie zapisany, jeśli któryś się w nim znajdzie.
 - `scripts/corpus/` — generator korpusu (adresy z losowych bajtów, trudne negatywy, renderowanie szablonów,
   zaciemnienia, manifest z SHA-256 plików).

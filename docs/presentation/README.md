@@ -1,6 +1,6 @@
 # Prezentacja dla jury
 
-Materiały na zgłoszenie hackathonowe. Wszystkie dane i zrzuty ekranu są syntetyczne i zamaskowane.
+Materiały na zgłoszenie hackathonowe. Wszystkie dane i zrzuty ekranu są syntetyczne (niemaskowane).
 
 - `slajdy.html`: źródło prezentacji (10 slajdów 16:9, HTML i CSS, czcionki systemowe, bez skryptów i zdalnych zasobów); zrzuty ekranu są wczytywane z `../assets/screenshots/`.
 - `olcys-prezentacja.pdf`: prezentacja wygenerowana ze źródła.

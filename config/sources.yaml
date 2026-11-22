@@ -231,7 +231,7 @@ sources:
     kind: search
     compliance: GREEN
     complianceNote: Searches the fixture site's sitemap pages (fixture modes only; robots.txt respected). Queries are matched locally, so no identifier leaves the machine. Demo default (OLCYS_SEARCH_MODE=mock).
-    namePl: 'Atrapa wyszukiwarki (dane testowe)'
+    namePl: 'Mock wyszukiwarki (dane testowe)'
     complianceNotePl: 'Przeszukuje mapę witryny syntetycznej (tylko tryby z danymi testowymi, z poszanowaniem robots.txt). Zapytania są dopasowywane lokalnie, więc żaden identyfikator nie opuszcza komputera. Domyślne ustawienie demonstracji (OLCYS_SEARCH_MODE=mock).'
     tosUrl: null
     enabledByDefault: true
@@ -566,7 +566,7 @@ providers:
     kind: chain_data
     compliance: GREEN
     complianceNote: Local regtest network in compose profile "sandbox"; demo wallets only, no public network. Allowed live in offline mode.
-    namePl: 'Piaskownica: Bitcoin regtest (lokalny Esplora)'
+    namePl: 'Sandbox: Bitcoin regtest (lokalny Esplora)'
     complianceNotePl: 'Lokalna sieć regtest w profilu compose „sandbox”; tylko portfele demonstracyjne, bez sieci publicznej. Dozwolona na żywo w trybie offline; nie łączy się z hostem zewnętrznym.'
     sandbox: true
     tosUrl: null
@@ -582,7 +582,7 @@ providers:
     kind: chain_data
     compliance: GREEN
     complianceNote: Local EVM chain in compose profile "sandbox" (chain id 1); demo wallets only, no public network. Allowed live in offline mode.
-    namePl: 'Piaskownica: EVM (lokalny Anvil, API Otterscan)'
+    namePl: 'Sandbox: EVM (lokalny Anvil, API Otterscan)'
     complianceNotePl: 'Lokalny łańcuch EVM w profilu compose „sandbox” (chain id 1); tylko portfele demonstracyjne, bez sieci publicznej. Dozwolona na żywo w trybie offline; nie łączy się z hostem zewnętrznym.'
     sandbox: true
     tosUrl: null
@@ -633,7 +633,7 @@ providers:
     compliance: GREEN
     complianceNote: 'OpenVINO Model Server (Apache-2.0) with an open-weight model (Qwen, Apache-2.0) on loopback or a compose host; prompts and answers never leave the machine. The model only suggests: suggestions carry zero score weight until an analyst confirms them. Content of sources with llmAllowed false is never sent. The tosUrl is the server licence.'
     namePl: 'Lokalny model AI (serwer zgodny z API OpenAI na tym komputerze)'
-    complianceNotePl: 'OpenVINO Model Server (Apache-2.0) z modelem o otwartych wagach (Qwen, Apache-2.0) na pętli zwrotnej lub hoście compose; podpowiedzi i odpowiedzi nie opuszczają maszyny. Model tylko podpowiada: sugestie mają zerową wagę w ocenie, dopóki analityk ich nie potwierdzi. Treści ze źródeł z llmAllowed false nigdy nie są wysyłane. Link prowadzi do licencji serwera.'
+    complianceNotePl: 'OpenVINO Model Server (Apache-2.0) z modelem o otwartych wagach (Qwen, Apache-2.0) na loopbacku lub hoście compose; podpowiedzi i odpowiedzi nie opuszczają maszyny. Model tylko podpowiada: sugestie mają zerową wagę w ocenie, dopóki analityk ich nie potwierdzi. Treści ze źródeł z llmAllowed false nigdy nie są wysyłane. Link prowadzi do licencji serwera.'
     tosUrl: https://github.com/openvinotoolkit/model_server/blob/main/LICENSE
     enabledByDefault: true
     requiresApiKey: false

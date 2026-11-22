@@ -1,6 +1,6 @@
 # Notatki prelegenta
 
-Slajdy: [`olcys-prezentacja.pdf`](olcys-prezentacja.pdf). Wszystkie dane w prezentacji są syntetyczne i zamaskowane.
+Slajdy: [`olcys-prezentacja.pdf`](olcys-prezentacja.pdf). Wszystkie dane w prezentacji są syntetyczne (niemaskowane).
 
 ## 1. Tytuł, problem i cel
 
@@ -40,4 +40,4 @@ Pracujemy wyłącznie w trybie OSINT, według rejestru źródeł GREEN, AMBER i 
 
 ## 10. Architektura, technologie i plany
 
-Konsola web komunikuje się z API, które uruchamia potok analizy. Cały ruch sieciowy przechodzi przez jeden EgressClient z listą hostów, limitami i dziennikiem. Dane trafiają do PostgreSQL i magazynu blobów, a usługi pomocnicze to osint-py (Maigret, pyHanko), Gotenberg i lokalny model. Stos to Node 26 z TypeScriptem, React, Fastify, PostgreSQL i Python. Kolejne kroki: konta i role, weryfikacja API na żywo, scenariusz z łańcuchami piaskownicy i podpis kwalifikowany.
+Konsola web komunikuje się z API, które uruchamia pipeline analizy. Cały ruch sieciowy przechodzi przez jeden EgressClient z listą hostów, limitami i dziennikiem. Dane trafiają do PostgreSQL i magazynu blobów, a usługi pomocnicze to osint-py (Maigret, pyHanko), Gotenberg i lokalny model. Stos to Node 26 z TypeScriptem, React, Fastify, PostgreSQL i Python. Kolejne kroki: konta i role, weryfikacja API na żywo, scenariusz z łańcuchami sandbox i podpis kwalifikowany.

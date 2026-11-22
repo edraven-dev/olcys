@@ -7,7 +7,7 @@ własności, nie podnosi Wskaźnika Pewności i w raporcie jest opisany jako heu
 
 ## Jak to działa
 
-1. **Ziarna.** Adresy Bitcoin sprawy, które przeszły wstępną selekcję (nie są wykluczone regułami A1/A8) i których
+1. **Adresy seed.** Adresy Bitcoin sprawy, które przeszły wstępną selekcję (nie są wykluczone regułami A1/A8) i których
    historię udało się pobrać.
 2. **Wspólne wejścia.** Transakcje potwierdzone, w kolejności (wysokość bloku, `txid`); transakcja łączy adresy swoich
    wejść (struktura zbiorów rozłącznych). Wyjścia nigdy nie są łączone z wejściami. Transakcje coinbase i wejścia bez
@@ -20,7 +20,7 @@ własności, nie podnosi Wskaźnika Pewności i w raporcie jest opisany jako heu
    sprawy; w środowisku produkcyjnym należy używać własnego węzła lub instancji Esplora.
 4. **Identyfikator i kolejność.** Identyfikator klastra to `c_` i 16 znaków szesnastkowych SHA-256 z posortowanej listy
    adresów (rozdzielonych znakiem nowej linii); lista adresów jest sortowana, więc kolejność transakcji na wejściu nie
-   zmienia wyniku. Dowód połączenia adresu to pierwsza transakcja łącząca go z ziarnami (przeszukiwanie wszerz).
+   zmienia wyniku. Dowód połączenia adresu to pierwsza transakcja łącząca go z seedumi (przeszukiwanie wszerz).
 
 ## Bezpieczniki
 
@@ -32,7 +32,7 @@ własności, nie podnosi Wskaźnika Pewności i w raporcie jest opisany jako heu
 | Transakcja wspólna                     | wejścia ≥ 2 adresów tworzą wyjście P2WSH albo wejście ujawnia skrypt z `OP_CHECKMULTISIG` — pominięta (`collaborative_escrow`)           |
 | Usługa oznaczona etykietą              | adres osoby wydany razem z usługą: usługa nie dołącza do klastra, jej inni partnerzy nie są łączeni; zapis w `serviceMembers`, reguła A7 |
 | Limit rozmiaru                         | domyślnie 1000 adresów; połączenie przekraczające limit jest pomijane (`cap_reached`), klaster oznaczony `capped`                        |
-| Wzrost względem poprzedniego przebiegu | `growthFactor` = rozmiar / poprzedni rozmiar tego samego ziarna; od 100 reguła A7 oznacza klaster                                        |
+| Wzrost względem poprzedniego przebiegu | `growthFactor` = rozmiar / poprzedni rozmiar tego samego adresu seed; od 100 reguła A7 oznacza klaster                                   |
 
 Limit rozmiaru działa na całe transakcje: transakcja, która podniosłaby składową ponad limit, jest pomijana w całości
 (zachowanie konserwatywne), a transakcje są przetwarzane w kolejności (wysokość bloku, `txid`), więc wynik zależy od tej
@@ -47,7 +47,7 @@ limit 1000, wzrost 100) są wartościami startowymi, niekalibrowanymi, i leżą 
   adres reszty nie jest łączony z wejściami.
 - Brak klastrowania innych łańcuchów UTXO.
 - Klaster nie tworzy powiązania z osobą: jego członkowie są zapisywani jako `CLUSTER_ASSOCIATED` (wynik 0, „nie
-  oceniono”) i tylko wtedy, gdy ziarno ma roszczenie własności; żaden adres usługi nie łączy dwóch osób.
+  oceniono”) i tylko wtedy, gdy adres seed ma roszczenie własności; żaden adres usługi nie łączy dwóch osób.
 
 ## Ograniczenia, o których musi wiedzieć analityk
 

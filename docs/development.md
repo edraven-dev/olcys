@@ -57,7 +57,7 @@ mogą utworzyć dwie sprawy; uruchamiaj seed pojedynczo.
 
 Skrypt `scripts/demo/run.ts` prowadzi przez cały syntetyczny scenariusz **działający** lokalny stos: API (`API_URL`,
 domyślnie `http://127.0.0.1:4000`) i stronę testową (`FIXTURE_SITE_URL`, domyślnie `http://127.0.0.1:4100`). Akceptuje
-wyłącznie adresy pętli zwrotnej (127.0.0.1, `localhost`, `[::1]`); każdy inny adres jest odrzucany przed wysłaniem
+wyłącznie adresy loopback (127.0.0.1, `localhost`, `[::1]`); każdy inny adres jest odrzucany przed wysłaniem
 jakiegokolwiek żądania. Skrypt niczego nie uruchamia ani nie restartuje.
 
 ```bash
@@ -80,7 +80,7 @@ ocen, odrzucone adresy z powodem, przesłanki wyjścia do fiat, alert zmiany ora
 Jeśli strona testowa odrzuci przełączenie wariantu, ustaw `FIXTURE_ALLOW_VARIANT_SWITCH=1` i uruchom ponownie
 `pnpm dev:deps`. Każde uruchomienie `pnpm demo` tworzy nową sprawę. Dane są wyłącznie syntetyczne.
 
-Poza zakresem tej wersji (planowane później): scenariusz z łańcuchami piaskownicy (regtest/Anvil), nagrywanie kaset,
+Poza zakresem tej wersji (planowane później): scenariusz z łańcuchami sandbox (regtest/Anvil), nagrywanie cassettes,
 tryb `--mode sandbox` i wyliczanie nazw użytkowników.
 
 ### Test akceptacyjny E2E (`pnpm test:e2e`)
@@ -92,14 +92,14 @@ nazwach slotów z `fixtures/persona/manifest.json`), a etykiety z katalogu `apps
 ```bash
 pnpm test:e2e                 # cały scenariusz, headless, ok. 1,5 min
 pnpm test:e2e --screenshots   # to samo + zrzuty PNG do docs/assets/screenshots/ (1440 px szerokości)
-pnpm test:e2e --screenshots --no-mask   # zrzuty bez maskowania — tylko do próby na żywo
+pnpm test:e2e --screenshots --no-mask   # zrzuty bez maskowania (dane syntetyczne)
 ```
 
 Test **nie jest** częścią `pnpm check` ani domyślnego `pnpm test` (potrzebuje przeglądarki i trwa ponad minutę); CI
 pozostaje bez zmian. Do uruchomienia wystarczy lokalny Chromium: `/usr/bin/chromium` albo ścieżka w `E2E_CHROMIUM`.
 Przeglądarki nie są pobierane (`PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1`).
 
-Stos powstaje w całości w procesach potomnych na wolnych portach pętli zwrotnej: build produkcyjny konsoli
+Stos powstaje w całości w procesach potomnych na wolnych portach localhost: build produkcyjny konsoli
 (`vite preview`), API z workerem w procesie na magazynie pamięciowym w trybie `offline` oraz strona testowa z
 przełącznikiem wariantu. Bez bazy danych, bez compose; wspólne kontenery i baza deweloperska nie są dotykane. Identyfikatory
 procesów są zapisywane, a zatrzymanie odbywa się po PID, nigdy po wzorcu.
@@ -108,8 +108,7 @@ Kroki i sprawdzenia:
 
 1. **Dane wejściowe** — sprawa tworzona przez formularz „Nowa sprawa” (tytuł, cel, podstawa prawna, trzy identyfikatory
    persony z kotwicą, zakres źródeł z manifestu; RED wyłączone); widok sprawy pokazuje zablokowany zakres.
-2. **Wyszukiwanie OSINT** — przebieg kończy się; w „Źródła i dowody” dziennik połączeń jest niepusty, każdy host to pętla
-   zwrotna, żądania ujawniające identyfikator są oznaczone, zabezpieczenia stron mają adres URL i skrót SHA-256.
+2. **Wyszukiwanie OSINT** — przebieg kończy się; w „Źródła i dowody” dziennik połączeń jest niepusty, każdy host to loopback, żądania ujawniające identyfikator są oznaczone, zabezpieczenia stron mają adres URL i skrót SHA-256.
 3. **Wykrywanie adresów** — BTC-1 ma kartę z siecią i identyfikatorem; kandydaci odrzuceni przy walidacji (skrót
    transakcji, przykład z dokumentacji, homoglify) są wymienieni z powodem.
 4. **Wskaźnik Pewności** — tabela powiązań równa `expected.v1.links` (wyniki, kolejność, przedziały), komunikat „Wynik
@@ -130,20 +129,20 @@ Zrzuty (`--screenshots`) obejmują `01-sprawy` … `10-ustawienia`, w tym `08-zm
 Przez cały test przeglądarka **nie może** połączyć się z hostem innym niż `127.0.0.1`/`localhost`/`[::1]`: każde takie
 żądanie jest przerywane i zapisywane, a test kończy się porażką (podobnie przy błędach strony i konsoli).
 
-**Maskowanie danych w materiałach publikowanych.** Zrzuty ekranu (`--screenshots`) i film (`pnpm demo:video`) są domyślnie
-**maskowane**: wstrzyknięty przez Playwright skrypt (aplikacja nie jest zmieniana) zasłania rozmyciem identyfikatory
+**Maskowanie danych w materiałach publikowanych.** Zrzuty ekranu (`--screenshots`) i film (`pnpm demo:video`) mogą być
+**maskowane** (domyślnie, z myślą o danych rzeczywistych): wstrzyknięty przez Playwright skrypt (aplikacja nie jest zmieniana) zasłania rozmyciem identyfikatory
 persony (imię i nazwisko, nick, e-mail, adresy profili), każdy adres kryptowalutowy (bech32/base58, `0x…`, TRON,
 również w postaci skróconej), skróty transakcji i dowolne adresy e-mail; pola formularza z takimi wartościami są
 rozmywane. Wyniki, przedziały, kody reguł, kwoty w PLN, daty i etykiety pozostają widoczne. Każdy zrzut przechodzi
-kontrolę, że w drzewie DOM nie ma niezamaskowanego tekstu persony ani adresu. `--no-mask` służy **wyłącznie** do próby
-na żywo; materiały do zgłoszenia, README i prezentacji muszą być maskowane.
+kontrolę, że w drzewie DOM nie ma niezamaskowanego tekstu persony ani adresu. `--no-mask` wyłącza maskowanie; zrzuty i film publikowane w tym repozytorium są niemaskowane, bo wszystkie ich dane są
+syntetyczne.
 
 #### Film demonstracyjny (`pnpm demo:video`)
 
 ```bash
 pnpm demo:video            # nagrywa olcys-demo.mp4 w katalogu głównym repozytorium
 pnpm demo:video --force    # nadpisuje istniejący plik (domyślnie odmawia)
-pnpm demo:video --no-mask  # bez maskowania — tylko próba na żywo
+pnpm demo:video --no-mask  # bez maskowania (dane syntetyczne)
 pnpm demo:video --llm      # dodatkowo włącza lokalny model (LLM_ENABLED=true, LLM_MAX_MENTIONS_PER_RUN=1; OVMS z .env.example)
                            # i pokazuje kartę „Sugestia AI — niezweryfikowana”; domyślnie model jest wyłączony
 ```

@@ -1,6 +1,6 @@
 # Architektura OŁCyŚ
 
-OŁCyŚ to deterministyczny **potok dowodowy**, w którym zgodność z zasadami jest wbudowana od początku. Na podstawie
+OŁCyŚ to deterministyczny **pipeline dowodowy**, w którym zgodność z zasadami jest wbudowana od początku. Na podstawie
 co najmniej jednego identyfikatora badanej osoby (imię i nazwisko, nick z forum, identyfikator z komunikatora, login
 z portalu społecznościowego, e-mail lub adres kryptowalutowy) narzędzie:
 
@@ -20,7 +20,7 @@ z portalu społecznościowego, e-mail lub adres kryptowalutowy) narzędzie:
 ```
 apps/
   api/            API HTTP (Fastify) dla konsoli analityka
-  worker/         potok analizy w procesie (bez kolejki) i PUNKT SKŁADANIA ZALEŻNOŚCI
+  worker/         pipeline analizy w procesie (bez kolejki) i COMPOSITION ROOT
   web/            konsola analityka w React, interfejs po polsku
   fixture-site/   syntetyczna strona testowa z personą, warianty v1/v2
 packages/
@@ -39,14 +39,14 @@ packages/
 services/osint-py/  serwis w Pythonie: Maigret, socid-extractor, pyHanko
 config/           sources.yaml (zgodność + lista dozwolonych hostów), wagi wskaźnika, zestawy reguł
 infra/            skrypty inicjalizacji bazy danych
-fixtures/         syntetyczne korpusy, nagrania odpowiedzi (kasety), etykiety demonstracyjne
+fixtures/         syntetyczne korpusy, nagrania odpowiedzi (cassettes), etykiety demonstracyjne
 docs/             architektura, decyzje (ADR), zgodność, metodyka
 ```
 
 ## Zasady zależności
 
 ```
-                 ┌────────────── apps/worker (punkt składania zależności) ──────┐
+                 ┌────────────── apps/worker (composition root) ──────┐
                  │   wpina implementacje w porty z @olcys/core                  │
 apps/api ──┐     ▼                                                              ▼
            ├──► packages/* ──► @olcys/core ◄── apps/web (tylko typy)
@@ -75,7 +75,7 @@ apps/web ──┘
 Kroki wykonują się kolejno w procesie (bez kolejki zadań); każdy jest idempotentny w obrębie przebiegu `(runId, krok, klucz obiektu)`:
 
 ```
-run.start         migawka konfiguracji (skrót sources.yaml, wersje wag i reguł, wersja narzędzia, model) → AnalysisRun
+run.start         snapshot konfiguracji (skrót sources.yaml, wersje wag i reguł, wersja narzędzia, model) → AnalysisRun
 pivot.plan        identyfikatory → zadania zbierania (zakres: źródła włączone dla sprawy, maxPivotDepth)
 collect.source*   SourceCollector.collect → Capture + OnlineAccount + Observation
 extract.capture*  Capture → ExtractionResult (AddressCandidate, SecretFinding)
@@ -102,7 +102,7 @@ repozytorium); PDF należy do tej samej wersji raportu co HTML i dane. Szczegó�
 Przebieg **ponownej oceny** (`trigger: 'rescore'`) przetwarza zapisane zabezpieczenia wcześniejszego przebiegu nowymi
 wersjami algorytmu lub reguł bez ponownego pobierania danych — pozwala to odróżnić zmianę danych od zmiany algorytmu.
 Tylko ponowna ocena stosuje też korekty analityka zapisane do chwili jej zlecenia (zbiór ustalony przy zleceniu,
-zapisany w migawce konfiguracji jako `analystOverrides` i `rulesVersions.overrides`); oceny analityka są zapisywane
+zapisany w snapshocie konfiguracji jako `analystOverrides` i `rulesVersions.overrides`); oceny analityka są zapisywane
 obok wyników i nigdy ich nie zmieniają — zob. [metodyka Wskaźnika Pewności](methodology/wskaznik-pewnosci.md).
 
 ## Analizy okresowe (harmonogram)
@@ -155,12 +155,12 @@ pomijane (`skipped_overlap`); raport startowy planisty i dziennik wskazują taki
 ## Oś czasu strony
 
 Wartości strony lub pola profilu w czasie łączą przebiegi na żywo z kopiami archiwalnymi (Wayback Machine, tylko
-odczyt). `buildPropertyTimelines` (`@olcys/evidence`) buduje `PropertyTimeline`: punkty (czas migawki z archiwum albo
+odczyt). `buildPropertyTimelines` (`@olcys/evidence`) buduje `PropertyTimeline`: punkty (czas snapshotu z archiwum albo
 czas przechwycenia), okresy o tym samym zbiorze wartości i zmiany z przedziałem „ostatni punkt przed — pierwszy po”.
 Przechwycenie, z którego odkryto konto, reprezentuje kanoniczną stronę profilu tego konta (adres z rekordu konta, bez zgadywania po tekście adresu), więc profil pobrany po nicku i jego kopie archiwalne tworzą jedną oś. Punkt zachowuje pochodzenie (`archive` / `live`), więc raport i konsola oznaczają kopie archiwalne jako materiał strony
 trzeciej. Luka (niepobrana kopia z nowym skrótem, skrót niezgodny, strona niedostępna lub 404 w kopii) nie kończy
 okresu i nie tworzy zmiany; niepobrana kopia z tym samym skrótem CDX dziedziczy wartości (data przybliżona). Fakty
-(wykaz migawek), obliczenia (zgodność skrótu) i wnioski pozostają rozdzielone. Dostęp: `GET /api/cases/:id/timeline`.
+(wykaz snapshotów), obliczenia (zgodność skrótu) i wnioski pozostają rozdzielone. Dostęp: `GET /api/cases/:id/timeline`.
 
 ## Dowody i pochodzenie danych
 
@@ -269,11 +269,11 @@ kontraktu usługi — konto EOA z delegacją, konto Safe i konto ERC-4337 mogą 
 `@olcys/llm` korzysta z API Chat Completions zgodnego z OpenAI, więc zmiana modelu sprowadza się do zmiany
 `LLM_BASE_URL` i `LLM_MODEL`. Domyślnie jest to lokalny OpenVINO Model Server (`http://localhost:2140/v3`, model
 `qwen3.6-35b-ov`, myślenie wyłączone przez `LLM_CHAT_TEMPLATE_KWARGS`); Ollama, llama.cpp i vLLM działają tak samo.
-Punkt końcowy modelu jest źródłem w `config/sources.yaml` (`local_llm`, rodzaj `ai_model`, nie wysyła identyfikatorów
+Endpoint modelu jest źródłem w `config/sources.yaml` (`local_llm`, rodzaj `ai_model`, nie wysyła identyfikatorów
 poza maszynę), a cały ruch idzie przez `@olcys/http`: lista dozwolonych hostów, limit zapytań, dziennik wyjścia
-(`containsIdentifier`) i koperta pochodzenia. Zdalny punkt końcowy wymaga własnego wpisu AMBER i zgody w sprawie.
+(`containsIdentifier`) i koperta pochodzenia. Zdalny endpoint wymaga własnego wpisu AMBER i zgody w sprawie.
 
-Model jedynie _podpowiada_ (rola wzmianki o adresie, odmiana polskich imion i nazwisk, szkice wniosków w raporcie);
+Model jedynie _podpowiada_ (rola wzmianki o adresie, szkice wniosków w raporcie (dwa prompty: `address-role-classification`, `report-inference-draft`));
 nigdy nie wyszukuje adresów i nie ustala wyników. Zebrany tekst trafia do niego wyłącznie jako niezaufane dane między
 znacznikami z jednorazowym, deterministycznym znacznikiem (tekst jest normalizowany, znaki niewidoczne i fałszywe
 znaczniki usuwane); żądanie nie zawiera narzędzi. Treści ze źródeł z `llmAllowed: false` (np. Telegram) nigdy nie

@@ -156,7 +156,7 @@ docker run --rm --network none olcys-osint-test   # pytest z pytest-socket (tylk
 ```
 
 Testy używają serwera na `127.0.0.1` (odpowiedzi 200, 404, 403, 429, CAPTCHA, ściana logowania, przekroczony czas,
-przekierowania, pętla przekierowań), bazy testowej i atrapy strony testowej; nie łączą się z prawdziwą siecią.
+przekierowania, pętla przekierowań), bazy testowej i mocka strony testowej; nie łączą się z prawdziwą siecią.
 Test `test_real_fixture_site` jest pomijany, dopóki nie ustawisz `OLCYS_E2E_FIXTURE_URL` (adres działającej strony
 testowej, np. z `pnpm dev:fixture`, oraz `docker run --network host`).
 

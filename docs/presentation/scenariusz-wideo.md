@@ -1,6 +1,6 @@
 # Scenariusz filmu demonstracyjnego
 
-Film: plik `olcys-demo.mp4` w katalogu głównym repozytorium. Pokazuje zamaskowane dane syntetyczne. Czas całkowity: do 3:00. Znaczniki czasu odpowiadają krokom nagrania.
+Film: plik `olcys-demo.mp4` w katalogu głównym repozytorium. Pokazuje dane syntetyczne, bez maskowania. Czas całkowity: do 3:00. Znaczniki czasu odpowiadają krokom nagrania.
 
 | Czas      | Krok                         | Narracja                                                                                                                                                                             |
 | --------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |

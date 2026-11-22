@@ -23,7 +23,7 @@ Obowiązkowy scenariusz i odpowiadające mu funkcje:
    założenie (P = 0,99). Zakres źródeł jest zamykany przy tworzeniu sprawy.
 2. **Wyszukiwanie śladów OSINT** wyłącznie w źródłach włączonych dla sprawy. Kolektory: forum Bitcointalk (strony dla
    gości), konta społecznościowe (Wykop), GitHub (profil, repozytoria, `FUNDING.json`), publiczny podgląd kanałów
-   Telegrama, ogłoszenia P2P, wyszukiwarki (lokalna atrapa, opcjonalnie Brave i Mojeek), enumeracja nicków (Maigret),
+   Telegrama, ogłoszenia P2P, wyszukiwarki (lokalny mock, opcjonalnie Brave i Mojeek), enumeracja nicków (Maigret),
    rejestry publiczne (CEIDG, wykaz podatników VAT, KRS), protokoły tożsamości (Keybase — podpisane adresy, ENS — nazwy zweryfikowane w obie strony, Farcaster — zweryfikowane adresy, Nostr — NIP-05, archiwum BitList) oraz archiwum Wayback Machine (tylko odczyt). Planer rozwija
    wyszukiwanie z nowych kont i adresów do głębokości `maxPivotDepth`. Każda pobrana strona jest zabezpieczana jako dowód:
    adres, czas, skrót SHA-256 i manifest zgodny z Protokołem Berkeley.
@@ -105,7 +105,7 @@ generowane z rejestru poleceniem `node packages/collectors/scripts/sources-doc.t
 | `replay`     | wszystko z nagrań (także strona testowa), usługi lokalne na żywo                                                                                     |
 | `live`       | prawdziwa sieć ograniczona do hostów źródeł włączonych dla sprawy (`OLCYS_RECORD=1` nagrywa odpowiedzi)                                              |
 
-Łańcuchy piaskownicy (regtest, Anvil; profil compose `sandbox`, źródła `sandbox_esplora` i `sandbox_anvil`) są osobnym
+Łańcuchy sandbox (regtest, Anvil; profil compose `sandbox`, źródła `sandbox_esplora` i `sandbox_anvil`) są osobnym
 mechanizmem, a nie czwartym trybem; ich scenariusz jest planowany (zob. „Ograniczenia i plany”).
 
 Najważniejsze zmienne z [`.env.example`](.env.example) (wartości domyślne są wyłącznie lokalne):
@@ -126,7 +126,7 @@ Najważniejsze zmienne z [`.env.example`](.env.example) (wartości domyślne są
 | `API_PORT`, `WEB_PORT`, `FIXTURE_PORT`                                                                               | `4000`, `5173`, `4100`                                | porty lokalne                                                                                                                  |
 | `DO_NOT_TRACK` i pozostałe opt-outy                                                                                  | `1`                                                   | telemetria wyłączona (blok „Telemetry opt-outs” w `.env.example`)                                                              |
 
-Wagi i progi oceny: [`config/scoring/weights.v1.yaml`](config/scoring/weights.v1.yaml); reguły odrzucania i wyjścia do
+Wagi i progi oceny: [`config/scoring/weights.v2.yaml`](config/scoring/weights.v2.yaml) (domyślne w `packages/scoring/src/weights.ts`; `weights.v1.yaml` zostaje do porównań); reguły odrzucania i wyjścia do
 fiat: [`config/rules/`](config/rules/); dostawcy danych łańcuchowych:
 [`config/chain-providers.yaml`](config/chain-providers.yaml).
 
@@ -161,19 +161,19 @@ Konsola: <http://127.0.0.1:5173>. Pełny opis środowiska, Podmana i rozwiązywa
 
 ## Demo i testy
 
-- **`pnpm demo`** prowadzi przez cały scenariusz **działający** lokalny stos (akceptuje wyłącznie adresy pętli zwrotnej):
+- **`pnpm demo`** prowadzi przez cały scenariusz **działający** lokalny stos (akceptuje wyłącznie adresy loopback):
   kontrola zdrowia usług, wariant strony testowej `v1`, utworzenie sprawy persony, przebieg 1, przełączenie na wariant `v2`,
   przebieg 2, odczyt wyników przez API i samokontrola z `fixtures/demo/manifest.json`. Podsumowanie po polsku pokazuje
   identyfikator sprawy, powiązania z wynikami i przedziałami, odrzucone adresy z regułami, przesłanki wyjścia do fiat,
   alert podmiany BTC-1 → BTC-2 oraz adresy widoku sprawy i raportu. `pnpm demo --ci` kończy się kodem 1 i listą
   niezgodności, gdy wynik odbiega od oczekiwań.
 - **`pnpm test:e2e`** to test akceptacyjny (Playwright, lokalny Chromium): prowadzi polską konsolę przez siedem kroków
-  scenariusza oraz ponowną analizę z alertem, w sumie osiem kroków. Stos powstaje w procesach potomnych na pętli
-  zwrotnej (pamięć zamiast bazy), a każde żądanie przeglądarki do hosta innego niż lokalny przerywa test. Nie jest częścią
+  scenariusza oraz ponowną analizę z alertem, w sumie osiem kroków. Stos powstaje w procesach potomnych na localhost (pamięć zamiast bazy), a każde żądanie przeglądarki do hosta innego niż lokalny przerywa test. Nie jest częścią
   `pnpm check`. `pnpm test:e2e --screenshots` zapisuje dodatkowo zrzuty do `docs/assets/screenshots/`.
 - **`pnpm demo:video`** nagrywa `olcys-demo.mp4` (do 3 minut, polskie napisy, znacznik „DANE SYNTETYCZNE”; wymaga
-  `ffmpeg`). Zrzuty i film są domyślnie **maskowane**: identyfikatory persony, adresy kryptowalutowe, skróty transakcji i
-  adresy e-mail są rozmywane; `--no-mask` służy wyłącznie do próby na żywo.
+  `ffmpeg`). Maskowanie jest domyślne i przeznaczone dla danych rzeczywistych: identyfikatory persony, adresy kryptowalutowe,
+  skróty transakcji i adresy e-mail są rozmywane, a `--no-mask` je wyłącza. Zrzuty i film w tym repozytorium są
+  niemaskowane, bo wszystkie ich dane są syntetyczne.
 - **`pnpm check`** (wymagany przed każdą zmianą): formatowanie (oxfmt), lint (oxlint), typy (TypeScript), bramki zgodności
   (licencje, obrazy, rejestr źródeł, SBOM, tabela licencji) i testy (Vitest, bez dostępu do prawdziwej sieci).
 
@@ -184,7 +184,7 @@ flowchart LR
   analyst([Analityk]) --> web[Konsola web<br/>React, po polsku]
   web -->|/api| api[API Fastify<br/>planista harmonogramów]
   api --> pipeline
-  subgraph pipeline[Potok analizy: apps/worker]
+  subgraph pipeline[Pipeline analizy: apps/worker]
     direction TB
     s1[plan pivotów i zbieranie] --> s2[ekstrakcja adresów] --> s3[dane łańcuchowe]
     s3 --> s4[etykiety i odrzucanie A1–A8] --> s5[aktywność i fiat B1–B7, PLN]
@@ -202,10 +202,10 @@ flowchart LR
   s8 --> py[osint-py<br/>Maigret, pyHanko]
 ```
 
-Technologie: TypeScript na Node.js 26 (uruchamianie ze zdjęciem typów), pnpm 12, Fastify, React i Vite, PostgreSQL 19,
+Technologie: TypeScript na Node.js 26 (uruchamianie TypeScriptu bezpośrednio (type stripping)), pnpm 12, Fastify, React i Vite, PostgreSQL 19,
 Gotenberg 9, usługa w Pythonie (Maigret, socid-extractor, pyHanko), Vitest 5, oxlint i oxfmt. Pakiety zależą wyłącznie od
 kontraktów `@olcys/core`; implementacje łączy `apps/worker`. Cały ruch sieciowy (także do lokalnych usług i modelu)
-przechodzi przez `@olcys/http`. W tej wersji potok działa synchronicznie w procesie API, a konsola odpytuje o postęp
+przechodzi przez `@olcys/http`. W tej wersji pipeline działa synchronicznie w procesie API, a konsola odpytuje o postęp
 przebiegu. Szczegóły: [`docs/architecture.md`](docs/architecture.md),
 [`docs/adr/0001-technology-stack.md`](docs/adr/0001-technology-stack.md).
 
@@ -227,7 +227,7 @@ przebiegu. Szczegóły: [`docs/architecture.md`](docs/architecture.md),
   [`docs/compliance/licenses.md`](docs/compliance/licenses.md).
 - **Brak telemetrii.** Opt-outy w każdym kontenerze i konfiguracji CI, a test pilnuje ich obecności. Brak zewnętrznych
   czcionek, skryptów i CDN w aplikacji web.
-- **Ścisła polityka CSP** w zbudowanej konsoli (`default-src 'self'`, bez skryptów i stylów wbudowanych), restrykcyjne
+- **Ścisła polityka CSP** w zbudowanej konsoli (`default-src 'self'`, bez skryptów wbudowanych; jedyny wbudowany arkusz stylów, biblioteki grafu, jest dopuszczony po skrócie SHA-256, zob. `docs/security.md`), restrykcyjne
   nagłówki API, raport HTML bez skryptów, utwardzone kontenery (`cap_drop: ALL`, `no-new-privileges`).
 - **Dziennik dostępu** (`access_log`, tylko do dopisywania: rola aplikacyjna ma wyłącznie SELECT i INSERT) rejestruje, kto
   oglądał lub eksportował którą sprawę. Dowody, oceny i łańcuch dowodowy są również dopisywane, a nie nadpisywane.
@@ -239,8 +239,8 @@ Szczegóły: [`docs/security.md`](docs/security.md), [`docs/compliance/`](docs/c
 
 ## AI
 
-- **Model nigdy nie decyduje.** Może jedynie podpowiadać (rola wzmianki o adresie, odmiana polskich imion i nazwisk, szkice
-  wniosków do sekcji C raportu). Sugestie mają **wagę zero w ocenie**, dopóki analityk nie potwierdzi ich decyzją z
+- **Model nigdy nie decyduje.** Może jedynie podpowiadać (rola wzmianki o adresie i szkice
+  wniosków do sekcji C raportu; istnieją dwa prompty: `address-role-classification` i `report-inference-draft`). Sugestie mają **wagę zero w ocenie**, dopóki analityk nie potwierdzi ich decyzją z
   uzasadnieniem; do raportu trafiają tylko potwierdzone szkice, oznaczone „wspomagane AI, zatwierdzone przez analityka”.
 - **Wymienny model.** Klient korzysta z API Chat Completions zgodnego z OpenAI; zmiana modelu to zmiana `LLM_BASE_URL` i
   `LLM_MODEL` w `.env`. Domyślnie lokalny OpenVINO Model Server (`http://localhost:2140/v3`, `qwen3.6-35b-ov`); Ollama i
@@ -255,7 +255,7 @@ Szczegóły: [`docs/security.md`](docs/security.md), [`docs/compliance/`](docs/c
 ## Ograniczenia i plany
 
 - **Konta użytkowników i logowanie** (role, sesje, ograniczanie prób) są planowane w kolejnej wersji.
-- **Scenariusz z łańcuchami piaskownicy** (regtest, Anvil) i **nagrywanie kaset** odpowiedzi (`fixtures/cassettes/` jest
+- **Scenariusz z łańcuchami sandbox** (regtest, Anvil) i **nagrywanie cassettes** odpowiedzi (`fixtures/cassettes/` jest
   puste) są planowane; demonstracja korzysta ze strony testowej serwującej dane w formatach dostawców.
 - **Formaty prawdziwych API** (Esplora, Etherscan V2, TronGrid, rejestry polskie) są odwzorowane według dokumentacji i
   sprawdzone na danych syntetycznych; przed użyciem w trybie `live` wymagają weryfikacji na żywo.
@@ -270,8 +270,7 @@ Szczegóły: [`docs/security.md`](docs/security.md), [`docs/compliance/`](docs/c
 
 ## Zrzuty ekranu
 
-Zrzuty oraz film `olcys-demo.mp4` (katalog główny repozytorium) przedstawiają **zamaskowane dane syntetyczne**:
-identyfikatory persony, adresy i skróty transakcji są rozmyte.
+Zrzuty oraz film `olcys-demo.mp4` (katalog główny repozytorium) przedstawiają **dane syntetyczne**, bez maskowania.
 
 ![Lista spraw](docs/assets/screenshots/01-sprawy.png)
 _Lista spraw._
@@ -311,14 +310,14 @@ _Ustawienia (tylko do odczytu): tryb, wersje, model AI, rejestr źródeł._
 ```
 apps/
   api/            API HTTP (Fastify) i planista harmonogramów
-  worker/         potok analizy i punkt składania zależności
+  worker/         pipeline analizy i composition root
   web/            konsola analityka (React, po polsku)
   fixture-site/   syntetyczna strona testowa z personą (warianty v1 i v2)
 packages/         core, db, http, evidence, address-extractor, collectors, chain-adapters,
                   labels, analytics, scoring, reporting, llm
 services/osint-py/  Maigret, socid-extractor, pyHanko (Python)
 config/           rejestr źródeł, wagi, reguły, dostawcy danych, zgodność
-fixtures/         dane syntetyczne: persona, korpusy, etykiety, ceny, kasety
+fixtures/         dane syntetyczne: persona, korpusy, etykiety, ceny, cassettes
 docs/             architektura, bezpieczeństwo, zgodność, metodyka, ADR
 scripts/          demo, narzędzia deweloperskie, bramki zgodności
 infra/            inicjalizacja bazy danych

@@ -8,8 +8,8 @@ Wymóg wyzwania: należy wskazać wszystkie wykorzystane komponenty i ich licenc
   i `config/compliance/components.yaml`; `pnpm licenses:docs --check` (część `pnpm check`) wykrywa rozjazd. Nie edytuje
   się jej ręcznie: nowa zależność bezpośrednia wymaga polskiego opisu zastosowania w
   `config/compliance/components.yaml`, a nowy obraz kontenera wpisu w sekcji `images` tego pliku;
-- **część ręczna** (po znaczniku końcowym): komponenty, których nie opisuje żaden menedżer pakietów (środowisko
-  uruchomieniowe, dane, przepisane wyrażenia regularne). Wiersze dodaje się tu ręcznie.
+- **część ręczna** (po znaczniku końcowym): komponenty, których nie opisuje żaden menedżer pakietów (runtime,
+  dane, przepisane wyrażenia regularne). Wiersze dodaje się tu ręcznie.
 
 **Kontrole (wszystkie offline, część `pnpm check`):**
 
@@ -180,7 +180,7 @@ Każdy `image:` z `compose.yml` i każde `FROM` z Dockerfile musi mieć wpis w `
 | --- | --- | --- | --- | --- | --- |
 | postgres | 19.0-alpine3.24 | PostgreSQL | baza danych | compose.yml (postgres) | nie |
 | gotenberg/gotenberg | 9.9.1 | MIT | HTML → PDF/A (raporty) | compose.yml (gotenberg) | nie |
-| node | 26.13.1-alpine | MIT | środowisko uruchomieniowe serwisu strony testowej (fixture-site) | compose.yml (fixture-site) | nie |
+| node | 26.13.1-alpine | MIT | runtime serwisu strony testowej (fixture-site) | compose.yml (fixture-site) | nie |
 | ollama/ollama | 0.40.17 | MIT | lokalne środowisko modeli z API zgodnym z OpenAI (opcjonalne, profil llm) | compose.yml (ollama) | nie |
 | ghcr.io/ggml-org/llama.cpp | server-b12602 | MIT | lokalny serwer modeli llama.cpp z API zgodnym z OpenAI (opcjonalny, profil llm-llamacpp) | compose.yml (llamacpp) | nie |
 | blockstream/esplora | v3.0.1 | MIT | lokalny węzeł Bitcoin regtest z API Esplora (profil sandbox, dane demonstracyjne) | compose.yml (esplora-regtest) | nie |
@@ -213,7 +213,7 @@ Każdy `image:` z `compose.yml` i każde `FROM` z Dockerfile musi mieć wpis w `
 
 | Komponent                                 | Wersja     | Licencja (SPDX)         | Zastosowanie                                                                                                                                   | Gdzie                                   |
 | ----------------------------------------- | ---------- | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
-| Node.js                                   | 26.13.1    | MIT                     | środowisko uruchomieniowe                                                                                                                      | host / `node:26.13.1-alpine`            |
+| Node.js                                   | 26.13.1    | MIT                     | runtime                                                                                                                                        | host / `node:26.13.1-alpine`            |
 | pnpm                                      | 12.22.0    | MIT                     | menedżer pakietów                                                                                                                              | host                                    |
 | Unicode TR39 (confusables)                | —          | Unicode-3.0             | dane: ręcznie wybrana tabela homoglifów (cyrylica/greka)                                                                                       | packages/address-extractor              |
 | SpiderFoot (regex)                        | 4.0        | MIT                     | linia bazowa benchmarku adresów: przepisane wyrażenia regularne `sfp_bitcoin`, `sfp_ethereum`                                                  | packages/address-extractor (`bench/`)   |

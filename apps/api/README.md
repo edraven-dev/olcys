@@ -1,7 +1,7 @@
 # @olcys/api — API konsoli analityka
 
 Serwer HTTP (Fastify) dla interfejsu analityka. Nasłuchuje wyłącznie na `127.0.0.1:4000`; interfejs łączy się przez
-serwer deweloperski Vite (`/api`). W MVP uruchamia też potok analizy w tym samym procesie (`@olcys/worker`).
+serwer deweloperski Vite (`/api`). W MVP uruchamia też pipeline analizy w tym samym procesie (`@olcys/worker`).
 
 ## Trasy
 
@@ -11,7 +11,7 @@ serwer deweloperski Vite (`/api`). W MVP uruchamia też potok analizy w tym samy
 | `GET /api/meta`                                                     | wersja, tryb, funkcje (`features`; `features.inferenceDrafts` jest prawdą, gdy model jest włączony i API ma moduł szkiców wniosków — wtedy konsola pokazuje przycisk „Zaproponuj wnioski (AI)”), wersje wag i reguł, status wag, wersja ekstraktora, model AI (tylko host, model, stan; bez klucza), zmienne wyłączające telemetrię (nazwa i czy ustawiona)                                                                                                                                                             |
 | `GET /api/sources`                                                  | rejestr źródeł ze statusem zgodności (GREEN/AMBER/RED)                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `GET /api/cases`, `POST /api/cases`, `GET /api/cases/:id`           | sprawy i ich identyfikatory (walidacja schematem `CreateCaseSchema`)                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| `GET /api/cases/:id/runs`, `POST /api/cases/:id/runs`               | przebiegi sprawy; `POST` tworzy przebieg i uruchamia potok (odpowiedź 202)                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `GET /api/cases/:id/runs`, `POST /api/cases/:id/runs`               | przebiegi sprawy; `POST` tworzy przebieg i uruchamia pipeline (odpowiedź 202)                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | `GET /api/cases/:id/schedule`, `PUT /api/cases/:id/schedule`        | harmonogram analiz okresowych: cron (UTC), najbliższe terminy, wyzwolenia, zmiany                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | `GET /api/cases/:id/timeline`                                       | historia wartości stron i pól profilu: kopie archiwalne i przebiegi; filtry `url`, `property`, `walletOnly`                                                                                                                                                                                                                                                                                                                                                                                                             |
 | `GET /api/runs/:id`                                                 | status i postęp przebiegu                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
@@ -68,14 +68,14 @@ pole sekund, `H`, RRULE), 400 `schedule_too_frequent` (w trybie `live` terminy b
 ## Oś czasu strony
 
 `GET /api/cases/:id/timeline?url=&property=&walletOnly=true` zwraca `PropertyTimeline[]` zbudowane z przechwyceń,
-kandydatów i faktów wszystkich przebiegów sprawy oraz wykazu migawek Wayback (`buildWaybackHistory`). Wszystkie filtry
+kandydatów i faktów wszystkich przebiegów sprawy oraz wykazu snapshotów Wayback (`buildWaybackHistory`). Wszystkie filtry
 są opcjonalne; `walletOnly` przyjmuje wyłącznie `true` lub `false`, a nieprawidłowy filtr (lub nieznany parametr)
 daje 400 `invalid_input` ze ścieżką błędnego pola w `issues`. Trasa tylko czyta zapisane dane. Osie stron powstają dla
 stron, które mają kopie archiwalne; osie pól profilu (np. `profile.bitcoin_address`) — z faktów przebiegów na żywo.
-Punkty kopii archiwalnych mają `provenance: "archive"` i czas migawki z archiwum; luki (`values: null`) nigdy nie
+Punkty kopii archiwalnych mają `provenance: "archive"` i czas snapshotu z archiwum; luki (`values: null`) nigdy nie
 oznaczają usunięcia adresu. Dla każdego przechwycenia liczy się wynik wyodrębnienia z najnowszej analizy (ponowna
 ocena zastępuje wcześniejszy wynik); przechwycenie, którego wyodrębnienie jeszcze się nie zakończyło, jest luką
-(`extraction_pending`). Wiele pobrań tej samej migawki łączy się tak: użyteczne (status `ok`, skrót zgodny) wygrywa z
+(`extraction_pending`). Wiele pobrań tego samego snapshotu łączy się tak: użyteczne (status `ok`, skrót zgodny) wygrywa z
 niepobranym lub błędnym, a spośród równych — najnowsze.
 
 ## Oceny i korekty analityka

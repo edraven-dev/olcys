@@ -248,7 +248,7 @@ images:
     purpose: 'HTML → PDF/A (raporty)'
   node:
     licence: MIT
-    purpose: 'środowisko uruchomieniowe serwisu strony testowej (fixture-site)'
+    purpose: 'runtime serwisu strony testowej (fixture-site)'
   ollama/ollama:
     licence: MIT
     purpose: 'lokalne środowisko modeli z API zgodnym z OpenAI (opcjonalne, profil llm)'

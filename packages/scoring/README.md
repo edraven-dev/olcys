@@ -12,7 +12,7 @@ Pakiet jest czysty i deterministyczny: nie łączy się z siecią, a zegar i gen
 - `loadWeights(path?)`, `parseWeights(bytes)` — wczytują i walidują tabelę wag (domyślnie
   `config/scoring/weights.v2.yaml`); `sha256` liczony z surowych bajtów pliku trafia do
   `RunConfigSnapshot.weightsSha256`. `weightsPath(file)`, `DEFAULT_WEIGHTS_FILE`, `featureFamily(key)`.
-- `scoreRun(input, weights, { clock, newId })` — główne wejście dla potoku: z kont, przechwyceń, obserwacji, kandydatów
+- `scoreRun(input, weights, { clock, newId })` — główne wejście dla pipeline’u: z kont, przechwyceń, obserwacji, kandydatów
   adresów i decyzji wykluczeń buduje roszczenia (`buildClaims`) i ocenia każde z nich. Zwraca `assessments`
   (`LinkAssessment[]`, posortowane po adresie i relacji) oraz `notes` — powody, dla których zebrany materiał nie stał
   się cechą (`FEATURE_NOTE_CODES`, np. `signature_invalid`, `observation_address_invalid`, `no_identity_path`).
@@ -64,8 +64,8 @@ P(ścieżka) = P(osoba ↔ konto) × P(konto ↔ adres).
 - Relacje `THIRD_PARTY_ATTRIBUTION`, `TX_COUNTERPARTY`, `CLUSTER_ASSOCIATED`: bez ścieżek, wynik 0, `icd203` =
   `not assessed` (nie oceniono), bramka `relation` niespełniona — to inna relacja, a nie słaby dowód posiadania.
   `CLUSTER_ASSOCIATED` powstaje z `FeatureExtractionInput.clusters` (heurystyka wspólnego wydatkowania): członkowie
-  klastra, którego ziarno ma roszczenie własności (`SELF_DECLARED`, `PAYMENT_ENDPOINT`, `MENTION_UNCLEAR`); nigdy nie
-  podnosi wyniku ziarna ani nie dostaje wag.
+  klastra, którego adres seed ma roszczenie własności (`SELF_DECLARED`, `PAYMENT_ENDPOINT`, `MENTION_UNCLEAR`); nigdy nie
+  podnosi wyniku adresu seed ani nie dostaje wag.
 - `CUSTODIAL_EXCHANGE` (adres depozytowy giełdy) oraz decyzja wykluczenia `excluded` / `reclassified` (np. A1 etykieta,
   A2 kontrakt, A4 depozyt, A8 lista wykluczeń): wynik prezentowany 0, `band` = `WYKLUCZENIE`. Wynik arytmetyczny
   zostaje w `paths` i `ungated` (np. siła tropu KYC dla adresu depozytowego). Decyzje `flagged` / `kept` są tylko
