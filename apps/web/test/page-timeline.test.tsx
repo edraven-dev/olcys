@@ -1,8 +1,8 @@
-/** The archive history panel: intervals with their provenance, bracketed changes, inferred dates and gaps. */
+/** The page timeline panel: intervals with their provenance, bracketed changes, inferred dates and gaps. */
 import type { PropertyTimeline, TimelinePoint } from '@olcys/core';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { ArchiveHistoryView } from '../src/features/changes/ArchiveHistory.tsx';
+import { PageTimelineView } from '../src/features/changes/PageTimeline.tsx';
 
 const text = (html: string) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
 
@@ -39,9 +39,9 @@ const timeline: PropertyTimeline = {
   ],
 };
 
-describe('archive history panel', () => {
+describe('page timeline panel', () => {
   it('shows intervals with provenance, the bracketed wallet change, the inferred date and the gap in Polish', () => {
-    const content = text(renderToStaticMarkup(<ArchiveHistoryView timelines={[timeline]} />));
+    const content = text(renderToStaticMarkup(<PageTimelineView timelines={[timeline]} />));
     expect(content).toContain('bitcoin:BTC-0');
     expect(content).toContain('bitcoin:BTC-1');
     expect(content).toContain('kopia archiwalna');
@@ -62,7 +62,7 @@ describe('archive history panel', () => {
       ],
       changes: [],
     };
-    const content = text(renderToStaticMarkup(<ArchiveHistoryView timelines={[empty]} />));
+    const content = text(renderToStaticMarkup(<PageTimelineView timelines={[empty]} />));
     expect(content).toContain('brak adresu na stronie');
     expect(content).toContain('Brak zmian wartości');
   });

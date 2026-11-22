@@ -1198,8 +1198,8 @@ details > summary {
   overflow-wrap: anywhere;
 }
 
-/* --- archive history (case timeline) ------------------------------------------------------------------------- */
-.archive-moment {
+/* --- page timeline (case timeline) ------------------------------------------------------------------------- */
+.timeline-moment {
   display: inline-flex;
   flex-wrap: wrap;
   gap: 0.3rem;

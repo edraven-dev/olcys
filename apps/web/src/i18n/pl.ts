@@ -1215,8 +1215,9 @@ export const pl = {
     empty: 'Brak zapytań wychodzących w tym przebiegu.',
     emptyFiltered: 'Brak zapytań spełniających filtry.',
   },
-  archiveHistory: {
-    title: 'Historia archiwalna',
+  pageTimeline: {
+    title: 'Oś czasu strony',
+    subtitle: 'kopie archiwalne (Wayback Machine) i przebiegi',
     intro:
       'Wartości portfeli na stronach i w polach profilu w czasie: kopie archiwalne (Wayback Machine) i kolejne przebiegi. Kopia archiwalna to materiał strony trzeciej; brak odczytu kopii nie oznacza usunięcia adresu.',
     loadError: 'Nie udało się wczytać historii archiwalnej.',

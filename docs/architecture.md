@@ -142,7 +142,7 @@ z harmonogramu pokazuje alert podmiany portfela.
 Ograniczenie MVP: przebieg przerwany restartem procesu API pozostaje w stanie `running`, więc kolejne terminy są
 pomijane (`skipped_overlap`); raport startowy planisty i dziennik wskazują takie przebiegi.
 
-## Historia archiwalna (oś czasu)
+## Oś czasu strony
 
 Wartości strony lub pola profilu w czasie łączą przebiegi na żywo z kopiami archiwalnymi (Wayback Machine, tylko
 odczyt). `buildPropertyTimelines` (`@olcys/evidence`) buduje `PropertyTimeline`: punkty (czas migawki z archiwum albo

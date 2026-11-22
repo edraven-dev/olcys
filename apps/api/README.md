@@ -60,7 +60,7 @@ pole sekund, `H`, RRULE), 400 `schedule_too_frequent` (w trybie `live` terminy b
 `OLCYS_SCHEDULE_MIN_INTERVAL_MINUTES`, domyślnie 60 min; w trybach `offline` i `replay` minimum to 1 min), 400
 `invalid_input`, 404 `case_not_found`, 409 `case_closed`.
 
-## Historia archiwalna (oś czasu)
+## Oś czasu strony
 
 `GET /api/cases/:id/timeline?url=&property=&walletOnly=true` zwraca `PropertyTimeline[]` zbudowane z przechwyceń,
 kandydatów i faktów wszystkich przebiegów sprawy oraz wykazu migawek Wayback (`buildWaybackHistory`). Wszystkie filtry

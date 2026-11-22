@@ -122,7 +122,7 @@ describe('GET /api/cases/:caseId/timeline', () => {
     await app.close();
   });
 
-  it('is empty for a case without archive history and 404 for an unknown case', async () => {
+  it('is empty for a case without archived copies and 404 for an unknown case', async () => {
     const repos = createMemoryRepositories();
     const empty = await repos.cases.create(
       {
