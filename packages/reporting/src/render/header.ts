@@ -4,9 +4,10 @@ import { formatLongDate, formatPln, formatUtc, plural } from '../format.ts';
 import { join, markup, t, type SafeHtml } from '../html.ts';
 import { pl } from '../i18n/pl.ts';
 import { inferencesFromDrafts } from '../drafts.ts';
+import { citedHref } from './refs.ts';
 import { cmp, icdTerm, linkBand, lowestConfidence, type View } from '../view.ts';
 import { isWalletSwap, changeWhere } from './annex.ts';
-import { addr, bandBadge, block, captureRef, chainName, hash, kv, list, para, section, table } from './blocks.ts';
+import { addr, bandBadge, block, chainName, hash, kv, list, para, section, table } from './blocks.ts';
 import { cashOutMovements, counterpartyLabel, movementValue } from './chain.ts';
 import { isKycLead, uniqueRejected } from './links.ts';
 
@@ -40,17 +41,15 @@ function aiRoleInferences(view: View): SafeHtml[] {
  * the analyst and the decision time, the facts and results they rely on, alternatives and verification steps.
  */
 function aiDraftInferences(view: View): SafeHtml[] {
-  const captureOf = new Map<string, string>([
-    ...view.data.observations.map((o): [string, string] => [o.id, o.captureId]),
-    ...view.data.candidates.map((c): [string, string] => [c.id, c.captureId]),
-  ]);
   const a = pl.summary.aiDraft;
   return inferencesFromDrafts(view.data.inferenceDrafts ?? []).flatMap((inference) => {
     const ai = inference.ai;
     if (!ai) return [];
     const refs = inference.basedOn.map((id) => {
-      const captureId = captureOf.get(id);
-      return markup`<code class="addr">${id}</code>${captureId ? markup` (${captureRef(view, captureId)})` : ''}`;
+      const href = citedHref(view, id);
+      return href
+        ? markup`<a class="ref" href="${href}"><code class="addr">${id}</code></a>`
+        : markup`<code class="addr">${id}</code>`;
     });
     return [
       markup`<span class="ai-draft"><strong>${t(ai.review === 'edited' ? a.edited : a.confirmed, {

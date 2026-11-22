@@ -56,7 +56,7 @@ describe('AI-drafted inferences in the report', () => {
     expect(c).toContain('tekst zredagowany przez analityka na podstawie sugestii AI');
     expect(c).toContain('Tekst analityka o adresie.');
     expect(c).not.toContain('Hipoteza d-edit');
-    expect(c).toContain(`<code class="addr">${fact.id}</code> (<a class="ref" href="#zab-`);
+    expect(c).toContain(`<a class="ref" href="#zab-`);
   });
 
   it('ignores pending and rejected drafts and drafts of another task or shape', () => {
@@ -145,5 +145,25 @@ describe('report data of a run with drafts', () => {
       'inference-draft-d-early',
       'inference-draft-d-late',
     ]);
+  });
+});
+
+describe('cited ids of a draft in the HTML', () => {
+  it('resolves every fact and computed id of the report model to an element of the document', () => {
+    const data = personaData();
+    const model = buildReportModel(data);
+    const ids = [...model.facts.map((f) => f.id), ...model.computed.map((c) => c.id)];
+    expect(model.computed.map((c) => c.kind)).toEqual(expect.arrayContaining(['score', 'activity', 'cash_out']));
+    data.inferenceDrafts = [confirmed('d-all', { output: { ...(draft('d-all').output as object), basedOn: ids } })];
+    const html = renderReport(data);
+    const c = sectionC(html);
+    const unresolved: string[] = [];
+    for (const id of ids) {
+      const link = new RegExp(
+        `<a class="ref" href="#([^"]+)"><code class="addr">${id.replace(/[$()*+.?[\\\]^{|}]/g, '\\$&')}</code></a>`,
+      ).exec(c);
+      if (!link?.[1] || !html.includes(`id="${link[1]}"`)) unresolved.push(id);
+    }
+    expect(unresolved).toEqual([]);
   });
 });
