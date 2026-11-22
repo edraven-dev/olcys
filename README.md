@@ -31,7 +31,7 @@ Obowiązkowy scenariusz i odpowiadające mu funkcje:
    - Wayback Machine (tylko odczyt).
 
    Planer rozwija wyszukiwanie z nowych kont i adresów do głębokości `maxPivotDepth`. Każda pobrana strona jest
-   zabezpieczana jako dowód: adres, czas, skrót SHA-256 i manifest zgodny z Berkeley Protocol.
+   zabezpieczana jako dowód: adres, czas, skrót SHA-256 i manifest wzorowany na Berkeley Protocol.
 
 3. **Wykrywanie i weryfikacja adresów.** Ekstraktor znajduje adresy (m.in. Bitcoin, EVM, TRON) w zapisanym HTML i
    sprawdza ich sumy kontrolne — o wyniku decydują sumy, nie wyrażenia regularne. Odrzuceni kandydaci (skróty transakcji,
@@ -43,11 +43,9 @@ Obowiązkowy scenariusz i odpowiadające mu funkcje:
    podnosi wynik, powtórzenia w jednej usłudze nie. Przedziały: 80–100 bardzo wysokie, 60–79 prawdopodobne, 40–59
    średnie, 10–39 niskie (szum), 0 wykluczenie. Każdy wynik ma listę wkładów (wykres wodospadowy), termin
    prawdopodobieństwa wg ICD 203, osobną pewność analityczną i wersje wag. Wagi są nieskalibrowane, a ocena dotyczy
-   powiązania, nie osoby. Metodyka: [`docs/methodology/wskaznik-pewnosci.md`](docs/methodology/wskaznik-pewnosci.md).
+   powiązania, nie osoby. Metodyka: [`docs/methodology/wskaznik-pewnosci.md`](docs/methodology/wskaznik-pewnosci.md). W demonstracji: adres w profilu forum z podpisem kryptograficznym → 99 (80–100); adres z ogłoszenia P2P potwierdzony w drugim serwisie → 77 (60–79); słaba przesłanka → 24 (10–39); adres giełdy, kontraktu lub miksera → 0. Synergia nie jest stałym dodatkiem +15 pkt: druga niezależna ścieżka mnoży szanse (ścieżki 50 i 24 dają łącznie 62), a powtórzenia w jednej usłudze nie zmieniają wyniku.
 5. **Odrzucanie błędnych przypisań.** Reguły A1–A8 ([`config/rules/exclusion.v1.yaml`](config/rules/exclusion.v1.yaml)):
-   etykietowane adresy usług (A1), kontrakty usług (A2), konta delegowane EIP-7702 (A3, nie są odrzucane), adresy
-   depozytowe giełd (A4), zachowanie usługi (A5), CoinJoin (A6), cluster collapse (A7), lista odrzuceń z przykładami z
-   dokumentacji i adresami burn (A8). Odrzucenie przeklasyfikowuje adres, a nie go usuwa: przelew na adres depozytowy
+   etykietowane adresy usług (A1), smart kontrakty (A2: `eth_getCode` zwraca kod bajtowy ≠ `0x`, więc adres nie jest kontem osoby), adresy depozytowe giełd (A4) i lista odrzuceń z przykładami z dokumentacji i adresami burn (A8). Konta delegowane EIP-7702 (A3) nie są odrzucane, a reguły A5 (zachowanie usługi), A6 (CoinJoin) i A7 (cluster collapse) tylko oznaczają adres do weryfikacji. Odrzucenie przeklasyfikowuje adres, a nie go usuwa: przelew na adres depozytowy
    giełdy to najsilniejsza w otwartych danych przesłanka wyjścia do fiat. Panel „Odrzucone adresy” pokazuje regułę,
    uzasadnienie i pochodzenie etykiety.
 6. **Aktywność on-chain i wyjście do fiat.** Wolumeny, kontrahenci, wymiany, konwersje na stablecoiny, graf przepływów
@@ -64,7 +62,16 @@ Obowiązkowy scenariusz i odpowiadające mu funkcje:
    odtwarzalności (wersje wag i reguł, skróty), A. Fakty źródłowe, B. Wyniki obliczeń, C. Wnioski wymagające weryfikacji,
    chronologia przepływu środków i aneks z dowodami. Pliki: podpisany PDF/A-3b z dołączonym manifestem JSON (PAdES,
    znacznik czasu RFC 3161) oraz eksporty STIX 2.1, MISP i CSV (powiązania, dowody, wyjścia do fiat, zmiany) z
-   oznaczeniem TLP. Podpis w tej wersji jest demonstracyjny i niekwalifikowany (zob. „Ograniczenia i plany”).
+   oznaczeniem TLP. Raport zaczyna się rozdziałem „Jak czytać ten raport” i podsumowaniem prostym językiem. PDF jest podpisywany, gdy działa usługa `osint-py` (profil compose `osint`); bez niej powstaje niepodpisany PDF z ostrzeżeniem. Znacznik czasu RFC 3161 jest pobierany tylko w trybie `live` (offline żądanie czeka w kolejce). Podpis w tej wersji jest demonstracyjny i niekwalifikowany (zob. „Ograniczenia i plany”).
+
+## Założenia projektu
+
+- Tylko źródła publiczne i legalne (OSINT); rejestr GREEN/AMBER/RED decyduje, z czym system może się łączyć.
+- Wynik ocenia powiązanie tożsamość↔adres, nie osobę. System liczy, analityk decyduje; sugestie AI mają wagę zero.
+- Fakty, obliczenia i wnioski są rozdzielone w danych, API i raporcie.
+- Praca lokalna, bez chmury publicznej; model AI jest lokalny i wymienny.
+- Każdy wynik jest odtwarzalny: wersje wag i reguł, skróty SHA-256, dziennik ruchu wychodzącego.
+- Dane demonstracyjne są wyłącznie syntetyczne.
 
 ## Parametry wyszukiwania
 
@@ -165,6 +172,7 @@ Konsola: <http://127.0.0.1:5173>. Środowisko, Podman i rozwiązywanie problemó
 
 ## Demo i testy
 
+- Prezentacja (PDF, 10 slajdów): [`docs/presentation/olcys-prezentacja.pdf`](docs/presentation/olcys-prezentacja.pdf); film: [`olcys-demo.mp4`](olcys-demo.mp4) (2:48).
 - `pnpm demo` przeprowadza cały scenariusz na działającym lokalnym stosie (akceptuje tylko adresy loopback): sprawdza
   usługi, ustawia wariant `v1` strony testowej, tworzy sprawę persony, uruchamia przebieg 1, przełącza na wariant `v2`,
   uruchamia przebieg 2, czyta wyniki przez API i porównuje je z `fixtures/demo/manifest.json`. Podsumowanie po polsku
@@ -212,6 +220,8 @@ kontraktów `@olcys/core`, a implementacje łączy `apps/worker`. Cały ruch sie
 przechodzi przez `@olcys/http`. W tej wersji pipeline działa synchronicznie w procesie API, a konsola odpytuje o postęp
 przebiegu. Szczegóły: [`docs/architecture.md`](docs/architecture.md),
 [`docs/adr/0001-technology-stack.md`](docs/adr/0001-technology-stack.md).
+
+Rozbudowa: nowe źródło to wpis w `config/sources.yaml` i kolektor w `packages/collectors`; nowa sieć to adapter portu `ChainProvider` w `packages/chain-adapters`; nowe reguły i wagi to wersjonowane pliki YAML w `config/rules/` i `config/scoring/`. Python działa tylko w `services/osint-py`, bo Maigret, socid-extractor i pyHanko (podpis PAdES) nie mają odpowiedników w Node.js.
 
 ## Zgodność i bezpieczeństwo
 
@@ -271,6 +281,7 @@ Szczegóły: [`docs/security.md`](docs/security.md), [`docs/compliance/`](docs/c
 - Wagi Wskaźnika Pewności nie są skalibrowane na danych rzeczywistych; sprawdzian kalibracji działa na danych
   syntetycznych (zob. metodykę).
 - Strony WWW są zapisywane bez zrzutu ekranu z przeglądarki (informacja w aneksie raportu).
+- Nie ma osobnego wykrywania giveawayów i masowych komentarzy; takie przesłanki trafiają do przedziału 10–39 tylko przez model wag.
 - Rodzina Zcash (adresy osłonięte) nie jest analizowana. Dane łańcuchowe obejmują Bitcoin, sieci EVM, TRON i Solanę (bez
   historii kont tokenowych SPL).
 - Przebieg przerwany restartem API zostaje w stanie `running`, a kolejne terminy jego harmonogramu są pomijane.
