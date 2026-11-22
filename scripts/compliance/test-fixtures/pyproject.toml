@@ -1,0 +1,7 @@
+[project]
+name = "fixture"
+version = "0.0.0"
+dependencies = ["alpha==1.0.0", "Beta_Pkg==2.0.0"]
+
+[tool.uv]
+package = false

@@ -17,7 +17,11 @@
     "format:check": "oxfmt --check",
     "compliance:sources": "node packages/collectors/scripts/sources-doc.ts --check",
     "licenses:check": "pnpm -r --include-workspace-root --no-bail exec license-checker-rseidelsohn --excludePrivatePackages --summary --onlyAllow \"$(node -p \"require('./config/licenses.json').allowed.join(';')\")\"",
-    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm licenses:check && pnpm compliance:sources && pnpm test",
+    "compliance:sbom": "node scripts/compliance/sbom.ts",
+    "licenses:docs": "node scripts/compliance/licenses-doc.ts",
+    "compliance:licences": "node scripts/compliance/check-licences.ts",
+    "compliance:images": "node scripts/compliance/check-images.ts",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm compliance:licences && pnpm compliance:images && pnpm compliance:sources && pnpm compliance:sbom --check && pnpm licenses:docs --check && pnpm test",
     "db:migrate": "node --env-file-if-exists=.env packages/db/src/migrate.ts",
     "db:status": "node --env-file-if-exists=.env packages/db/src/migrate.ts --status"
   },
@@ -27,7 +31,8 @@
     "oxfmt": "0.79.0",
     "oxlint": "1.94.0",
     "typescript": "7.0.2",
-    "vitest": "5.1.1"
+    "vitest": "5.1.1",
+    "yaml": "2.9.1"
   },
   "engines": {
     "node": ">=26.13.1"

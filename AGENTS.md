@@ -43,7 +43,7 @@ before your first change.
 - **Vitest 5**: tests in `<package>/test/*.test.ts`; run one package with `pnpm vitest run --project @olcys/<pkg>`.
 - **Network guard:** oxlint rejects `fetch`, `WebSocket`, `undici`, `axios`, `node:http` clients etc. outside
   `packages/http` (and own-API calls in `apps/web`); tests and `scripts/lib/local-fetch.ts` are exempt.
-- **Licences:** `pnpm licenses:check` (part of `pnpm check`) verifies every npm dependency against `config/licenses.json`.
+- **Licences:** `pnpm compliance:licences` (part of `pnpm check`) verifies every npm and Python dependency against `config/licenses.json` (with reviewed exceptions); `pnpm licenses:check` is kept as a manual check.
 - **Architecture:** packages depend on `@olcys/core` contracts only; implementations are wired in `apps/worker`
   (and `apps/api`). `import/no-cycle` is an error. A **breaking** change to `@olcys/core` exports bumps
   `CORE_CONTRACTS_VERSION` and updates every user in the same change; additive changes (new types, new optional

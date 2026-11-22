@@ -1,0 +1,27 @@
+{
+  "$comment": "Licences of platform-specific optional packages that pnpm does not install on every machine (native bindings of oxfmt/oxlint/rolldown/lightningcss/TypeScript, fsevents, wasm runtime helpers). The SBOM generator reads licences from installed package.json files; for packages absent on this platform it falls back to these rules so the SBOM is identical everywhere. A rule that contradicts an installed sibling's licence makes `pnpm sbom` fail (stale rule). Add a rule only after reading the package's published licence.",
+  "rules": [
+    { "pattern": "@oxfmt/binding-*", "licence": "MIT", "reason": "Native bindings of oxfmt (MIT)." },
+    { "pattern": "@oxlint/binding-*", "licence": "MIT", "reason": "Native bindings of oxlint (MIT)." },
+    { "pattern": "@rolldown/binding-*", "licence": "MIT", "reason": "Native bindings of rolldown (MIT)." },
+    {
+      "pattern": "@typescript/typescript-*",
+      "licence": "Apache-2.0",
+      "reason": "Native builds of TypeScript 7 (Apache-2.0)."
+    },
+    { "pattern": "lightningcss-*", "licence": "MPL-2.0", "reason": "Native builds of lightningcss (MPL-2.0)." },
+    { "pattern": "fsevents", "licence": "MIT", "reason": "macOS-only file watcher." },
+    { "pattern": "@emnapi/*", "licence": "MIT", "reason": "WebAssembly runtime helpers used by the wasm32 bindings." },
+    {
+      "pattern": "@napi-rs/wasm-runtime",
+      "licence": "MIT",
+      "reason": "WebAssembly runtime used by the wasm32 bindings."
+    },
+    {
+      "pattern": "@tybys/wasm-util",
+      "licence": "MIT",
+      "reason": "WebAssembly runtime helper used by the wasm32 bindings."
+    },
+    { "pattern": "tslib", "licence": "0BSD", "reason": "Helper library of the wasm32 bindings." }
+  ]
+}

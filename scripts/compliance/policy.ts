@@ -1,0 +1,271 @@
+/**
+ * Licence policy (AGENTS.md rule 6): evaluates SPDX expressions against config/licenses.json.
+ *
+ * - `allowed`: the single allow-list for every ecosystem.
+ * - `separateServiceOnly`: copyleft families that are acceptable only for container images / services that are
+ *   flagged `separateService: true` (never inside the npm or Python dependency trees).
+ * - `deny`: forbidden licences; they can never be waived by an exception.
+ * - everything else (missing licence, NOASSERTION, `SEE LICENSE IN …`, unknown ids) is `review`: fails unless a
+ *   `config/compliance/license-exceptions.yaml` entry exists.
+ *
+ * Patterns are matched case-insensitively; a trailing `*` is a prefix glob (`GPL-*`, `LicenseRef-RSAL*`).
+ */
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { parse } from 'yaml';
+import { imageMatches, loadForbiddenTools } from '../../packages/collectors/src/compliance/forbidden-tools.ts';
+
+export const REPO_ROOT = join(import.meta.dirname, '..', '..');
+
+export type Verdict = 'allow' | 'deny' | 'review' | 'separate_service_only';
+export type Ecosystem = 'npm' | 'pypi' | 'image';
+
+export interface LicencePolicy {
+  allowed: string[];
+  separateServiceOnly: string[];
+  deny: string[];
+  /** Package names (npm / pypi) and image repositories that are forbidden regardless of licence. */
+  forbidden?: { npm: string[]; pypi: string[]; images: string[] };
+}
+
+export interface ComponentLicence {
+  ecosystem: Ecosystem;
+  name: string;
+  version: string;
+  licence: string | null;
+  scope: 'runtime' | 'dev';
+  direct: boolean;
+  workspace?: string;
+}
+
+export interface LicenceException {
+  package: string;
+  licence: string;
+  decision: 'allow';
+  reason: string;
+  approvedBy: string;
+  date: string;
+}
+
+// OR: the licensee picks the best branch (an unresolved term is worse than a known copyleft one).
+const RANK_OR: Record<Verdict, number> = { allow: 0, separate_service_only: 1, review: 2, deny: 3 };
+// AND: every branch applies, so the most restrictive known term must survive an unknown one.
+const RANK_AND: Record<Verdict, number> = { allow: 0, review: 1, separate_service_only: 2, deny: 3 };
+
+function matches(patterns: string[], id: string): string | undefined {
+  const wanted = id.toLowerCase();
+  return patterns.find((pattern) => {
+    const p = pattern.toLowerCase();
+    return p.endsWith('*') ? wanted.startsWith(p.slice(0, -1)) : wanted === p;
+  });
+}
+
+// --- SPDX expressions: ids, `+`, WITH, AND, OR, parentheses (AND binds tighter than OR) ---------------------------
+
+type Node = { kind: 'id'; id: string } | { kind: 'and' | 'or'; left: Node; right: Node };
+
+function tokenise(expr: string): string[] {
+  return expr.match(/\(|\)|[^\s()]+/g) ?? [];
+}
+
+export function parseSpdx(expr: string): Node | undefined {
+  const tokens = tokenise(expr);
+  let pos = 0;
+  const peek = () => tokens[pos];
+  const upper = () => tokens[pos]?.toUpperCase();
+
+  function primary(): Node | undefined {
+    const token = peek();
+    if (token === undefined) return undefined;
+    if (token === '(') {
+      pos++;
+      const inner = or();
+      if (!inner || peek() !== ')') return undefined;
+      pos++;
+      return inner;
+    }
+    if (token === ')' || ['AND', 'OR', 'WITH'].includes(token.toUpperCase())) return undefined;
+    pos++;
+    if (upper() === 'WITH') {
+      pos++;
+      if (peek() === undefined || ['AND', 'OR', '(', ')'].includes(peek()?.toUpperCase() ?? '')) return undefined;
+      pos++; // the exception id does not change the licence family
+    }
+    return { kind: 'id', id: token };
+  }
+  function and(): Node | undefined {
+    let left = primary();
+    while (left && upper() === 'AND') {
+      pos++;
+      const right = primary();
+      if (!right) return undefined;
+      left = { kind: 'and', left, right };
+    }
+    return left;
+  }
+  function or(): Node | undefined {
+    let left = and();
+    while (left && upper() === 'OR') {
+      pos++;
+      const right = and();
+      if (!right) return undefined;
+      left = { kind: 'or', left, right };
+    }
+    return left;
+  }
+  const result = or();
+  return result && pos === tokens.length ? result : undefined;
+}
+
+function evaluateId(id: string, policy: LicencePolicy): { verdict: Verdict; rule: string } {
+  const base = id.endsWith('+') ? id.slice(0, -1) : id;
+  const denied = matches(policy.deny, id) ?? matches(policy.deny, base);
+  if (denied) return { verdict: 'deny', rule: `deny:${denied}` };
+  const separate = matches(policy.separateServiceOnly, id) ?? matches(policy.separateServiceOnly, base);
+  if (separate) return { verdict: 'separate_service_only', rule: `separate_service_only:${separate}` };
+  const allowed = matches(policy.allowed, id) ?? matches(policy.allowed, base);
+  if (allowed) return { verdict: 'allow', rule: `allowed:${allowed}` };
+  return { verdict: 'review', rule: `unknown:${id}` };
+}
+
+interface Evaluated {
+  verdict: Verdict;
+  rule: string;
+  /** An unknown/unresolved term is part of the expression in addition to a separate-service restriction. */
+  unresolved?: boolean;
+}
+
+function evaluateNode(node: Node, policy: LicencePolicy): Evaluated {
+  if (node.kind === 'id') return evaluateId(node.id, policy);
+  const left = evaluateNode(node.left, policy);
+  const right = evaluateNode(node.right, policy);
+  const hasUnresolved = (e: Evaluated): boolean => e.verdict === 'review' || e.unresolved === true;
+  if (node.kind === 'or') return RANK_OR[left.verdict] <= RANK_OR[right.verdict] ? left : right;
+  // AND: every branch applies. The most restrictive known term survives, and an unknown term stays flagged so a
+  // separate-service allowance cannot clear it.
+  const worst = RANK_AND[left.verdict] >= RANK_AND[right.verdict] ? left : right;
+  const unresolved = hasUnresolved(left) || hasUnresolved(right);
+  return worst.verdict === 'review' || !unresolved ? worst : { ...worst, unresolved: true };
+}
+
+/** Verdict for one licence expression. `null`/empty is a missing licence (`review`). */
+export function evaluateLicence(expr: string | null, policy: LicencePolicy): Evaluated {
+  const text = expr?.trim();
+  if (!text) return { verdict: 'review', rule: 'missing' };
+  if (/^UNLICENSED$/i.test(text)) return { verdict: 'deny', rule: 'deny:UNLICENSED' };
+  if (/^NOASSERTION$/i.test(text) || /^SEE LICENSE IN\b/i.test(text))
+    return { verdict: 'review', rule: `unresolved:${text}` };
+  const node = parseSpdx(text);
+  if (!node) return { verdict: 'review', rule: `unparsable:${text}` };
+  return evaluateNode(node, policy);
+}
+
+// --- Components -------------------------------------------------------------------------------------------------
+
+const normalisePypi = (name: string): string => name.toLowerCase().replace(/[-_.]+/g, '-');
+
+function forbiddenMatch(
+  component: Pick<ComponentLicence, 'ecosystem' | 'name' | 'version'>,
+  policy: LicencePolicy,
+): boolean {
+  const lists = policy.forbidden;
+  if (!lists) return false;
+  if (component.ecosystem === 'npm') {
+    return lists.npm.some((p) => (p.endsWith('/*') ? component.name.startsWith(p.slice(0, -1)) : p === component.name));
+  }
+  if (component.ecosystem === 'pypi') return lists.pypi.some((p) => normalisePypi(p) === normalisePypi(component.name));
+  // Same matching as the forbidden-tools dependency scan (registry prefixes, `>=N` tag limits).
+  return lists.images.some((p) => imageMatches(p, `${component.name}:${component.version}`));
+}
+
+export interface ComponentDecision {
+  verdict: 'allow' | 'deny' | 'review';
+  rule: string;
+}
+
+/**
+ * Final decision for a component. `separate_service_only` licences pass only for images flagged `separateService`;
+ * forbidden tools are denied regardless of licence; an exception turns `review` (never `deny`) into `allow`.
+ */
+export function decideComponent(
+  component: ComponentLicence & { separateService?: boolean },
+  policy: LicencePolicy,
+  exceptions: LicenceException[] = [],
+): ComponentDecision {
+  if (forbiddenMatch(component, policy)) return { verdict: 'deny', rule: 'forbidden-tool' };
+  const first = evaluateLicence(component.licence, policy);
+  if (first.verdict === 'separate_service_only' && first.unresolved) {
+    // Being a separate service satisfies the copyleft term only; the unknown term still needs a review.
+    if (!(component.ecosystem === 'image' && component.separateService === true)) return settle(first, component);
+    first.verdict = 'review';
+  } else if (first.verdict !== 'review') return settle(first, component);
+  // Unresolved licence: a human-reviewed exception supplies the licence, which is judged by the same policy
+  // (a reviewed GPL-3.0-only is still a separate service only; a reviewed BUSL-1.1 is still denied).
+  const exception = exceptions.find((e) => e.package === `${component.name}@${component.version}`);
+  if (!exception) return { verdict: 'review', rule: first.rule };
+  const reviewed = settle(evaluateLicence(exception.licence, policy), component);
+  return { verdict: reviewed.verdict, rule: `exception:${exception.package}:${reviewed.rule}` };
+}
+
+function settle(result: Evaluated, component: ComponentLicence & { separateService?: boolean }): ComponentDecision {
+  if (result.verdict === 'allow' || result.verdict === 'deny' || result.verdict === 'review') {
+    return { verdict: result.verdict, rule: result.rule };
+  }
+  return component.ecosystem === 'image' && component.separateService === true
+    ? { verdict: 'allow', rule: `${result.rule}:separate-service` }
+    : { verdict: 'deny', rule: `${result.rule}:not-a-separate-service` };
+}
+
+/** Components whose licence needed an exception get the reviewed licence (used for the SBOM and the docs). */
+export function applyExceptions<T extends ComponentLicence>(
+  components: T[],
+  policy: LicencePolicy,
+  exceptions: LicenceException[],
+): T[] {
+  return components.map((c) => {
+    if (evaluateLicence(c.licence, policy).verdict !== 'review') return c;
+    const exception = exceptions.find((e) => e.package === `${c.name}@${c.version}`);
+    return exception ? { ...c, licence: exception.licence } : c;
+  });
+}
+
+// --- Loading ----------------------------------------------------------------------------------------------------
+
+const strings = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []);
+
+export async function loadPolicy(root: string = REPO_ROOT, withForbidden = true): Promise<LicencePolicy> {
+  const raw = JSON.parse(await readFile(join(root, 'config', 'licenses.json'), 'utf8')) as Record<string, unknown>;
+  const policy: LicencePolicy = {
+    allowed: strings(raw['allowed']),
+    separateServiceOnly: strings(raw['separateServiceOnly']),
+    deny: strings(raw['deny']),
+  };
+  if (withForbidden) {
+    const tools = await loadForbiddenTools(join(root, 'config', 'forbidden-tools.yaml'));
+    policy.forbidden = {
+      npm: tools.tools.flatMap((t) => t.packages.npm),
+      pypi: tools.tools.flatMap((t) => t.packages.pypi),
+      images: tools.tools.flatMap((t) => t.packages.images),
+    };
+  }
+  return policy;
+}
+
+export async function loadExceptions(root: string = REPO_ROOT): Promise<LicenceException[]> {
+  let text: string;
+  try {
+    text = await readFile(join(root, 'config', 'compliance', 'license-exceptions.yaml'), 'utf8');
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
+    throw error;
+  }
+  const doc = parse(text) as { exceptions?: Array<Record<string, unknown>> } | null;
+  return (doc?.exceptions ?? []).map((e) => {
+    for (const key of ['package', 'licence', 'decision', 'reason', 'approvedBy', 'date']) {
+      if (typeof e[key] !== 'string' || !e[key]) throw new Error(`license-exceptions.yaml: entry is missing "${key}"`);
+    }
+    if (e['decision'] !== 'allow')
+      throw new Error(`license-exceptions.yaml: ${String(e['package'])}: decision must be "allow"`);
+    return e as unknown as LicenceException;
+  });
+}

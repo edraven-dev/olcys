@@ -1,5 +1,5 @@
 {
-  "$comment": "Licences allowed for third-party npm dependencies (SPDX ids). Checked by `pnpm licenses:check` (license-checker-rseidelsohn) across the workspace root and every package. Anything else fails the check — add a licence here only after reviewing it against AGENTS.md rule 6.",
+  "$comment": "Licence policy for third-party components (SPDX ids), shared by `pnpm licenses:check` (license-checker-rseidelsohn, reads `allowed` only) and the compliance checks in scripts/compliance (SBOM, Python, container images). `allowed`: accepted for every ecosystem. `separateServiceOnly`: copyleft, accepted only for container images / services flagged `separateService: true` in config/compliance/components.yaml, never inside the npm or Python dependency trees. `deny`: forbidden by AGENTS.md rule 6, never waivable. Anything else needs an entry in config/compliance/license-exceptions.yaml. Patterns are case-insensitive; a trailing * is a prefix glob. Add a licence to `allowed` only after reviewing it against AGENTS.md rule 6.",
   "allowed": [
     "MIT",
     "MIT-0",
@@ -15,6 +15,21 @@
     "CC-BY-3.0",
     "CC-BY-4.0",
     "Python-2.0",
-    "MPL-2.0"
+    "MPL-2.0",
+    "PSF-2.0",
+    "PostgreSQL"
+  ],
+  "separateServiceOnly": ["GPL-*", "AGPL-*", "LGPL-*"],
+  "deny": [
+    "BUSL-1.1",
+    "SSPL-1.0",
+    "Elastic-2.0",
+    "LicenseRef-RSAL*",
+    "LicenseRef-Commons-Clause",
+    "CC-BY-NC*",
+    "PolyForm-Noncommercial-*",
+    "LicenseRef-Blockscout",
+    "LicenseRef-QuestPDF*",
+    "UNLICENSED"
   ]
 }
