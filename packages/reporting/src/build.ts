@@ -89,6 +89,7 @@ export async function buildReportData(
     labels,
     flows,
     addressTypes,
+    clusters,
   ] = await Promise.all([
     repos.evidence.listCaptures(evidenceRunId),
     repos.evidence.listAccounts(evidenceRunId),
@@ -105,6 +106,7 @@ export async function buildReportData(
     repos.labels.list(),
     analysis.listFlows ? analysis.listFlows(evidenceRunId) : Promise.resolve([] as FlowEdge[]),
     repos.addressTypes ? repos.addressTypes.list(evidenceRunId) : Promise.resolve([]),
+    repos.clusters ? repos.clusters.list(evidenceRunId) : Promise.resolve([]),
   ]);
 
   // Analyst statements and inputs, kept apart from the computed results (optional ports of the store).
@@ -199,6 +201,7 @@ export async function buildReportData(
     ...(addressTypes.length
       ? { addressTypes: addressTypes.toSorted((a, b) => cmp(addressKey(a.address), addressKey(b.address))) }
       : {}),
+    ...(clusters.length ? { clusters: clusters.toSorted((a, b) => cmp(a.id, b.id)) } : {}),
     labels: byId(labels.filter((l) => relevant.has(refKey(l.address)) || labelIds.has(l.id))),
     activity: activity.toSorted((a, b) => cmp(addressKey(a.address), addressKey(b.address))),
     cashOuts: byId(cashOuts),

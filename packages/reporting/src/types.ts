@@ -2,6 +2,7 @@ import type {
   ActivityIndicators,
   AddressCandidate,
   AddressLabel,
+  AddressCluster,
   AddressTypeClassification,
   AdmiraltyReliability,
   AnalysisRun,
@@ -84,6 +85,8 @@ export interface ReportData {
   exclusions: ExclusionDecision[];
   /** Address types of the chain analysis (computed, "as of the recorded chain tip"), when the store keeps them. */
   addressTypes?: AddressTypeClassification[];
+  /** Bitcoin co-spend clusters of the chain analysis (a heuristic result), when the store keeps them. */
+  clusters?: AddressCluster[];
   labels: AddressLabel[];
   activity: ActivityIndicators[];
   cashOuts: CashOutEvent[];
