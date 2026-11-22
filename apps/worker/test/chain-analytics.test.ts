@@ -1,6 +1,7 @@
 /**
  * End-to-end check of the chain analysis wiring on the synthetic persona: real egress client (offline mode) →
- * chain adapters against the in-process fixture site → exclusion rules → activity, cash-out and fund flows.
+ * chain adapters against the in-process fixture site → address types → exclusion rules → activity, cash-out and fund
+ * flows.
  * Reproduces `expected.v1.rejected` and `expected.v1.cashOut` of fixtures/persona/manifest.json. No network: the
  * fixture site runs on 127.0.0.1 and NBP rates are a synthetic stub.
  */
@@ -27,6 +28,7 @@ import {
 } from '@olcys/chain-adapters';
 import type {
   AddressRef,
+  AddressTypeClassification,
   BlobRef,
   EgressLogEntry,
   ExclusionDecision,
@@ -39,19 +41,22 @@ import type {
 import { addressKey, newId } from '@olcys/core';
 import { createEgressClient } from '@olcys/http';
 import {
-  classifyAddressType,
   DEMO_CURATED_DATASET,
   effectiveOutcome,
   evaluateExclusions,
+  loadDelegateRegistry,
   loadDenyList,
+  loadEntryPoints,
   loadExclusionRules,
   loadLabelDataset,
+  loadSafeSingletons,
   MemoryLabelLookup,
   prescreenExclusions,
 } from '@olcys/labels';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { parse as parseYaml } from 'yaml';
 import { createFixtureServer, type FixtureServer } from '../../fixture-site/src/fixture-server.ts';
+import { classifyFetched } from '../src/address-types.ts';
 
 const ROOT = join(import.meta.dirname, '..', '..', '..');
 const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8');
@@ -77,6 +82,12 @@ const log: EgressLogEntry[] = [];
 const envelopes: ProvenanceEnvelope[] = [];
 const decisions: ExclusionDecision[] = [];
 const analyses = new Map<string, AddressAnalysis>();
+let types = new Map<string, AddressTypeClassification>();
+/** The classification of a persona address, as fetched (EVM lower-case). */
+const typeOf = (slot: string, chain?: string): AddressTypeClassification | undefined => {
+  const a = ref(slot, chain);
+  return types.get(addressKey(a.chain.startsWith('evm:') ? { ...a, address: a.address.toLowerCase() } : a));
+};
 
 beforeAll(async () => {
   site = await createFixtureServer({
@@ -137,7 +148,13 @@ beforeAll(async () => {
     }),
   );
   const rules = loadExclusionRules(read('config/rules/exclusion.v1.yaml'));
-  const exclusionDeps = { labels, rules, denyList: loadDenyList(read('config/rules/deny-list.v1.yaml')), runId };
+  const exclusionDeps = {
+    labels,
+    rules,
+    denyList: loadDenyList(read('config/rules/deny-list.v1.yaml')),
+    runId,
+    delegates: loadDelegateRegistry(read('config/labels/eip7702-delegates.v1.yaml')),
+  };
 
   // Candidates as the extractor reports them (HOT-1 and CONTRACT-1 without a chain marker).
   const candidates = [
@@ -169,13 +186,26 @@ beforeAll(async () => {
     },
   );
 
-  // 2. Exclusions with chain data (evm:unknown candidates resolved by the fetch).
+  // 2. Address types, then exclusions with chain data (evm:unknown candidates resolved by the fetch).
   const resolvedOf = (c: AddressRef): AddressRef =>
     fetched.resolved.find((r) => addressKey(r.requested) === addressKey(c))?.resolved ??
     (c.chain.startsWith('evm:') ? { ...c, address: c.address.toLowerCase() } : c);
+  const assets = createAssetRegistry();
+  types = await classifyFetched(
+    toFetch.map(resolvedOf),
+    fetched,
+    {
+      providers: registry,
+      labels,
+      assets,
+      safeSingletons: loadSafeSingletons(),
+      entryPoints: loadEntryPoints(read('config/labels/erc4337-entrypoints.v1.yaml')),
+    },
+    ctx,
+  );
   for (const candidate of candidates) {
     const resolved = resolvedOf(candidate);
-    const code = fetched.codes.find((c) => addressKey(c.address) === addressKey(resolved));
+    const classification = types.get(addressKey(resolved));
     decisions.push(
       // oxlint-disable-next-line no-await-in-loop
       ...(await evaluateExclusions(
@@ -183,7 +213,7 @@ beforeAll(async () => {
           address: candidate,
           // the explicit resolution of an evm:unknown candidate (transfers never cross chains otherwise)
           ...(candidate.chain === 'evm:unknown' ? { resolved } : {}),
-          ...(code ? { classification: classifyAddressType(resolved, code.code, [code.fetchId]) } : {}),
+          ...(classification ? { classification } : {}),
           transfers: transfersOf(resolved, fetched.transfers),
           published: published.has(candidate.address),
         },
@@ -200,7 +230,6 @@ beforeAll(async () => {
   const requestedOf = new Map(kept.map((c) => [addressKey(resolvedOf(c)), c]));
 
   // 3. One-hop expansion of unlabelled recipients (deposit addresses show themselves by their sweeps).
-  const assets = createAssetRegistry();
   const fetchedKeys = new Set(analysed.map(addressKey));
   const expansion: AddressRef[] = [];
   for (const a of analysed) {
@@ -318,6 +347,30 @@ describe('chain analysis of the synthetic persona (v1)', () => {
     });
     expect(analyses.has(ref('HOT-1').address.toLowerCase())).toBe(false);
     expect(analyses.has(ref('CONTRACT-1').address.toLowerCase())).toBe(false);
+  });
+
+  it('classifies the fetched addresses: CONTRACT-1 is a plain contract after negative probes, the accounts are EOAs', () => {
+    const contract = typeOf('CONTRACT-1', 'evm:1');
+    expect(contract).toMatchObject({ type: 'contract', codePrefix: '0x60806040' });
+    expect(contract?.failedProbe).toBeUndefined();
+    // code, Safe slot, entryPoint(), totalSupply(), ERC-1967 slot: in call order, each an identifying request
+    const probes = (contract?.fetchIds ?? []).map((id) => envelopes.find((e) => e.fetchId === id));
+    expect(probes.map((p) => new URL(p?.url ?? 'http://x').searchParams.get('action'))).toEqual([
+      'eth_getCode',
+      'eth_getStorageAt',
+      'eth_call',
+      'eth_call',
+      'eth_getStorageAt',
+    ]);
+    const logged = probes.map((p) => log.find((e) => e.id === p?.egressLogId));
+    expect(logged.every((e) => e?.allowed && e.containsIdentifier)).toBe(true);
+    for (const slot of ['ETH-1', 'ETH-2', 'TRON-1']) {
+      expect([slot, typeOf(slot)?.type, typeOf(slot)?.fetchIds.length]).toEqual([slot, 'eoa', 1]);
+    }
+    expect(typeOf('BTC-1')).toMatchObject({ type: 'utxo_script', scriptType: 'p2wpkh', fetchIds: [] });
+    // Addresses excluded before any chain data (A1, A8) are not probed.
+    expect(typeOf('HOT-1', 'evm:1')).toBeUndefined();
+    expect(typeOf('D2')).toBeUndefined();
   });
 
   it('sends every request through the egress client, marked as synthetic and identifying when it carries an address', () => {
