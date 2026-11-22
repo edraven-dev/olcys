@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import type { AddressLabel, AnalysisRepository, ChainDataRepository, LabelRepository } from '@olcys/core';
-import { canonicalJson } from '@olcys/core';
+import { canonicalJson, uniqueTransfers } from '@olcys/core';
 import { json, type Db } from '../client.ts';
 
 /** Content identity of a label: everything except the import-specific id and retrieval time. */
@@ -36,9 +36,9 @@ export function sqlChainDataRepository(db: Db): ChainDataRepository {
     },
 
     async listTransfers(runId) {
-      return (await db.selectFrom('chain_transfers').select('record').where('run_id', '=', runId).execute()).map(
-        (r) => r.record,
-      );
+      const rows = await db.selectFrom('chain_transfers').select('record').where('run_id', '=', runId).execute();
+      // A transfer between two analysed addresses is stored under both; the run has it once.
+      return uniqueTransfers(rows.map((r) => r.record));
     },
   };
 }

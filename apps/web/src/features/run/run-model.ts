@@ -1,5 +1,6 @@
 /** Pure view models for the run overview: step states, stage counters and per-source outcomes. */
-import type { Capture, CaptureStatus, EgressLogEntry, RunStep, RunWithProgress } from '@olcys/core';
+import type { Capture, CaptureStatus, EgressLogEntry, PartialReason, RunStep, RunWithProgress } from '@olcys/core';
+import { readPartialReasons } from '@olcys/core';
 import { pl } from '../../i18n/pl.ts';
 
 export type StepState = 'pending' | 'running' | 'done' | 'failed';
@@ -37,7 +38,7 @@ export function progressRatio(run: Pick<RunWithProgress, 'status' | 'progress'>)
   return { done: isTerminal(run.status) ? 1 : 0, total: 1 };
 }
 
-const RESERVED = new Set(['step', 'done', 'total', 'partial']);
+const RESERVED = new Set(['step', 'done', 'total', 'partial', 'partialCodes']);
 
 /** Numeric counters reported by the stages (`captures`, `candidates`, …). */
 export function progressCounters(run: Pick<RunWithProgress, 'progress'>): [string, number][] {
@@ -46,9 +47,9 @@ export function progressCounters(run: Pick<RunWithProgress, 'progress'>): [strin
   );
 }
 
-export function partialReasons(run: Pick<RunWithProgress, 'progress'>): string[] {
-  const partial = run.progress?.['partial'];
-  return Array.isArray(partial) ? partial.filter((p): p is string => typeof p === 'string') : [];
+/** Why the run is incomplete: the engine's sentence and, where known, the code the UI renders in Polish. */
+export function partialReasons(run: Pick<RunWithProgress, 'progress'>): PartialReason[] {
+  return readPartialReasons(run.progress);
 }
 
 export const UNAVAILABLE_STATUSES: readonly CaptureStatus[] = ['blocked', 'login_wall', 'captcha'];

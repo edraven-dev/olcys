@@ -21,6 +21,7 @@ import type {
   NormalizedTransfer,
   Observation,
   OnlineAccount,
+  PartialReason,
   SourceId,
   SourceKind,
   TextView,
@@ -64,6 +65,8 @@ export interface ReportData {
   weightsStatus?: string;
   /** Why the run is incomplete (`progress.partial`, recorded by stages via `markPartial`), when it is. */
   partialReasons?: string[];
+  /** The coded reasons among `partialReasons` (stable code and parameters), rendered in Polish by the report. */
+  partialCodes?: PartialReason[];
   sources: ReportSource[];
   captures: Capture[];
   /** Captures of earlier runs cited by change events (the "before" side of a wallet swap). */

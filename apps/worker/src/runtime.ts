@@ -86,7 +86,16 @@ export async function createRuntime(options: RuntimeOptions = {}): Promise<Runti
   const running = new Set<Promise<unknown>>();
   const launchRun = (runId: string): void => {
     const job = runPipeline(runId, { repos, blobs, logger, stages })
-      .catch((error: unknown) => logger.error('pipeline crashed', { runId, error: String(error) }))
+      .catch(async (error: unknown) => {
+        // The pipeline ends its own failures as `failed`; this covers what it could not even start (run unreadable).
+        logger.error('pipeline crashed', { runId, error: String(error) });
+        const message = error instanceof Error ? error.message : String(error);
+        await repos.runs
+          .update(runId, { status: 'failed', finishedAt: new Date().toISOString(), error: message })
+          .catch((updateError: unknown) =>
+            logger.error('run could not be marked failed', { runId, error: String(updateError) }),
+          );
+      })
       .finally(() => running.delete(job));
     running.add(job);
   };

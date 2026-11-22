@@ -14,7 +14,7 @@ import type {
   RunWithProgress,
   SourceDescriptor,
 } from '@olcys/core';
-import { addressKey, newId, nowIso } from '@olcys/core';
+import { addressKey, newId, nowIso, readPartialReasons } from '@olcys/core';
 import { REPORT_TEMPLATE_VERSION, type ReportData, type ReportSource } from './types.ts';
 import { cmp, refKey, timeOf } from './view.ts';
 
@@ -117,8 +117,9 @@ export async function buildReportData(
   const applied = appliedOverrides(plainRun(run), overrides);
 
   // Reasons the pipeline recorded so far (`markPartial`): sources or stages that could not deliver data.
-  const recorded = run.progress?.['partial'];
-  const partialReasons = Array.isArray(recorded) ? recorded.filter((r): r is string => typeof r === 'string') : [];
+  const reasons = readPartialReasons(run.progress);
+  const partialReasons = reasons.map((r) => r.text);
+  const partialCodes = reasons.filter((r) => r.code !== undefined);
   const previousRunId = run.previousRunId ?? changes[0]?.previousRunId;
   const previous = previousRunId ? await repos.runs.get(previousRunId) : undefined;
 
@@ -162,6 +163,7 @@ export async function buildReportData(
     ...(previous ? { previousRun: plainRun(previous) } : {}),
     ...(options.weightsStatus ? { weightsStatus: options.weightsStatus } : {}),
     ...(partialReasons.length ? { partialReasons } : {}),
+    ...(partialCodes.length ? { partialCodes } : {}),
     sources: (options.sources ?? [])
       .filter((s) => usedSources.has(s.id))
       .map(toReportSource)

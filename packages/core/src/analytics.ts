@@ -12,7 +12,8 @@ export interface Valuation {
   at: IsoDateTime;
   pln: DecimalString;
   method: 'nbp_table_a_previous_business_day';
-  nbp: { table: string; effectiveDate: IsoDate; currency: string; rate: DecimalString };
+  /** `synthetic`: the rate came from a synthetic source (demo data), not from the NBP. */
+  nbp: { table: string; effectiveDate: IsoDate; currency: string; rate: DecimalString; synthetic?: boolean };
   price?: { source: string; pair: string; candleTime: IsoDateTime; close: DecimalString; datasetSha256?: Sha256Hex };
 }
 

@@ -9,8 +9,10 @@ export type Variant = 'v1' | 'v2';
 export const VARIANTS: readonly Variant[] = ['v1', 'v2'];
 
 export interface FixtureRoute {
-  /** Exact pathname. */
+  /** Exact pathname (or the one the route's `pathPrefix` replaces). */
   path: string;
+  /** Matches every pathname starting with this prefix instead of `path` (e.g. NBP ranges ending on any day). */
+  pathPrefix?: string;
   /** Exact raw search without `?`, e.g. `action=profile;u=900001` (SMF uses `;`). */
   query?: string;
   /** Subset match on URLSearchParams, order- and case-insensitive (Etherscan treats addresses case-insensitively). */
@@ -107,7 +109,9 @@ export async function resolveRequest(
   } catch {
     return undefined;
   }
-  const candidates = routes.filter((r) => r.path === decoded);
+  const candidates = routes.filter((r) =>
+    r.pathPrefix !== undefined ? decoded.startsWith(r.pathPrefix) : r.path === decoded,
+  );
   for (const matcher of MATCHERS) {
     const route = candidates.find((r) => matcher(r, search));
     if (!route) continue;

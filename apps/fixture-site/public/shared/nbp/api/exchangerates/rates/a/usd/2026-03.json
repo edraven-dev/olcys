@@ -1,0 +1,30 @@
+{
+  "_synthetic": "SYNTHETIC TEST DATA (OŁCyŚ fixture)",
+  "table": "A",
+  "currency": "dolar amerykański (SYNTHETIC)",
+  "code": "USD",
+  "rates": [
+    { "no": "SYN281/A/NBP/2026", "effectiveDate": "2026-03-02", "mid": 3.8399 },
+    { "no": "SYN282/A/NBP/2026", "effectiveDate": "2026-03-03", "mid": 3.8036 },
+    { "no": "SYN283/A/NBP/2026", "effectiveDate": "2026-03-04", "mid": 3.8073 },
+    { "no": "SYN284/A/NBP/2026", "effectiveDate": "2026-03-05", "mid": 3.8110 },
+    { "no": "SYN285/A/NBP/2026", "effectiveDate": "2026-03-06", "mid": 3.8147 },
+    { "no": "SYN286/A/NBP/2026", "effectiveDate": "2026-03-09", "mid": 3.8184 },
+    { "no": "SYN287/A/NBP/2026", "effectiveDate": "2026-03-10", "mid": 3.8221 },
+    { "no": "SYN288/A/NBP/2026", "effectiveDate": "2026-03-11", "mid": 3.8258 },
+    { "no": "SYN289/A/NBP/2026", "effectiveDate": "2026-03-12", "mid": 3.8295 },
+    { "no": "SYN290/A/NBP/2026", "effectiveDate": "2026-03-13", "mid": 3.8332 },
+    { "no": "SYN291/A/NBP/2026", "effectiveDate": "2026-03-16", "mid": 3.8369 },
+    { "no": "SYN292/A/NBP/2026", "effectiveDate": "2026-03-17", "mid": 3.8006 },
+    { "no": "SYN293/A/NBP/2026", "effectiveDate": "2026-03-18", "mid": 3.8043 },
+    { "no": "SYN294/A/NBP/2026", "effectiveDate": "2026-03-19", "mid": 3.8080 },
+    { "no": "SYN295/A/NBP/2026", "effectiveDate": "2026-03-20", "mid": 3.8117 },
+    { "no": "SYN296/A/NBP/2026", "effectiveDate": "2026-03-23", "mid": 3.8154 },
+    { "no": "SYN297/A/NBP/2026", "effectiveDate": "2026-03-24", "mid": 3.8191 },
+    { "no": "SYN298/A/NBP/2026", "effectiveDate": "2026-03-25", "mid": 3.8228 },
+    { "no": "SYN299/A/NBP/2026", "effectiveDate": "2026-03-26", "mid": 3.8265 },
+    { "no": "SYN300/A/NBP/2026", "effectiveDate": "2026-03-27", "mid": 3.8302 },
+    { "no": "SYN301/A/NBP/2026", "effectiveDate": "2026-03-30", "mid": 3.8339 },
+    { "no": "SYN302/A/NBP/2026", "effectiveDate": "2026-03-31", "mid": 3.8376 }
+  ]
+}

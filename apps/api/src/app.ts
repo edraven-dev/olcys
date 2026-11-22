@@ -17,6 +17,7 @@ import { ContractError, CORE_CONTRACTS_VERSION, CreateCaseSchema, parse, StartRu
 import { evidenceRunIdOf, TOOL_VERSION } from '@olcys/worker';
 import Fastify, { type FastifyInstance, type FastifyReply } from 'fastify';
 import { DEFAULT_ANALYST, registerAnalystRoutes, supportsJudgements, withJudgements } from './analyst-routes.ts';
+import { registerGuard, type GuardOptions } from './guard.ts';
 import { idOf } from './ids.ts';
 import { registerScheduleRoutes } from './schedule-routes.ts';
 
@@ -36,6 +37,8 @@ export interface ApiDeps {
   analyst?: string;
   /** Fastify request logging. */
   httpLog?: boolean;
+  /** Extra allowed `Host` headers and `Origin`s on top of the loopback defaults (see `guard.ts`). */
+  guard?: GuardOptions;
   /**
    * Fetch mode of the runs: shown by `GET /api/meta`; in live mode schedules keep the minimum interval (the strict
    * rule when absent).
@@ -72,6 +75,9 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
   const { repos } = deps;
   const analyst = deps.analyst ?? DEFAULT_ANALYST;
   const sourceRegister = createSourceRegister(deps.sources);
+
+  // DNS rebinding and cross-site writes: the API has no authentication, so it only serves its own console.
+  registerGuard(app, deps.guard);
 
   app.setErrorHandler((error, _request, reply) => {
     if (error instanceof ContractError) {

@@ -488,7 +488,8 @@ export async function detectSwaps(
   return swaps.toSorted((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0));
 }
 
-function utxoVolumes(
+/** Net BTC amount per transaction for an address (what `computeActivity` values on Bitcoin). */
+export function utxoVolumes(
   input: AddressAnalysisInput,
 ): { tx: UtxoTransaction; net: DecimalString; counterparties: string[] }[] {
   const self = input.address.address;

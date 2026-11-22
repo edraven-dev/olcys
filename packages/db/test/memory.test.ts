@@ -1,4 +1,4 @@
-import type { AddressLabel } from '@olcys/core';
+import type { AddressLabel, NormalizedTransfer } from '@olcys/core';
 import { newId } from '@olcys/core';
 import { describe, expect, it } from 'vitest';
 import { createMemoryRepositories } from '../src/index.ts';
@@ -43,5 +43,27 @@ describe('memory repositories', () => {
     );
     scope.enabledSources.push('mutated');
     expect((await repos.cases.get(created.id))?.scope.enabledSources).toEqual(['fixture_site']);
+  });
+
+  it('list a transfer stored under two analysed addresses once', async () => {
+    const repos = createMemoryRepositories();
+    const a = '0x00000000000000000000000000000000000000a1';
+    const b = '0x00000000000000000000000000000000000000b2';
+    const transfer: NormalizedTransfer = {
+      chain: 'evm:1',
+      txHash: '0xabc',
+      blockHeight: 1,
+      blockTime: '2026-11-01T00:00:00.000Z',
+      from: a,
+      to: b,
+      asset: { chain: 'evm:1', symbol: 'ETH', decimals: 18 },
+      amount: '1',
+      kind: 'native',
+      fetchId: newId(),
+    };
+    const runId = newId();
+    await repos.chain.addTransfers(runId, { chain: 'evm:1', address: a }, [transfer]);
+    await repos.chain.addTransfers(runId, { chain: 'evm:1', address: b }, [{ ...transfer, fetchId: newId() }]);
+    expect(await repos.chain.listTransfers(runId)).toHaveLength(1);
   });
 });

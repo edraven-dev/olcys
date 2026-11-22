@@ -1,0 +1,31 @@
+{
+  "_synthetic": "SYNTHETIC TEST DATA (OŁCyŚ fixture)",
+  "table": "A",
+  "currency": "dolar amerykański (SYNTHETIC)",
+  "code": "USD",
+  "rates": [
+    { "no": "SYN216/A/NBP/2025", "effectiveDate": "2025-12-01", "mid": 3.8394 },
+    { "no": "SYN217/A/NBP/2025", "effectiveDate": "2025-12-02", "mid": 3.8031 },
+    { "no": "SYN218/A/NBP/2025", "effectiveDate": "2025-12-03", "mid": 3.8068 },
+    { "no": "SYN219/A/NBP/2025", "effectiveDate": "2025-12-04", "mid": 3.8105 },
+    { "no": "SYN220/A/NBP/2025", "effectiveDate": "2025-12-05", "mid": 3.8142 },
+    { "no": "SYN221/A/NBP/2025", "effectiveDate": "2025-12-08", "mid": 3.8179 },
+    { "no": "SYN222/A/NBP/2025", "effectiveDate": "2025-12-09", "mid": 3.8216 },
+    { "no": "SYN223/A/NBP/2025", "effectiveDate": "2025-12-10", "mid": 3.8253 },
+    { "no": "SYN224/A/NBP/2025", "effectiveDate": "2025-12-11", "mid": 3.8290 },
+    { "no": "SYN225/A/NBP/2025", "effectiveDate": "2025-12-12", "mid": 3.8327 },
+    { "no": "SYN226/A/NBP/2025", "effectiveDate": "2025-12-15", "mid": 3.8364 },
+    { "no": "SYN227/A/NBP/2025", "effectiveDate": "2025-12-16", "mid": 3.8401 },
+    { "no": "SYN228/A/NBP/2025", "effectiveDate": "2025-12-17", "mid": 3.8038 },
+    { "no": "SYN229/A/NBP/2025", "effectiveDate": "2025-12-18", "mid": 3.8075 },
+    { "no": "SYN230/A/NBP/2025", "effectiveDate": "2025-12-19", "mid": 3.8112 },
+    { "no": "SYN231/A/NBP/2025", "effectiveDate": "2025-12-22", "mid": 3.8149 },
+    { "no": "SYN232/A/NBP/2025", "effectiveDate": "2025-12-23", "mid": 3.8186 },
+    { "no": "SYN233/A/NBP/2025", "effectiveDate": "2025-12-24", "mid": 3.8223 },
+    { "no": "SYN234/A/NBP/2025", "effectiveDate": "2025-12-25", "mid": 3.8260 },
+    { "no": "SYN235/A/NBP/2025", "effectiveDate": "2025-12-26", "mid": 3.8297 },
+    { "no": "SYN236/A/NBP/2025", "effectiveDate": "2025-12-29", "mid": 3.8334 },
+    { "no": "SYN237/A/NBP/2025", "effectiveDate": "2025-12-30", "mid": 3.8371 },
+    { "no": "SYN238/A/NBP/2025", "effectiveDate": "2025-12-31", "mid": 3.8008 }
+  ]
+}

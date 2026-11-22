@@ -185,6 +185,64 @@ describe('report review fixes', () => {
     expect(indicator).not.toContain('data-statement="fakty"');
   });
 
+  it('renders coded reasons in Polish and the others as recorded', () => {
+    const html = renderReport(
+      withData((d) => {
+        d.partialReasons = [
+          'PLN valuation unavailable for 3 transfer(s): no price or NBP rate',
+          'tron provider: timeout',
+        ];
+        d.partialCodes = [
+          {
+            text: 'PLN valuation unavailable for 3 transfer(s): no price or NBP rate',
+            code: 'valuation_unavailable',
+            params: { count: 3 },
+          },
+        ];
+      }),
+    );
+    const summary = sectionOf(html, 'podsumowanie');
+    expect(summary).toContain('brak wyceny w PLN dla 3 transferów (brak ceny lub kursu NBP); tron provider: timeout');
+    expect(summary).not.toContain('PLN valuation unavailable');
+  });
+
+  it('names fetch statuses in Polish in coded chain reasons', () => {
+    const html = renderReport(
+      withData((d) => {
+        d.partialReasons = [
+          'chain data incomplete for 2 address(es): tron no enabled provider (1), evm:1 truncated (1)',
+        ];
+        d.partialCodes = [
+          {
+            text: d.partialReasons[0] as string,
+            code: 'chain_incomplete',
+            params: {
+              count: 2,
+              items: [
+                { chain: 'tron', status: 'no_enabled_provider', count: 1 },
+                { chain: 'evm:1', status: 'truncated', count: 1 },
+              ],
+            },
+          },
+        ];
+      }),
+    );
+    expect(sectionOf(html, 'podsumowanie')).toContain(
+      'niepełna historia łańcucha dla 2 adresów (tron: brak włączonego dostawcy (1), evm:1: historia obcięta (1))',
+    );
+  });
+
+  it('marks values valued at a synthetic rate', () => {
+    const html = renderReport(
+      withData((d) => {
+        for (const e of d.cashOuts)
+          if (e.valuation) e.valuation = { ...e.valuation, nbp: { ...e.valuation.nbp, synthetic: true } };
+      }),
+    );
+    expect(html).toContain('(kurs syntetyczny — dane demonstracyjne)');
+    expect(renderReport(withData(() => {}))).not.toContain('kurs syntetyczny');
+  });
+
   it('reports an incomplete run prominently', () => {
     const html = renderReport(
       withData((d) => {
