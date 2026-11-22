@@ -48,6 +48,8 @@ export {
 } from './manifest.ts';
 export {
   gotenbergStages,
+  PDF_MAX_BYTES,
+  PDF_MAX_RESPONSE_BYTES,
   PDF_MEDIA_TYPE,
   PDF_SOURCES,
   PDFA_PROFILE,

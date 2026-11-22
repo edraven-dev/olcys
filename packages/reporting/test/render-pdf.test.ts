@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildReportManifest,
   createReportManifest,
+  PDF_MAX_BYTES,
   PdfRenderError,
   renderReport,
   renderReportPdf,
@@ -193,6 +194,21 @@ describe('renderReportPdf', () => {
     expect(result.artifacts.map((a) => a.kind).toSorted()).toEqual(['manifest_json', 'pdf']);
     const stored = await Promise.all(result.artifacts.map((a) => deps.blobs.has(a.blob.sha256)));
     expect(stored).toEqual([true, true]);
+  });
+
+  it('a PDF above the signing limit is left unsigned without calling the signing service', async () => {
+    const stubs: Stubs = {
+      requests: [],
+      gotenberg: (r) =>
+        r.url.endsWith('/validate')
+          ? response(200, { f: { compliant: true, violations: [] } })
+          : response(200, new Uint8Array(PDF_MAX_BYTES + 1), { 'gotenberg-remediation-residual': '0' }),
+    };
+    const { html, manifest, deps } = await setup(stubs);
+    const result = await renderReportPdf({ reportId: 'r1', html, manifest }, deps);
+    expect(result.status).toBe('unsigned');
+    expect(result.warnings).toEqual(['signing_unavailable']);
+    expect(stubs.requests.some((r) => r.sourceId === 'pdf_signing')).toBe(false);
   });
 
   it('external references: no request is made and it throws', async () => {

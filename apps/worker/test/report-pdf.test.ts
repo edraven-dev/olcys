@@ -15,7 +15,7 @@ import type { FetchMode, Logger } from '@olcys/core';
 import { createMemoryRepositories } from '@olcys/db';
 import { InMemoryBlobStore } from '@olcys/evidence';
 import { createManifestForTest } from './report-pdf-support.ts';
-import { renderReport, renderReportPdf } from '@olcys/reporting';
+import { PDF_MAX_BYTES, PDF_MAX_RESPONSE_BYTES, renderReport, renderReportPdf } from '@olcys/reporting';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createTrustedTimestamper, loadConfig, tsaSettings } from '../src/index.ts';
 import { reportPdfOptions } from '../src/report-pdf.ts';
@@ -24,7 +24,7 @@ import { personaData } from '../../../packages/reporting/test/fixtures.ts';
 
 const silent: Logger = { debug() {}, info() {}, warn() {}, error() {} };
 const PDF = Buffer.from('%PDF-1.7 synthetic rendered');
-const SIGNED = Buffer.from('%PDF-1.7 synthetic signed');
+let SIGNED = Buffer.from('%PDF-1.7 synthetic signed');
 
 let server: Server;
 let base: string;
@@ -171,6 +171,25 @@ describe('report PDF in the worker', () => {
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+
+  it('keeps the signature of a large report: a 30 MiB signed PDF (about 40 MiB of base64) is accepted', async () => {
+    const original = SIGNED;
+    SIGNED = Buffer.concat([Buffer.from('%PDF-1.7 '), Buffer.alloc(30 * 1024 * 1024, 0x41)]);
+    try {
+      const { result } = await run('offline');
+      expect(result.status).toBe('signed');
+      expect(result.warnings).toEqual([]);
+      const signed = result.artifacts.find((a) => a.kind === 'pdf_signed');
+      expect(signed?.blob.bytes).toBe(SIGNED.length);
+    } finally {
+      SIGNED = original;
+    }
+  });
+
+  it('accepts a signing reply up to the 50 MiB PDF limit and no more', () => {
+    expect(PDF_MAX_RESPONSE_BYTES).toBeGreaterThan(Math.ceil((PDF_MAX_BYTES * 4) / 3));
+    expect(PDF_MAX_RESPONSE_BYTES).toBeGreaterThan(25 * 1024 * 1024);
   });
 
   it('is off without GOTENBERG_URL, when disabled, or when the register has no gotenberg entry', () => {

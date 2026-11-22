@@ -6,7 +6,7 @@
 import type { SourceDescriptor, TrustedTimestamper } from '@olcys/core';
 import { redBlockedHosts } from '@olcys/collectors';
 import { createEgressClient } from '@olcys/http';
-import type { ReportPdfOptions } from '@olcys/reporting';
+import { PDF_MAX_RESPONSE_BYTES, type ReportPdfOptions } from '@olcys/reporting';
 import { TOOL_VERSION } from './config.ts';
 
 const off = (value: string | undefined): boolean =>
@@ -42,6 +42,8 @@ export function reportPdfOptions(options: {
           provenance: (envelope) => repos.evidence.addRawFetches([envelope]),
         },
         toolVersion: TOOL_VERSION,
+        // The signing reply carries the PDF as base64: a 50 MiB PDF must not hit the default 25 MiB response limit.
+        maxBodyBytes: PDF_MAX_RESPONSE_BYTES,
       }),
     ...(options.timestamper ? { timestamper: options.timestamper } : {}),
     config: {

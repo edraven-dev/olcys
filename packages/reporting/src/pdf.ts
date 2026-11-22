@@ -21,6 +21,13 @@ import type {
 import { buildReportManifest, MANIFEST_FILE_NAME, type ReportManifest } from './manifest.ts';
 import { assertSelfContainedHtml } from './self-contained.ts';
 
+/** Largest PDF the pipeline renders and signs (the signing service refuses more: 413). */
+export const PDF_MAX_BYTES = 50 * 1024 * 1024;
+/**
+ * Largest response the egress client must accept from the PDF services: the signing reply carries the PDF as base64
+ * (4/3 growth) inside JSON; the margin covers the JSON envelope.
+ */
+export const PDF_MAX_RESPONSE_BYTES = Math.ceil((PDF_MAX_BYTES * 4) / 3) + 1024 * 1024;
 export const PDF_MEDIA_TYPE = 'application/pdf';
 export const PDFA_PROFILE = 'PDF/A-3b';
 export const SIGNATURE_FIELD = 'Podpis';
@@ -282,6 +289,11 @@ export async function renderReportPdf(
   };
   if (!deps.config.signing) {
     result.warnings.push('signing_disabled');
+    return result;
+  }
+  if (rendered.pdf.length > PDF_MAX_BYTES) {
+    result.warnings.push('signing_unavailable');
+    deps.logger?.warn('report PDF too large to sign', { reportId: input.reportId, bytes: rendered.pdf.length });
     return result;
   }
   let signed: Signed;
