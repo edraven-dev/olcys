@@ -153,10 +153,11 @@ export function sqlTimestampRepository(db: Db): TimestampRepository {
       return record;
     },
 
-    async listPending(limit = 100) {
-      const rows = await db
-        .selectFrom('timestamp_request as r')
-        .selectAll('r')
+    async listPending({ limit = 100, subjectIds } = {}) {
+      if (subjectIds && subjectIds.length === 0) return [];
+      let query = db.selectFrom('timestamp_request as r').selectAll('r');
+      if (subjectIds) query = query.where('r.subject_id', 'in', subjectIds);
+      const rows = await query
         .where('r.outcome', 'in', ['queued', 'failed'])
         .where((eb) =>
           eb.not(

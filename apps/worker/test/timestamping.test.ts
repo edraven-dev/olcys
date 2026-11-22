@@ -147,7 +147,7 @@ function suite(name: string, makeRepos: () => Repositories, enabled = true) {
         reason: 'verification_failed: imprint',
       });
       expect((await repos.evidence.getCapture(capture.id))?.timestamp).toBeUndefined();
-      expect((await repos.timestamps!.listRequests(capture.id)).map((r) => r.outcome)).toEqual(['rejected']);
+      expect((await repos.timestamps!.listRequests(capture.id)).map((r) => r.outcome)).toEqual(['queued', 'rejected']);
       expect(await actions(repos, capture.id)).toEqual(['timestamp_failed']);
       expect((await timestamper.flush(only(capture))).attempted).toBe(0);
       expect(egress.calls).toHaveLength(1);
@@ -168,7 +168,7 @@ function suite(name: string, makeRepos: () => Repositories, enabled = true) {
       expect((await live.flush(only(capture))).attempted).toBe(0);
       expect(egress.calls).toHaveLength(1);
       const requests = await repos.timestamps!.listRequests(capture.id);
-      expect(requests.map((r) => r.outcome)).toEqual(['queued', 'granted']);
+      expect(requests.map((r) => r.outcome)).toEqual(['queued', 'queued', 'granted']);
       expect((await repos.evidence.getCapture(capture.id))?.timestamp).toBeDefined();
       expect(await actions(repos, capture.id)).toEqual(['timestamped']);
     });
@@ -176,11 +176,60 @@ function suite(name: string, makeRepos: () => Repositories, enabled = true) {
     it('AC5: a 503 is recorded as failed and the flush retry grants the token', async () => {
       const { repos, timestamper, capture, egress } = await setup(makeRepos, { script: [503, {}] });
       expect(await timestamper.stamp(subjectOf(capture))).toEqual({ status: 'queued', reason: 'transient_failure' });
-      expect((await repos.timestamps!.listPending()).filter((r) => r.subject.id === capture.id)).toHaveLength(1);
+      expect(
+        (await repos.timestamps!.listPending({ limit: 100_000 })).filter((r) => r.subject.id === capture.id),
+      ).toHaveLength(1);
       expect(await timestamper.flush(only(capture))).toMatchObject({ attempted: 1, granted: 1 });
-      expect((await repos.timestamps!.listRequests(capture.id)).map((r) => r.outcome)).toEqual(['failed', 'granted']);
+      expect((await repos.timestamps!.listRequests(capture.id)).map((r) => r.outcome)).toEqual([
+        'queued',
+        'failed',
+        'queued',
+        'granted',
+      ]);
       expect(egress.calls).toHaveLength(2);
       expect(await actions(repos, capture.id)).toEqual(['timestamp_failed', 'timestamped']);
+      expect((await repos.evidence.getCapture(capture.id))?.timestamp).toBeDefined();
+    });
+
+    it('writes the request ahead: a call that dies leaves a pending subject the flush picks up', async () => {
+      const { repos, timestamper, capture, egress } = await setup(makeRepos, {
+        script: [
+          () => {
+            throw new Error('process interrupted');
+          },
+          {},
+        ],
+      });
+      await expect(timestamper.stamp(subjectOf(capture))).rejects.toThrow('process interrupted');
+      const pending = (await repos.timestamps!.listPending({ subjectIds: [capture.id] })).map((r) => r.reason);
+      expect(pending).toEqual(['in_flight']);
+      expect(await timestamper.flush(only(capture))).toMatchObject({ attempted: 1, granted: 1 });
+      expect(egress.calls).toHaveLength(2);
+      expect((await repos.evidence.getCapture(capture.id))?.timestamp).toBeDefined();
+    });
+
+    it('a failing local write is not mistaken for a TSA outage', async () => {
+      const { repos, timestamper, capture } = await setup(makeRepos, {
+        script: [
+          () => {
+            throw new Error('ENOSPC: no space left on device');
+          },
+        ],
+      });
+      await expect(timestamper.stamp(subjectOf(capture))).rejects.toThrow('ENOSPC');
+      expect((await repos.timestamps!.listRequests(capture.id)).map((r) => r.outcome)).toEqual(['queued']);
+    });
+
+    it('a targeted flush finds its subjects among more pending subjects than the limit', async () => {
+      const { repos, make, capture } = await setup(makeRepos, { mode: 'offline' });
+      const offline = await make('offline');
+      const others = await Promise.all([seedCapture(repos), seedCapture(repos), seedCapture(repos)]);
+      for (const c of [...others, capture]) {
+        // oxlint-disable-next-line no-await-in-loop
+        await offline.stamp(subjectOf(c));
+      }
+      const live = await make('live');
+      expect(await live.flush({ subjectIds: [capture.id], limit: 1 })).toMatchObject({ attempted: 1, granted: 1 });
       expect((await repos.evidence.getCapture(capture.id))?.timestamp).toBeDefined();
     });
 

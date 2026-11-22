@@ -276,8 +276,11 @@ export interface TimestampRepository {
     custody?: CustodyEvent[];
   }): Promise<{ tokenStored: boolean }>;
   getToken(subject: Pick<TimestampSubject, 'type' | 'id' | 'digest'>): Promise<TimestampTokenRecord | undefined>;
-  /** Latest requests of subjects without a token whose latest request is `queued` or `failed`, oldest first. */
-  listPending(limit?: number): Promise<TimestampRequestRecord[]>;
+  /**
+   * Latest requests of subjects without a token whose latest request is `queued` or `failed`, oldest first.
+   * `subjectIds` restricts the subjects first; `limit` (default 100) then applies to the restricted list.
+   */
+  listPending(options?: { limit?: number; subjectIds?: Id[] }): Promise<TimestampRequestRecord[]>;
   listRequests(subjectId: Id): Promise<TimestampRequestRecord[]>;
 }
 

@@ -326,3 +326,16 @@ describe('timestamp skew warning', () => {
     expect(withSkew(90, true)).toContain('różni się od czasu zebrania o 90 s');
   });
 });
+
+describe('rejected timestamps in the evidence register', () => {
+  it('shows a rejected stamp as final with the reason, not as waiting', () => {
+    const data = personaData();
+    const id = data.captures[0]!.id;
+    const register = (outcome: 'rejected' | 'failed', reason: string) =>
+      sectionOf(renderReport({ ...data, timestampRequests: { [id]: { outcome, reason } } }), 'rejestr');
+    const rejected = register('rejected', 'verification_failed: imprint');
+    expect(rejected).toContain('znacznik czasu odrzucony: verification_failed: imprint');
+    expect(rejected).toContain(pl.evidence.timestampPendingOffline); // the other captures still wait
+    expect(register('failed', 'HTTP 503')).not.toContain('znacznik czasu odrzucony');
+  });
+});

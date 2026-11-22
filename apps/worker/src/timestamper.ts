@@ -232,6 +232,9 @@ export async function createTrustedTimestamper(options: TimestamperOptions): Pro
     if (existing) {
       return { status: 'granted', token: existing.token, tokenDer: await blobs.get(existing.token.token.sha256) };
     }
+    // Write-ahead: the subject is pending (and so found by the flush) even when this process dies or the call throws
+    // before the outcome below is recorded. The outcome is a newer row; the latest row decides.
+    await timestamps!.record({ request: requestOf(subject, 'queued', { reason: 'in_flight' }) });
     const attempt = await client.request(subject, { http, blobs, clock, mode });
     const nonce = attempt.nonce?.toString();
     const base = {
@@ -295,8 +298,10 @@ export async function createTrustedTimestamper(options: TimestamperOptions): Pro
     const report: FlushReport = { ran: false, attempted: 0, granted: 0, failed: 0, rejected: 0 };
     if (!canFlush) return { ...report, reason: settings.enabled ? 'not_live' : 'disabled' };
     report.ran = true;
-    const only = flushOptions.subjectIds && new Set(flushOptions.subjectIds);
-    const pending = (await timestamps!.listPending(flushOptions.limit)).filter((r) => !only || only.has(r.subject.id));
+    const pending = await timestamps!.listPending({
+      ...(flushOptions.limit !== undefined ? { limit: flushOptions.limit } : {}),
+      ...(flushOptions.subjectIds ? { subjectIds: flushOptions.subjectIds } : {}),
+    });
     for (const request of pending) {
       report.attempted += 1;
       // Sequential on purpose: the TSA is rate limited (1 request per second).

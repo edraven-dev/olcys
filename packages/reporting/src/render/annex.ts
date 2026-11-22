@@ -106,6 +106,10 @@ function timestampLine(view: View, capture: Capture): SafeHtml {
   const e = pl.evidence;
   const token = capture.timestamp;
   if (!token) {
+    const latest = view.data.timestampRequests?.[capture.id];
+    if (latest?.outcome === 'rejected') {
+      return muted(t(e.timestampRejected, { reason: latest.reason ?? pl.common.unknown }));
+    }
     const offline = view.data.run.mode === 'offline' || view.data.run.mode === 'replay';
     return muted(offline ? e.timestampPendingOffline : e.timestampPending);
   }

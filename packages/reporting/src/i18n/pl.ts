@@ -863,6 +863,8 @@ export const pl = {
     timestampDemo: 'usługa niekwalifikowana (demonstracyjna, bez domniemania z art. 41 eIDAS)',
     timestampSkew: 'UWAGA: czas znacznika różni się od czasu zebrania o {seconds} s',
     timestampPendingOffline: 'znacznik czasu oczekuje (tryb offline)',
+    timestampRejected:
+      'znacznik czasu odrzucony: {reason} (odpowiedź usługi nie przeszła weryfikacji; żądanie nie jest ponawiane)',
     timestampPending: 'znacznik czasu oczekuje (ponowienie żądania do usługi znakowania czasem)',
     artifact: '{kind}: {sha}',
     earlier: 'z poprzedniego uruchomienia',

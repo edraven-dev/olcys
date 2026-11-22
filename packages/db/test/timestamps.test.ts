@@ -113,7 +113,8 @@ async function lifecycle(repos: Repositories): Promise<void> {
     referenceTime: capture.collectedAt,
   };
   // A shared database also holds other tests' requests: look at this capture's subject only.
-  const pendingOf = async () => (await timestamps.listPending(10_000)).filter((r) => r.subject.id === capture.id);
+  const pendingOf = async () =>
+    (await timestamps.listPending({ limit: 10_000 })).filter((r) => r.subject.id === capture.id);
   expect((await repos.evidence.getCapture(capture.id))?.timestamp).toBeUndefined();
 
   // Queued offline, then a failed retry: still pending, the latest request first in the history.
@@ -160,6 +161,25 @@ async function lifecycle(repos: Repositories): Promise<void> {
   const other = { ...subject, digest: 'e'.repeat(64) };
   await timestamps.record({ request: { ...requestOf(other, 'rejected', '2026-11-21T10:04:00.000Z'), reason: 'x' } });
   expect(await pendingOf()).toEqual([]);
+
+  // The subject filter applies before the limit.
+  const crowd = await Promise.all([seedCapture(repos), seedCapture(repos)]);
+  for (const c of crowd) {
+    // oxlint-disable-next-line no-await-in-loop
+    await timestamps.record({
+      request: requestOf(
+        { type: 'capture_manifest', id: c.id, digest: c.manifestSha256 },
+        'queued',
+        '2026-11-21T09:00:00.000Z',
+      ),
+    });
+  }
+  const queuedLate = { ...subject, digest: 'f'.repeat(64) };
+  await timestamps.record({ request: requestOf(queuedLate, 'queued', '2026-11-21T10:05:00.000Z') });
+  expect((await timestamps.listPending({ limit: 1, subjectIds: [capture.id] })).map((r) => r.subject.digest)).toEqual([
+    queuedLate.digest,
+  ]);
+  expect(await timestamps.listPending({ subjectIds: [] })).toEqual([]);
 }
 
 describe('timestamps (memory)', () => {

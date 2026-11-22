@@ -35,9 +35,12 @@ export function memoryTimestamps(custody: CustodyEvent[]): {
       async getToken(subject) {
         return copy(tokens.get(keyOf(subject)));
       },
-      async listPending(limit = 100) {
+      async listPending({ limit = 100, subjectIds } = {}) {
+        const only = subjectIds && new Set(subjectIds);
         const latest = new Map<string, TimestampRequestRecord>();
-        for (const r of requests.toSorted(order)) latest.set(keyOf(r.subject), r);
+        for (const r of requests.toSorted(order)) {
+          if (!only || only.has(r.subject.id)) latest.set(keyOf(r.subject), r);
+        }
         return copy(
           [...latest.values()]
             .filter((r) => (r.outcome === 'queued' || r.outcome === 'failed') && !tokens.has(keyOf(r.subject)))
