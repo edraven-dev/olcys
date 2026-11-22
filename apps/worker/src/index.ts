@@ -44,3 +44,13 @@ export {
   USER_AGENT,
   type StageOptions,
 } from './stages.ts';
+export {
+  assertTsaAllowListed,
+  createTrustedTimestamper,
+  tsaSettings,
+  TsaConfigError,
+  type FlushReport,
+  type TimestamperOptions,
+  type TsaSettings,
+  type WorkerTimestamper,
+} from './timestamper.ts';
