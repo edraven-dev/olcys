@@ -13,6 +13,7 @@ export const PARTIAL_CODES = [
   'address_type_probes_failed',
   'valuation_unavailable',
   'flow_graph_truncated',
+  'llm_unavailable',
 ] as const;
 export type PartialCode = (typeof PARTIAL_CODES)[number];
 

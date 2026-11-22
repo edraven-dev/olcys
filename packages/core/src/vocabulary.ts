@@ -42,6 +42,7 @@ export const RUN_STEPS = [
   'labels.classify',
   'analytics.compute',
   'score.links',
+  'llm.suggest',
   'diff.previous',
   'report.render',
   'run.finish',

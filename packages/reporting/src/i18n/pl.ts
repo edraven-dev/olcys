@@ -302,6 +302,8 @@ export const pl = {
       valuation_unavailable: 'brak wyceny w PLN dla {count} transferów (brak ceny lub kursu NBP)',
       flow_graph_truncated:
         'graf przepływów środków przycięty limitem {limit} krawędzi (zapytań: {count}); część dalszych przepływów nie została pokazana',
+      llm_unavailable:
+        'model AI był niedostępny lub zawiódł dla {count} wzmianek o adresach: nie powstały dla nich sugestie ról (nie wpływa to na wyniki)',
     } as Record<string, string>,
     addresses: 'W treści zabezpieczonych stron znaleziono {addresses} o poprawnym formacie i sumie kontrolnej.',
     transfers: 'Z publicznych danych blockchain pobrano {transfers} dotyczące analizowanych adresów.',
