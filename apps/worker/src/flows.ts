@@ -139,14 +139,28 @@ async function frontierOf(args: HopExpansionArgs, sources: readonly AddressRef[]
 export async function expandFlowHops(args: HopExpansionArgs): Promise<HopExpansionResult> {
   const result: HopExpansionResult = { outcomes: [], fetchedPerHop: [], leaves: [] };
   let sources: readonly AddressRef[] = args.seeds;
+  /** Addresses whose counterparties were already planned: each is a source once. */
+  const used = new Set<string>();
+  const leaves = new Set<string>();
   for (let hop = 1; hop <= args.settings.expansionHops && sources.length > 0; hop += 1) {
     // oxlint-disable-next-line no-await-in-loop
     const frontier = await frontierOf(args, sources);
+    for (const source of sources) used.add(addressKey(source));
     const classes = new Map<string, EndpointClass>();
     for (const item of frontier) {
       const key = addressKey(item.address);
       // oxlint-disable-next-line no-await-in-loop
       if (!classes.has(key)) classes.set(key, await args.classify(item.address));
+    }
+    // Counterparties whose history is already in the pool (fetched earlier) are not fetched again but still continue
+    // the walk: their own counterparties are the next frontier.
+    const carried = new Map<string, AddressRef>();
+    for (const item of frontier) {
+      const key = addressKey(item.address);
+      const cls = classes.get(key);
+      if (args.fetched.has(key) && !used.has(key) && !leaves.has(key) && !cls?.service && !cls?.excluded) {
+        carried.set(key, item.address);
+      }
     }
     const plan = planHopExpansion(
       frontier,
@@ -158,7 +172,7 @@ export async function expandFlowHops(args: HopExpansionArgs): Promise<HopExpansi
       },
       args.settings.budget,
     );
-    if (plan.length === 0) break;
+    if (plan.length === 0 && carried.size === 0) break;
     for (const item of plan) args.fetched.add(addressKey(item.address));
 
     // Pass A: summaries of the addresses not summarised yet (they decide who is a leaf).
@@ -183,7 +197,9 @@ export async function expandFlowHops(args: HopExpansionArgs): Promise<HopExpansi
       .filter((i) => i.want.transfers !== false && !heavy(i.address) && !missing.has(addressKey(i.address)))
       .map((i) => i.address);
     // Heavy addresses were summarised only: their history is not followed.
-    result.leaves.push(...plan.filter((i) => i.want.transfers === false || heavy(i.address)).map((i) => i.address));
+    const leafNow = plan.filter((i) => i.want.transfers === false || heavy(i.address)).map((i) => i.address);
+    result.leaves.push(...leafNow);
+    for (const a of leafNow) leaves.add(addressKey(a));
 
     // Pass B: the histories.
     const fetchedNow: AddressRef[] = [];
@@ -202,7 +218,7 @@ export async function expandFlowHops(args: HopExpansionArgs): Promise<HopExpansi
       }
     }
     result.fetchedPerHop.push(fetchedNow);
-    sources = fetchedNow;
+    sources = [...fetchedNow, ...carried.values()];
   }
   return result;
 }

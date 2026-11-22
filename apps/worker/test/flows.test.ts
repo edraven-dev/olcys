@@ -214,6 +214,50 @@ describe('expandFlowHops', () => {
   });
 });
 
+describe('expandFlowHops with counterparties fetched earlier', () => {
+  it('continues through an already fetched recipient: A→B→C→D with B fetched, two hops reach C', async () => {
+    const pool: TransferPool = {
+      transfers: [transfer('A', 'B', 1, '10'), transfer('B', 'C', 2, '10')],
+      utxoTxs: [],
+    };
+    const fetched = new Set([addressKey(ref('A')), addressKey(ref('B'))]);
+    const calls: string[][] = [];
+    const stored: { address: string; hop: number }[] = [];
+    const out = await expandFlowHops({
+      seeds: [ref('A')],
+      settings: settings({ expansionHops: 2 }),
+      pool,
+      fetched,
+      txCounts: new Map(),
+      assets,
+      valuator,
+      ctx,
+      classify: async () => ({ service: false, excluded: false }),
+      async fetch(plan) {
+        calls.push(plan.map((i) => `${i.address.address}:${String(i.want?.transfers)}`));
+        return result({
+          summaries: plan.filter((i) => i.want?.summary).map((i) => ({ address: i.address, txCount: 2, fetchId: 'f' })),
+          outcomes: plan.map((i) => ({
+            address: i.address,
+            chain: 'tron' as const,
+            status: 'ok' as const,
+            pages: 1,
+            items: 0,
+          })),
+          transfers: plan.some((i) => i.want?.transfers !== false) ? [transfer('C', 'D', 3, '10')] : [],
+        });
+      },
+      async onFetched(address, _transfers, hop) {
+        stored.push({ address: address.address, hop });
+      },
+    });
+    // B is not fetched again; C (B's recipient) is, at hop 2.
+    expect(calls).toEqual([['C:false'], ['C:undefined']]);
+    expect(stored).toEqual([{ address: 'C', hop: 2 }]);
+    expect(out.fetchedPerHop).toEqual([[], [ref('C')]]);
+  });
+});
+
 describe('computeFlowGraph', () => {
   it('computes edges, timeline and Sankey per analysed address and stops at labelled services', async () => {
     const pool: TransferPool = {
