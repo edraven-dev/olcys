@@ -18,6 +18,7 @@ import { formatDateTime } from '../../lib/format.ts';
 import { useJson, useList } from '../../lib/use-api.ts';
 import type { RunScope } from '../run/RunPage.tsx';
 import { UNAVAILABLE_STATUSES } from '../run/run-model.ts';
+import { ArchiveHistoryPanel } from './ArchiveHistory.tsx';
 import { CHANGE_KIND_ORDER, diffParts, groupChanges, type DiffPart } from './changes-model.ts';
 
 const propertyLabel = (property: string) => lookup(pl.changes.properties, property);
@@ -67,6 +68,7 @@ export function ChangesTab({ scope }: { scope: RunScope }) {
           </Async>
         </>
       )}
+      <ArchiveHistoryPanel caseId={run.caseId} version={version} />
     </section>
   );
 }
