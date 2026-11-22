@@ -16,7 +16,7 @@ zarówno w Node.js, jak i w przeglądarce.
 | `src/chain-data.ts` | `NormalizedTransfer`, `UtxoTransaction`, `AddressSummary`                                                                                                  |
 | `src/labels.ts`     | `AddressLabel`, `AddressTypeClassification`, `ExclusionDecision` (reguły A1–A8)                                                                            |
 | `src/analytics.ts`  | `Valuation` (NBP), `CashOutEvent` (reguły B1–B7), `ActivityIndicators`, `FlowEdge`                                                                         |
-| `src/scoring.ts`    | poziomy dowodów E1–E4/AUTH, `Relation`, `LinkAssessment`, `HopResult`, `AnalystJudgement`                                                                  |
+| `src/scoring.ts`    | poziomy dowodów E1–E4/AUTH, `Relation`, `LinkAssessment`, `HopResult`, `AnalystJudgement`, `AnalystOverride`, `ADD_EVIDENCE_FEATURES`                      |
 | `src/changes.ts`    | `ChangeEvent` (ADDED / REMOVED / VALUE_CHANGED / SCORE_CHANGED)                                                                                            |
 | `src/report.ts`     | `ReportModel` z rozdzieleniem faktów, wyników obliczeń i wniosków                                                                                          |
 | `src/ports.ts`      | `EgressClient`, `BlobStore`, `SourceCollector`, `ChainProvider`, `LabelLookup`, `FxRateSource`, `PriceSource`, `SearchProvider`, `LlmClient`, `RunContext` |

@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { IDENTIFIER_KINDS } from './case.ts';
 import { CHAIN_FAMILIES, type ChainId } from './chains.ts';
 import { DENY_LIST_KINDS } from './labels.ts';
-import { EVIDENCE_TIERS } from './scoring.ts';
+import { ANALYST_OVERRIDE_KINDS, EVIDENCE_TIERS, JUDGEMENT_VALUES } from './scoring.ts';
 import { ADMIRALTY_RELIABILITY, COMPLIANCE_STATUSES, SOURCE_KINDS } from './sources.ts';
 
 // --- errors & helpers ------------------------------------------------------------------------------------------
@@ -88,6 +88,39 @@ export const StartRunSchema = z.strictObject({
   trigger: z.enum(['manual', 'rescore']).default('manual'),
   rescoreOfRunId: z.uuid().optional(),
 });
+
+// --- API input: analyst judgements and overrides -----------------------------------------------------------------
+
+/**
+ * Body of `POST /api/links/:linkId/judgements`. Not strict on purpose: the analyst is never taken from the request,
+ * so a body field such as `analyst` is dropped. The API checks the trimmed justification against
+ * `JUSTIFICATION_LENGTH` and answers with stable error codes.
+ */
+export const CreateJudgementSchema = z.object({
+  judgement: z.enum(JUDGEMENT_VALUES),
+  justification: z.string(),
+});
+export type CreateJudgementInput = z.infer<typeof CreateJudgementSchema>;
+
+export const AnalystOverrideTargetSchema = z.strictObject({
+  sourceId: z.string().trim().min(1).max(64).optional(),
+  observationId: z.uuid().optional(),
+  candidateId: z.uuid().optional(),
+  accountId: z.uuid().optional(),
+  address: AddressRefSchema.optional(),
+});
+
+/**
+ * Body of `POST /api/cases/:caseId/overrides` (not strict, like judgements). The API checks the value and the target
+ * required by the kind, that the target belongs to a run of the case, and the justification's length.
+ */
+export const CreateOverrideSchema = z.object({
+  kind: z.enum(ANALYST_OVERRIDE_KINDS),
+  target: AnalystOverrideTargetSchema,
+  value: z.string().trim().min(1).max(64),
+  justification: z.string(),
+});
+export type CreateOverrideInput = z.infer<typeof CreateOverrideSchema>;
 
 // --- config/sources.yaml -----------------------------------------------------------------------------------------
 
