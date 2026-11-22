@@ -25,7 +25,7 @@ const SOFTWARE = [{ name: 'parser:farcaster', version: FARCASTER_PARSER_VERSION 
 const FNAME = /^[a-z0-9][a-z0-9-]{0,15}$|^[a-z0-9-]+\.eth$/;
 
 export interface FarcasterOptions {
-  /** Snapchain node (default the public node; self-hosted: `http://<host>:3381` plus `OLCYS_SOURCE_HOSTS_FARCASTER`). */
+  /** Snapchain node (default the public node; self-hosted: `http://<host>:3381` plus its host in the register's `allowedHosts`). */
   hubUrl?: string;
   /** Pages of verifications (100 each) read at most (default 5). */
   maxVerificationPages?: number;
@@ -132,8 +132,7 @@ export function createFarcasterCollector(options: FarcasterOptions = {}): Collec
             if (dataAnswer.status === 'not_found') rb.affirmNotFound(`farcaster fid ${fid}`);
             const profile = dataAnswer.status === 'ok' ? parseUserData(dataAnswer.json) : [];
             fname ??= profile.find((d) => d.type === 'username')?.value;
-            const verifications: FarcasterVerification[] = [];
-            let verificationCapture: Capture | undefined;
+            const verifications: (FarcasterVerification & { capture: Capture })[] = [];
             let pageToken: string | undefined;
             for (let page = 0; page < maxPages; page += 1) {
               if (http.stopped()) break;
@@ -144,9 +143,12 @@ export function createFarcasterCollector(options: FarcasterOptions = {}): Collec
                 `no verifications for Farcaster fid ${fid}`,
               );
               if (answer.status !== 'ok') break;
-              verificationCapture ??= answer.capture;
               const parsed = parseVerifications(answer.json);
-              verifications.push(...parsed.items);
+              // Each verification keeps the capture of the page that contained it.
+              if (answer.capture) {
+                const pageCapture = answer.capture;
+                verifications.push(...parsed.items.map((item) => ({ ...item, capture: pageCapture })));
+              }
               pageToken = parsed.nextPageToken;
               if (!pageToken) break;
               if (page === maxPages - 1) {
@@ -154,13 +156,21 @@ export function createFarcasterCollector(options: FarcasterOptions = {}): Collec
                 rb.addStatus('error');
               }
             }
-            const capture = verificationCapture ?? dataAnswer.capture ?? proofCapture;
-            if (capture && (dataAnswer.status === 'ok' || verifications.length || proofCapture))
+            const accountCapture = dataAnswer.capture ?? proofCapture ?? verifications[0]?.capture;
+            if (accountCapture && (dataAnswer.status === 'ok' || verifications.length || proofCapture))
               observe(
                 rb,
-                capture,
                 descriptor.id,
-                { fid, ...(fname ? { fname } : {}), owner, profile, verifications },
+                {
+                  fid,
+                  ...(fname ? { fname } : {}),
+                  owner,
+                  profile,
+                  verifications,
+                  accountCapture,
+                  ...(dataAnswer.status === 'ok' && dataAnswer.capture ? { dataCapture: dataAnswer.capture } : {}),
+                  ...(proofCapture ? { proofCapture } : {}),
+                },
                 target.method,
               );
           }
@@ -176,16 +186,16 @@ interface Found {
   fname?: string;
   owner?: string;
   profile: FarcasterUserData[];
-  verifications: FarcasterVerification[];
+  verifications: (FarcasterVerification & { capture: Capture })[];
+  /** Capture of the account itself (profile page of the account). */
+  accountCapture: Capture;
+  /** `userDataByFid` answer: source of every `profile.*` value. */
+  dataCapture?: Capture;
+  /** `userNameProofByName` answer: source of the fname and the custody address. */
+  proofCapture?: Capture;
 }
 
-function observe(
-  rb: ResultBuilder,
-  capture: Capture,
-  sourceId: string,
-  found: Found,
-  method: AccountDiscoveryMethod,
-): void {
+function observe(rb: ResultBuilder, sourceId: string, found: Found, method: AccountDiscoveryMethod): void {
   const key = `farcaster:${found.fid}`;
   const subject = { type: 'account' as const, key };
   const display = found.profile.find((d) => d.type === 'display_name')?.value;
@@ -194,37 +204,39 @@ function observe(
     handle: found.fname ?? `fid:${found.fid}`,
     platformUserId: found.fid,
     profileUrl: found.fname ? `https://farcaster.xyz/${found.fname}` : `https://farcaster.xyz/~/profiles/${found.fid}`,
-    profileCaptureId: capture.id,
+    profileCaptureId: found.accountCapture.id,
     ...(display ? { displayName: display } : {}),
-    discoveredVia: { sourceId, method: method === 'input' ? 'input' : 'protocol_lookup', captureId: capture.id },
+    discoveredVia: {
+      sourceId,
+      method: method === 'input' ? 'input' : 'protocol_lookup',
+      captureId: found.accountCapture.id,
+    },
   });
-  const fact = (property: string, value: string | undefined, path: string): void => {
-    if (value) rb.observe(capture, subject, property, value, `farcaster:fid=${found.fid}#${path}`);
+  const fact = (capture: Capture | undefined, property: string, value: string | undefined, path: string): void => {
+    if (value && capture) rb.observe(capture, subject, property, value, `farcaster:fid=${found.fid}#${path}`);
   };
-  fact('profile.username', found.fname, 'profile.username');
-  fact('account.custody_address', found.owner, 'account.custody_address');
+  // The fname is read from the name proof, or else from the profile data; the custody address only from the proof.
+  fact(found.proofCapture ?? found.dataCapture, 'profile.username', found.fname, 'profile.username');
+  fact(found.proofCapture, 'account.custody_address', found.owner, 'account.custody_address');
   for (const entry of found.profile) {
     if (entry.type === 'username' || entry.type === 'pfp') continue;
-    fact(`profile.${entry.type}`, entry.value, `profile.${entry.type}`);
+    fact(found.dataCapture, `profile.${entry.type}`, entry.value, `profile.${entry.type}`);
   }
   const github = found.profile.find((d) => d.type === 'github')?.value;
   if (github && /^[A-Za-z0-9-]{1,39}$/.test(github)) {
-    rb.observe(
-      capture,
-      subject,
-      'account.link',
-      `https://github.com/${github}`,
-      `farcaster:fid=${found.fid}#link.github`,
-    );
+    fact(found.dataCapture, 'account.link', `https://github.com/${github}`, 'link.github');
   }
   for (const v of found.verifications) {
     const prefix = v.chain === 'solana' ? 'sol' : 'eth';
-    const at = `farcaster:fid=${found.fid}#`;
-    const loc = (property: string): string => `${at}${property}[${v.address}]`;
-    rb.observe(capture, subject, `verification.${prefix}_address`, v.address, loc(`verification.${prefix}_address`));
-    if (v.addedAt) rb.observe(capture, subject, 'verification.added_at', v.addedAt, loc('verification.added_at'));
+    // One locator base per address: scoring matches a `computed.*_check` to its fact by the part before `#`, so the
+    // address belongs there and two claims of one capture never overwrite each other.
+    const at = `farcaster:fid=${found.fid}:addr=${v.address}#`;
+    const loc = (property: string): string => `${at}${property}`;
+    const c = v.capture;
+    rb.observe(c, subject, `verification.${prefix}_address`, v.address, loc(`verification.${prefix}_address`));
+    if (v.addedAt) rb.observe(c, subject, 'verification.added_at', v.addedAt, loc('verification.added_at'));
     if (v.messageHash)
-      rb.observe(capture, subject, 'verification.message_hash', v.messageHash, loc('verification.message_hash'));
-    rb.observe(capture, subject, 'computed.claim_signature_check', v.check, loc('computed.claim_signature_check'));
+      rb.observe(c, subject, 'verification.message_hash', v.messageHash, loc('verification.message_hash'));
+    rb.observe(c, subject, 'computed.claim_signature_check', v.check, loc('computed.claim_signature_check'));
   }
 }

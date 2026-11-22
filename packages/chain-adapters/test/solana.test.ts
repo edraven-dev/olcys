@@ -208,6 +208,7 @@ describe('Solana provider', () => {
     expect(http.requests.filter((r) => rpcBody(r).method === 'getTransaction')).toHaveLength(500);
     expect(page.items).toHaveLength(500);
     expect(page.truncated).toBe(true);
+    expect(page.notes).toContain('token_accounts_not_scanned');
     expect(page.nextCursor).toBeUndefined();
   });
 

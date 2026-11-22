@@ -87,6 +87,7 @@ function liveSetup(answer: (url: string) => Answer, sources: SourceId[], env: Re
 
 // --- Farcaster ------------------------------------------------------------------------------------------------------
 
+const base = (o: { locator: string }) => o.locator.split('#')[0];
 const hexOf = (b: Uint8Array) => `0x${hex.encode(b)}`;
 /** One ETH verification message, signed with an ephemeral key at test time. */
 function ethMessage(opts: { flip?: boolean; encoding?: 'hex' | 'base64'; contract?: boolean } = {}) {
@@ -179,7 +180,7 @@ describe('Farcaster collector', () => {
     ]);
     // Locators carry the canonical address so a removed verification is a removal of that locator only.
     expect(props(result, 'verification.eth_address').map((o) => o.locator)).toContain(
-      `farcaster:fid=${FID}#verification.eth_address[${good.address}]`,
+      `farcaster:fid=${FID}:addr=${good.address}#verification.eth_address`,
     );
     expect(values(result, 'verification.added_at')).toContain('2026-01-01T00:00:00.000Z');
     // Only the node's host, always marked as carrying an identifier.
@@ -188,6 +189,25 @@ describe('Farcaster collector', () => {
     // The GitHub account of the profile is followed through account.link; the bio is redacted before storage.
     expect(values(result, 'account.link')).toEqual(['https://github.com/olcys-test-marek']);
     expect(values(result, 'profile.bio').join()).not.toContain('TESTSECRET');
+  });
+
+  it('cites the capture that holds each value and keeps one check per address', async () => {
+    const good = ethMessage();
+    const bad = ethMessage({ flip: true });
+    const { run } = liveSetup(
+      hubAnswer(() => [good.message, bad.message]),
+      ['farcaster'],
+    );
+    const result = await run(createFarcasterCollector(), input('farcaster', 'fikcyjny-kacper'));
+    const urlOf = (captureId: string) => result.captures.find((c) => c.id === captureId)?.url ?? '';
+    expect(urlOf(props(result, 'profile.bio')[0]!.captureId)).toContain('/v1/userDataByFid');
+    expect(urlOf(props(result, 'verification.eth_address')[0]!.captureId)).toContain('/v1/verificationsByFid');
+    // scoring pairs a check with a fact by capture + the locator part before `#`
+    const checks = new Map(props(result, 'computed.claim_signature_check').map((o) => [base(o), o.value]));
+    expect(checks.size).toBe(2);
+    for (const o of props(result, 'verification.eth_address')) {
+      expect(checks.get(base(o))).toBe(o.value === good.address ? 'valid' : 'invalid');
+    }
   });
 
   it('reads hex and base64 bodies alike', async () => {
