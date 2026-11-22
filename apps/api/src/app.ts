@@ -2,10 +2,21 @@
  * HTTP API for the analyst console. Reads the append-only store through the repository ports; starting a run hands
  * it to the pipeline (in-process in the MVP). Inputs are validated with the `@olcys/core` schemas.
  */
-import type { BlobStore, Repositories, RunWithProgress, SourceDescriptor } from '@olcys/core';
+import type {
+  ApiMeta,
+  BlobStore,
+  FetchMode,
+  Logger,
+  Repositories,
+  RunConfigSnapshot,
+  RunWithProgress,
+  SourceDescriptor,
+} from '@olcys/core';
 import { ContractError, CORE_CONTRACTS_VERSION, CreateCaseSchema, parse, StartRunSchema } from '@olcys/core';
-import { evidenceRunIdOf } from '@olcys/worker';
+import { evidenceRunIdOf, TOOL_VERSION } from '@olcys/worker';
 import Fastify, { type FastifyInstance, type FastifyReply } from 'fastify';
+import { registerAnalystRoutes, supportsJudgements, withJudgements } from './analyst-routes.ts';
+import { idOf } from './ids.ts';
 
 export interface ApiDeps {
   repos: Repositories;
@@ -20,17 +31,17 @@ export interface ApiDeps {
   analyst?: string;
   /** Fastify request logging. */
   httpLog?: boolean;
+  /** Run mode and configuration snapshot of new runs, for `GET /api/meta`. */
+  mode?: FetchMode;
+  config?: { snapshot: RunConfigSnapshot };
+  /** Audit log of analyst actions (judgements, overrides). */
+  logger?: Logger;
+  /** Renders a new version of a finished run's report (`POST /api/runs/:runId/report`). */
+  renderReport?(run: RunWithProgress): Promise<void>;
 }
 
 const notFound = (reply: FastifyReply, what: string) =>
   reply.code(404).send({ error: 'not_found', message: `${what} not found` });
-
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-/**
- * Ids are UUIDs in canonical lowercase form; anything else cannot exist and must not reach the database. Both stores
- * then see the same spelling (PostgreSQL's uuid type ignores case, the in-memory store does not).
- */
-const idOf = (value: string): string | undefined => (UUID.test(value) ? value.toLowerCase() : undefined);
 
 /** Minimum length of an AMBER justification (matches the collectors' scope lock). */
 export const MIN_AMBER_JUSTIFICATION = 20;
@@ -82,6 +93,32 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
   });
 
   app.get('/api/health', async () => ({ status: 'ok', service: '@olcys/api', contracts: CORE_CONTRACTS_VERSION }));
+
+  app.get('/api/meta', async (): Promise<ApiMeta> => {
+    const snapshot = deps.config?.snapshot;
+    return {
+      toolVersion: snapshot?.toolVersion ?? TOOL_VERSION,
+      contracts: CORE_CONTRACTS_VERSION,
+      mode: deps.mode ?? 'offline',
+      features: {
+        judgements: supportsJudgements(repos),
+        suggestions: false,
+        schedules: false,
+        reportPdf: false,
+        exports: false,
+        auth: false,
+      },
+      ...(snapshot
+        ? {
+            scoring: {
+              weightsVersion: snapshot.weightsVersion,
+              weightsSha256: snapshot.weightsSha256,
+              rulesVersions: snapshot.rulesVersions,
+            },
+          }
+        : {}),
+    };
+  });
 
   app.get('/api/sources', async () => ({
     items: deps.sources.map((s) => ({
@@ -166,7 +203,8 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
   runList('extractions', (id) => repos.evidence.listExtractionResults(id));
   runList('egress', (id) => repos.evidence.listEgressLog(id), 'evidence');
   runList('transfers', (id) => repos.chain.listTransfers(id), 'evidence');
-  runList('links', (id) => repos.analysis.listLinks(id));
+  // Each link carries the analyst judgements recorded next to it (the assessment itself is never changed).
+  runList('links', async (id) => withJudgements(repos, id, await repos.analysis.listLinks(id)));
   runList('exclusions', (id) => repos.analysis.listExclusions(id), 'evidence');
   runList('activity', (id) => repos.analysis.listActivity(id), 'evidence');
   runList('cash-outs', (id) => repos.analysis.listCashOuts(id), 'evidence');
@@ -205,6 +243,14 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
       .header('content-security-policy', "default-src 'none'; style-src 'unsafe-inline'; img-src data:")
       .header('x-content-type-options', 'nosniff')
       .send(Buffer.from(bytes));
+  });
+
+  registerAnalystRoutes(app, {
+    repos,
+    sources: deps.sources,
+    analyst,
+    ...(deps.logger ? { logger: deps.logger } : {}),
+    ...(deps.renderReport ? { renderReport: deps.renderReport } : {}),
   });
 
   return app;

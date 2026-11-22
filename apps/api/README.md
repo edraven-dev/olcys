@@ -8,6 +8,7 @@ serwer deweloperski Vite (`/api`). W MVP uruchamia też potok analizy w tym samy
 | Metoda i ścieżka                                                    | Opis                                                                               |
 | ------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
 | `GET /api/health`                                                   | stan usługi i wersja kontraktów                                                    |
+| `GET /api/meta`                                                     | wersja, tryb, dostępne funkcje (`features.judgements`), wersje wag i reguł         |
 | `GET /api/sources`                                                  | rejestr źródeł ze statusem zgodności (GREEN/AMBER/RED)                             |
 | `GET /api/cases`, `POST /api/cases`, `GET /api/cases/:id`           | sprawy i ich identyfikatory (walidacja schematem `CreateCaseSchema`)               |
 | `GET /api/cases/:id/runs`, `POST /api/cases/:id/runs`               | przebiegi sprawy; `POST` tworzy przebieg i uruchamia potok (odpowiedź 202)         |
@@ -15,6 +16,9 @@ serwer deweloperski Vite (`/api`). W MVP uruchamia też potok analizy w tym samy
 | `GET /api/runs/:id/{captures,observations,accounts,candidates}`     | dowody: przechwycenia stron, fakty, konta, kandydaci adresów                       |
 | `GET /api/runs/:id/extractions`                                     | wyniki ekstrakcji z dopasowaniami odrzuconymi przy weryfikacji (np. homoglify)     |
 | `GET /api/runs/:id/{links,exclusions,activity,cash-outs,transfers}` | wyniki: powiązania ze Wskaźnikiem Pewności, odrzucenia, aktywność, wyjścia do fiat |
+| `GET /api/links/:linkId/judgements`, `POST …/judgements`            | oceny analityka przy powiązaniu (od najstarszej); nie zmieniają wyniku             |
+| `GET /api/cases/:id/overrides`, `POST /api/cases/:id/overrides`     | korekty analityka w sprawie; działają dopiero w ponownej ocenie (`rescore`)        |
+| `POST /api/runs/:id/report`                                         | nowa wersja raportu zakończonego przebiegu (z ocenami zapisanymi do tej chwili)    |
 | `GET /api/runs/:id/changes`                                         | zmiany względem poprzedniego przebiegu (m.in. podmiana portfela)                   |
 | `GET /api/runs/:id/egress`                                          | dziennik ruchu wychodzącego przebiegu                                              |
 | `GET /api/runs/:id/report`                                          | raport HTML przebiegu                                                              |
@@ -23,6 +27,20 @@ serwer deweloperski Vite (`/api`). W MVP uruchamia też potok analizy w tym samy
 
 Treść pobrana ze stron jest niezaufana: `/api/blobs` zwraca ją jako załącznik `application/octet-stream` z nagłówkami
 `nosniff` i `Content-Security-Policy: sandbox`, nigdy jako stronę w domenie konsoli.
+
+## Oceny i korekty analityka
+
+Analityk jest brany z konfiguracji serwera (`OLCYS_ANALYST_NAME`, w razie braku `OLCYS_COLLECTOR_NAME`), nigdy z treści
+żądania (pole `analyst` w treści jest pomijane). Ocena (`{ judgement: 'same' | 'not_same' | 'unsure', justification }`)
+jest zapisywana obok powiązania — zapisany wynik pozostaje bajtowo identyczny, a `GET /api/runs/:id/links` zwraca przy
+każdym powiązaniu listę `judgements`. Korekta (`{ kind, target, value, justification }`) musi dotyczyć elementu
+z przebiegu sprawy i zmienia dane wejściowe dopiero przebiegu ponownej oceny. Szczegóły:
+[metodyka Wskaźnika Pewności](../../docs/methodology/wskaznik-pewnosci.md).
+
+Błędy: 404 `link_not_found`; 422 `justification_too_short` / `justification_too_long` (10–2000 znaków po przycięciu),
+`feature_not_allowed`, `grade_not_allowed` (ocena F), `invalid_value`, `invalid_target`, `target_not_found`,
+`candidate_not_review_required`; 409 `run_not_finished` (raport tylko dla zakończonego przebiegu). Każda ocena i korekta
+jest odnotowywana w dzienniku (analityk i identyfikatory, bez treści).
 
 ## Uruchomienie
 

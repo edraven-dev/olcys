@@ -3,11 +3,18 @@
  * proxy (`/api`). The MVP runs the analysis pipeline in this process.
  */
 import { createRuntime } from '@olcys/worker';
+import { analystName } from './analyst-routes.ts';
 import { buildApp } from './app.ts';
-import { defaultStages } from './stages.ts';
+import { defaultStages, reportRenderer } from './stages.ts';
 
 const runtime = await createRuntime({ stages: defaultStages });
-const app = buildApp({ ...runtime, httpLog: true });
+const analyst = analystName(process.env);
+const app = buildApp({
+  ...runtime,
+  httpLog: true,
+  ...(analyst ? { analyst } : {}),
+  renderReport: reportRenderer(runtime),
+});
 const port = Number(process.env['API_PORT'] ?? 4000);
 await app.listen({ host: '127.0.0.1', port });
 
