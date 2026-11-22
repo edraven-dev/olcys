@@ -28,6 +28,17 @@ export {
   type CashOutRulesConfig,
   type CashOutScoreConfig,
 } from './cashout.ts';
+export { buildFlowEdges } from './flow-edges.ts';
+export {
+  DEFAULT_HOP_BUDGET,
+  planHopExpansion,
+  type HopExpansionBudget,
+  type HopExpansionDeps,
+  type HopFrontierItem,
+  type HopPlanItem,
+} from './hop-expansion.ts';
+export { buildSankey, edgeLayers, SANKEY_MAX_LINKS } from './sankey.ts';
+export { buildTimeline, type TimelineOptions } from './timeline.ts';
 export { analyseAddress, buildFundFlow, planCounterpartyExpansion, type AddressAnalysis } from './flows.ts';
 export {
   addDays,
