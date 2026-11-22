@@ -5,30 +5,31 @@ serwer deweloperski Vite (`/api`). W MVP uruchamia też potok analizy w tym samy
 
 ## Trasy
 
-| Metoda i ścieżka                                                    | Opis                                                                                        |
-| ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| `GET /api/health`                                                   | stan usługi i wersja kontraktów                                                             |
-| `GET /api/meta`                                                     | wersja, tryb, włączone funkcje (`features`), wersje wag i reguł                             |
-| `GET /api/sources`                                                  | rejestr źródeł ze statusem zgodności (GREEN/AMBER/RED)                                      |
-| `GET /api/cases`, `POST /api/cases`, `GET /api/cases/:id`           | sprawy i ich identyfikatory (walidacja schematem `CreateCaseSchema`)                        |
-| `GET /api/cases/:id/runs`, `POST /api/cases/:id/runs`               | przebiegi sprawy; `POST` tworzy przebieg i uruchamia potok (odpowiedź 202)                  |
-| `GET /api/cases/:id/schedule`, `PUT /api/cases/:id/schedule`        | harmonogram analiz okresowych: cron (UTC), najbliższe terminy, wyzwolenia, zmiany           |
-| `GET /api/runs/:id`                                                 | status i postęp przebiegu                                                                   |
-| `GET /api/runs/:id/{captures,observations,accounts,candidates}`     | dowody: przechwycenia stron, fakty, konta, kandydaci adresów                                |
-| `GET /api/runs/:id/extractions`                                     | wyniki ekstrakcji z dopasowaniami odrzuconymi przy weryfikacji (np. homoglify)              |
-| `GET /api/runs/:id/{links,exclusions,activity,cash-outs,transfers}` | wyniki: powiązania ze Wskaźnikiem Pewności, odrzucenia, aktywność, wyjścia do fiat          |
-| `GET /api/runs/:id/address-types`                                   | typy adresów z analizy łańcuchowej (EOA, EIP-7702, Safe, ERC-4337, kontrakt…)               |
-| `GET /api/runs/:id/clusters`                                        | klastry Bitcoin (heurystyka wspólnego wydatkowania): dowody połączeń, pominięcia            |
-| `GET /api/links/:linkId/judgements`, `POST …/judgements`            | oceny analityka przy powiązaniu (od najstarszej); nie zmieniają wyniku                      |
-| `GET /api/cases/:id/overrides`, `POST /api/cases/:id/overrides`     | korekty analityka w sprawie; działają dopiero w ponownej ocenie (`rescore`)                 |
-| `POST /api/runs/:id/report`                                         | nowa wersja raportu zakończonego przebiegu (z ocenami zapisanymi do tej chwili)             |
-| `GET /api/runs/:id/changes`                                         | zmiany względem poprzedniego przebiegu (m.in. podmiana portfela)                            |
-| `GET /api/runs/:id/egress`                                          | dziennik ruchu wychodzącego przebiegu                                                       |
-| `GET /api/runs/:id/report`                                          | raport HTML przebiegu                                                                       |
-| `GET /api/runs/:id/exports`                                         | lista eksportów bieżącej wersji raportu (pusta dla starszych raportów)                      |
-| `GET /api/runs/:id/exports/:format`                                 | eksport raportu: `stix`, `misp`, `csv_links`, `csv_evidence`, `csv_cash_out`, `csv_changes` |
-| `GET /api/labels`                                                   | etykiety adresów z pochodzeniem (zbiór danych, URL, licencja, data zmiany)                  |
-| `GET /api/captures/:id`, `GET /api/blobs/:sha256`                   | metadane przechwycenia; surowa treść dowodu wyłącznie jako plik do pobrania                 |
+| Metoda i ścieżka                                                    | Opis                                                                                                        |
+| ------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `GET /api/health`                                                   | stan usługi i wersja kontraktów                                                                             |
+| `GET /api/meta`                                                     | wersja, tryb, włączone funkcje (`features`), wersje wag i reguł                                             |
+| `GET /api/sources`                                                  | rejestr źródeł ze statusem zgodności (GREEN/AMBER/RED)                                                      |
+| `GET /api/cases`, `POST /api/cases`, `GET /api/cases/:id`           | sprawy i ich identyfikatory (walidacja schematem `CreateCaseSchema`)                                        |
+| `GET /api/cases/:id/runs`, `POST /api/cases/:id/runs`               | przebiegi sprawy; `POST` tworzy przebieg i uruchamia potok (odpowiedź 202)                                  |
+| `GET /api/cases/:id/schedule`, `PUT /api/cases/:id/schedule`        | harmonogram analiz okresowych: cron (UTC), najbliższe terminy, wyzwolenia, zmiany                           |
+| `GET /api/cases/:id/timeline`                                       | historia wartości stron i pól profilu: kopie archiwalne i przebiegi; filtry `url`, `property`, `walletOnly` |
+| `GET /api/runs/:id`                                                 | status i postęp przebiegu                                                                                   |
+| `GET /api/runs/:id/{captures,observations,accounts,candidates}`     | dowody: przechwycenia stron, fakty, konta, kandydaci adresów                                                |
+| `GET /api/runs/:id/extractions`                                     | wyniki ekstrakcji z dopasowaniami odrzuconymi przy weryfikacji (np. homoglify)                              |
+| `GET /api/runs/:id/{links,exclusions,activity,cash-outs,transfers}` | wyniki: powiązania ze Wskaźnikiem Pewności, odrzucenia, aktywność, wyjścia do fiat                          |
+| `GET /api/runs/:id/address-types`                                   | typy adresów z analizy łańcuchowej (EOA, EIP-7702, Safe, ERC-4337, kontrakt…)                               |
+| `GET /api/runs/:id/clusters`                                        | klastry Bitcoin (heurystyka wspólnego wydatkowania): dowody połączeń, pominięcia                            |
+| `GET /api/links/:linkId/judgements`, `POST …/judgements`            | oceny analityka przy powiązaniu (od najstarszej); nie zmieniają wyniku                                      |
+| `GET /api/cases/:id/overrides`, `POST /api/cases/:id/overrides`     | korekty analityka w sprawie; działają dopiero w ponownej ocenie (`rescore`)                                 |
+| `POST /api/runs/:id/report`                                         | nowa wersja raportu zakończonego przebiegu (z ocenami zapisanymi do tej chwili)                             |
+| `GET /api/runs/:id/changes`                                         | zmiany względem poprzedniego przebiegu (m.in. podmiana portfela)                                            |
+| `GET /api/runs/:id/egress`                                          | dziennik ruchu wychodzącego przebiegu                                                                       |
+| `GET /api/runs/:id/report`                                          | raport HTML przebiegu                                                                                       |
+| `GET /api/runs/:id/exports`                                         | lista eksportów bieżącej wersji raportu (pusta dla starszych raportów)                                      |
+| `GET /api/runs/:id/exports/:format`                                 | eksport raportu: `stix`, `misp`, `csv_links`, `csv_evidence`, `csv_cash_out`, `csv_changes`                 |
+| `GET /api/labels`                                                   | etykiety adresów z pochodzeniem (zbiór danych, URL, licencja, data zmiany)                                  |
+| `GET /api/captures/:id`, `GET /api/blobs/:sha256`                   | metadane przechwycenia; surowa treść dowodu wyłącznie jako plik do pobrania                                 |
 
 Treść pobrana ze stron jest niezaufana: `/api/blobs` zwraca ją jako załącznik `application/octet-stream` z nagłówkami
 `nosniff` i `Content-Security-Policy: sandbox`, nigdy jako stronę w domenie konsoli.
@@ -58,6 +59,16 @@ harmonogramu (`CaseScheduleState`). Autor zmiany pochodzi z konfiguracji serwera
 pole sekund, `H`, RRULE), 400 `schedule_too_frequent` (w trybie `live` terminy bliżej niż
 `OLCYS_SCHEDULE_MIN_INTERVAL_MINUTES`, domyślnie 60 min; w trybach `offline` i `replay` minimum to 1 min), 400
 `invalid_input`, 404 `case_not_found`, 409 `case_closed`.
+
+## Historia archiwalna (oś czasu)
+
+`GET /api/cases/:id/timeline?url=&property=&walletOnly=true` zwraca `PropertyTimeline[]` zbudowane z przechwyceń,
+kandydatów i faktów wszystkich przebiegów sprawy oraz wykazu migawek Wayback (`buildWaybackHistory`). Wszystkie filtry
+są opcjonalne; `walletOnly` przyjmuje wyłącznie `true` lub `false`, a nieprawidłowy filtr (lub nieznany parametr)
+daje 400 `invalid_input` ze ścieżką błędnego pola w `issues`. Trasa tylko czyta zapisane dane. Osie stron powstają dla
+stron, które mają kopie archiwalne; osie pól profilu (np. `profile.bitcoin_address`) — z faktów przebiegów na żywo.
+Punkty kopii archiwalnych mają `provenance: "archive"` i czas migawki z archiwum; luki (`values: null`) nigdy nie
+oznaczają usunięcia adresu.
 
 ## Oceny i korekty analityka
 

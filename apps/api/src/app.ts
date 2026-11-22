@@ -82,6 +82,11 @@ const describeViolation = (v: ScopeViolation): string => {
 const notFound = (reply: FastifyReply, what: string) =>
   reply.code(404).send({ error: 'not_found', message: `${what} not found` });
 
+/** Rows of several runs without repeats (a rescore reads the evidence of the run it rescored). */
+const unique = <T extends { id: string }>(rows: T[][]): T[] => [
+  ...new Map(rows.flat().map((row) => [row.id, row])).values(),
+];
+
 export function buildApp(deps: ApiDeps): FastifyInstance {
   const app = Fastify({ logger: deps.httpLog ?? false });
   const { repos } = deps;
@@ -192,9 +197,6 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
       Promise.all(evidenceRunIds.map((id) => repos.evidence.listObservations(id))),
       Promise.all(runs.map((run) => repos.evidence.listCandidates(run.id))),
     ]);
-    const unique = <T extends { id: string }>(rows: T[][]): T[] => [
-      ...new Map(rows.flat().map((row) => [row.id, row])).values(),
-    ];
     const allCaptures = unique(captures);
     const allObservations = unique(observations);
     return buildPropertyTimelines(

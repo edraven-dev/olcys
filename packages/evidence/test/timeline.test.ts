@@ -45,11 +45,29 @@ describe('buildPropertyTimelines', () => {
     expect(snapshotTimestampToIso('20251345000000')).toBeUndefined();
     const bad: ArchiveSnapshotEntry[] = [
       ...fixture.archive,
-      { originalUrl: PAGE, snapshotTimestamp: '2025091508', at: 'x', digest: 'D', fetched: false, digestCheck: 'not_checked' },
-      { originalUrl: PAGE, snapshotTimestamp: '20251345000000', at: 'x', digest: 'D', fetched: false, digestCheck: 'not_checked' },
+      {
+        originalUrl: PAGE,
+        snapshotTimestamp: '2025091508',
+        at: 'x',
+        digest: 'D',
+        fetched: false,
+        digestCheck: 'not_checked',
+      },
+      {
+        originalUrl: PAGE,
+        snapshotTimestamp: '20251345000000',
+        at: 'x',
+        digest: 'D',
+        fetched: false,
+        digestCheck: 'not_checked',
+      },
     ];
     const warnings: string[] = [];
-    const [t] = buildPropertyTimelines(input({ archive: bad }), { property: 'page.address' }, { warn: (m) => warnings.push(m) });
+    const [t] = buildPropertyTimelines(
+      input({ archive: bad }),
+      { property: 'page.address' },
+      { warn: (m) => warnings.push(m) },
+    );
     expect(warnings).toHaveLength(2);
     expect(t!.points.filter((p) => p.provenance === 'archive')).toHaveLength(3);
   });
@@ -57,12 +75,39 @@ describe('buildPropertyTimelines', () => {
   it('AC3: not fetched, digest mismatch and unreadable captures are gaps that change nothing', () => {
     const archive: ArchiveSnapshotEntry[] = [
       ...fixture.archive,
-      { originalUrl: PAGE, snapshotTimestamp: '20251101000000', at: '', digest: 'DIGEST-NEW', fetched: false, digestCheck: 'not_checked' },
-      { originalUrl: PAGE, snapshotTimestamp: '20251201000000', at: '', digest: 'DIGEST-M', fetched: true, captureId: 'am', digestCheck: 'mismatch' },
-      { originalUrl: PAGE, snapshotTimestamp: '20251215000000', at: '', digest: 'DIGEST-404', fetched: true, captureId: 'a404', digestCheck: 'match' },
+      {
+        originalUrl: PAGE,
+        snapshotTimestamp: '20251101000000',
+        at: '',
+        digest: 'DIGEST-NEW',
+        fetched: false,
+        digestCheck: 'not_checked',
+      },
+      {
+        originalUrl: PAGE,
+        snapshotTimestamp: '20251201000000',
+        at: '',
+        digest: 'DIGEST-M',
+        fetched: true,
+        captureId: 'am',
+        digestCheck: 'mismatch',
+      },
+      {
+        originalUrl: PAGE,
+        snapshotTimestamp: '20251215000000',
+        at: '',
+        digest: 'DIGEST-404',
+        fetched: true,
+        captureId: 'a404',
+        digestCheck: 'match',
+      },
     ];
     const mk = (id: string, ts: string, status: 'ok' | 'not_found') => ({
-      id, runId: 'run-1', url: `https://web.archive.org/web/${ts}id_/${PAGE}`, status, collectedAt: '2026-03-01T09:00:03.000Z',
+      id,
+      runId: 'run-1',
+      url: `https://web.archive.org/web/${ts}id_/${PAGE}`,
+      status,
+      collectedAt: '2026-03-01T09:00:03.000Z',
       archive: { provider: 'wayback', snapshotTimestamp: ts, originalUrl: PAGE },
     });
     const captures = [...fixture.captures, mk('am', '20251201000000', 'ok'), mk('a404', '20251215000000', 'not_found')];
@@ -82,10 +127,19 @@ describe('buildPropertyTimelines', () => {
   });
 
   it('AC4: a fetched snapshot without candidates is an empty set and a change to []', () => {
-    const [t] = pageOnly(input({ candidates: fixture.candidates.filter((c: { captureId: string }) => c.captureId !== 'a3' && c.captureId !== 'l1' && c.captureId !== 'l2'), observations: [] }));
+    const [t] = pageOnly(
+      input({
+        candidates: fixture.candidates.filter(
+          (c: { captureId: string }) => c.captureId !== 'a3' && c.captureId !== 'l1' && c.captureId !== 'l2',
+        ),
+        observations: [],
+      }),
+    );
     expect(t!.points.at(-1)!.values).toEqual([]);
     expect(t!.changes).toEqual([expect.objectContaining({ before: [BTC(0)], after: [] })]);
-    const withBtc1 = pageOnly(input({ candidates: fixture.candidates.filter((c: { captureId: string }) => c.captureId !== 'a3') }))[0]!;
+    const withBtc1 = pageOnly(
+      input({ candidates: fixture.candidates.filter((c: { captureId: string }) => c.captureId !== 'a3') }),
+    )[0]!;
     expect(withBtc1.changes[0]).toMatchObject({ before: [BTC(0)], after: [] });
     expect(withBtc1.changes[1]).toMatchObject({ before: [], after: [BTC(1)] });
   });

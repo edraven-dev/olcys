@@ -201,9 +201,7 @@ function pageTimelines(input: TimelineInput, options: TimelineOptions): { url: s
           return sideA === 0 ? b.at.localeCompare(a.at) : a.at.localeCompare(b.at);
         });
       const donor = donors[0] ? usable(donors[0]) : undefined;
-      raws.push(
-        donor ? base(sortedUnique(valuesOf.get(donor.id) ?? []), true) : base(null, false, 'not_fetched'),
-      );
+      raws.push(donor ? base(sortedUnique(valuesOf.get(donor.id) ?? []), true) : base(null, false, 'not_fetched'));
     }
     for (const capture of input.captures) {
       if (capture.archive || liveUrl(capture) !== url) continue;
