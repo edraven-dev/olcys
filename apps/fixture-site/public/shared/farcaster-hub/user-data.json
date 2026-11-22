@@ -1,0 +1,50 @@
+{
+  "_synthetic": "SYNTHETIC TEST DATA (OŁCyŚ fixture)",
+  "messages": [
+    {
+      "data": {
+        "type": "MESSAGE_TYPE_USER_DATA_ADD",
+        "fid": 999999998,
+        "timestamp": 130000000,
+        "userDataBody": {
+          "type": "USER_DATA_TYPE_USERNAME",
+          "value": "olcys-test-marek"
+        }
+      }
+    },
+    {
+      "data": {
+        "type": "MESSAGE_TYPE_USER_DATA_ADD",
+        "fid": 999999998,
+        "timestamp": 130000000,
+        "userDataBody": {
+          "type": "USER_DATA_TYPE_DISPLAY",
+          "value": "Marek Fikcyjny (SYNTHETIC)"
+        }
+      }
+    },
+    {
+      "data": {
+        "type": "MESSAGE_TYPE_USER_DATA_ADD",
+        "fid": 999999998,
+        "timestamp": 130000000,
+        "userDataBody": {
+          "type": "USER_DATA_TYPE_BIO",
+          "value": "Syntetyczne konto testowe OŁCyŚ. SYNTHETIC TEST DATA"
+        }
+      }
+    },
+    {
+      "data": {
+        "type": "MESSAGE_TYPE_USER_DATA_ADD",
+        "fid": 999999998,
+        "timestamp": 130000000,
+        "userDataBody": {
+          "type": "USER_DATA_TYPE_GITHUB",
+          "value": "olcys-test-marek"
+        }
+      }
+    }
+  ],
+  "nextPageToken": ""
+}

@@ -404,29 +404,53 @@ Persona demonstracyjna jest nieznana wszystkim trzem źródłom (odpowiedzi „n
 Druga syntetyczna tożsamość `olcys_test_ewa` / `olcys-test-ewa.eth` (uid 900201) jest „znaleziona” i służy testom
 kolektorów (`test/identity.test.ts`); jej adresy są losowymi bajtami w poprawnym formacie, wyprowadzonymi z ziarna manifestu.
 
-## Pivoty (`pivot.v3`)
+## Farcaster i Nostr (NIP-05)
 
-| Reguła                 | Wyzwalacz                                                                                                                         | Zadanie                                                                                                                         |
-| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| I1                     | identyfikator podany dla platformy P                                                                                              | kolektor platformy P                                                                                                            |
-| I2                     | nick / login                                                                                                                      | ten sam nick na pozostałych platformach (GitHub: `_` i `.` → `-`)                                                               |
-| I3                     | dowolny identyfikator                                                                                                             | strony z listy obserwowanych; zachowane tylko, gdy zawierają identyfikator                                                      |
-| I4                     | identyfikator będący adresem profilu                                                                                              | kolektor rozpoznanej platformy                                                                                                  |
-| E1                     | `account.link` do rozpoznanego konta                                                                                              | kolektor tej platformy (głębokość + 1)                                                                                          |
-| E2                     | konto znalezione dla osoby inaczej niż próbą nicku (nie kanał ostrzeżeń)                                                          | jego login na pozostałych platformach (głębokość + 1)                                                                           |
-| I5                     | imię i nazwisko, nick, e-mail, adres kryptowaluty                                                                                 | każda zarejestrowana wyszukiwarka: jedno zapytanie (dokładna fraza)                                                             |
-| E3                     | `search.result_url` (wynik wyszukiwania)                                                                                          | kolektor strony (klucz jak I3) albo konta (jak E1) (głębokość + 1)                                                              |
-| I6                     | identyfikator rodzaju, który źródło wyszukuje samo: imię i nazwisko (`full_name`), nick / login (`nickname`, `social_login`)      | CEIDG: jedno wyszukiwanie po imieniu i nazwisku; Maigret: jedna enumeracja nicku (klucz `name:<tekst>`)                         |
-| E4                     | `registry.nip` z CEIDG                                                                                                            | wykaz VAT (głębokość + 1) — **tylko** gdy `registry.ceidg.result_count` = 1; w przeciwnym razie pominięcie `ambiguous_namesake` |
-| E5                     | `registry.krs` z wykazu VAT                                                                                                       | KRS (głębokość + 1)                                                                                                             |
-| I7 (nowa w `pivot.v3`) | `crypto_address` (rodzina `evm`; `bitcoin` także dla BitList)                                                                     | źródła szukające adresów same: ENS (nazwa główna), BitList (adres → autorzy); jedno zadanie na adres (`address:<sieć>:<adres>`) |
-| I8 (nowa w `pivot.v3`) | identyfikator kończący się na `.eth`                                                                                              | ENS: sprawdzenie nazwy w przód i rekordy tekstowe (klucz `name:<nazwa>`)                                                        |
-| E7 (nowa w `pivot.v3`) | konto innej platformy znalezione przez źródło-odsyłacz (uid z BitList)                                                            | kolektor tej platformy (głębokość + 1); nigdy dla kont znalezionych po adresie                                                  |
-| E6 (od `pivot.v2`)     | profil własnego konta (`input`, `cross_link` w nieprzerwanym łańcuchu własnych kont) albo dopasowana strona z listy obserwowanych | historia z archiwum (Wayback), ta sama głębokość: to sprawdzenie, nie pivot; nigdy strony osób trzecich                         |
+**Farcaster** (źródło AMBER, tylko gdy sprawa je włącza z uzasadnieniem): węzeł Snapchain (`FARCASTER_HUB_URL`, domyślnie
+`haatz.quilibrium.com`; zalecany własny węzeł, bo widzi każde zapytanie; jego host trzeba dopisać do `allowedHosts` źródła `farcaster` w `config/sources.yaml` – to przeglądana zmiana rejestru, sama zmienna środowiskowa nie wystarcza) zwraca zweryfikowane adresy fname lub FID.
+Wejście: identyfikator z `platform: 'farcaster'` (fname albo numeryczny FID). Odpowiedzi (`userNameProofByName`,
+`userDataByFid`, `verificationsByFid` ze stronicowaniem do `maxVerificationPages`, domyślnie 5) są zapisywane po
+zredagowaniu sekretów (`persistBody: false`), pola bajtowe mogą być hex albo base64. Podpis `claimSignature` (EIP-712)
+sprawdzamy lokalnie: `computed.claim_signature_check` = `valid` | `invalid` | `unverifiable_contract` | `unverifiable_solana`
+(własne obliczenie, osobno od faktów `verification.eth_address`, `verification.sol_address`, `verification.added_at`,
+`verification.message_hash`; lokalizator zawiera adres, więc usunięcie weryfikacji to usunięcie jednego lokalizatora).
+Profil: `profile.*`, `account.custody_address`; konto GitHub z profilu jest `account.link`. Weryfikacja Ed25519
+wiadomości i odwrotne wyszukiwanie adres → FID są poza zakresem (planowane).
+
+**Nostr** (GREEN): wyszukanie NIP-05 (`/.well-known/nostr.json?name=` na domenie identyfikatora, bez podążania za
+przekierowaniami: 3xx = `not_found` z notatką „NIP-05 redirect ignored”). Wejście: identyfikator `nazwa@domena` z
+`platform: 'nostr'`; zwykły e-mail nigdy nie staje się zapytaniem NIP-05. Domena jest dynamiczna: wdrożenie dopisuje ją do
+`OLCYS_SOURCE_HOSTS_NOSTR`. Wynik: konto `nostr:<hex>`, `nostr.pubkey`, `nostr.npub`, `nostr.nip05`, `nostr.relay_hint`
+(podpowiedzi przekaźników są tylko faktami i nigdy nie są kontaktowane). NIP-05 tylko wskazuje klucz, nie dowodzi tożsamości.
+Profil (kind 0: adres Lightning, adresy kryptowalut) wymaga WebSocket przez klienta wyjścia i jest planowany.
+
+Dane syntetyczne: fname `olcys-test-marek` (FID 999999998) i `olcys_test_nostr@nostr.example.org` na stronie
+fixture; persona demo jest tam nieznana, a nick nigdy nie trafia do tych źródeł.
+
+## Pivoty (`pivot.v4`)
+
+| Reguła                 | Wyzwalacz                                                                                                                         | Zadanie                                                                                                                                                                                 |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| I1                     | identyfikator podany dla platformy P                                                                                              | kolektor platformy P                                                                                                                                                                    |
+| I2                     | nick / login                                                                                                                      | ten sam nick na pozostałych platformach (GitHub: `_` i `.` → `-`)                                                                                                                       |
+| I3                     | dowolny identyfikator                                                                                                             | strony z listy obserwowanych; zachowane tylko, gdy zawierają identyfikator                                                                                                              |
+| I4                     | identyfikator będący adresem profilu                                                                                              | kolektor rozpoznanej platformy                                                                                                                                                          |
+| E1                     | `account.link` do rozpoznanego konta                                                                                              | kolektor tej platformy (głębokość + 1)                                                                                                                                                  |
+| E2                     | konto znalezione dla osoby inaczej niż próbą nicku (nie kanał ostrzeżeń)                                                          | jego login na pozostałych platformach (głębokość + 1)                                                                                                                                   |
+| I5                     | imię i nazwisko, nick, e-mail, adres kryptowaluty                                                                                 | każda zarejestrowana wyszukiwarka: jedno zapytanie (dokładna fraza)                                                                                                                     |
+| E3                     | `search.result_url` (wynik wyszukiwania)                                                                                          | kolektor strony (klucz jak I3) albo konta (jak E1) (głębokość + 1)                                                                                                                      |
+| I6                     | identyfikator rodzaju, który źródło wyszukuje samo: imię i nazwisko (`full_name`), nick / login (`nickname`, `social_login`)      | CEIDG: jedno wyszukiwanie po imieniu i nazwisku; Maigret: jedna enumeracja nicku (klucz `name:<tekst>`)                                                                                 |
+| E4                     | `registry.nip` z CEIDG                                                                                                            | wykaz VAT (głębokość + 1) — **tylko** gdy `registry.ceidg.result_count` = 1; w przeciwnym razie pominięcie `ambiguous_namesake`                                                         |
+| E5                     | `registry.krs` z wykazu VAT                                                                                                       | KRS (głębokość + 1)                                                                                                                                                                     |
+| I7 (nowa w `pivot.v3`) | `crypto_address` (rodzina `evm`; `bitcoin` także dla BitList)                                                                     | źródła szukające adresów same: ENS (nazwa główna), BitList (adres → autorzy); jedno zadanie na adres (`address:<sieć>:<adres>`)                                                         |
+| I8 (nowa w `pivot.v3`) | identyfikator kończący się na `.eth`                                                                                              | ENS: sprawdzenie nazwy w przód i rekordy tekstowe (klucz `name:<nazwa>`)                                                                                                                |
+| E7 (nowa w `pivot.v3`) | konto innej platformy znalezione przez źródło-odsyłacz (uid z BitList)                                                            | kolektor tej platformy (głębokość + 1); nigdy dla kont znalezionych po adresie                                                                                                          |
+| I9 (nowa w `pivot.v4`) | identyfikator podany dla Farcastera albo Nostra (fname / FID, `nazwa@domena`)                                                     | tylko to źródło (I1): żadne z nich nie dostaje nicku (Farcaster jest AMBER, a węzeł i domena NIP-05 widzą zapytanie); konto GitHub z profilu Farcastera idzie przez `account.link` (E1) |
+| E6 (od `pivot.v2`)     | profil własnego konta (`input`, `cross_link` w nieprzerwanym łańcuchu własnych kont) albo dopasowana strona z listy obserwowanych | historia z archiwum (Wayback), ta sama głębokość: to sprawdzenie, nie pivot; nigdy strony osób trzecich                                                                                 |
 
 Nick trafia do Keybase i BitList regułą I2, jak do każdej platformy z loginami. Konta, do których źródło-odsyłacz (`accountsAreReferences`)
 tylko odsyła (uid z BitList, dowód Keybase), nie oznaczają kolektora tej platformy jako „już zebrany”: forum albo GitHub
-zbierają je same. Wersja reguł: `pivot.v3` (zmieniła się, bo dodano I7, I8 i E7).
+zbierają je same. Wersja reguł: `pivot.v4` (v3 dodała I7, I8 i E7; v4 dodała I9).
 
 Osoby trzecie z rejestrów (reprezentanci, prokurenci, wspólnicy, zarząd) nigdy nie są pivotami. Wyszukiwania (I5) są planowane po wszystkich pozostałych regułach identyfikatorów, więc nie zabierają limitu zadań
 kolektorom platform. Wyniki wyszukiwania (E3) trafiają do kolektora strony z listy obserwowanych, który ją czyta — pod

@@ -1,0 +1,48 @@
+{
+  "_synthetic": "SYNTHETIC TEST DATA (OŁCyŚ fixture)",
+  "messages": [
+    {
+      "data": {
+        "type": "MESSAGE_TYPE_VERIFICATION_ADD_ETH_ADDRESS",
+        "fid": 999999998,
+        "timestamp": 131000000,
+        "network": "FARCASTER_NETWORK_MAINNET",
+        "verificationAddAddressBody": {
+          "address": "0xf60f199e6e73809af00b1f84b028e02e9066d5b7",
+          "claimSignature": "0xc76439c4987760f65e1de706e743662817ede98c3f1f8ec7dc44b10f0382c58b4ec7d4da8c35f1a965febd70fab2cb631be91c1b1f856c0c3633fc4781f687921b",
+          "blockHash": "0x34b0c53d729180aa6d6ab2c68eb1564342dd5c1de37a5cbcae82b080c75be6ee",
+          "verificationType": 0,
+          "chainId": 0,
+          "protocol": "PROTOCOL_ETHEREUM"
+        }
+      },
+      "hash": "0x4ae62502df5b2645bedc723431a1f54ad4bc57d7",
+      "hashScheme": "HASH_SCHEME_BLAKE3",
+      "signature": "iRtqpetR2+mnSvX/F0VV6kZf140xh1UuGBdHysz7lzo=",
+      "signatureScheme": "SIGNATURE_SCHEME_ED25519",
+      "signer": "0xaf26903ad7a58ef0e24330353b0a9bc221f71a8375f48a8f74de845f209b9570"
+    },
+    {
+      "data": {
+        "type": "MESSAGE_TYPE_VERIFICATION_ADD_ETH_ADDRESS",
+        "fid": 999999998,
+        "timestamp": 131000000,
+        "network": "FARCASTER_NETWORK_MAINNET",
+        "verificationAddAddressBody": {
+          "address": "ql3Nv8fu2SxPnsezLGbQqHhgL8vBthCaMuYm7zWXLLQ=",
+          "claimSignature": "0Kh14hzvpvllxi6hhQo7OTDaVn9OUOqXXDVVTF2Ix/Y=",
+          "blockHash": "P33m9JUF5Vd5pTCY+MP7MVb9M/JR5sA1kX9eKa5fTrQ=",
+          "verificationType": 0,
+          "chainId": 0,
+          "protocol": "PROTOCOL_SOLANA"
+        }
+      },
+      "hash": "0xd29a2657fee845c11aadd8bcf760b39e375a8c7f",
+      "hashScheme": "HASH_SCHEME_BLAKE3",
+      "signature": "cwe7CyFIVp53sWpJ0x8UASA/99dZ5NdIcjxFQtim9U4=",
+      "signatureScheme": "SIGNATURE_SCHEME_ED25519",
+      "signer": "0xaf26903ad7a58ef0e24330353b0a9bc221f71a8375f48a8f74de845f209b9570"
+    }
+  ],
+  "nextPageToken": ""
+}

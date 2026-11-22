@@ -505,15 +505,15 @@ providers:
     name: Solana public RPC
     kind: chain_data
     compliance: AMBER
-    complianceNote: '100 requests / 10 s per IP, not for production. No dedicated terms: the tosUrl is the official RPC documentation, which holds the usage rules for the shared public endpoints.'
+    complianceNote: '100 requests / 10 s per IP and 40 requests / 10 s per method (getTransaction dominates, hence 4 requests/s here), not for production. No dedicated terms: the tosUrl is the official RPC documentation, which holds the usage rules for the shared public endpoints.'
     namePl: 'Publiczny RPC Solany'
-    complianceNotePl: '100 zapytań na 10 s na adres IP, nie do użytku produkcyjnego. Brak odrębnego regulaminu; zasady dla wspólnych publicznych punktów dostępu są w oficjalnej dokumentacji RPC.'
+    complianceNotePl: '100 zapytań na 10 s na adres IP i 40 na 10 s na metodę (dominuje getTransaction, stąd 4 zapytania/s), nie do użytku produkcyjnego. Brak odrębnego regulaminu; zasady dla wspólnych publicznych punktów dostępu są w oficjalnej dokumentacji RPC.'
     tosUrl: https://solana.com/docs/rpc
     enabledByDefault: false
     requiresApiKey: false
     sendsIdentifiersExternally: true
     reliability: A
-    rateLimit: { requests: 5, perSeconds: 1 }
+    rateLimit: { requests: 4, perSeconds: 1 }
     allowedHosts: [api.mainnet-beta.solana.com]
 
   nbp_api:

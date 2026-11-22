@@ -1,0 +1,44 @@
+{
+  "_synthetic": "SYNTHETIC TEST DATA (OŁCyŚ fixture)",
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": [
+    {
+      "signature": "HuLpQccqUnto7SGP3Jowx14Yb5iwuy3rzEE4zRAe8BqA",
+      "slot": 379999997,
+      "err": null,
+      "memo": null,
+      "blockTime": 1792497603,
+      "confirmationStatus": "finalized"
+    },
+    {
+      "signature": "A714XpZrjM5WMY26SC4pqXmUNLeq4msunhmbpKAfJCZy",
+      "slot": 379999998,
+      "err": {
+        "InstructionError": [
+          0,
+          "Custom"
+        ]
+      },
+      "memo": null,
+      "blockTime": 1792497602,
+      "confirmationStatus": "finalized"
+    },
+    {
+      "signature": "Fn6KNSKRCPZusMc7EZoGYD89xhLtoDPPcPTzArKrA5mr",
+      "slot": 379999999,
+      "err": null,
+      "memo": null,
+      "blockTime": 1792497601,
+      "confirmationStatus": "finalized"
+    },
+    {
+      "signature": "39xZY6VoB8DDyRciyTNU1QqbXj1LjMcLdJnLMmwzeKir",
+      "slot": 380000000,
+      "err": null,
+      "memo": null,
+      "blockTime": 1792497600,
+      "confirmationStatus": "finalized"
+    }
+  ]
+}

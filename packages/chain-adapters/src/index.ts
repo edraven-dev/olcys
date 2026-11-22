@@ -1,6 +1,6 @@
 /**
  * @olcys/chain-adapters — blockchain data providers behind the `ChainProvider` port (Esplora, Etherscan V2,
- * TronGrid, Otterscan API): the same code serves public APIs, self-hosted nodes and the synthetic fixture site; only the base URL
+ * TronGrid, Otterscan API, Solana JSON-RPC): the same code serves public APIs, self-hosted nodes and the synthetic fixture site; only the base URL
  * differs. Every request goes through the run's egress client (`ctx.http`).
  *
  * Contracts (types and ports) come from @olcys/core.
@@ -57,6 +57,7 @@ export {
   type RequestOptions,
 } from './request.ts';
 export {
+  CHAIN_NOTE_TEXT_PL,
   compareTransfers,
   runChainFetch,
   TipCache,
@@ -67,6 +68,15 @@ export {
   type ChainFetchResult,
   type ChainFetchStatus,
 } from './runner.ts';
+export {
+  createSolanaRpcProvider,
+  KNOWN_SPL_MINTS,
+  parseSolanaTransfers,
+  SOLANA_MAX_TRANSACTIONS,
+  SOLANA_SIGNATURE_PAGE,
+  type SolanaCursor,
+  type SolanaParsedTx,
+} from './solana.ts';
 export { createTronGridProvider, mapTrc20Items, USDT_TRC20, type TronCursor } from './trongrid.ts';
 export {
   baseUnitsToDecimal,

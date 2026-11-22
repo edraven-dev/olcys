@@ -41,6 +41,17 @@ providers:
     chains: [tron]
     priority: 1
 
+  # Solana over JSON-RPC (getSignaturesForAddress + getTransaction). The public endpoint is not meant for production
+  # (AMBER, enabled per case); a self-hosted node or a contracted provider only changes baseUrl and its source entry.
+  - id: solana-rpc
+    kind: solana_rpc
+    sourceId: solana_public_rpc
+    baseUrl: https://api.mainnet-beta.solana.com
+    chains: [solana]
+    priority: 1
+    options:
+      maxTransactions: 500
+
   # Self-hosted EVM node with the Otterscan API (ots_*, API level >= 8): Anvil in the demo sandbox
   # (compose profile "sandbox"), an on-prem Erigon node in production. Used only when the case enables the
   # `sandbox_anvil` source (enabledByDefault: false); priority 0 prefers it over Etherscan then.

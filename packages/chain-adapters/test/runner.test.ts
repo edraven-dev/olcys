@@ -29,6 +29,7 @@ describe('chain provider config', () => {
       'esplora-blockstream',
       'etherscan-v2',
       'trongrid',
+      'solana-rpc',
       'evm-otterscan',
     ]);
   });
@@ -52,6 +53,7 @@ describe('chain provider config', () => {
       'http://127.0.0.1:4100/chain/esplora/api',
       'http://127.0.0.1:4100/chain/etherscan/v2/api',
       'http://127.0.0.1:4100/chain/trongrid',
+      'http://127.0.0.1:4100/chain/solana-rpc',
       'http://127.0.0.1:8545', // the sandbox node is not a fixture-site path
     ]);
   });

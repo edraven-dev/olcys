@@ -1,0 +1,9 @@
+{
+  "_synthetic": "SYNTHETIC TEST DATA (OŁCyŚ fixture)",
+  "jsonrpc": "2.0",
+  "id": 1,
+  "error": {
+    "code": -32007,
+    "message": "Slot was skipped, or missing due to ledger jump to recent snapshot"
+  }
+}

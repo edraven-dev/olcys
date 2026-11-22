@@ -53,6 +53,11 @@ const SYNTHETIC_IDENTIFIERS = [
   // The adapters' second synthetic identity (found by BitList, Keybase and ENS; unknown to the demo case).
   'olcys_test_ewa',
   'olcys-test-ewa.eth',
+  // Farcaster, Nostr and Solana test identity (unknown to the demo case).
+  'olcys-test-marek',
+  '999999998',
+  'olcys_test_nostr@nostr.example.org',
+  'olcys_test_nostr',
 ];
 
 const HOST_PREFIXES: Record<string, string> = {
@@ -64,6 +69,9 @@ const HOST_PREFIXES: Record<string, string> = {
   'keybase.io': '/keybase',
   'api.ninjastic.space': '/bitlist-api',
   'ens-rpc.example': '/ens-rpc',
+  'haatz.quilibrium.com': '/farcaster-hub',
+  'nostr.example.org': '/nostr',
+  'api.mainnet-beta.solana.com': '/chain/solana-rpc',
   'archiwum.example': '/private/archiwum',
   'mempool.space/api': '/chain/esplora/api',
   'blockstream.info/api': '/chain/esplora/api',

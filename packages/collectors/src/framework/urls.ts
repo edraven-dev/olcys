@@ -15,6 +15,8 @@ export const DEFAULT_HOST_PREFIXES: Readonly<Record<string, string>> = {
   'keybase.io': '/keybase',
   'api.ninjastic.space': '/bitlist-api',
   'ens-rpc.example': '/ens-rpc',
+  'haatz.quilibrium.com': '/farcaster-hub',
+  'nostr.example.org': '/nostr',
   'archiwum.example': '/private/archiwum',
   'mempool.space/api': '/chain/esplora/api',
   'blockstream.info/api': '/chain/esplora/api',
