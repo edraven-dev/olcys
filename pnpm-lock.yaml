@@ -402,9 +402,19 @@ importers:
       '@olcys/core':
         specifier: workspace:*
         version: link:../core
+      '@safe-global/safe-deployments':
+        specifier: 1.37.67
+        version: 1.37.67
+      '@scure/base':
+        specifier: 2.4.0
+        version: 2.4.0
       yaml:
         specifier: 2.9.1
         version: 2.9.1
+    devDependencies:
+      '@noble/hashes':
+        specifier: 2.4.0
+        version: 2.4.0
 
   packages/llm:
     dependencies:
@@ -922,6 +932,10 @@ packages:
 
   '@rolldown/pluginutils@1.1.1':
     resolution: {integrity: sha512-glFIJDvLNDtJhT9qrMFWLPbvS+skxgt4L0K8Ei2YtnhPysAJnsI7nyxSJxKj4ADeKX0OLjC4ntRkwpLOoS3rwA==}
+
+  '@safe-global/safe-deployments@1.37.67':
+    resolution: {integrity: sha512-WRQ47OjHJ8Mn6vW72Eby6r4AqL1vA16iSV9U5+cOCj41HuiIMU1c2qm59D5SgkQHfE/bJ/h2dYnK0ki2e1WJWg==}
+    engines: {node: '>=22.0.0', pnpm: '>=10.16.0'}
 
   '@scure/base@2.4.0':
     resolution: {integrity: sha512-thZ1TuJwFwBblOhgsjDKvvGirBxNp+wSvY/DR6tJBJOTDhdAAcHJ8Vbr2eFnqaxeca4+t0i9KBf+uHYGWwZORg==}
@@ -2505,6 +2519,10 @@ snapshots:
     optional: true
 
   '@rolldown/pluginutils@1.1.1': {}
+
+  '@safe-global/safe-deployments@1.37.67':
+    dependencies:
+      semver: 7.8.6
 
   '@scure/base@2.4.0': {}
 

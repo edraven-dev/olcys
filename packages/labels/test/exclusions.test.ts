@@ -1,21 +1,24 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { AddressLabel, NormalizedTransfer } from '@olcys/core';
+import type { AddressLabel, AddressRef, AddressTypeClassification, NormalizedTransfer } from '@olcys/core';
 import { fromBaseUnits, newId } from '@olcys/core';
 import { describe, expect, it } from 'vitest';
 import {
-  classifyAddressType,
+  classifyAddress,
   decidingAllowed,
   DEMO_CURATED_DATASET,
   effectiveOutcome,
   evaluateExclusions,
   loadDenyList,
+  loadDelegateRegistry,
   loadExclusionRules,
   loadLabelDataset,
   MemoryLabelLookup,
   prescreenExclusions,
+  type ClassifierDeps,
   type ExclusionDeps,
 } from '../src/index.ts';
+import { ctx } from './helpers.ts';
 
 const ROOT = join(import.meta.dirname, '..', '..', '..');
 const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8');
@@ -31,12 +34,24 @@ const demoLabels = loadLabelDataset(read('fixtures/labels/demo-curated.json'), D
 });
 const rules = loadExclusionRules(read('config/rules/exclusion.v1.yaml'));
 const denyList = loadDenyList(read('config/rules/deny-list.v1.yaml'));
+const delegates = loadDelegateRegistry(read('config/labels/eip7702-delegates.v1.yaml'));
 const deps = (labels: AddressLabel[] = demoLabels): ExclusionDeps => ({
   labels: new MemoryLabelLookup(labels),
   rules,
   denyList,
   runId: newId(),
+  delegates,
 });
+/** Classification from already fetched code, without a provider (no probes). */
+const classifyCode = (address: AddressRef, code: string, fetchId = 'f-code') => {
+  const local: ClassifierDeps = {
+    labels: new MemoryLabelLookup([]),
+    safeSingletons: new Map(),
+    entryPoints: new Set(),
+    code: { code, fetchId },
+  };
+  return classifyAddress(address, local, ctx);
+};
 
 /** ETH-1 history exactly as served by the fixture site (Etherscan txlist rows). */
 function eth1Transfers(): NormalizedTransfer[] {
@@ -164,7 +179,7 @@ describe('exclusion rules on the synthetic persona', () => {
     const decisions = await evaluateExclusions(
       {
         address: { chain: 'evm:1', address: slot('ETH-1') },
-        classification: classifyAddressType({ chain: 'evm:1', address: lower('ETH-1') }, '0x', ['f-code']),
+        classification: await classifyCode({ chain: 'evm:1', address: lower('ETH-1') }, '0x'),
         transfers,
         published: true,
       },
@@ -208,27 +223,123 @@ describe('exclusion rules on the synthetic persona', () => {
 
   it('A2: CONTRACT-1 has bytecode and is excluded; A3 keeps an EIP-7702 delegated account', async () => {
     const contract = { chain: 'evm:1' as const, address: lower('CONTRACT-1') };
-    const code = manifest.chain.contractCode['CONTRACT-1'];
+    const code = manifest.chain.contractCode['CONTRACT-1'] ?? '';
     const excluded = await evaluateExclusions(
       {
         address: contract,
-        classification: classifyAddressType(contract, code, ['f']),
+        classification: await classifyCode(contract, code, 'f'),
         transfers: [],
         published: false,
       },
       deps(),
     );
     expect(excluded.map((d) => [d.ruleId, d.outcome])).toEqual([['A2', 'excluded']]);
-    expect(excluded[0]?.evidence.codePrefix).toBe('0x60806040');
+    expect(excluded[0]?.evidence).toMatchObject({
+      codePrefix: '0x60806040',
+      codeBytes: (code.length - 2) / 2,
+      fetchIds: ['f'],
+    });
 
-    const delegated = classifyAddressType(contract, '0xef0100' + 'ab'.repeat(20));
+    const delegated = await classifyCode(contract, '0xef0100' + 'ab'.repeat(20));
     expect(delegated).toMatchObject({ type: 'delegated_eoa', delegate: '0x' + 'ab'.repeat(20) });
     const kept = await evaluateExclusions(
       { address: contract, classification: delegated, transfers: [], published: false },
       deps(),
     );
     expect(kept.map((d) => [d.ruleId, d.outcome])).toEqual([['A3', 'kept']]);
-    expect(classifyAddressType(contract, '0x').type).toBe('eoa');
+    expect(kept[0]?.evidence).toMatchObject({
+      delegate: '0x' + 'ab'.repeat(20),
+      codePrefix: '0xef0100',
+      codeBytes: 23,
+    });
+    expect(kept[0]?.evidence.delegateInfo).toBeUndefined();
+    expect((await classifyCode(contract, '0x')).type).toBe('eoa');
+  });
+
+  it('A2 keeps Safe and ERC-4337 accounts: personal smart accounts stay attributable', async () => {
+    const address = { chain: 'evm:1' as const, address: '0x' + '5a'.repeat(20) };
+    const base = { address, codePrefix: '0x608060', codeSize: 171, fetchIds: ['f1', 'f2'] };
+    const safe: AddressTypeClassification = {
+      ...base,
+      type: 'safe',
+      safeMasterCopy: '0x41675c099f32341bf84bfc5382af534df5c7461a',
+    };
+    const account: AddressTypeClassification = {
+      ...base,
+      type: 'erc4337_account',
+      entryPoint: '0x0000000071727de22e5e9d8baf0edac6f37da032',
+    };
+    for (const classification of [safe, account]) {
+      // oxlint-disable-next-line no-await-in-loop
+      const decisions = await evaluateExclusions({ address, classification, transfers: [], published: true }, deps());
+      expect(decisions.map((d) => [d.ruleId, d.outcome])).toEqual([['A2', 'kept']]);
+      expect(effectiveOutcome(decisions).outcome).toBe('kept');
+      expect(decisions[0]?.evidence).toMatchObject({ fetchIds: ['f1', 'f2'], codeBytes: 171 });
+    }
+    const [safeDecision] = await evaluateExclusions(
+      { address, classification: safe, transfers: [], published: true },
+      deps(),
+    );
+    expect(safeDecision?.reason).toContain('0x41675c099f32341bf84bfc5382af534df5c7461a');
+    // a token contract or a malformed delegation never counts as a personal account
+    const token = await evaluateExclusions(
+      { address, classification: { ...base, type: 'token_contract' }, transfers: [], published: true },
+      deps(),
+    );
+    expect(token.map((d) => [d.ruleId, d.outcome])).toEqual([['A2', 'excluded']]);
+    const malformed = await evaluateExclusions(
+      {
+        address,
+        classification: await classifyCode(address, '0xef0100' + 'ab'.repeat(21)),
+        transfers: [],
+        published: true,
+      },
+      deps(),
+    );
+    expect(malformed).toEqual([]);
+  });
+
+  it('A3 flags a delegation to a known sweeper and names a known wallet implementation', async () => {
+    const address = { chain: 'evm:1' as const, address: '0x' + '7a'.repeat(20) };
+    const sweeper = [...delegates.values()].find((d) => d.kind === 'sweeper');
+    expect(sweeper).toMatchObject({ chain: 'evm:1', synthetic: true });
+    const drained = await classifyCode(address, `0xef0100${sweeper?.address.slice(2)}`);
+    const flagged = await evaluateExclusions(
+      { address, classification: drained, transfers: [], published: true },
+      deps(),
+    );
+    expect(flagged.map((d) => [d.ruleId, d.outcome])).toEqual([['A3', 'flagged']]);
+    expect(flagged[0]?.evidence).toMatchObject({
+      delegate: sweeper?.address,
+      delegateInfo: { kind: 'sweeper', name: sweeper?.name, source: sweeper?.source },
+    });
+    expect(effectiveOutcome(flagged).outcome).toBe('flagged');
+
+    // A wallet implementation valid on every EVM network: kept, with its name.
+    const implementation = '0x' + 'c0'.repeat(20);
+    const registry = loadDelegateRegistry(
+      `version: x\ndelegates:\n  - { chain: evm:unknown, address: '${implementation}', kind: wallet_implementation, name: Wallet X, source: 'https://example.org/wallet-x' }\n`,
+    );
+    const onPolygon = { chain: 'evm:137' as const, address: address.address };
+    const kept = await evaluateExclusions(
+      {
+        address: onPolygon,
+        classification: await classifyCode(onPolygon, `0xef0100${implementation.slice(2)}`),
+        transfers: [],
+        published: true,
+      },
+      { ...deps(), delegates: registry },
+    );
+    expect(kept.map((d) => [d.ruleId, d.outcome])).toEqual([['A3', 'kept']]);
+    expect(kept[0]?.reason).toContain('wallet implementation "Wallet X"');
+
+    // The rule file decides: no flag and no recorded delegate when switched off.
+    const quiet = await evaluateExclusions(
+      { address, classification: drained, transfers: [], published: true },
+      { ...deps(), rules: { ...rules, a3: { recordDelegate: false, flagKnownSweepers: false } } },
+    );
+    expect(quiet.map((d) => [d.ruleId, d.outcome])).toEqual([['A3', 'kept']]);
+    expect(quiet[0]?.evidence.delegate).toBeUndefined();
   });
 
   it('A8: the BIP-173 documentation vector D2, burn addresses and token contracts', async () => {

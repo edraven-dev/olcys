@@ -66,6 +66,8 @@ export interface ExclusionRulesConfig {
   sha256: Sha256Hex;
   a1: { trustOrder: string[] };
   a2: { keepAttributable: string[] };
+  /** Record the delegate of an EIP-7702 delegated account; flag delegates listed as sweepers. */
+  a3: { recordDelegate: boolean; flagKnownSweepers: boolean };
   a4: { tauBlocks: number; alpha: DecimalString };
 }
 
@@ -77,6 +79,13 @@ export function loadExclusionRules(yamlText: string): ExclusionRulesConfig {
     if (!found) throw new Error(`exclusion rules: ${key} missing`);
     return found;
   };
+  const a3 = rule('A3_delegated_eoa');
+  const flag = (key: string): boolean => {
+    const value = a3[key];
+    if (value === undefined) return true;
+    if (typeof value !== 'boolean') throw new Error(`exclusion rules: A3 ${key} must be true or false`);
+    return value;
+  };
   const a4 = rule('A4_exchange_deposit');
   const tauBlocks = Number(a4['tauBlocks']);
   const alpha = String(a4['alphaMaxAmountDiff']);
@@ -87,6 +96,7 @@ export function loadExclusionRules(yamlText: string): ExclusionRulesConfig {
     sha256: createHash('sha256').update(yamlText).digest('hex'),
     a1: { trustOrder: list(rule('A1_labelled_service')['trustOrder']) },
     a2: { keepAttributable: list(rule('A2_service_contract')['keepAttributable']) },
+    a3: { recordDelegate: flag('recordDelegate'), flagKnownSweepers: flag('flagKnownSweepers') },
     a4: { tauBlocks, alpha },
   };
 }
