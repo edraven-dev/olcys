@@ -205,6 +205,9 @@ importers:
       '@olcys/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@olcys/evidence':
+        specifier: workspace:*
+        version: link:../../packages/evidence
       '@olcys/reporting':
         specifier: workspace:*
         version: link:../../packages/reporting
@@ -218,9 +221,6 @@ importers:
       '@olcys/db':
         specifier: workspace:*
         version: link:../../packages/db
-      '@olcys/evidence':
-        specifier: workspace:*
-        version: link:../../packages/evidence
 
   apps/fixture-site:
     devDependencies:

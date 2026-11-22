@@ -136,6 +136,7 @@ export function createGithubCollector(): CollectorFactory {
             platform: 'github',
             handle: login,
             profileUrl: `https://github.com/${login}`,
+            profileCaptureId: page.capture.id,
             ...(profile.name ? { displayName: profile.name } : {}),
             discoveredVia: {
               sourceId: descriptor.id,

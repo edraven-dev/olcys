@@ -142,6 +142,16 @@ z harmonogramu pokazuje alert podmiany portfela.
 Ograniczenie MVP: przebieg przerwany restartem procesu API pozostaje w stanie `running`, więc kolejne terminy są
 pomijane (`skipped_overlap`); raport startowy planisty i dziennik wskazują takie przebiegi.
 
+## Oś czasu strony
+
+Wartości strony lub pola profilu w czasie łączą przebiegi na żywo z kopiami archiwalnymi (Wayback Machine, tylko
+odczyt). `buildPropertyTimelines` (`@olcys/evidence`) buduje `PropertyTimeline`: punkty (czas migawki z archiwum albo
+czas przechwycenia), okresy o tym samym zbiorze wartości i zmiany z przedziałem „ostatni punkt przed — pierwszy po”.
+Przechwycenie, z którego odkryto konto, reprezentuje kanoniczną stronę profilu tego konta (adres z rekordu konta, bez zgadywania po tekście adresu), więc profil pobrany po nicku i jego kopie archiwalne tworzą jedną oś. Punkt zachowuje pochodzenie (`archive` / `live`), więc raport i konsola oznaczają kopie archiwalne jako materiał strony
+trzeciej. Luka (niepobrana kopia z nowym skrótem, skrót niezgodny, strona niedostępna lub 404 w kopii) nie kończy
+okresu i nie tworzy zmiany; niepobrana kopia z tym samym skrótem CDX dziedziczy wartości (data przybliżona). Fakty
+(wykaz migawek), obliczenia (zgodność skrótu) i wnioski pozostają rozdzielone. Dostęp: `GET /api/cases/:id/timeline`.
+
 ## Dowody i pochodzenie danych
 
 - Każda odpowiedź z zewnątrz otrzymuje `ProvenanceEnvelope` (dostawca, URL z zamaskowanymi sekretami, czasy, status,

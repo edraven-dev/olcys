@@ -26,28 +26,47 @@ export interface WaybackHistoryEntry {
 /** Locator shared by all observations about one snapshot. */
 export const waybackLocator = (originalUrl: string, timestamp: string): string => `wayback:${originalUrl}@${timestamp}`;
 
+/**
+ * Which of several fetches of the same snapshot speaks for it: a usable one (status ok, digest not mismatched) beats
+ * a failed or untrusted one; among equals the newest wins. Independent of the order of `captures`.
+ */
+function preferred(a: Capture, b: Capture, mismatched: ReadonlySet<string>): Capture {
+  const rank = (c: Capture): number => (c.status === 'ok' ? (mismatched.has(c.id) ? 1 : 2) : 0);
+  const order = rank(a) - rank(b) || a.collectedAt.localeCompare(b.collectedAt) || a.id.localeCompare(b.id);
+  return order >= 0 ? a : b;
+}
+
 export function buildWaybackHistory(
   captures: readonly Capture[],
   observations: readonly Observation[],
 ): WaybackHistoryEntry[] {
-  const byLocator = (property: string): Map<string, Observation> =>
-    new Map(observations.filter((o) => o.property === property).map((o) => [o.locator, o]));
-  const digests = byLocator(WAYBACK_PROPERTIES.digest);
-  const checks = byLocator(WAYBACK_PROPERTIES.digestCheck);
+  const digests = new Map<string, string>();
+  const checks = new Map<string, string>();
+  const mismatched = new Set<string>();
+  for (const o of observations) {
+    if (o.property === WAYBACK_PROPERTIES.digest && !digests.has(o.locator)) digests.set(o.locator, o.value);
+    if (o.property !== WAYBACK_PROPERTIES.digestCheck) continue;
+    // A check belongs to the capture it was computed from.
+    checks.set(`${o.locator}|${o.captureId}`, o.value);
+    if (o.value === 'mismatch') mismatched.add(o.captureId);
+  }
   const snapshots = new Map<string, Capture>();
   for (const c of captures) {
-    if (c.archive) snapshots.set(waybackLocator(c.archive.originalUrl, c.archive.snapshotTimestamp), c);
+    if (!c.archive) continue;
+    const locator = waybackLocator(c.archive.originalUrl, c.archive.snapshotTimestamp);
+    const known = snapshots.get(locator);
+    snapshots.set(locator, known ? preferred(known, c, mismatched) : c);
   }
   const entries = new Map<string, WaybackHistoryEntry>();
   for (const o of observations) {
     if (o.property !== WAYBACK_PROPERTIES.snapshot || entries.has(o.locator)) continue;
     const capture = snapshots.get(o.locator);
-    const check = checks.get(o.locator)?.value;
+    const check = capture ? checks.get(`${o.locator}|${capture.id}`) : undefined;
     entries.set(o.locator, {
       originalUrl: o.subject.key,
       snapshotTimestamp: o.value,
       at: waybackTimestampToIso(o.value),
-      digest: digests.get(o.locator)?.value ?? '',
+      digest: digests.get(o.locator) ?? '',
       fetched: capture !== undefined,
       ...(capture ? { captureId: capture.id } : {}),
       digestCheck: capture && (check === 'match' || check === 'mismatch') ? check : 'not_checked',
