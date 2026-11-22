@@ -91,9 +91,9 @@ run.finish        status succeeded | partial | failed
 
 Przebieg **ponownej oceny** (`trigger: 'rescore'`) przetwarza zapisane zabezpieczenia wcześniejszego przebiegu nowymi
 wersjami algorytmu lub reguł bez ponownego pobierania danych — pozwala to odróżnić zmianę danych od zmiany algorytmu.
-Tylko ponowna ocena stosuje też korekty analityka zapisane do chwili jej zlecenia (zapisuje je w migawce konfiguracji
-jako `rulesVersions.overrides`); oceny analityka są zapisywane obok wyników i nigdy ich nie zmieniają — zob.
-[metodyka Wskaźnika Pewności](methodology/wskaznik-pewnosci.md).
+Tylko ponowna ocena stosuje też korekty analityka zapisane do chwili jej zlecenia (zbiór ustalony przy zleceniu,
+zapisany w migawce konfiguracji jako `analystOverrides` i `rulesVersions.overrides`); oceny analityka są zapisywane
+obok wyników i nigdy ich nie zmieniają — zob. [metodyka Wskaźnika Pewności](methodology/wskaznik-pewnosci.md).
 
 ## Dowody i pochodzenie danych
 

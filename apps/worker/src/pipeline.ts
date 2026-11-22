@@ -19,7 +19,7 @@ import type {
 } from '@olcys/core';
 import { newId, nowIso, RUN_STEPS } from '@olcys/core';
 import { diffRuns, type RunSnapshot } from '@olcys/evidence';
-import { withOverridesVersion } from './analyst.ts';
+import { withOverridesSnapshot } from './analyst.ts';
 
 export interface StageContext {
   run: RunWithProgress;
@@ -79,8 +79,8 @@ export async function createRun(
     ...(evidenceRunId ? { rescoreOfRunId: evidenceRunId } : {}),
     mode: input.mode,
     status: 'queued',
-    // A rescore names the analyst overrides it applies (those recorded until it was queued).
-    config: await withOverridesVersion(repos, { caseId: input.caseId, trigger, queuedAt }, config),
+    // A rescore fixes the analyst overrides it applies (those recorded until it was queued).
+    config: await withOverridesSnapshot(repos, { caseId: input.caseId, trigger, queuedAt }, config),
     queuedAt,
   };
   await repos.runs.create(run);

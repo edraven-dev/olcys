@@ -1,7 +1,9 @@
 /**
  * Analyst overrides in the pipeline. Only a rescore run applies them: the overrides of the case recorded up to the
- * time the run was queued, named in the run's config snapshot (`rulesVersions.overrides`). Collecting runs score the
- * evidence as collected, and no run ever changes an assessment stored earlier.
+ * time the run was queued. That set is fixed when the run is created — its ids are stored in the run's config snapshot
+ * (`analystOverrides`, labelled by `rulesVersions.overrides`) — and scoring applies exactly that set, so an override
+ * stored later never changes a queued run. Collecting runs score the evidence as collected, and no run ever changes
+ * an assessment stored earlier.
  */
 import type {
   AddressCandidate,
@@ -14,23 +16,40 @@ import type {
 } from '@olcys/core';
 import { applyOverrides, overridesAt, overridesVersion, type FeatureExtractionInput } from '@olcys/scoring';
 
-type RunRef = Pick<AnalysisRun, 'id' | 'caseId' | 'trigger' | 'queuedAt'>;
+type RunRef = Pick<AnalysisRun, 'id' | 'caseId' | 'trigger' | 'config'>;
 
-/** The overrides a run applies: none unless it is a rescore. */
-export async function runOverrides(repos: Repositories, run: Omit<RunRef, 'id'>): Promise<AnalystOverride[]> {
-  if (run.trigger !== 'rescore' || !repos.overrides) return [];
-  return overridesAt(await repos.overrides.listByCase(run.caseId), run.queuedAt);
-}
-
-/** The config snapshot of a new run; a rescore's names the overrides it applies (`overrides@<count>:<last id>`). */
-export async function withOverridesVersion(
+/**
+ * The config snapshot of a new run. A rescore fixes the overrides it applies — those recorded until it was queued —
+ * as their ids (`analystOverrides`) and a label (`rulesVersions.overrides = overrides@<count>:<last id>`).
+ */
+export async function withOverridesSnapshot(
   repos: Repositories,
-  run: Omit<RunRef, 'id'>,
+  run: Pick<AnalysisRun, 'caseId' | 'trigger' | 'queuedAt'>,
   config: RunConfigSnapshot,
 ): Promise<RunConfigSnapshot> {
   if (run.trigger !== 'rescore' || !repos.overrides) return config;
-  const overrides = await runOverrides(repos, run);
-  return { ...config, rulesVersions: { ...config.rulesVersions, overrides: overridesVersion(overrides) } };
+  const overrides = overridesAt(await repos.overrides.listByCase(run.caseId), run.queuedAt);
+  return {
+    ...config,
+    rulesVersions: { ...config.rulesVersions, overrides: overridesVersion(overrides) },
+    analystOverrides: overrides.map((o) => o.id),
+  };
+}
+
+/**
+ * The overrides a run applies: exactly the set its config snapshot fixed when it was queued (rescores only), never a
+ * fresh selection. A recorded override that cannot be found is an error, not a silently different result.
+ */
+export async function runOverrides(repos: Repositories, run: RunRef): Promise<AnalystOverride[]> {
+  const ids = run.trigger === 'rescore' ? (run.config.analystOverrides ?? []) : [];
+  if (ids.length === 0) return [];
+  if (!repos.overrides) throw new Error(`run ${run.id} applies analyst overrides, but the store keeps none`);
+  const stored = new Map((await repos.overrides.listByCase(run.caseId)).map((o) => [o.id, o]));
+  return ids.map((id) => {
+    const found = stored.get(id);
+    if (!found) throw new Error(`analyst override ${id} recorded for run ${run.id} not found`);
+    return found;
+  });
 }
 
 /**

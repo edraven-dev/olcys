@@ -10,7 +10,7 @@ import type {
 import { canonicalJson, newId } from '@olcys/core';
 import { createMemoryRepositories } from '@olcys/db';
 import { InMemoryBlobStore } from '@olcys/evidence';
-import { createRuntime, type Runtime } from '@olcys/worker';
+import { createRun, createRuntime, runPipeline, type Runtime } from '@olcys/worker';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { buildApp } from '../src/app.ts';
 import { ADDRESS, ANALYST, analystStages, newCase, silent } from './analyst-fixtures.ts';
@@ -202,5 +202,39 @@ describe('analyst overrides', () => {
     const socialPath = linkOf(await links(next.id), ADDRESS.wallet).paths.find((p) => p.accountId === social.id);
     const cue = socialPath?.addressHop.contributions.find((c) => c.feature === 'e3_ownership_cue');
     expect(cue).toMatchObject({ reliability: 'A' });
+  });
+  it('a rescore applies only the overrides fixed when it was queued, even when an earlier-timed one lands later', async () => {
+    const queued = await createRun(
+      runtime.repos,
+      { caseId, mode: 'offline', trigger: 'rescore', rescoreOfRunId: run1 },
+      runtime.config.snapshot,
+    );
+    const fixed = queued.config.analystOverrides ?? [];
+    expect(fixed).toHaveLength(4);
+    // Stored after the run was queued, with a time before it (a slow concurrent request).
+    const late: AnalystOverride = {
+      id: newId(),
+      caseId,
+      kind: 'reliability_grade',
+      target: { sourceId: 'wykop' },
+      value: 'D',
+      justification: JUSTIFICATION,
+      analyst: ANALYST,
+      at: new Date(Date.parse(queued.queuedAt) - 1000).toISOString(),
+    };
+    await runtime.repos.overrides!.add(late);
+    await runPipeline(queued.id, {
+      repos: runtime.repos,
+      blobs: runtime.blobs,
+      logger: silent,
+      stages: analystStages(runtime.sources),
+    });
+    const done = await runtime.repos.runs.get(queued.id);
+    expect(done).toMatchObject({ status: 'succeeded', config: { analystOverrides: fixed } });
+    const socialPath = linkOf(await links(queued.id), ADDRESS.wallet).paths.find((p) => p.accountId === social.id);
+    // The wykop source grade A recorded before the queue time applies; the late D does not.
+    expect(socialPath?.addressHop.contributions.find((c) => c.feature === 'e3_ownership_cue')).toMatchObject({
+      reliability: 'A',
+    });
   });
 });

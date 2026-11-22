@@ -40,8 +40,9 @@ Etapy (zbieranie, wyodrębnianie adresów, analiza łańcucha, punktacja, raport
    zgłoszeniu oszustwa ani na liście).
 4. **Punktacja** (`score.links`) — Wskaźnik Pewności dla powiązań; migawka konfiguracji przebiegu zapisuje wersję
    i skrót SHA-256 wag używanych przez punktację. Tylko w ponownej ocenie etap stosuje korekty analityka sprawy
-   zapisane do chwili zlecenia przebiegu (`applyOverrides` z `@olcys/scoring`, moduł `src/analyst.ts`), a migawka
-   konfiguracji zapisuje je jako `rulesVersions.overrides` (`overrides@<liczba>:<id najnowszej>`).
+   zapisane do chwili zlecenia przebiegu (`applyOverrides` z `@olcys/scoring`, moduł `src/analyst.ts`). Zbiór jest
+   ustalany przy tworzeniu przebiegu: migawka konfiguracji zapisuje identyfikatory (`analystOverrides`) i etykietę
+   `rulesVersions.overrides` (`overrides@<liczba>:<id najnowszej>`), a punktacja stosuje dokładnie ten zbiór.
 5. **Raport** (`report.render`) — po wbudowanym porównaniu z poprzednim przebiegiem (`diff.previous`), więc raport
    zawiera wykryte zmiany.
 
