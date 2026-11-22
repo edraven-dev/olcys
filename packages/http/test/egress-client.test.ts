@@ -39,6 +39,9 @@ function source(id: string, overrides: Partial<SourceDescriptor> = {}): SourceDe
     kind: 'web',
     compliance: 'GREEN',
     complianceNote: 'test',
+    namePl: id,
+    complianceNotePl: 'test',
+    tosUrl: null,
     enabledByDefault: true,
     requiresApiKey: false,
     sendsIdentifiersExternally: true,
@@ -95,6 +98,45 @@ describe('egress client', () => {
     expect(calls).toEqual([]);
     expect(logs).toHaveLength(1);
     expect(logs[0]).toMatchObject({ allowed: false, host: 'not-allowed.test', containsIdentifier: true });
+  });
+
+  it('denies RED hosts and their subdomains for every request, even when listed as extra or allowed hosts', async () => {
+    const { client, calls, logs } = setup({
+      enabledSources: [source('api', { allowedHosts: ['api.example.test', 'x.com'] })],
+      extraAllowedHosts: ['api.x.com', 'rpc.example.test'],
+      redHosts: ['X.com', 'api.x.com.'],
+    });
+    for (const url of ['https://x.com/a', 'https://api.x.com/a', 'https://cdn.api.x.com/a']) {
+      // oxlint-disable-next-line no-await-in-loop
+      await expect(client.fetch(req(url))).rejects.toThrow(/RED source/);
+    }
+    expect(calls).toEqual([]);
+    expect(logs.every((l) => !l.allowed)).toBe(true);
+    // A host that merely ends with the same text is not a subdomain.
+    await expect(client.fetch(req('https://notx.com/a'))).rejects.toThrow(/not in the allow-list/);
+    await expect(client.fetch(req('https://rpc.example.test/a'))).resolves.toBeDefined();
+  });
+
+  it('treats a *. pattern in the RED hosts as the domain and its subdomains', async () => {
+    const { client, calls } = setup({
+      redHosts: ['*.red.test'],
+      extraAllowedHosts: ['red.test', 'a.red.test', 'ok.test'],
+    });
+    for (const url of ['https://red.test/a', 'https://a.red.test/a', 'https://b.a.red.test/a']) {
+      // oxlint-disable-next-line no-await-in-loop
+      await expect(client.fetch(req(url))).rejects.toThrow(/RED source/);
+    }
+    expect(calls).toEqual([]);
+    await expect(client.fetch(req('https://ok.test/a'))).resolves.toBeDefined();
+  });
+
+  it('denies a redirect into a RED host', async () => {
+    const { client, calls } = setup(
+      { redHosts: ['x.com'], extraAllowedHosts: ['x.com'] },
+      () => new Response(null, { status: 302, headers: { location: 'https://x.com/profile' } }),
+    );
+    await expect(client.fetch(req('https://api.example.test/a'))).rejects.toThrow(/RED source/);
+    expect(calls).toEqual(['https://api.example.test/a']);
   });
 
   it('denies RED sources and unknown sources', async () => {

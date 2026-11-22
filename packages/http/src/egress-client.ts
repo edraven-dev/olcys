@@ -38,6 +38,11 @@ export interface EgressClientOptions {
   localHosts?: readonly string[];
   /** Additional hosts allowed in live mode (deployment configuration, e.g. a self-hosted node). */
   extraAllowedHosts?: readonly string[];
+  /**
+   * Hosts of the RED sources (the register's `blockedHosts`): denied for every request, also when another source or
+   * `extraAllowedHosts` lists them, and for their subdomains. RED wins.
+   */
+  redHosts?: readonly string[];
   blobs: BlobStore;
   sinks: EgressSinks;
   clock?: Clock;
@@ -211,8 +216,12 @@ export function createEgressClient(options: EgressClientOptions): EgressClient {
   const nextSlot = new Map<string, number>();
 
   const isLocal = (host: string): boolean => localHosts.has(host);
+  // A `*.` pattern denies the domain and its subdomains, like a plain host does.
+  const redHosts = (options.redHosts ?? []).map((h) => normaliseHost(h).replace(/^\*\./, ''));
+  const isRedHost = (host: string): boolean => redHosts.some((red) => host === red || host.endsWith(`.${red}`));
 
   function allowedFor(source: SourceDescriptor | undefined, host: string): string | undefined {
+    if (isRedHost(host)) return 'host of a RED source';
     if (!source) return 'source not enabled for this run';
     if (source.compliance === 'RED') return 'RED source';
     if (source.blockedHosts?.some((p) => hostMatches(host, p))) return 'host blocked';

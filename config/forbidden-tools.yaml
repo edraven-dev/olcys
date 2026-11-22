@@ -1,0 +1,425 @@
+# Tools and packages OŁCyŚ must not use or depend on, with the reason (pl + en). Machine-readable: the dependency scan
+# (packages/collectors/test/forbidden-tools.test.ts) fails when a workspace package.json, pyproject.toml / uv.lock,
+# compose file or Dockerfile pulls in a listed package; docs/compliance/sources.md lists the tools (pnpm compliance:sources).
+# packages.images entries may carry a minimum major version, e.g. "redis>=8" (an unpinned tag counts as a match).
+version: forbidden-tools.v1
+
+tools:
+  # --- Breached or leaked data ----------------------------------------------------------------------------
+  h8mail:
+    name: h8mail
+    category: breach_data
+    reason:
+      pl: 'Narzędzie do przeszukiwania wycieków danych i haseł; dane z wycieków są poza dozwolonym zakresem OSINT.'
+      en: 'Breach and password-leak search tool; breached data is outside lawful OSINT.'
+    packages: { pypi: [h8mail] }
+    url: https://github.com/khast3x/h8mail
+  gosearch:
+    name: GoSearch
+    category: breach_data
+    reason:
+      pl: 'Przeszukuje dane z infostealerów (wycieki); użycie takich danych jest zabronione.'
+      en: 'Searches infostealer (breach) data; using such data is forbidden.'
+    url: https://github.com/ibnaleem/gosearch
+  mr_holmes:
+    name: Mr.Holmes
+    category: breach_data
+    reason:
+      pl: 'Wykorzystuje dane z wycieków; użycie takich danych jest zabronione.'
+      en: 'Uses breach data; using such data is forbidden.'
+    url: https://github.com/Lucksi/Mr.Holmes
+  user_scanner:
+    name: user-scanner (tryb --hudson)
+    category: breach_data
+    reason:
+      pl: 'Tryb --hudson korzysta z danych z infostealerów; tryby e-mail odpytują punkty rejestracji i logowania.'
+      en: 'The --hudson mode uses infostealer data; its e-mail modes hit registration and login endpoints.'
+    packages: { pypi: [user-scanner] }
+    url: https://github.com/kaifcodec/user-scanner
+  osint_framework_breach_modules:
+    name: Moduły wycieków w SpiderFoot, theHarvester, IntelOwl i recon-ng
+    category: breach_data
+    reason:
+      pl: 'Te platformy zawierają moduły korzystające z baz wycieków; takie moduły pozostają wyłączone.'
+      en: 'These platforms ship modules that use breach databases; those modules stay disabled.'
+    url: https://github.com/smicallef/spiderfoot
+
+  # --- Probing registration or password reset -------------------------------------------------------------
+  holehe:
+    name: holehe
+    category: account_probing
+    reason:
+      pl: 'Sprawdza konta e-mail przez funkcję odzyskiwania hasła (i rejestracji) w cudzych serwisach.'
+      en: "Checks e-mail accounts through other sites' password-reset (and registration) functions."
+    packages: { pypi: [holehe] }
+    url: https://github.com/megadose/holehe
+  blackbird:
+    name: Blackbird
+    category: account_probing
+    reason:
+      pl: 'Tryb e-mail odpytuje punkty rejestracji lub logowania w cudzych serwisach.'
+      en: "Its e-mail mode hits other sites' registration or login endpoints."
+    url: https://github.com/p1ngul1n0/blackbird
+  socialscan:
+    name: socialscan (tryb e-mail)
+    category: account_probing
+    reason:
+      pl: 'Tryb e-mail sprawdza dostępność adresu przez punkty rejestracji w cudzych serwisach.'
+      en: "Its e-mail mode checks availability through other sites' registration endpoints."
+    packages: { pypi: [socialscan] }
+    url: https://github.com/iojw/socialscan
+
+  # --- Session cookies and logins -------------------------------------------------------------------------
+  ghunt:
+    name: GHunt
+    category: session_login
+    reason:
+      pl: 'Wymaga ciasteczek sesyjnych zalogowanego konta Google; nie logujemy się na konta w celu zbierania danych.'
+      en: 'Requires the session cookies of a signed-in Google account; we never log in to collect data.'
+    packages: { pypi: [ghunt] }
+    url: https://github.com/mxrch/GHunt
+  osintgram:
+    name: Osintgram
+    category: session_login
+    reason:
+      pl: 'Narzędzie do analizy kont Instagrama; Instagram jest źródłem RED, a zakres narzędzia wykracza poza publiczny profil.'
+      en: 'Instagram account analysis tool; Instagram is a RED source and the tool goes beyond the public profile.'
+    url: https://github.com/Datalux/Osintgram
+  toutatis:
+    name: toutatis
+    category: session_login
+    reason:
+      pl: 'Narzędzie do pozyskiwania z Instagrama m.in. e-maili i numerów telefonów; Instagram jest źródłem RED.'
+      en: 'Tool that extracts e-mails and phone numbers from Instagram; Instagram is a RED source.'
+    packages: { pypi: [toutatis] }
+    url: https://github.com/megadose/toutatis
+
+  # --- Scraping or anti-bot evasion -----------------------------------------------------------------------
+  serpapi:
+    name: SerpApi
+    category: scraping_evasion
+    reason:
+      pl: 'Odsprzedaje wyniki wyszukiwarek pozyskane scrapingiem, co rodzi problemy z ich regulaminami.'
+      en: 'Resells search results obtained by scraping, which raises terms-of-service problems with the search engines.'
+    packages: { npm: [serpapi, google-search-results], pypi: [serpapi, google-search-results] }
+    url: https://serpapi.com/
+  serper:
+    name: Serper
+    category: scraping_evasion
+    reason:
+      pl: 'Dostarcza wyniki Google pozyskane scrapingiem stron wyników.'
+      en: 'Serves Google results obtained by scraping result pages.'
+    url: https://serper.dev/
+  ddgs:
+    name: ddgs / duckduckgo-search
+    category: scraping_evasion
+    reason:
+      pl: 'Pobiera wyniki DuckDuckGo przez scraping, co jest sprzeczne z regulaminem serwisu.'
+      en: "Scrapes DuckDuckGo results, which conflicts with the service's terms."
+    packages: { npm: [duckduckgo-search], pypi: [ddgs, duckduckgo-search] }
+    url: https://github.com/deedy5/ddgs
+  searxng:
+    name: SearXNG (silniki scrapujące)
+    category: scraping_evasion
+    reason:
+      pl: 'Metawyszukiwarka odpytująca wyszukiwarki zewnętrzne automatycznie; jej silniki scrapujące nie są używane.'
+      en: 'A metasearch engine that queries third-party search engines automatically; its scraping engines are not used.'
+    packages: { images: [searxng/searxng] }
+    url: https://github.com/searxng/searxng
+  marple:
+    name: Marple
+    category: scraping_evasion
+    reason:
+      pl: 'Scrapuje strony wyników wyszukiwarek, których regulaminy zwykle zabraniają zapytań automatycznych.'
+      en: 'Scrapes search-engine result pages, whose terms generally forbid automated queries.'
+    url: https://github.com/soxoj/marple
+  crawl4ai:
+    name: crawl4ai
+    category: scraping_evasion
+    reason:
+      pl: 'Domyślnie ignoruje robots.txt i oferuje tryby ukrywania przed wykrywaniem botów.'
+      en: 'Ignores robots.txt by default and offers stealth modes against bot detection.'
+    packages: { pypi: [crawl4ai] }
+    url: https://github.com/unclecode/crawl4ai
+  archive_today:
+    name: archive.today
+    category: scraping_evasion
+    reason:
+      pl: 'Brak oficjalnego API, zabezpieczenia CAPTCHA, udokumentowane zmienianie zarchiwizowanej treści; nie nadaje się na źródło dowodowe.'
+      en: 'No official API, CAPTCHAs and documented alteration of archived content; unsuitable as an evidence source.'
+    url: https://archive.today/
+  save_page_now:
+    name: Save Page Now (na stronach podejrzanych)
+    category: scraping_evasion
+    reason:
+      pl: 'Zapis publikuje przechwycenie strony i ujawnia zainteresowanie organu; używamy wyłącznie odczytu archiwum.'
+      en: 'A save publishes the capture and reveals investigative interest; only archive reads are used.'
+    url: https://web.archive.org/save
+  eth_labels:
+    name: eth-labels (jako źródło rozstrzygające)
+    category: scraping_evasion
+    reason:
+      pl: 'Dane pochodzą ze scrapingu Etherscan, mają ryzyko dotyczące pochodzenia i regulaminu oraz duże luki; nie rozstrzygają o atrybucji.'
+      en: 'The data is scraped from Etherscan, with provenance and terms risk and large coverage gaps; it must not decide an attribution.'
+    url: https://github.com/dawsbot/eth-labels
+
+  # --- Licence not allowed --------------------------------------------------------------------------------
+  snoop:
+    name: Snoop
+    category: licence
+    reason:
+      pl: 'Własnościowa licencja tylko do użytku osobistego; zabrania modyfikacji i użycia innego niż osobiste.'
+      en: 'Proprietary licence for personal use only; prohibits modification and non-personal use.'
+    url: https://github.com/snooppr/snoop
+  blockscout:
+    name: Blockscout od wersji 11
+    category: licence
+    reason:
+      pl: 'Od wersji 11 licencja jest źródłowo dostępna, a nie otwarta; dopuszczalne są wyłącznie wersje otwarte (do 10.x).'
+      en: 'From version 11 the licence is source-available, not open source; only open releases (up to 10.x) are acceptable.'
+    packages: { images: ['blockscout/blockscout>=11'] }
+    url: https://github.com/blockscout/blockscout
+  dune_spellbook:
+    name: Dune Spellbook
+    category: licence
+    reason:
+      pl: 'Licencja BUSL-1.1 (źródłowo dostępna), nie otwarta.'
+      en: 'BUSL-1.1 licence (source-available), not open source.'
+    url: https://github.com/duneanalytics/spellbook
+  memgraph:
+    name: Memgraph
+    category: licence
+    reason:
+      pl: 'Licencja BSL 1.1: źródłowo dostępna, nie zatwierdzona przez OSI.'
+      en: 'BSL 1.1 licence: source-available, not OSI-approved.'
+    packages: { npm: [memgraph], images: [memgraph/memgraph] }
+    url: https://memgraph.com/
+  redis_server:
+    name: Redis server od wersji 8
+    category: licence
+    reason:
+      pl: 'Od wersji 8 serwer nie jest już otwartym oprogramowaniem (RSALv2/SSPLv1/AGPLv3); zamiast niego Valkey.'
+      en: 'From version 8 the server is no longer open source (RSALv2/SSPLv1/AGPLv3); Valkey is used instead.'
+    packages: { images: ['redis>=8'] }
+    url: https://redis.io/
+  questpdf:
+    name: QuestPDF
+    category: licence
+    reason:
+      pl: 'Licencja Community wyklucza podmioty sektora publicznego i nie jest zatwierdzona przez OSI.'
+      en: 'The Community licence excludes public-sector entities and is not OSI-approved.'
+    url: https://www.questpdf.com/
+  pdfsharp:
+    name: PdfSharp od wersji 6.5
+    category: licence
+    reason:
+      pl: 'Od wersji 6.5.0 licencja zmieniła się z MIT na AGPL-3.0-only.'
+      en: 'From 6.5.0 the licence changed from MIT to AGPL-3.0-only.'
+    url: https://github.com/empira/PDFsharp
+  neo4j_nvl:
+    name: '@neo4j-nvl/*'
+    category: licence
+    reason:
+      pl: 'Biblioteka bez standardowej licencji otwartej („SEE LICENSE IN LICENSE.txt”).'
+      en: 'Library without a standard open-source licence ("SEE LICENSE IN LICENSE.txt").'
+    packages: { npm: ['@neo4j-nvl/*'] }
+    url: https://neo4j.com/docs/nvl/
+  opensanctions_data:
+    name: Dane OpenSanctions
+    category: licence
+    reason:
+      pl: 'Dane na licencji niekomercyjnej (CC BY-NC), spoza listy dozwolonych licencji projektu.'
+      en: "Data under a non-commercial licence (CC BY-NC), not on the project's licence allow-list."
+    url: https://www.opensanctions.org/licensing/
+  binance_vision:
+    name: Dane Binance Vision
+    category: licence
+    reason:
+      pl: 'Dane na licencji CC BY-NC-SA, czyli z klauzulą niekomercyjną.'
+      en: 'Data under CC BY-NC-SA, which contains a non-commercial clause.'
+    url: https://data.binance.vision/
+  pllum_nc:
+    name: Modele PLLuM z licencją „nc”
+    category: licence
+    reason:
+      pl: 'Warianty „nc” mają licencję CC-BY-NC-4.0 (klauzula niekomercyjna).'
+      en: 'The "nc" variants are under CC-BY-NC-4.0 (non-commercial clause).'
+    url: https://pllum.org.pl/
+
+  # --- Telemetry or unapproved data flows -----------------------------------------------------------------
+  turbo:
+    name: Turborepo (turbo)
+    category: telemetry
+    reason:
+      pl: 'Domyślnie zbiera anonimowe dane o użyciu i hoście (telemetria).'
+      en: 'Collects anonymous usage and host data by default (telemetry).'
+    packages: { npm: [turbo] }
+    url: https://turbo.build/
+  next:
+    name: Next.js
+    category: telemetry
+    reason:
+      pl: 'Domyślnie zbiera anonimową telemetrię.'
+      en: 'Collects anonymous telemetry by default.'
+    packages: { npm: [next] }
+    url: https://nextjs.org/telemetry
+  neo4j_ce:
+    name: Neo4j Community Edition
+    category: telemetry
+    reason:
+      pl: 'Składnik GPL: dozwolony wyłącznie jako osobna, niezmodyfikowana usługa, nigdy jako zależność projektu.'
+      en: 'GPL component: allowed only as a separate, unmodified service, never as a project dependency.'
+    packages: { images: [neo4j] }
+    url: https://neo4j.com/
+  walletexplorer:
+    name: WalletExplorer
+    category: telemetry
+    reason:
+      pl: 'Zewnętrzny serwis; zapytania przekazywałyby adresy ze spraw podmiotowi spoza projektu (niezatwierdzony przepływ danych).'
+      en: 'Third-party service; queries would pass case addresses to an outside operator (an unapproved data flow).'
+    url: https://www.walletexplorer.com/
+  arkham_api:
+    name: Arkham API
+    category: telemetry
+    reason:
+      pl: 'Zewnętrzny, zastrzeżony serwis, którego warunki zakazują scrapingu; zapytania przekazywałyby adresy ze spraw podmiotowi spoza projektu.'
+      en: 'Third-party proprietary service whose terms ban scraping; queries would pass case addresses to an outside operator.'
+    url: https://www.arkm.com/
+  litellm:
+    name: litellm
+    category: telemetry
+    reason:
+      pl: 'Dwukrotnie skompromitowany w 2026 r. (PyPI, Docker) i domyślnie pobiera zdalną mapę kosztów modeli podczas importu.'
+      en: 'Compromised twice in 2026 (PyPI, Docker) and by default fetches a remote model cost map at import.'
+    packages: { npm: [litellm], pypi: [litellm] }
+    url: https://github.com/BerriAI/litellm
+  selenium_manager:
+    name: Selenium Manager
+    category: telemetry
+    reason:
+      pl: 'Wysyła statystyki użycia do plausible.io, o ile nie włączono avoid-stats lub pracy offline.'
+      en: 'Sends usage statistics to plausible.io unless avoid-stats or offline mode is on.'
+    url: https://www.selenium.dev/documentation/selenium_manager/
+
+  # --- Unmaintained or unsafe -----------------------------------------------------------------------------
+  react_cytoscapejs:
+    name: react-cytoscapejs
+    category: unmaintained
+    reason:
+      pl: 'Nieaktualny wrapper (ostatnie wydanie 2022); używamy bezpośrednio API Cytoscape.'
+      en: 'Stale wrapper (last release 2022); the Cytoscape API is used directly.'
+    packages: { npm: [react-cytoscapejs] }
+    url: https://github.com/plotly/react-cytoscapejs
+  wallet_address_validator:
+    name: wallet-address-validator
+    category: unmaintained
+    reason:
+      pl: 'Porzucona biblioteka (ostatnie wydanie 2018).'
+      en: 'Abandoned library (last release 2018).'
+    packages: { npm: [wallet-address-validator] }
+    url: https://github.com/ognus/wallet-address-validator
+  trezor_address_validator:
+    name: trezor-address-validator
+    category: unmaintained
+    reason:
+      pl: 'Porzucona biblioteka (repozytorium zarchiwizowane).'
+      en: 'Abandoned library (repository archived).'
+    packages: { npm: [trezor-address-validator] }
+    url: https://www.npmjs.com/package/trezor-address-validator
+  crypto_regex:
+    name: crypto-regex
+    category: unmaintained
+    reason:
+      pl: 'Porzucona biblioteka (2017), same wyrażenia regularne bez walidacji sum kontrolnych.'
+      en: 'Abandoned library (2017), regular expressions only, no checksum validation.'
+    packages: { npm: [crypto-regex] }
+    url: https://www.npmjs.com/package/crypto-regex
+  coinaddr:
+    name: coinaddr
+    category: unmaintained
+    reason:
+      pl: 'Nie należy do zatwierdzonych bibliotek adresów; walidację zapewnia własny ekstraktor adresów.'
+      en: "Not an approved address library; validation comes from the project's own address extractor."
+    packages: { pypi: [coinaddr] }
+    url: https://pypi.org/project/coinaddr/
+  cryptoaddress:
+    name: cryptoaddress
+    category: unmaintained
+    reason:
+      pl: 'Porzucona biblioteka (ostatnie wydanie 2019).'
+      en: 'Abandoned library (last release 2019).'
+    packages: { pypi: [cryptoaddress] }
+    url: https://pypi.org/project/cryptoaddress/
+  monero_python:
+    name: monero (monero-python)
+    category: unmaintained
+    reason:
+      pl: 'Porzucona biblioteka (repozytorium zarchiwizowane).'
+      en: 'Abandoned library (repository archived).'
+    packages: { pypi: [monero] }
+    url: https://github.com/monero-ecosystem/monero-python
+  pyzbar:
+    name: pyzbar
+    category: unmaintained
+    reason:
+      pl: 'Nieutrzymywane wiązanie Pythona (ostatnie wydanie 2022).'
+      en: 'Unmaintained Python binding (last release 2022).'
+    packages: { pypi: [pyzbar] }
+    url: https://github.com/NaturalHistoryMuseum/pyzbar
+  jsqr:
+    name: jsQR
+    category: unmaintained
+    reason:
+      pl: 'Nieaktualny dekoder (ostatnie wydanie 2021).'
+      en: 'Stale decoder (last release 2021).'
+    packages: { npm: [jsqr] }
+    url: https://github.com/cozmo/jsQR
+  js_lnurl:
+    name: js-lnurl
+    category: unmaintained
+    reason:
+      pl: 'Nieaktualna biblioteka (2023) bez wskazanej licencji.'
+      en: 'Stale library (2023) with no licence field.'
+    packages: { npm: [js-lnurl] }
+    url: https://www.npmjs.com/package/js-lnurl
+  social_analyzer:
+    name: social-analyzer
+    category: unmaintained
+    reason:
+      pl: 'Licencja AGPL-3.0, a pakiet nieaktualizowany od 2022 r.'
+      en: 'AGPL-3.0 licence, and the package has not been updated since 2022.'
+    packages: { npm: [social-analyzer], pypi: [social-analyzer] }
+    url: https://github.com/qeeqbox/social-analyzer
+  twint:
+    name: twint
+    category: unmaintained
+    reason:
+      pl: 'Projekt zarchiwizowany (ostatnie wydanie 2019).'
+      en: 'Archived project (last release 2019).'
+    packages: { pypi: [twint] }
+    url: https://github.com/twintproject/twint
+  snscrape:
+    name: snscrape
+    category: unmaintained
+    reason:
+      pl: 'Projekt nieutrzymywany (ostatni commit 2023).'
+      en: 'Unmaintained project (last commit 2023).'
+    packages: { pypi: [snscrape] }
+    url: https://github.com/JustAnotherArchivist/snscrape
+
+# Features of an allowed tool that stay switched off.
+featureRules:
+  maigret:
+    name: Maigret
+    pl:
+      - Bez proxy i rotacji adresów.
+      - Bez obchodzenia CAPTCHA i zabezpieczeń antybotowych.
+      - Bez opcji --ai.
+      - Baza serwisów przypięta do wersji, bez automatycznej aktualizacji.
+      - Bez sondy GraphQL serwisu X.
+    en:
+      - No proxies or address rotation.
+      - No CAPTCHA or anti-bot bypass.
+      - No --ai option.
+      - Site database pinned to a version, no automatic update.
+      - No X GraphQL probe.

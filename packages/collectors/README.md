@@ -64,6 +64,7 @@ const result = await collectCase({
 // sources (wynik per źródło: ok | partial | not_found | blocked | login_wall | captcha | error), partial
 ```
 
+- `redHosts: redBlockedHosts(sources.list())` w opcjach klienta egress: hosty źródeł RED z rejestru są odrzucane zawsze.
 - `scope.egressSources` — deskryptory dla klienta egress; offline każde źródło dostaje limit strony testowej.
 - `createDefaultCollectorRegistry({ mode, env })` — kolektory poniżej oraz wyszukiwarki według `OLCYS_SEARCH_MODE`
   (`collectCase` bez `collectors` buduje go z trybu przebiegu i opcji `env`; bez `env` — wyszukiwarka testowa);
@@ -80,6 +81,29 @@ Przechwycenie (`Capture`): adres pobrany i końcowy, czas, kolektor, wersja narz
 zbierania, artefakty `html`/`json`/`text` (bajty jak odebrane albo — gdy usunięto sekrety — tekst po redakcji w UTF-8; skrót
 oryginału zostaje w kopercie pochodzenia i w `technical.redaction`) oraz `headers` (kanoniczny JSON), identyfikatory pobrań całego łańcucha przekierowań,
 `manifestSha256` (skrót pliku manifestu w magazynie) oraz `technical` (adres logiczny, przekierowania, decyzja robots.txt, sygnały bariery, redakcja, wersje parserów).
+
+## Rejestr zgodności (`src/compliance`)
+
+Rejestr `config/sources.yaml` jest jedynym źródłem prawdy o zgodności źródeł. Każdy wpis wymaga `namePl`, `complianceNotePl`
+i klucza `tosUrl` (`null` = brak opublikowanego regulaminu); źródło RED ma `enabledByDefault: false`, `rateLimit.requests: 0`,
+puste `allowedHosts` i niepuste `blockedHosts`, źródło AMBER — `enabledByDefault: false`; identyfikatory są unikalne w obu
+sekcjach.
+
+- `loadSourceRegister(path?)` / `createSourceRegister(descriptors)` — rejestr (`version`, `sha256`, `entries`).
+- `validateCaseScope(scope, register)` — lista naruszeń zakresu sprawy (`source_forbidden`, `unknown_source`,
+  `amber_justification_required`, `justification_too_short`, `orphan_justification`, `pivot_depth_out_of_range`,
+  `unknown_chain`); używa jej `POST /api/cases`.
+- `allowListFor(register, scope, mode, extraHosts?)` — lista hostów dla sprawy: offline tylko strona testowa; live i replay —
+  suma hostów włączonych źródeł (AMBER tylko z uzasadnieniem) i `extraHosts`, bez hostów źródeł RED i ich subdomen.
+- `assertCollectorAllowed(descriptor, register)` — rzuca `SourceForbiddenError` dla RED i `SourceDescriptorMismatchError`, gdy
+  deskryptor kolektora różni się od wpisu rejestru; `CollectorRegistry.forScope` wywołuje ją przy tworzeniu kolektorów.
+- `config/forbidden-tools.yaml` — narzędzia niedozwolone (powód po polsku i angielsku, pakiety npm/pypi/obrazy);
+  `scanForbiddenDependencies()` sprawdza manifesty pakietów, `pyproject.toml`/`uv.lock`, pliki compose i Dockerfile
+  (test `forbidden-tools.test.ts`).
+- `pnpm compliance:sources` (`scripts/sources-doc.ts --check`, część `pnpm check`) sprawdza, czy tabele w
+  `docs/compliance/sources.md` odpowiadają rejestrowi; `node packages/collectors/scripts/sources-doc.ts --write` je
+  regeneruje (tylko blok między znacznikami `generated:sources`). Opcje: `--lang pl|en`, `--out <plik>` (angielskie
+  zestawienie wymaga `--out`).
 
 ## Kolektory
 

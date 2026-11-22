@@ -7,6 +7,8 @@ import type {
   SourceDescriptor,
   SourceId,
 } from '@olcys/core';
+import { assertCollectorAllowed } from '../compliance/guard.ts';
+import { registerOf } from '../compliance/register.ts';
 import { SourceRefusedError } from './errors.ts';
 import type { CollectorDeps } from './http.ts';
 import type { ResolvedScope, SourceRegistry } from './source-registry.ts';
@@ -59,10 +61,14 @@ export class CollectorRegistry {
   /** Collectors of the sources enabled in the scope (RED and unjustified AMBER sources never get one). */
   forScope(scope: ResolvedScope, sources: SourceRegistry, deps: CollectorDeps): Map<SourceId, CollectorInstance> {
     const out = new Map<SourceId, CollectorInstance>();
+    const register = registerOf(sources);
     for (const factory of this.list()) {
       const descriptor = sources.get(factory.sourceId);
       if (!descriptor || descriptor.compliance === 'RED' || !scope.isEnabled(factory.sourceId)) continue;
-      out.set(factory.sourceId, { factory, collector: factory.create(descriptor, deps) });
+      const collector = factory.create(descriptor, deps);
+      // Collectors take their descriptor from the register: throws for RED or a descriptor that differs from it.
+      assertCollectorAllowed(collector.descriptor, register);
+      out.set(factory.sourceId, { factory, collector });
     }
     return out;
   }

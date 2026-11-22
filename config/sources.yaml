@@ -4,7 +4,10 @@
 #             RED never contacted automatically (enforced in code).
 # The egress allow-list = union of allowedHosts over sources enabled for the run.
 # Statuses reflect a review of public terms of service and documentation on 2026-11-21. Re-check before go-live.
-# Keys mirror @olcys/core SourceDescriptor.
+# Keys mirror @olcys/core SourceDescriptor. Every entry needs namePl, complianceNotePl and a tosUrl key (null = no
+# published terms). RED: enabledByDefault false, rateLimit.requests 0, allowedHosts [], non-empty blockedHosts (these
+# hosts are denied for every request, even as extra hosts). AMBER: enabledByDefault false. Ids are unique across both
+# sections. docs/compliance/sources.md is generated from this file (pnpm compliance:sources).
 
 version: sources.v1
 
@@ -15,6 +18,9 @@ sources:
     kind: fixture
     compliance: GREEN
     complianceNote: Synthetic persona served locally (apps/fixture-site). No real data.
+    namePl: 'Syntetyczna witryna testowa OŁCyŚ'
+    complianceNotePl: 'Syntetyczna persona serwowana lokalnie (apps/fixture-site). Brak danych rzeczywistych; źródło nie łączy się z żadnym zewnętrznym hostem.'
+    tosUrl: null
     enabledByDefault: true
     requiresApiKey: false
     sendsIdentifiersExternally: false
@@ -28,6 +34,8 @@ sources:
     kind: forum
     compliance: AMBER
     complianceNote: Forum tolerates polite bots at <= 1 request/s and bans violators; guest-visible pages only, no login.
+    namePl: 'Bitcointalk (strony dla gości)'
+    complianceNotePl: 'Forum toleruje uprzejme boty do 1 zapytania na sekundę, a naruszających blokuje. Tylko strony widoczne dla gościa, bez logowania.'
     tosUrl: https://bitcointalk.org/index.php?topic=5240891.0
     enabledByDefault: false
     requiresApiKey: false
@@ -40,7 +48,10 @@ sources:
     name: BitList (ninjastic.space) Bitcointalk archive API
     kind: archive
     compliance: AMBER
-    complianceNote: Keyless API with no published terms or rate limits; every query discloses the identifier to a private operator. Prefer public dumps in production.
+    complianceNote: "Keyless API with no published terms or rate limits; every query discloses the identifier to a private operator. Prefer public dumps in production. The tosUrl is the operator's general terms page, not API-specific terms."
+    namePl: 'BitList (ninjastic.space) – archiwum Bitcointalk'
+    complianceNotePl: 'Interfejs bez klucza, bez opublikowanych limitów. Każde zapytanie ujawnia identyfikator prywatnemu operatorowi. Link prowadzi do strony z warunkami usługi; w produkcji lepsze są publiczne zrzuty danych.'
+    tosUrl: https://bitlist.co/terms
     enabledByDefault: false
     requiresApiKey: false
     sendsIdentifiersExternally: true
@@ -53,6 +64,9 @@ sources:
     kind: identity_protocol
     compliance: GREEN
     complianceNote: Public on-chain records; ENSv2 live since 2026-10-27, use ENSv2-ready libraries. Self-hosted RPC keeps queries private.
+    namePl: 'ENS (przez skonfigurowany węzeł Ethereum / ENSNode)'
+    complianceNotePl: 'Publiczne wpisy w łańcuchu bloków. Własny węzeł RPC zachowuje prywatność zapytań. Brak odrębnego regulaminu – to otwarty protokół.'
+    tosUrl: null
     enabledByDefault: true
     requiresApiKey: false
     sendsIdentifiersExternally: true
@@ -64,7 +78,10 @@ sources:
     name: Farcaster / Network State Protocol (Snapchain node)
     kind: identity_protocol
     compliance: AMBER
-    complianceNote: Verifications are signed and public; ownership changed twice in 2026, re-check terms. Self-hosting a node keeps queries private.
+    complianceNote: 'Verifications are signed and public; ownership changed twice in 2026, re-check terms. Self-hosting a node keeps queries private. No published terms for the public Snapchain node (tosUrl null).'
+    namePl: 'Farcaster (węzeł Snapchain)'
+    complianceNotePl: 'Weryfikacje są podpisane i publiczne, ale własność protokołu zmieniała się dwukrotnie w 2026 r., więc warunki wymagają ponownego sprawdzenia. Dla publicznego węzła nie opublikowano regulaminu; własny węzeł zachowuje prywatność zapytań.'
+    tosUrl: null
     enabledByDefault: false
     requiresApiKey: false
     sendsIdentifiersExternally: true
@@ -77,6 +94,8 @@ sources:
     kind: identity_protocol
     compliance: GREEN
     complianceNote: Public lookup API; signed cryptocurrency_addresses. Maintenance mode, mostly pre-2020 data.
+    namePl: 'Keybase – interfejs wyszukiwania'
+    complianceNotePl: 'Publiczny interfejs wyszukiwania; podpisane adresy kryptowalutowe. Usługa jest tylko utrzymywana, dane głównie sprzed 2020 r. Link prowadzi do dokumentacji interfejsu, nie do regulaminu.'
     tosUrl: https://keybase.io/docs/api/1.0/call/user/lookup
     enabledByDefault: true
     requiresApiKey: false
@@ -90,6 +109,8 @@ sources:
     kind: code_hosting
     compliance: AMBER
     complianceNote: API use permitted, but the Acceptable Use Policies limit personal data to purposes the user authorised; commit search needs a token (10/min).
+    namePl: 'GitHub REST API'
+    complianceNotePl: 'Użycie interfejsu jest dozwolone, ale zasady dopuszczalnego użycia ograniczają przetwarzanie danych osobowych do celów, na które użytkownik wyraził zgodę. Wyszukiwanie w commitach wymaga tokenu (10 zapytań na minutę).'
     tosUrl: https://docs.github.com/en/site-policy/acceptable-use-policies/github-acceptable-use-policies
     enabledByDefault: false
     requiresApiKey: true
@@ -103,6 +124,9 @@ sources:
     kind: identity_protocol
     compliance: GREEN
     complianceNote: Public protocol. NIP-05 identifies, it does not verify; lud16 Lightning addresses are often custodial.
+    namePl: 'Nostr (NIP-05 i przekaźniki)'
+    complianceNotePl: 'Otwarty protokół publiczny. NIP-05 wskazuje, ale nie weryfikuje tożsamości; adresy Lightning (lud16) bywają powiernicze. Brak regulaminu – brak jednego operatora.'
+    tosUrl: null
     enabledByDefault: true
     requiresApiKey: false
     sendsIdentifiersExternally: true
@@ -114,7 +138,10 @@ sources:
     name: Telegram public channel web preview (t.me/s)
     kind: messenger_public
     compliance: AMBER
-    complianceNote: Public channel previews only, no API/MTProto, no groups. API-sourced Telegram data may not be used for AI; keep Telegram content out of the LLM path.
+    complianceNote: "Public channel previews only, no API/MTProto, no groups. API-sourced Telegram data may not be used for AI; keep Telegram content out of the LLM path. The tosUrl is Telegram's general terms of service, not terms specific to the web preview."
+    namePl: 'Telegram – publiczny podgląd kanałów (t.me/s)'
+    complianceNotePl: 'Wyłącznie podgląd publicznych kanałów, bez API i MTProto, bez grup. Dane pozyskane przez API Telegrama nie mogą służyć AI, więc treści z Telegrama nie trafiają do modelu językowego. Link prowadzi do ogólnych warunków usługi Telegrama.'
+    tosUrl: https://telegram.org/tos
     enabledByDefault: false
     requiresApiKey: false
     sendsIdentifiersExternally: true
@@ -127,6 +154,8 @@ sources:
     kind: social
     compliance: AMBER
     complianceNote: Requires app key + secret (JWT); key issuance and terms unconfirmed. Feature-flagged.
+    namePl: 'Wykop API v3'
+    complianceNotePl: 'Wymaga klucza i sekretu aplikacji (JWT); zasady wydawania kluczy i warunki nie są potwierdzone. Źródło za przełącznikiem funkcji. Link prowadzi do dokumentacji interfejsu.'
     tosUrl: https://doc.wykop.pl/
     enabledByDefault: false
     requiresApiKey: true
@@ -140,6 +169,9 @@ sources:
     kind: username_enumeration
     compliance: AMBER
     complianceNote: Contacts many third-party sites with the username. Pinned DB, tag allow-list (crypto, finance, pl, social, coding, messaging), no proxies, no CAPTCHA bypass, no --ai, no X GraphQL probe.
+    namePl: 'Maigret – wyszukiwanie nazwy użytkownika (services/osint-py)'
+    complianceNotePl: 'Łączy się z wieloma zewnętrznymi serwisami, podając im nazwę użytkownika. Przypięta baza, lista dozwolonych tagów (crypto, finance, pl, social, coding, messaging), bez proxy, bez obchodzenia CAPTCHA, bez --ai, bez sondy GraphQL X. To narzędzie lokalne – obowiązują regulaminy odpytywanych serwisów.'
+    tosUrl: null
     enabledByDefault: false
     requiresApiKey: false
     sendsIdentifiersExternally: true
@@ -153,6 +185,8 @@ sources:
     kind: registry
     compliance: GREEN
     complianceNote: Official API; the only one that searches by first and last name (namesakes are possible - a NIP is followed only for a single match). Token required (own application, CEIDG_API_TOKEN, header only, never logged). Published limits 50 requests / 3 min and 1000 / h, kept at 1 request / 4 s; quota errors are never retried. The terms are those of the official API documentation (tosUrl).
+    namePl: 'CEIDG API v3'
+    complianceNotePl: 'Oficjalny interfejs; jedyny umożliwiający wyszukiwanie po imieniu i nazwisku (możliwe tezki – NIP jest śledzony tylko przy pojedynczym trafieniu). Wymaga tokenu instytucji (CEIDG_API_TOKEN, tylko w nagłówku, nigdy w dzienniku). Limity: 50 zapytań na 3 minuty i 1000 na godzinę, utrzymywane na poziomie 1 zapytania na 4 s; błędów limitu nie ponawiamy. Warunki są zawarte w oficjalnej dokumentacji interfejsu.'
     tosUrl: https://pliki.biznes.gov.pl/akademia/20250117/HD%20CEIDG%20-%20API%20v3%20HD%20-%20Dokumentacja%20dla%20integrator%C3%B3w%20v1.1.pdf
     enabledByDefault: false
     requiresApiKey: true
@@ -166,6 +200,8 @@ sources:
     kind: registry
     compliance: GREEN
     complianceNote: Official API (open data, CC0); lookup by KRS number only. Sometimes answers a maintenance page (Przerwa techniczna) with status 200 - recorded as an error, not as an empty register. Personal identifiers (PESEL) are never read. The terms are those of the official API documentation (tosUrl).
+    namePl: 'KRS Open API'
+    complianceNotePl: 'Oficjalny interfejs (dane otwarte, CC0); wyszukiwanie wyłącznie po numerze KRS. Czasem zwraca stronę przerwy technicznej ze statusem 200 – zapisujemy to jako błąd, a nie jako pusty rejestr. Numery PESEL nigdy nie są odczytywane. Warunki są zawarte w oficjalnej dokumentacji interfejsu.'
     tosUrl: https://prs.ms.gov.pl/krs/openApi
     enabledByDefault: true
     requiresApiKey: false
@@ -179,6 +215,8 @@ sources:
     kind: registry
     compliance: GREEN
     complianceNote: Official API; moved to wykazpodatnikowvat.mf.gov.pl/api (the previous API host stops 2026-12-01 and is never used). Search limit 100 queries a day (at most 10 per run here); a quota answer stops the source. Third parties are recorded as name and role only, PESEL is never read. The terms are those of the official API documentation (tosUrl).
+    namePl: 'Wykaz podatników VAT (biała lista)'
+    complianceNotePl: 'Oficjalny interfejs pod adresem wykazpodatnikowvat.mf.gov.pl/api (dotychczasowy host wygasa 2026-12-01 i nie jest używany). Limit 100 wyszukiwań dziennie (w jednym przebiegu najwyżej 10); odpowiedź o przekroczeniu limitu zatrzymuje źródło. Osoby trzecie zapisujemy tylko jako imię, nazwisko i rolę, PESEL nigdy nie jest odczytywany. Warunki są zawarte w oficjalnej dokumentacji interfejsu.'
     tosUrl: https://www.gov.pl/web/kas/api-wykazu-podatnikow-vat
     enabledByDefault: true
     requiresApiKey: false
@@ -193,6 +231,9 @@ sources:
     kind: search
     compliance: GREEN
     complianceNote: Searches the fixture site's sitemap pages (fixture modes only; robots.txt respected). Queries are matched locally, so no identifier leaves the machine. Demo default (OLCYS_SEARCH_MODE=mock).
+    namePl: 'Atrapa wyszukiwarki (dane testowe)'
+    complianceNotePl: 'Przeszukuje mapę witryny syntetycznej (tylko tryby z danymi testowymi, z poszanowaniem robots.txt). Zapytania są dopasowywane lokalnie, więc żaden identyfikator nie opuszcza komputera. Domyślne ustawienie demonstracji (OLCYS_SEARCH_MODE=mock).'
+    tosUrl: null
     enabledByDefault: true
     requiresApiKey: false
     sendsIdentifiersExternally: false
@@ -205,6 +246,8 @@ sources:
     kind: search
     compliance: AMBER
     complianceNote: Paid per query (5 USD per 1,000 requests, 5 USD monthly credit; no free tier since Feb 2026); the query (identifier) goes to Brave; zero data retention only on Enterprise. Storing results needs a custom plan (FAQ "Yes, with a custom plan"; the API terms reportedly forbid it otherwise). Raw responses are never stored (hash only); titles and snippets are kept (redacted) only with BRAVE_SEARCH_STORAGE_RIGHTS=true, otherwise only rank and URL. Used only with OLCYS_SEARCH_MODE=external in live or replay runs.
+    namePl: 'Brave Search API'
+    complianceNotePl: 'Płatne za zapytanie (5 USD za 1000, miesięczny kredyt 5 USD; od lutego 2026 bez darmowego planu); zapytanie z identyfikatorem trafia do Brave, a zerowe przechowywanie danych jest tylko w planie Enterprise. Przechowywanie wyników wymaga indywidualnego planu. Surowe odpowiedzi nie są zapisywane (tylko skrót); tytuły i fragmenty (zredagowane) zapisujemy tylko przy BRAVE_SEARCH_STORAGE_RIGHTS=true, w pozostałych przypadkach tylko pozycję i adres URL. Używane wyłącznie przy OLCYS_SEARCH_MODE=external w przebiegach live lub replay.'
     tosUrl: https://brave.com/search/api/
     enabledByDefault: false
     requiresApiKey: true
@@ -218,6 +261,8 @@ sources:
     kind: search
     compliance: AMBER
     complianceNote: Paid per query (Startup 2 GBP / Business 3 GBP per 1,000); DPA with no sub-processors, 90-day retention with zero retention on request (preferred for production). Startup may cache results for one hour only. Raw responses are never stored (hash only); on Startup (MOJEEK_PLAN, default) only rank and URL are kept, Business and Enterprise keep titles and snippets (redacted). Used only with OLCYS_SEARCH_MODE=external in live or replay runs.
+    namePl: 'Mojeek Search API'
+    complianceNotePl: 'Płatne za zapytanie (Startup 2 GBP, Business 3 GBP za 1000); umowa powierzenia bez podprocesorów, retencja 90 dni, zerowa na życzenie (zalecana w produkcji). Plan Startup pozwala buforować wyniki tylko przez godzinę. Surowe odpowiedzi nie są zapisywane (tylko skrót); w planie Startup (MOJEEK_PLAN, domyślny) zapisujemy tylko pozycję i adres URL, w Business i Enterprise także zredagowane tytuły i fragmenty. Używane wyłącznie przy OLCYS_SEARCH_MODE=external w przebiegach live lub replay.'
     tosUrl: https://www.mojeek.com/services/search/web-search-api/
     enabledByDefault: false
     requiresApiKey: true
@@ -230,7 +275,10 @@ sources:
     name: Internet Archive Wayback CDX / Availability API (read-only)
     kind: archive
     compliance: GREEN
-    complianceNote: Read-only lookups at <= 20 requests/min. NEVER use Save Page Now on suspect pages (publishes the capture).
+    complianceNote: "Read-only lookups at <= 20 requests/min. NEVER use Save Page Now on suspect pages (publishes the capture). The tosUrl is the Internet Archive's general terms of use."
+    namePl: 'Internet Archive – Wayback CDX / Availability (tylko odczyt)'
+    complianceNotePl: 'Wyłącznie odczyt, do 20 zapytań na minutę. NIGDY nie używamy Save Page Now na stronach podejrzanych, bo publikuje to zapis strony.'
+    tosUrl: https://archive.org/about/terms.php
     enabledByDefault: true
     requiresApiKey: false
     sendsIdentifiersExternally: true
@@ -240,135 +288,155 @@ sources:
 
   # --- RED: never contacted automatically ---------------------------------------------------------------
   x_twitter:
-    {
-      name: X / Twitter,
-      kind: social,
-      compliance: RED,
-      complianceNote: Developer Agreement forbids investigating or tracking users; scraping prohibited.,
-      enabledByDefault: false,
-      requiresApiKey: true,
-      sendsIdentifiersExternally: true,
-      reliability: F,
-      rateLimit: { requests: 0, perSeconds: 1 },
-      allowedHosts: [],
-    }
+    name: 'X / Twitter'
+    kind: social
+    compliance: RED
+    complianceNote: 'Developer Agreement forbids investigating or tracking users; scraping prohibited.'
+    namePl: 'X / Twitter'
+    complianceNotePl: 'Umowa deweloperska zabrania śledzenia i prześwietlania użytkowników; scraping jest zakazany.'
+    tosUrl: https://x.com/en/tos
+    enabledByDefault: false
+    requiresApiKey: true
+    sendsIdentifiersExternally: true
+    reliability: F
+    rateLimit: { requests: 0, perSeconds: 1 }
+    allowedHosts: []
+    blockedHosts: [x.com, twitter.com, api.x.com, api.twitter.com]
   reddit:
-    {
-      name: Reddit,
-      kind: social,
-      compliance: RED,
-      complianceNote: No new API access after 2026-10-31; unauthenticated JSON closed; public API closes March 2027.,
-      enabledByDefault: false,
-      requiresApiKey: true,
-      sendsIdentifiersExternally: true,
-      reliability: F,
-      rateLimit: { requests: 0, perSeconds: 1 },
-      allowedHosts: [],
-    }
+    name: 'Reddit'
+    kind: social
+    compliance: RED
+    complianceNote: 'No new API access after 2026-10-31; unauthenticated JSON closed; public API closes March 2027.'
+    namePl: 'Reddit'
+    complianceNotePl: 'Brak nowych dostępów do API po 2026-10-31; nieuwierzytelniony JSON zamknięty; publiczne API wygasa w marcu 2027.'
+    tosUrl: https://www.redditinc.com/policies/data-api-terms
+    enabledByDefault: false
+    requiresApiKey: true
+    sendsIdentifiersExternally: true
+    reliability: F
+    rateLimit: { requests: 0, perSeconds: 1 }
+    allowedHosts: []
+    blockedHosts: [reddit.com, www.reddit.com, oauth.reddit.com]
   discord:
-    {
-      name: Discord,
-      kind: social,
-      compliance: RED,
-      complianceNote: Developer Policy bans scraping and profiling users.,
-      enabledByDefault: false,
-      requiresApiKey: true,
-      sendsIdentifiersExternally: true,
-      reliability: F,
-      rateLimit: { requests: 0, perSeconds: 1 },
-      allowedHosts: [],
-    }
+    name: 'Discord'
+    kind: social
+    compliance: RED
+    complianceNote: 'Developer Policy bans scraping and profiling users.'
+    namePl: 'Discord'
+    complianceNotePl: 'Polityka deweloperska zakazuje scrapingu i profilowania użytkowników.'
+    tosUrl: https://support-dev.discord.com/hc/en-us/articles/8563934450327-Discord-Developer-Policy
+    enabledByDefault: false
+    requiresApiKey: true
+    sendsIdentifiersExternally: true
+    reliability: F
+    rateLimit: { requests: 0, perSeconds: 1 }
+    allowedHosts: []
+    blockedHosts: [discord.com, discordapp.com]
   youtube:
-    {
-      name: YouTube,
-      kind: social,
-      compliance: RED,
-      complianceNote: Policies ban identifying users without consent; 30-day storage cap conflicts with evidence retention.,
-      enabledByDefault: false,
-      requiresApiKey: true,
-      sendsIdentifiersExternally: true,
-      reliability: F,
-      rateLimit: { requests: 0, perSeconds: 1 },
-      allowedHosts: [],
-    }
+    name: 'YouTube'
+    kind: social
+    compliance: RED
+    complianceNote: 'Policies ban identifying users without consent; 30-day storage cap conflicts with evidence retention.'
+    namePl: 'YouTube'
+    complianceNotePl: 'Zasady zabraniają identyfikowania użytkowników bez ich zgody; 30-dniowy limit przechowywania koliduje z retencją materiału dowodowego.'
+    tosUrl: https://developers.google.com/youtube/terms/developer-policies
+    enabledByDefault: false
+    requiresApiKey: true
+    sendsIdentifiersExternally: true
+    reliability: F
+    rateLimit: { requests: 0, perSeconds: 1 }
+    allowedHosts: []
+    blockedHosts: [youtube.com, www.youtube.com, youtube.googleapis.com]
   meta:
-    {
-      name: Facebook / Instagram,
-      kind: social,
-      compliance: RED,
-      complianceNote: Automated collection forbidden without permission.,
-      enabledByDefault: false,
-      requiresApiKey: true,
-      sendsIdentifiersExternally: true,
-      reliability: F,
-      rateLimit: { requests: 0, perSeconds: 1 },
-      allowedHosts: [],
-    }
+    name: 'Facebook / Instagram'
+    kind: social
+    compliance: RED
+    complianceNote: 'Automated collection forbidden without permission.'
+    namePl: 'Facebook / Instagram'
+    complianceNotePl: 'Automatyczne zbieranie danych jest zabronione bez zgody właściciela.'
+    tosUrl: https://developers.facebook.com/terms/
+    enabledByDefault: false
+    requiresApiKey: true
+    sendsIdentifiersExternally: true
+    reliability: F
+    rateLimit: { requests: 0, perSeconds: 1 }
+    allowedHosts: []
+    blockedHosts: [facebook.com, graph.facebook.com, instagram.com]
   linkedin:
-    {
-      name: LinkedIn,
-      kind: social,
-      compliance: RED,
-      complianceNote: Automated collection forbidden without permission.,
-      enabledByDefault: false,
-      requiresApiKey: true,
-      sendsIdentifiersExternally: true,
-      reliability: F,
-      rateLimit: { requests: 0, perSeconds: 1 },
-      allowedHosts: [],
-    }
+    name: 'LinkedIn'
+    kind: social
+    compliance: RED
+    complianceNote: 'Automated collection forbidden without permission.'
+    namePl: 'LinkedIn'
+    complianceNotePl: 'Automatyczne zbieranie danych jest zabronione bez zgody właściciela.'
+    tosUrl: https://www.linkedin.com/legal/user-agreement
+    enabledByDefault: false
+    requiresApiKey: true
+    sendsIdentifiersExternally: true
+    reliability: F
+    rateLimit: { requests: 0, perSeconds: 1 }
+    allowedHosts: []
+    blockedHosts: [linkedin.com, api.linkedin.com]
   linktree:
-    {
-      name: Linktree,
-      kind: web,
-      compliance: RED,
-      complianceNote: Terms ban bots and scraping.,
-      enabledByDefault: false,
-      requiresApiKey: false,
-      sendsIdentifiersExternally: true,
-      reliability: F,
-      rateLimit: { requests: 0, perSeconds: 1 },
-      allowedHosts: [],
-    }
+    name: 'Linktree'
+    kind: web
+    compliance: RED
+    complianceNote: 'Terms ban bots and scraping.'
+    namePl: 'Linktree'
+    complianceNotePl: 'Regulamin zakazuje botów i scrapingu.'
+    tosUrl: https://linktr.ee/s/terms
+    enabledByDefault: false
+    requiresApiKey: false
+    sendsIdentifiersExternally: true
+    reliability: F
+    rateLimit: { requests: 0, perSeconds: 1 }
+    allowedHosts: []
+    blockedHosts: [linktr.ee]
   allegro:
-    {
-      name: Allegro / Allegro Lokalnie,
-      kind: web,
-      compliance: RED,
-      complianceNote: Regulamin bans bots and data-extraction tools; API is for sellers' own sales.,
-      enabledByDefault: false,
-      requiresApiKey: true,
-      sendsIdentifiersExternally: true,
-      reliability: F,
-      rateLimit: { requests: 0, perSeconds: 1 },
-      allowedHosts: [],
-    }
+    name: 'Allegro / Allegro Lokalnie'
+    kind: web
+    compliance: RED
+    complianceNote: "Regulamin bans bots and data-extraction tools; API is for sellers' own sales."
+    namePl: 'Allegro / Allegro Lokalnie'
+    complianceNotePl: 'Regulamin zakazuje botów i narzędzi do wydobywania danych; API służy sprzedawcom do obsługi własnej sprzedaży.'
+    tosUrl: https://allegro.pl/regulamin
+    enabledByDefault: false
+    requiresApiKey: true
+    sendsIdentifiersExternally: true
+    reliability: F
+    rateLimit: { requests: 0, perSeconds: 1 }
+    allowedHosts: []
+    blockedHosts: [allegro.pl, api.allegro.pl, allegrolokalnie.pl]
   olx:
-    {
-      name: OLX,
-      kind: web,
-      compliance: RED,
-      complianceNote: Terms ban bots and scraping (current clause to be re-checked).,
-      enabledByDefault: false,
-      requiresApiKey: false,
-      sendsIdentifiersExternally: true,
-      reliability: F,
-      rateLimit: { requests: 0, perSeconds: 1 },
-      allowedHosts: [],
-    }
+    name: 'OLX'
+    kind: web
+    compliance: RED
+    complianceNote: 'Terms ban bots and scraping (current clause to be re-checked).'
+    namePl: 'OLX'
+    complianceNotePl: 'Regulamin zakazuje botów i scrapingu (aktualny zapis do ponownego sprawdzenia).'
+    tosUrl: https://pomoc.olx.pl/olxplhelp/s/article/aktualny-regulamin-V32-olx
+    enabledByDefault: false
+    requiresApiKey: false
+    sendsIdentifiersExternally: true
+    reliability: F
+    rateLimit: { requests: 0, perSeconds: 1 }
+    allowedHosts: []
+    blockedHosts: [olx.pl]
   gravatar:
-    {
-      name: Gravatar API v3,
-      kind: identity_protocol,
-      compliance: RED,
-      complianceNote: crypto_wallets only with an API key; free plan limited to "your active users". RED until KAS holds a paid or negotiated plan.,
-      enabledByDefault: false,
-      requiresApiKey: true,
-      sendsIdentifiersExternally: true,
-      reliability: B,
-      rateLimit: { requests: 0, perSeconds: 1 },
-      allowedHosts: [],
-    }
+    name: 'Gravatar API v3'
+    kind: identity_protocol
+    compliance: RED
+    complianceNote: 'crypto_wallets only with an API key; free plan limited to "your active users". RED until KAS holds a paid or negotiated plan.'
+    namePl: 'Gravatar API v3'
+    complianceNotePl: 'Adresy portfeli (crypto_wallets) tylko z kluczem API; darmowy plan obejmuje „aktywnych użytkowników” klienta. Status RED, dopóki KAS nie ma planu płatnego lub wynegocjowanego.'
+    tosUrl: https://gravatar.com/site/terms-of-service
+    enabledByDefault: false
+    requiresApiKey: true
+    sendsIdentifiersExternally: true
+    reliability: B
+    rateLimit: { requests: 0, perSeconds: 1 }
+    allowedHosts: []
+    blockedHosts: [gravatar.com, api.gravatar.com]
 
 # Chain data, prices, timestamping and label datasets.
 providers:
@@ -376,7 +444,10 @@ providers:
     name: mempool.space Esplora REST (Bitcoin)
     kind: chain_data
     compliance: GREEN
-    complianceNote: Public API with undisclosed per-IP limits; ~1 request/s. Discloses queried addresses; production uses a self-hosted Esplora/electrs.
+    complianceNote: 'Public API with undisclosed per-IP limits; ~1 request/s. Discloses queried addresses; production uses a self-hosted Esplora/electrs. The tosUrl is the general terms of service of the site.'
+    namePl: 'mempool.space Esplora REST (Bitcoin)'
+    complianceNotePl: 'Publiczny interfejs z nieujawnionymi limitami na adres IP; ok. 1 zapytania na sekundę. Ujawnia odpytywane adresy; w produkcji używamy własnego Esplora/electrs.'
+    tosUrl: https://mempool.space/terms-of-service
     enabledByDefault: true
     requiresApiKey: false
     sendsIdentifiersExternally: true
@@ -388,7 +459,10 @@ providers:
     name: Blockstream Esplora (Bitcoin)
     kind: chain_data
     compliance: GREEN
-    complianceNote: Same Esplora REST shape; managed API has a free monthly quota.
+    complianceNote: 'Same Esplora REST shape; managed API has a free monthly quota. The tosUrl is the general terms of the operator.'
+    namePl: 'Blockstream Esplora (Bitcoin)'
+    complianceNotePl: 'Ten sam kształt interfejsu Esplora REST; zarządzana usługa ma darmowy miesięczny limit.'
+    tosUrl: https://blockstream.com/terms/
     enabledByDefault: false
     requiresApiKey: false
     sendsIdentifiersExternally: true
@@ -401,6 +475,8 @@ providers:
     kind: chain_data
     compliance: AMBER
     complianceNote: Free tier 3 calls/s, 100k/day, licensed "Personal & Research use only", attribution required; several chains are paid-only. Prototype only; production uses Erigon + Otterscan.
+    namePl: 'Etherscan API V2 (wiele sieci)'
+    complianceNotePl: 'Darmowy plan: 3 zapytania na sekundę, 100 tys. dziennie, licencja „tylko do użytku osobistego i badawczego”, wymagane wskazanie źródła; część sieci tylko w planach płatnych. Tylko prototyp; w produkcji Erigon + Otterscan.'
     tosUrl: https://etherscan.io/apiterms
     attribution: Powered by Etherscan.io APIs
     enabledByDefault: false
@@ -414,7 +490,10 @@ providers:
     name: TronGrid (TRON)
     kind: chain_data
     compliance: AMBER
-    complianceNote: Own free key; quotas unpublished (reported 10k-100k/day). Production uses java-tron + TRC-20 indexer.
+    complianceNote: "Own free key; quotas unpublished (reported 10k-100k/day). Production uses java-tron + TRC-20 indexer. TronGrid's Terms of Service are accepted when registering an API key (no public URL); the tosUrl is the documentation page."
+    namePl: 'TronGrid (TRON)'
+    complianceNotePl: 'Własny, darmowy klucz; limity nieopublikowane (według zgłoszeń 10–100 tys. dziennie). W produkcji java-tron + indeksator TRC-20. Regulamin TronGrid akceptuje się przy rejestracji klucza API; link prowadzi do dokumentacji.'
+    tosUrl: https://developers.tron.network/docs/trongrid
     enabledByDefault: false
     requiresApiKey: true
     sendsIdentifiersExternally: true
@@ -426,7 +505,10 @@ providers:
     name: Solana public RPC
     kind: chain_data
     compliance: AMBER
-    complianceNote: 100 requests / 10 s per IP, not for production.
+    complianceNote: '100 requests / 10 s per IP, not for production. No dedicated terms: the tosUrl is the official RPC documentation, which holds the usage rules for the shared public endpoints.'
+    namePl: 'Publiczny RPC Solany'
+    complianceNotePl: '100 zapytań na 10 s na adres IP, nie do użytku produkcyjnego. Brak odrębnego regulaminu; zasady dla wspólnych publicznych punktów dostępu są w oficjalnej dokumentacji RPC.'
+    tosUrl: https://solana.com/docs/rpc
     enabledByDefault: false
     requiresApiKey: false
     sendsIdentifiersExternally: true
@@ -438,7 +520,10 @@ providers:
     name: NBP Web API (exchange rates)
     kind: price_fx
     compliance: GREEN
-    complianceNote: Free, keyless, HTTPS-only; <= 93 days per query. Queries reveal only dates/currencies.
+    complianceNote: 'Free, keyless, HTTPS-only; <= 93 days per query. Queries reveal only dates/currencies. The tosUrl is the official API manual, which holds the usage rules.'
+    namePl: 'NBP Web API (kursy walut)'
+    complianceNotePl: 'Bezpłatny interfejs bez klucza, tylko HTTPS; do 93 dni na zapytanie. Zapytania ujawniają wyłącznie daty i waluty. Zasady użycia są w oficjalnej instrukcji interfejsu.'
+    tosUrl: https://api.nbp.pl/en.html
     enabledByDefault: true
     requiresApiKey: false
     sendsIdentifiersExternally: false
@@ -451,6 +536,9 @@ providers:
     kind: price_fx
     compliance: GREEN
     complianceNote: Made-up monthly BTC/ETH reference closes for the synthetic persona, read from a local file; no network, no identifiers. Marked synthetic in every valuation. Production imports licensed candle archives (Kraken OHLCVT after legal review; Binance Vision refused, CC-BY-NC-SA).
+    namePl: 'Syntetyczne ceny kryptowalut (plik lokalny fixtures/prices)'
+    complianceNotePl: 'Zmyślone miesięczne kursy odniesienia BTC/ETH dla syntetycznej persony, czytane z pliku lokalnego; bez sieci i bez identyfikatorów. W każdej wycenie oznaczone jako syntetyczne. Produkcyjnie importujemy licencjonowane archiwa świec (Kraken OHLCVT po przeglądzie prawnym; Binance Vision odrzucone – CC-BY-NC-SA).'
+    tosUrl: null
     enabledByDefault: true
     requiresApiKey: false
     sendsIdentifiersExternally: false
@@ -462,7 +550,10 @@ providers:
     name: FreeTSA RFC 3161 timestamping
     kind: timestamping
     compliance: GREEN
-    complianceNote: Only SHA-256 digests leave the system. Demo only (not a qualified TSA); production uses a qualified Polish TSA.
+    complianceNote: "Only SHA-256 digests leave the system. Demo only (not a qualified TSA); production uses a qualified Polish TSA. The tosUrl is the service's usage policy."
+    namePl: 'FreeTSA – znakowanie czasem RFC 3161'
+    complianceNotePl: 'Poza system wychodzą wyłącznie skróty SHA-256. Tylko do demonstracji (to nie kwalifikowany podmiot); w produkcji kwalifikowany polski podmiot znakowania czasem. Link prowadzi do polityki użytkowania.'
+    tosUrl: https://freetsa.org/freetsa.html
     enabledByDefault: true
     requiresApiKey: false
     sendsIdentifiersExternally: false
@@ -475,6 +566,9 @@ providers:
     kind: chain_data
     compliance: GREEN
     complianceNote: Local regtest network in compose profile "sandbox"; demo wallets only, no public network. Allowed live in offline mode.
+    namePl: 'Piaskownica: Bitcoin regtest (lokalny Esplora)'
+    complianceNotePl: 'Lokalna sieć regtest w profilu compose „sandbox”; tylko portfele demonstracyjne, bez sieci publicznej. Dozwolona na żywo w trybie offline; nie łączy się z hostem zewnętrznym.'
+    tosUrl: null
     enabledByDefault: false
     requiresApiKey: false
     sendsIdentifiersExternally: false
@@ -487,6 +581,9 @@ providers:
     kind: chain_data
     compliance: GREEN
     complianceNote: Local EVM chain in compose profile "sandbox" (chain id 1); demo wallets only, no public network. Allowed live in offline mode.
+    namePl: 'Piaskownica: EVM (lokalny Anvil, API Otterscan)'
+    complianceNotePl: 'Lokalny łańcuch EVM w profilu compose „sandbox” (chain id 1); tylko portfele demonstracyjne, bez sieci publicznej. Dozwolona na żywo w trybie offline; nie łączy się z hostem zewnętrznym.'
+    tosUrl: null
     enabledByDefault: false
     requiresApiKey: false
     sendsIdentifiersExternally: false
