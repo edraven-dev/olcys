@@ -134,7 +134,8 @@ export function applyOverrides(
         reliability: grade,
         originGroup: `analyst:${o.id}`,
         evidence: {},
-        detail: truncate(`analyst ${o.analyst}: ${o.justification}`),
+        // The justification stays with the override (an analyst statement); the computed item only names its source.
+        detail: truncate(`analyst evidence: override ${o.id} by ${o.analyst}`),
         accountId: target.accountId,
         ...(hop === 'address' && target.address ? { address: canonicalRef(target.address) } : {}),
         overrideId: o.id,

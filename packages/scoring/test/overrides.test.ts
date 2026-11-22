@@ -195,7 +195,7 @@ describe('applyOverrides', () => {
     });
     expect(item?.discountedBayesFactor).toBeCloseTo(0.4, 10);
     expect(item?.bits).toBeCloseTo(-1.3219, 4);
-    expect(item?.detail).toBe('analyst Analityk Testowy: Uzasadnienie analityka na danych syntetycznych');
+    expect(item?.detail).toBe(`analyst evidence: override ${added.id} by Analityk Testowy`);
     expect(wykopPath(after)!.identityHop.totalBits - wykopPath(before)!.identityHop.totalBits).toBeCloseTo(-1.3219, 4);
     expect(after.score).toBeLessThan(before.score);
     expect(after.analyticConfidence).toBe('Low');
