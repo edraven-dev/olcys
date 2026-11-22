@@ -11,7 +11,7 @@ powstaje razem z dokumentami.
   Wektory testowe z dokumentacji (BIP-173, BIP-350, EIP-55, Bitcoin Wiki) występują wyłącznie jako oznaczone
   negatywy (`example`).
 - **Żadnych sekretów na dysku.** Szablony i dokumenty zawierają tylko znaczniki `{{SECRET:<rodzaj>:<n>}}`. Benchmark
-  wypełnia je w pamięci wartościami wyprowadzonymi z ziarna korpusu (klucz WIF, `xprv`, fraza BIP-39 z 12 lub 24 słów,
+  wypełnia je w pamięci wartościami wyprowadzonymi z seeda korpusu (klucz WIF, `xprv`, fraza BIP-39 z 12 lub 24 słów,
   64 znaki hex obok słów „klucz prywatny”) i nigdy ich nie zapisuje ani nie loguje. Test
   `test/corpus.generator.test.ts` przeszukuje wszystkie pliki korpusu pod kątem kluczy WIF, `xprv`, ciągów słów BIP-39
   i kluczy hex obok słownictwa kluczy.
@@ -21,7 +21,7 @@ powstaje razem z dokumentami.
 ## Polecenia
 
 ```bash
-pnpm --filter @olcys/address-extractor corpus:generate   # odtwarza pliki korpusu z szablonów i ziarna z manifest.json
+pnpm --filter @olcys/address-extractor corpus:generate   # odtwarza pliki korpusu z szablonów i seeda z manifest.json
 pnpm --filter @olcys/address-extractor corpus:check      # generuje w pamięci i porównuje z plikami (kod wyjścia 1 przy różnicy)
 pnpm --filter @olcys/address-extractor bench             # pomiar → data/bench/<wersja ekstraktora>/report.{json,md}
 ```

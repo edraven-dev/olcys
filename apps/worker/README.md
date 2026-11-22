@@ -16,7 +16,7 @@ z etapu.
   magazyn treści (`OLCYS_DATA_DIR/blobs`), rejestr źródeł z `config/sources.yaml`, snapshot konfiguracji przebiegu
   (skróty SHA-256 rejestru źródeł i wag), tryb (`OLCYS_MODE`) oraz `startRun()`, który tworzy przebieg i uruchamia pipeline
   bez czekania na wynik, i `launchRun(runId)`, który uruchamia pipeline przebiegu utworzonego wcześniej (z tego korzysta
-  planista).
+  scheduler).
 - `runPipeline(runId, deps)` — wykonuje etapy (`Stage`: `step` + `run(ctx)`), aktualizuje status (`running` →
   `succeeded`, `partial` gdy część źródeł lub danych łańcucha była niedostępna, albo `failed` z komunikatem błędu)
   i zapisuje zmiany. Ponowna ocena dziedziczy powody niepełności ocenianego przebiegu (razem z kodami). Błąd na
@@ -24,7 +24,7 @@ z etapu.
   przebieg nigdy nie zostaje w stanie `queued`.
 - `diffWithPrevious(repos, run)` — porównanie z poprzednim przebiegiem przez `diffRuns` z `@olcys/evidence`.
 - `loadConfig()` — rejestr źródeł i snapshot konfiguracji.
-- `createScheduler({ runtime, settings?, clock? })` — planista analiz okresowych (zob. `docs/architecture.md`,
+- `createScheduler({ runtime, settings?, clock? })` — scheduler analiz okresowych (zob. `docs/architecture.md`,
   „Analizy okresowe”): `start()` uzgadnia stan z bazą (`reconcile()`), od razu obsługuje termin do nadrobienia, a potem
   sprawdza harmonogramy co `OLCYS_SCHEDULER_INTERVAL_SECONDS`; `stop()` czeka na trwające sprawdzenie. `evaluate()`
   i `fire(caseId, termin)` obsługują terminy (jeden wpis `schedule_tick` na termin, bez nakładania się przebiegów
@@ -79,7 +79,7 @@ o token dla skrótu `manifestSha256` każdego zapisanego przechwycenia (etap zbi
    zapisywane w `clusters` (tylko do dopisywania), a reguła A7 oznacza adresy seed klastra, który wchłonął usługę, osiągnął
    limit lub gwałtownie urósł względem poprzedniego przebiegu. Niepełna historia partnera daje powód `partial`
    z kodem `counterparty_chain_incomplete`. Punktacja dostaje członków klastra jako powiązania `CLUSTER_ASSOCIATED`
-   (wynik 0, „nie oceniono”) wyłącznie dla ziaren z roszczeniem własności. Adresy otrzymują tylko dostawcy włączeni w zakresie sprawy
+   (wynik 0, „nie oceniono”) wyłącznie dla adresów seed z roszczeniem własności. Adresy otrzymują tylko dostawcy włączeni w zakresie sprawy
    (AMBER, np. `etherscan_v2`, `trongrid`, z uzasadnieniem analityka); kursy NBP przy włączonym `nbp_api`. Historia
    pobrana niecałkowicie (brak włączonego dostawcy, blokada, brak nagrania, obcięcie) oznacza przebieg jako `partial`.
    Użyte etykiety są zapisywane w magazynie (raport, API). Adres giełdy nigdy nie jest przypisywany osobie, ale

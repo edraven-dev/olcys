@@ -82,6 +82,6 @@ fraza `"<adres>"`).
    i `MOJEEK_API_KEY`.
 2. Skopiować ciągi testowe ze stron źródłowych, zapisując adres URL i datę.
 3. Uruchomić zapytania przez `createBraveSearchProvider` i `createMojeekSearchProvider` (`@olcys/collectors`) z klientem
-   ruchu wychodzącego `@olcys/http` w korzeniu kompozycji (`apps/worker`), z włączonymi źródłami i limitem 100 zapytań
+   ruchu wychodzącego `@olcys/http` w composition root (`apps/worker`), z włączonymi źródłami i limitem 100 zapytań
    na dostawcę. Skrypt próby nie jest częścią repozytorium, bo próba nie została jeszcze uruchomiona.
 4. Wpisać do tabeli wyłącznie agregaty i uzupełnić rekomendację.

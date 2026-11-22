@@ -56,7 +56,7 @@ konfiguracji.
 
 ## Harmonogram analiz
 
-Proces API uruchamia też planistę analiz okresowych (`createScheduler` z `@olcys/worker`, zob. `docs/architecture.md`):
+Proces API uruchamia też scheduler analiz okresowych (`createScheduler` z `@olcys/worker`, zob. `docs/architecture.md`):
 co `OLCYS_SCHEDULER_INTERVAL_SECONDS` (domyślnie 30 s) obsługuje należne terminy harmonogramów i zatrzymuje się razem
 z serwerem. `PUT /api/cases/:id/schedule` przyjmuje `{ cron, enabled, reason }` (powód jest wymagany) i zwraca stan
 harmonogramu (`CaseScheduleState`). Autor zmiany pochodzi z konfiguracji serwera (`OLCYS_ANALYST_NAME`, w razie braku

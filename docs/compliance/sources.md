@@ -10,7 +10,7 @@ Rejestr w formie czytelnej dla maszyn to **`config/sources.yaml`** — kod go eg
 - **AMBER** — domyślnie wyłączone; analityk włącza je dla konkretnej sprawy z uzasadnieniem, które jest rejestrowane.
 - **RED** — nie można ich włączyć; rejestr kolektorów je odrzuca, a lista dozwolonych hostów nigdy ich nie zawiera.
 
-Tabele źródeł (według statusu) i lista narzędzi niedozwolonych poniżej są **generowane** z `config/sources.yaml` i
+Tabele źródeł (według statusu) i lista narzędzi niedozwolonych poniżej są generowane z `config/sources.yaml` i
 `config/forbidden-tools.yaml` poleceniem `pnpm compliance:sources` (sprawdzanym w `pnpm check`); nie edytuje się ich
 ręcznie. Przegląd statusów wykonano w listopadzie 2026 r.
 
@@ -158,9 +158,9 @@ Przepływ danych: każde zapytanie do usługi zewnętrznej ujawnia odpytywany id
 ruchu wychodzącego rejestruje każde takie ujawnienie (`containsIdentifier`), a wdrożenia produkcyjne powinny
 preferować własne węzły, lokalne kopie zbiorów danych i dostawców z umową powierzenia przetwarzania (DPA).
 
-Szczegółowe uzasadnienie statusu każdego źródła (pola `complianceNote`, `complianceNotePl`, `tosUrl`) jest w `config/sources.yaml`
-i w tabelach powyżej. Wpis wymaga polskiej nazwy i uwagi oraz klucza `tosUrl` (`null` = brak opublikowanego regulaminu); źródła RED
-muszą wymieniać blokowane hosty — nie są kontaktowane nawet jako „dodatkowe” hosty wdrożenia.
+Szczegółowe uzasadnienie statusu każdego źródła (pola `complianceNote`, `complianceNotePl`, `tosUrl`) jest w
+`config/sources.yaml` i w tabelach powyżej. Wpis wymaga polskiej nazwy i uwagi oraz klucza `tosUrl` (`null` = brak
+opublikowanego regulaminu); źródła RED muszą wymieniać blokowane hosty — nie są kontaktowane nawet jako „dodatkowe” hosty wdrożenia.
 
 ## Wyszukiwarki internetowe
 
@@ -225,9 +225,9 @@ muszą wymieniać blokowane hosty — nie są kontaktowane nawet jako „dodatko
 - **robots.txt:** przy pobieraniu snapshotów respektujemy robots.txt hosta archiwum (zakaz = `blocked`, `robots_disallowed`);
   robots.txt witryny źródłowej nie jest sprawdzany dla jej kopii w archiwum. Zapytania do API (Availability, CDX) go nie dotyczą.
 - **Save Page Now jest zakazane.** Zapisałoby stronę podejrzaną w publicznym archiwum i ujawniło zainteresowanie
-  śledczych. Kod nie ma ścieżki, która zbudowałaby adres punktu zapisu (`assertWaybackReadUrl`, test w
+  śledczych. Kod nie ma ścieżki, która zbudowałaby adres endpointu zapisu (`assertWaybackReadUrl`, test w
   `packages/collectors/test/wayback.test.ts`); używane jest tylko `GET`. archive.today jest wykluczone (zmieniane
-  archiwa, ściana CAPTCHA).
+  archiwa, blokada CAPTCHA).
 - **Czego dotyczy zapytanie:** wyłącznie adresów profili kont samej badanej osoby (podanych przez analityka albo
   wskazanych przez jej własne strony) i dopasowanych stron z listy obserwowanych — nie stron osób trzecich. Adres jest
   ujawniany Internet Archive, więc każde zapytanie ma w dzienniku ruchu `containsIdentifier: true`.
@@ -248,8 +248,8 @@ muszą wymieniać blokowane hosty — nie są kontaktowane nawet jako „dodatko
   warunków i limitów; włączane tylko w sprawie z uzasadnieniem (≥ 20 znaków). Zapytania: autor → adresy i wpisy, adres →
   autorzy; nigdy po dziale ani tekście swobodnym; 1 zapytanie na 2 s. Dane to kopia treści z forum (kontekst, nie dowód);
   w produkcji lepsze są publiczne zrzuty danych, a zrzuty zbudowane z obejściem limitów forum są niedozwolone.
-- **ENS** (`ens`, GREEN, wiarygodność A): publiczne wpisy w łańcuchu bloków, odczytywane przez węzeł JSON-RPC wdrożenia.
-  Rejestr ma `allowedHosts: []`: **host węzła podaje wdrożenie** w `OLCYS_SOURCE_HOSTS_ENS` (razem z `ENS_RPC_URL` i
+- **ENS** (`ens`, GREEN, wiarygodność A): publiczne wpisy w blockchainie, odczytywane przez węzeł JSON-RPC wdrożenia.
+  Rejestr ma `allowedHosts: []`: host węzła podaje wdrożenie w `OLCYS_SOURCE_HOSTS_ENS` (razem z `ENS_RPC_URL` i
   `ENS_UNIVERSAL_RESOLVER`); host spoza listy dozwolonych jest błędem konfiguracji przy starcie, a bez `ENS_RPC_URL` kolektor
   nie jest rejestrowany. Zalecany własny węzeł: węzeł komercyjny widziałby każdy badany adres lub nazwę. Bez indeksatorów,
   bramek CCIP-Read i bez pobierania awatarów; rekordy tekstowe są niezaufanymi danymi.

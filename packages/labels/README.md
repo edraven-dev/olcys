@@ -129,7 +129,7 @@ jako bezpiecznik klastrowania (poniżej), A7 jest oceniana z klastrów.
 ## Klastrowanie Bitcoin metodą wspólnego wydatkowania (heurystyka)
 
 `buildCoSpendClusters(seeds, txs, { labels, prevTxs, rules, maxClusterSize?, previousSizes? }, runId)` łączy adresy
-wejść jednej transakcji (struktura zbiorów rozłącznych) z ziaren — adresów Bitcoin sprawy. To **heurystyka**: wynik jest
+wejść jednej transakcji (struktura zbiorów rozłącznych) z adresów seed — adresów Bitcoin sprawy. To **heurystyka**: wynik jest
 obliczeniem, nie faktem, i nie zmienia Wskaźnika Pewności. Metodykę i ograniczenia opisuje
 [klastrowanie wspólnego wydatkowania](../../docs/methodology/klastrowanie-wspolwydatkowania.md).
 

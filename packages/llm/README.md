@@ -72,7 +72,7 @@ Model o dobrej znajomości polskiego na licencji Apache-2.0 (np. Bielik 11B v3 I
 ręcznie, jednorazowo i poza analizą (pobranie nie niesie danych sprawy; OŁCyŚ niczego nie pobiera sam): w Ollamie
 `ollama pull` z biblioteki modeli, w llama.cpp przez plik GGUF umieszczony w `data/models/` (`LLAMACPP_MODEL_FILE`,
 `LLAMACPP_ALIAS`) i `LLM_MODEL_DIGEST=sha256:<suma kontrolna pliku>`. Profile compose `llm` i `llm-llamacpp` mają wyłączone
-funkcje chmurowe i telemetrię, porty wiązane do `127.0.0.1` oraz testy zdrowia.
+funkcje chmurowe i telemetrię, porty wiązane do `127.0.0.1` oraz healthchecki.
 
 Test dymny z działającym modelem jest wyłączony domyślnie: `OLCYS_LLM_LIVE=1 pnpm vitest run --project @olcys/worker llm-live`
 (tylko loopback, krótki syntetyczny prompt).

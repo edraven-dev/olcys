@@ -1,7 +1,7 @@
 # Architektura OŁCyŚ
 
-OŁCyŚ to deterministyczny **pipeline dowodowy**, w którym zgodność z zasadami jest wbudowana od początku. Na podstawie
-co najmniej jednego identyfikatora badanej osoby (imię i nazwisko, nick z forum, identyfikator z komunikatora, login
+OŁCyŚ to deterministyczny **pipeline dowodowy** z wbudowaną zgodnością z zasadami. Na podstawie co najmniej
+jednego identyfikatora badanej osoby (imię i nazwisko, nick z forum, identyfikator z komunikatora, login
 z portalu społecznościowego, e-mail lub adres kryptowalutowy) narzędzie:
 
 1. **zbiera** publiczne ślady wyłącznie z dozwolonych źródeł i zabezpiecza każdą stronę jako dowód;
@@ -20,11 +20,11 @@ z portalu społecznościowego, e-mail lub adres kryptowalutowy) narzędzie:
 ```
 apps/
   api/            API HTTP (Fastify) dla konsoli analityka
-  worker/         pipeline analizy w procesie (bez kolejki) i COMPOSITION ROOT
+  worker/         pipeline analizy w procesie (bez kolejki) i composition root
   web/            konsola analityka w React, interfejs po polsku
   fixture-site/   syntetyczna strona testowa z personą, warianty v1/v2
 packages/
-  core/           model domeny + porty (bez zależności uruchomieniowych)
+  core/           model domeny + porty (bez zależności runtime)
   db/             migracje PostgreSQL, role append-only, zapytania
   http/           klient HTTP z kontrolą ruchu wychodzącego
   evidence/       magazyn plików, manifesty zabezpieczeń, znaczniki czasu, porównania
@@ -114,14 +114,14 @@ oceną), więc krok `diff.previous` pokazuje, co się zmieniło (np. podmianę a
 zbiera dane od nowa i — jak każdy przebieg zbierający — nie stosuje korekt analityka; stosuje je tylko ponowna ocena
 (zob. wyżej).
 
-- **Planista w procesie API (MVP).** `createScheduler()` z `apps/worker` co `OLCYS_SCHEDULER_INTERVAL_SECONDS`
+- **Scheduler w procesie API (MVP).** `createScheduler()` z `apps/worker` co `OLCYS_SCHEDULER_INTERVAL_SECONDS`
   (domyślnie 30 s) sprawdza otwarte sprawy z włączonym harmonogramem i obsługuje termin należny: najpóźniejszy termin
   cron do chwili bieżącej, późniejszy zarówno od ostatniej zmiany harmonogramu, jak i od ostatniego obsłużonego
-  terminu. Stan planisty wynika wyłącznie z bazy danych; przy starcie `reconcile()` raportuje harmonogramy, terminy do
+  terminu. Stan schedulera wynika wyłącznie z bazy danych; przy starcie `reconcile()` raportuje harmonogramy, terminy do
   nadrobienia i przebiegi w toku.
 - **Idempotencja.** Każdy obsłużony termin to jeden wpis `schedule_tick` z unikalnym identyfikatorem zadania
   `<id sprawy>@<termin ISO>`. Wstawienie wpisu zajmuje termin: termin już obsłużony nigdy nie uruchamia drugiego
-  przebiegu — także przy kilku procesach API korzystających z jednej bazy (blokada doradcza sprawy w transakcji, która
+  przebiegu — także przy kilku procesach API korzystających z jednej bazy (advisory lock sprawy w transakcji, która
   zapisuje wpis razem z przebiegiem). Decyzja zapada pod tą blokadą na bieżącym stanie sprawy, a zmiana harmonogramu
   bierze tę samą blokadę: termin, który przestał być należny (harmonogram zmieniono po jego wyborze, termin nie pasuje
   do bieżącego wyrażenia albo obsłużono już późniejszy termin), nie jest obsługiwany i nie zostawia wpisu.
@@ -139,8 +139,7 @@ zbiera dane od nowa i — jak każdy przebieg zbierający — nie stosuje korekt
 - **Ewidencja.** `cases.schedule` to jedyna nowa wartość zmienna (prawo UPDATE wyłącznie do tej kolumny); każda zmiana
   trafia w tej samej transakcji do dopisywanego dziennika `case_schedule_change`: kto (z konfiguracji serwera:
   `OLCYS_ANALYST_NAME`, w razie braku `OLCYS_COLLECTOR_NAME`, domyślnie `analyst`; nigdy z żądania), dlaczego, wartość
-  przed i po. Dla roli `olcys_app` tabele
-  `case_schedule_change` i `schedule_tick` są tylko do dopisywania.
+  przed i po. Dla roli `olcys_app` tabele `case_schedule_change` i `schedule_tick` są tylko do dopisywania.
 - **Odrzucane wyrażenia:** makra (`@daily`, `@reboot`), pole sekund, `H` (Jenkins), RRULE oraz jednoczesne ograniczenie
   dnia miesiąca i dnia tygodnia.
 
@@ -150,15 +149,16 @@ testowej z wariantu v1 na v2 (`FIXTURE_ALLOW_VARIANT_SWITCH=1`, `POST /__fixture
 z harmonogramu pokazuje alert podmiany portfela.
 
 Ograniczenie MVP: przebieg przerwany restartem procesu API pozostaje w stanie `running`, więc kolejne terminy są
-pomijane (`skipped_overlap`); raport startowy planisty i dziennik wskazują takie przebiegi.
+pomijane (`skipped_overlap`); raport startowy schedulera i dziennik wskazują takie przebiegi.
 
 ## Oś czasu strony
 
 Wartości strony lub pola profilu w czasie łączą przebiegi na żywo z kopiami archiwalnymi (Wayback Machine, tylko
 odczyt). `buildPropertyTimelines` (`@olcys/evidence`) buduje `PropertyTimeline`: punkty (czas snapshotu z archiwum albo
 czas przechwycenia), okresy o tym samym zbiorze wartości i zmiany z przedziałem „ostatni punkt przed — pierwszy po”.
-Przechwycenie, z którego odkryto konto, reprezentuje kanoniczną stronę profilu tego konta (adres z rekordu konta, bez zgadywania po tekście adresu), więc profil pobrany po nicku i jego kopie archiwalne tworzą jedną oś. Punkt zachowuje pochodzenie (`archive` / `live`), więc raport i konsola oznaczają kopie archiwalne jako materiał strony
-trzeciej. Luka (niepobrana kopia z nowym skrótem, skrót niezgodny, strona niedostępna lub 404 w kopii) nie kończy
+Przechwycenie, z którego odkryto konto, reprezentuje kanoniczną stronę profilu tego konta (adres z rekordu konta, bez
+zgadywania po tekście adresu), więc profil pobrany po nicku i jego kopie archiwalne tworzą jedną oś. Punkt zachowuje
+pochodzenie (`archive` / `live`), więc raport i konsola oznaczają kopie archiwalne jako materiał strony trzeciej. Luka (niepobrana kopia z nowym skrótem, skrót niezgodny, strona niedostępna lub 404 w kopii) nie kończy
 okresu i nie tworzy zmiany; niepobrana kopia z tym samym skrótem CDX dziedziczy wartości (data przybliżona). Fakty
 (wykaz snapshotów), obliczenia (zgodność skrótu) i wnioski pozostają rozdzielone. Dostęp: `GET /api/cases/:id/timeline`.
 
@@ -248,8 +248,8 @@ dla etapu:  W = log2(szanse a priori) + Σ log2(BF′),   BF′ = ρ·BF + (1 �
 - Wynik dla powiązania: wskaźnik 0–100, termin prawdopodobieństwa wg ICD 203, słowny odpowiednik ilorazu wiarygodności
   wg ENFSI dla każdego etapu, osobna pewność analityczna, pełna lista wkładów (wykres kaskadowy), `algorithmVersion`,
   `weightsVersion`, `weightsSha256`.
-- Wagi: `config/scoring/weights.v2.yaml` (domyślne, nieskalibrowane; `weights.v1.yaml` zachowane do porównań). Przykład do odtworzenia w testach: kotwica na
-  forum w stylu Bitcointalk + podpisany wpis + pole profilu → **99**; konto w stylu Wykopu z tym samym nickiem i linkiem
+- Wagi: `config/scoring/weights.v2.yaml` (domyślne, nieskalibrowane; `weights.v1.yaml` zachowane do porównań).
+  Przykład odtwarzany w testach: kotwica na forum w stylu Bitcointalk + podpisany wpis + pole profilu → **99**; konto w stylu Wykopu z tym samym nickiem i linkiem
   do kotwicy oraz „mój portfel” → **50**; konto w stylu GitHuba z tym samym nickiem i deklaracją Drips → **24**;
   ścieżki Wykop + GitHub łącznie → **62**.
 
@@ -268,19 +268,19 @@ kontraktu usługi — konto EOA z delegacją, konto Safe i konto ERC-4337 mogą 
 
 `@olcys/llm` korzysta z API Chat Completions zgodnego z OpenAI, więc zmiana modelu sprowadza się do zmiany
 `LLM_BASE_URL` i `LLM_MODEL`. Domyślnie jest to lokalny OpenVINO Model Server (`http://localhost:2140/v3`, model
-`qwen3.6-35b-ov`, myślenie wyłączone przez `LLM_CHAT_TEMPLATE_KWARGS`); Ollama, llama.cpp i vLLM działają tak samo.
+`qwen3.6-35b-ov`, tryb thinking wyłączony przez `LLM_CHAT_TEMPLATE_KWARGS`); Ollama, llama.cpp i vLLM działają tak samo.
 Endpoint modelu jest źródłem w `config/sources.yaml` (`local_llm`, rodzaj `ai_model`, nie wysyła identyfikatorów
 poza maszynę), a cały ruch idzie przez `@olcys/http`: lista dozwolonych hostów, limit zapytań, dziennik wyjścia
 (`containsIdentifier`) i provenance envelope. Zdalny endpoint wymaga własnego wpisu AMBER i zgody w sprawie.
 
-Model jedynie _podpowiada_ (rola wzmianki o adresie, szkice wniosków w raporcie (dwa prompty: `address-role-classification`, `report-inference-draft`));
-nigdy nie wyszukuje adresów i nie ustala wyników. Zebrany tekst trafia do niego wyłącznie jako niezaufane dane między
+Model jedynie _podpowiada_: rolę wzmianki o adresie i szkice wniosków w raporcie (prompty
+`address-role-classification` i `report-inference-draft`). Nigdy nie wyszukuje adresów i nie ustala wyników. Zebrany tekst trafia do niego wyłącznie jako niezaufane dane między
 znacznikami z jednorazowym, deterministycznym znacznikiem (tekst jest normalizowany, znaki niewidoczne i fałszywe
 znaczniki usuwane); żądanie nie zawiera narzędzi. Treści ze źródeł z `llmAllowed: false` (np. Telegram) nigdy nie
 trafiają do promptu, a zbyt długi tekst jest odrzucany. Odpowiedź musi spełniać schemat JSON; wyniki oczekiwane
 (`disabled`, `input_rejected`, `egress_denied`, `timeout`, `http_error`, `invalid_json`, `schema_violation`) są
 zwracane jako wartości, a każda próba trafia do dziennika `llm_call` (wersja i skrót promptu, model żądany i zgłoszony,
-skrót modelu, parametry, skrót i blob żądania, blob odpowiedzi). Prompty są wersjonowane i zablokowane skrótem w
+skrót modelu, parametry, skrót i blob żądania, blob odpowiedzi). Prompty są wersjonowane i przypięte skrótem w
 `packages/llm/prompts.lock.json`.
 
 Sugestie (`llm_suggestion`) mają zerową wagę w ocenie, dopóki analityk ich nie potwierdzi decyzją z uzasadnieniem
@@ -288,7 +288,9 @@ Sugestie (`llm_suggestion`) mają zerową wagę w ocenie, dopóki analityk ich n
 ocenie, a uwzględnia je dopiero kolejny przebieg ponownej oceny (potwierdzona rola wzmianki trafia wtedy jako sygnał
 `AnalystCue` do punktu wejścia oceny; oczekujące i odrzucone sugestie nigdy). Krok `llm.suggest` nigdy nie kończy
 przebiegu błędem: niedostępny lub zawodzący model daje kod `llm_unavailable` (przebieg `partial`), a po 3 kolejnych
-niepowodzeniach kolejne wzmianki nie są wysyłane. Decyzja o sugestii zleca w tle ponowne wygenerowanie raportu przebiegu (nowa wersja, wcześniejsze zostają); odpowiedź nie czeka na renderowanie. Tekst z Telegrama nie trafia do modelu. Fakty, wyniki obliczeń i wnioski pozostają rozdzielone.
+niepowodzeniach kolejne wzmianki nie są wysyłane. Decyzja o sugestii zleca w tle ponowne wygenerowanie raportu
+przebiegu (nowa wersja, wcześniejsze zostają); odpowiedź nie czeka na renderowanie. Fakty, wyniki obliczeń i wnioski
+pozostają rozdzielone.
 
 Szkice wniosków do sekcji C raportu powstają wyłącznie na wyraźną prośbę analityka (`POST /api/runs/:runId/report/drafts`,
 dostępne, gdy `meta.features.inferenceDrafts`): jedno ograniczone wywołanie (najwyżej 6 szkiców) czyta zapisany model
@@ -306,6 +308,6 @@ Nagłówki i CSP, dziennik dostępu (tabela `access_log`, tylko dopisywanie), br
 
 ## Język interfejsu i dokumentacji
 
-Konsola analityka, raporty, wszystkie pliki README oraz katalog `docs/` są **po polsku**. Wszystkie teksty widoczne dla
+Konsola analityka, raporty, wszystkie pliki README oraz katalog `docs/` są po polsku. Wszystkie teksty widoczne dla
 użytkownika pochodzą z `apps/web/src/i18n/pl.ts` (teksty raportów — z polskiego katalogu pakietu reporting). Kod,
 identyfikatory, logi, komentarze i nazwy pól API pozostają w języku angielskim.

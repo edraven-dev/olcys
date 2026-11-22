@@ -77,7 +77,7 @@ P(ścieżka) = P(osoba ↔ konto) × P(konto ↔ adres).
 
 - **Ścieżki** mają kotwice oraz konta z co najmniej jedną dodatnią cechą tożsamości. Konta osób trzecich (np. autor
   listy adresów giełd, kanał z ostrzeżeniami) nie tworzą roszczeń posiadania (notatka `no_identity_path`).
-- **Cechy tożsamości** (grupa = konto): `exact_username_or_name` (uchwyt równy nickowi / loginowi / identyfikatorowi
+- **Cechy tożsamości** (grupa = konto): `exact_username_or_name` (handle równy nickowi / loginowi / identyfikatorowi
   komunikatora po normalizacji albo nazwa równa imieniu i nazwisku — `displayName`, `profile.name`, `profile.display_name`,
   `profile.full_name`, `profile.real_name`, `profile.seller_name`), `profile_link_to_anchor` (`account.link` lub
   `profile.link` wskazujące profil kotwicy), `verified_cross_proof` (`verification.*` wskazujące kotwicę),
@@ -111,12 +111,12 @@ P(ścieżka) = P(osoba ↔ konto) × P(konto ↔ adres).
   `post.author` albo konto wykryte na tej stronie); dopiero potem ten sam post tej samej platformy w innym
   przechwyceniu. Kopia archiwalna dziedziczy autora oryginału. Bez autora wzmianka nie tworzy roszczenia.
 - **Podpis BIP-137** wiąże adres z kontem tylko wtedy, gdy treść wprost wskazuje to konto: zwrot („I am”, „jestem”,
-  „user”, „konto” …) z pełnym uchwytem (porównanie po NFC i wielkości liter, bez usuwania znaków diakrytycznych) albo identyfikator konta w kontekście „uid” / „user id” / `u=`. Poprawny podpis
+  „user”, „konto” …) z pełnym handle (porównanie po NFC i wielkości liter, bez usuwania znaków diakrytycznych) albo identyfikator konta w kontekście „uid” / „user id” / `u=`. Poprawny podpis
   dowodzi kontroli klucza przez podpisującego, nie przez publikującego: skopiowana wiadomość nie daje E1 (notatka
   `signed_message_unbound`).
-- **Konta wykryte kilka razy** (ta sama platforma i identyfikator, albo dokładnie ten sam uchwyt bez identyfikatora —
-  podobne uchwyty, np. `demo-user` i `demo_user`, to osobne konta i tylko cecha tożsamości) są scalane: liczą się
-  uchwyty, nazwy wyświetlane, adresy profili i strony wykrycia wszystkich rekordów.
+- **Konta wykryte kilka razy** (ta sama platforma i identyfikator, albo dokładnie ten sam handle bez identyfikatora —
+  podobne handle, np. `demo-user` i `demo_user`, to osobne konta i tylko cecha tożsamości) są scalane: liczą się
+  handle, nazwy wyświetlane, adresy profili i strony wykrycia wszystkich rekordów.
 - **Relacja roszczenia:** pierwszeństwo CUSTODIAL_EXCHANGE > SELF_DECLARED > PAYMENT_ENDPOINT > MENTION_UNCLEAR (także
   dla wzmianek zastąpionych przez E1/E2); decyzja `reclassified` z relacją ją zastępuje. Poziom = najlepszy poziom cech.
 

@@ -11,7 +11,7 @@ własności, nie podnosi Wskaźnika Pewności i w raporcie jest opisany jako heu
    historię udało się pobrać.
 2. **Wspólne wejścia.** Transakcje potwierdzone, w kolejności (wysokość bloku, `txid`); transakcja łączy adresy swoich
    wejść (struktura zbiorów rozłącznych). Wyjścia nigdy nie są łączone z wejściami. Transakcje coinbase i wejścia bez
-   adresu są pomijane. Wynikiem jest klaster każdej grupy ziaren (także klaster jednoelementowy).
+   adresu są pomijane. Wynikiem jest klaster każdej grupy adresów seed (także klaster jednoelementowy).
 3. **Rozszerzenie.** Historie partnerów wspólnego wydatkowania są pobierane tym samym klientem ruchu wychodzącego
    i tymi samymi dostawcami co pozostałe dane łańcuchowe (z zapisem w dzienniku, `containsIdentifier: true`), w
    granicach: najwyżej 200 adresów, głębokość 2 (partner partnera), do 5 stron historii na adres. Nigdy nie są
@@ -20,7 +20,7 @@ własności, nie podnosi Wskaźnika Pewności i w raporcie jest opisany jako heu
    sprawy; w środowisku produkcyjnym należy używać własnego węzła lub instancji Esplora.
 4. **Identyfikator i kolejność.** Identyfikator klastra to `c_` i 16 znaków szesnastkowych SHA-256 z posortowanej listy
    adresów (rozdzielonych znakiem nowej linii); lista adresów jest sortowana, więc kolejność transakcji na wejściu nie
-   zmienia wyniku. Dowód połączenia adresu to pierwsza transakcja łącząca go z seedumi (przeszukiwanie wszerz).
+   zmienia wyniku. Dowód połączenia adresu to pierwsza transakcja łącząca go z adresami seed (przeszukiwanie wszerz).
 
 ## Bezpieczniki
 
@@ -38,12 +38,12 @@ Limit rozmiaru działa na całe transakcje: transakcja, która podniosłaby skł
 (zachowanie konserwatywne), a transakcje są przetwarzane w kolejności (wysokość bloku, `txid`), więc wynik zależy od tej
 kolejności, a nie od kolejności danych wejściowych.
 
-Reguła A7 tylko **oznacza** (`flagged`) adresy ziaren — nie wyklucza ich. Progi (11 równych wyjść, nominały pul,
+Reguła A7 tylko oznacza (`flagged`) adresy seed — nie wyklucza ich. Progi (11 równych wyjść, nominały pul,
 limit 1000, wzrost 100) są wartościami startowymi, niekalibrowanymi, i leżą w `config/rules/exclusion.v1.yaml`.
 
 ## Czego nie robimy
 
-- **Brak heurystyki adresu reszty.** Jest znacznie mniej bezpieczna (błędne połączenie jednego adresu zapada klaster);
+- **Brak heurystyki adresu reszty.** Jest znacznie mniej bezpieczna (jedno błędne połączenie wystarczy do cluster collapse);
   adres reszty nie jest łączony z wejściami.
 - Brak klastrowania innych łańcuchów UTXO.
 - Klaster nie tworzy powiązania z osobą: jego członkowie są zapisywani jako `CLUSTER_ASSOCIATED` (wynik 0, „nie
@@ -52,7 +52,7 @@ limit 1000, wzrost 100) są wartościami startowymi, niekalibrowanymi, i leżą 
 ## Ograniczenia, o których musi wiedzieć analityk
 
 - **Fałszywe połączenia.** Möser i Narayanan (2022) pokazują, że nawet znikomy odsetek błędnych połączeń (0,044 %)
-  zapada klastry; wniosek z klastra to wskazówka do dalszego sprawdzenia, nie dowód.
+  prowadzi do cluster collapse; wniosek z klastra to wskazówka do dalszego sprawdzenia, nie dowód.
 - **CoinJoin nadal istnieje** po zajęciach z 2024 r.: Wasabi działa przez niezależnych koordynatorów (zkSNACKs
   zakończył działalność 1 czerwca 2024 r.), Ashigaru uruchomił ponownie Whirlpool w czerwcu 2025 r., JoinMarket działa
   jako JoinMarket NG. Wykrywanie opiera się na kształcie transakcji; nowe protokoły i warianty mogą go nie spełniać.
