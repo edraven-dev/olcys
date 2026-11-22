@@ -30,6 +30,7 @@ export interface EsploraVin {
   vout?: number;
   is_coinbase?: boolean;
   prevout?: { scriptpubkey_address?: string; scriptpubkey_type?: string; value: number | string } | null;
+  inner_witnessscript_asm?: string;
 }
 
 export interface EsploraVout {
@@ -64,6 +65,7 @@ export function mapEsploraTx(tx: EsploraTx, chain: ChainId, fetchId: Id): UtxoTr
         value: sats(vin.prevout.value),
         prevTxid: vin.txid ?? '',
         vout: vin.vout ?? 0,
+        ...(vin.inner_witnessscript_asm ? { witnessScriptAsm: vin.inner_witnessscript_asm } : {}),
       };
     }),
     outputs: tx.vout.map((out, n) => ({

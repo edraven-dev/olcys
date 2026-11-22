@@ -48,6 +48,7 @@ import {
   canonicalAddress,
   DEMO_CURATED_DATASET,
   effectiveOutcome,
+  evaluateClusterCollapse,
   evaluateExclusions,
   loadDelegateRegistry,
   loadDenyList,
@@ -57,6 +58,7 @@ import {
   loadSafeSingletons,
   MemoryLabelLookup,
   prescreenExclusions,
+  toClusterSummary,
 } from '@olcys/labels';
 import { parse as parseYaml } from 'yaml';
 import { createSecretRedactor, extractCapture, parseDenyList, type CaptureContent } from '@olcys/address-extractor';
@@ -81,6 +83,7 @@ import { createReportStage } from '@olcys/reporting';
 import { loadWeights, scoreRun } from '@olcys/scoring';
 import { classifyFetched } from './address-types.ts';
 import { withAnalystOverrides } from './analyst.ts';
+import { CLUSTER_EXPANSION, clusterBitcoin } from './clusters.ts';
 import { describeGaps, historyGaps, isOwnStatement, transfersOf } from './chain-data.ts';
 import { REPO_ROOT, TOOL_VERSION } from './config.ts';
 import type { Stage, StageContext } from './pipeline.ts';
@@ -247,13 +250,15 @@ export function createScoreStage(options: Pick<StageOptions, 'sources'>): Stage 
     step: 'score.links',
     async run(ctx: StageContext) {
       const runId = ctx.run.id;
-      const [w, captures, accounts, observations, extractions, exclusions] = await Promise.all([
+      const [w, captures, accounts, observations, extractions, exclusions, clusters] = await Promise.all([
         weights(),
         ctx.repos.evidence.listCaptures(ctx.evidenceRunId),
         ctx.repos.evidence.listAccounts(ctx.evidenceRunId),
         ctx.repos.evidence.listObservations(ctx.evidenceRunId),
         ctx.repos.evidence.listExtractionResults(runId),
         ctx.repos.analysis.listExclusions(ctx.evidenceRunId),
+        // Co-spend clusters (a heuristic) come with the chain analysis of the evidence run.
+        ctx.repos.clusters?.list(ctx.evidenceRunId) ?? Promise.resolve([]),
       ]);
       // A rescore applies the analyst overrides recorded until it was queued; other runs score the evidence as is.
       const { input, applied } = await withAnalystOverrides(
@@ -268,6 +273,7 @@ export function createScoreStage(options: Pick<StageOptions, 'sources'>): Stage 
           extractions,
           sources: (id) => byId.get(id),
           exclusions,
+          clusters,
         },
         ctx.logger,
       );
@@ -281,6 +287,9 @@ export function createScoreStage(options: Pick<StageOptions, 'sources'>): Stage 
     },
   };
 }
+
+/** Fetch results that leave a usable (if partial) Bitcoin history to cluster from. */
+const CLUSTERABLE: ReadonlySet<string> = new Set(['ok', 'not_found', 'truncated']);
 
 const NBP_BASE_URL = 'https://api.nbp.pl/api';
 
@@ -562,6 +571,56 @@ export function createChainStage(options: StageOptions): Stage {
           )),
         );
       }
+
+      // 2b. Bitcoin co-spend clusters of the kept addresses (a heuristic: CoinJoin and service guards, bounded
+      // expansion of the co-spend partners). A7 flags a cluster that took in a service, hit the cap or collapsed.
+      const clusterSeeds = [
+        ...new Set(
+          candidates
+            .filter((a) => chainFamily(a.chain) === 'bitcoin')
+            .filter(
+              (a) =>
+                effectiveOutcome(decisions.filter((d) => targetOf(d.address) === targetOf(a))).outcome !== 'excluded',
+            )
+            .filter((a) =>
+              fetched.outcomes.some((o) => addressKey(o.address) === addressKey(a) && CLUSTERABLE.has(o.status)),
+            )
+            .map((a) => a.address),
+        ),
+      ].toSorted();
+      let clusterCount = 0;
+      if (clusterSeeds.length) {
+        const result = await clusterBitcoin({
+          seeds: clusterSeeds,
+          txs: fetched.utxoTxs,
+          fetched: new Set(toFetch.filter((a) => chainFamily(a.chain) === 'bitcoin').map((a) => a.address)),
+          exclusionDeps,
+          previousSizes: (await ctx.repos.clusters?.previousSizes(ctx.case.id, clusterSeeds, runId)) ?? new Map(),
+          providers,
+          runCtx,
+          chainSources,
+          tips,
+          runId,
+        });
+        const clusterGaps = historyGaps(result.outcomes);
+        if (clusterGaps) {
+          ctx.markPartial(
+            `co-spend partner chain data incomplete for ${clusterGaps.count} address(es): ${describeGaps(clusterGaps.items)}`,
+            { code: 'counterparty_chain_incomplete', params: { count: clusterGaps.count, items: clusterGaps.items } },
+          );
+        }
+        if (result.unexpanded > 0) {
+          ctx.markPartial(
+            `co-spend expansion limited: ${result.unexpanded} partner address(es) not fetched (bound of ${CLUSTER_EXPANSION.maxAddresses} addresses)`,
+            { code: 'cluster_expansion_limited', params: { count: result.unexpanded } },
+          );
+        }
+        await ctx.repos.clusters?.add(runId, result.clusters);
+        for (const cluster of result.clusters) {
+          decisions.push(...evaluateClusterCollapse(toClusterSummary(cluster), { rules: c.rules, runId }));
+        }
+        clusterCount = result.clusters.length;
+      }
       await ctx.repos.analysis.addExclusions(decisions);
 
       // 3. One-hop expansion of unlabelled recipients (deposit addresses show themselves by their sweeps).
@@ -680,6 +739,7 @@ export function createChainStage(options: StageOptions): Stage {
         chainAddresses: analysed.length,
         addressTypes: types.size,
         exclusions: decisions.length,
+        clusters: clusterCount,
         cashOutEvents: events.length,
         unpricedTransfers: unpriced,
       });

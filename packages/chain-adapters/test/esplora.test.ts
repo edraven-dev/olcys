@@ -72,6 +72,18 @@ describe('Esplora mapping', () => {
     expect(coinbase.inputs[0]).toEqual({ value: '0', prevTxid: '0'.repeat(64), vout: 4294967295 });
   });
 
+  it('keeps the revealed witness script of an input (the multisig guard of co-spend clustering reads it)', () => {
+    const asm = 'OP_2 OP_PUSHBYTES_33 aa OP_PUSHBYTES_33 bb OP_2 OP_CHECKMULTISIG';
+    const [first, ...rest] = spend.vin;
+    const mapped = mapEsploraTx(
+      { ...spend, vin: [{ ...first!, inner_witnessscript_asm: asm }, ...rest] },
+      'bitcoin',
+      'f1',
+    );
+    expect(mapped.inputs[0]?.witnessScriptAsm).toBe(asm);
+    expect(mapEsploraTx(spend, 'bitcoin', 'f1').inputs[0]).not.toHaveProperty('witnessScriptAsm');
+  });
+
   it('derives one transfer per payment and ignores change', () => {
     const spent = deriveTransfers(mapEsploraTx(spend, 'bitcoin', 'f1'), A, 'bh');
     expect(spent).toHaveLength(1);

@@ -264,6 +264,7 @@ export function createEgressClient(options: EgressClientOptions): EgressClient {
       ...(runId ? { runId } : {}),
       mode: options.mode,
       at: clock.now().toISOString(),
+      ...(sources.get(fields.sourceId)?.sandbox ? { sandbox: true } : {}),
       ...fields,
     });
     return id;
@@ -463,10 +464,12 @@ export function createEgressClient(options: EgressClientOptions): EgressClient {
           finalUrl: cassette.finalUrl,
           egressLogId: await log(runId, { ...fields, httpStatus: cassette.status, bytes: body.byteLength }),
           ...(cassette.synthetic ? { synthetic: true } : {}),
-          ...(cassette.sandbox ? { sandbox: true } : {}),
+          ...(cassette.sandbox || source.sandbox ? { sandbox: true } : {}),
         };
       } else {
         fetched = await fetchLive(request, source, runId);
+        // Live data of a sandbox source (e.g. a local Anvil node) is marked like replayed sandbox data.
+        if (source.sandbox) fetched.sandbox = true;
         // Everything replay serves from cassettes is recordable (fixture site included); internal services stay live
         // in replay and are not recorded. Hash-only requests (persistBody: false) are never written to disk.
         const recordable = !(LIVE_IN_REPLAY.has(source.kind) && isLocal(firstHost)) && request.persistBody !== false;

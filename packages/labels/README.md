@@ -109,7 +109,8 @@ i `delegateInfo` (wpis rejestru delegatów).
 ```ts
 loadDenyList(yamlText) → DenyList                // match(address)
 loadExclusionRules(yamlText) → ExclusionRulesConfig   // version, sha256, a1.trustOrder, a2.keepAttributable,
-                                                      // a3 { recordDelegate, flagKnownSweepers }, a4 { tauBlocks, alpha }
+                                                      // a3 { recordDelegate, flagKnownSweepers }, a4 { tauBlocks, alpha },
+                                                      // a6 { wasabiMinEqualOutputs, whirlpool, … }, a7 { maxClusterSize, minGrowthFactor }
 classifyAddress(address, { provider?, labels, assets?, safeSingletons, entryPoints, code? }, ctx) → AddressTypeClassification
 parseDelegation(code) → { delegate } | 'malformed' | undefined
 utxoScriptType(address) → 'p2pkh' | 'p2sh' | 'p2wpkh' | 'p2wsh' | 'p2tr' | 'unknown'
@@ -122,4 +123,24 @@ effectiveOutcome(decisions) → { outcome, decisive? }
 ```
 
 Każda decyzja ma `rulesVersion` i angielskie uzasadnienie zaczynające się od identyfikatora reguły (np. `A4: …`); polskie
-nazwy reguł pokazuje interfejs. Reguły A5–A7 (usługi behawioralne, CoinJoin, klastry) są poza MVP.
+nazwy reguł pokazuje interfejs. Reguły A5 (usługi behawioralne) i A6 jako samodzielna decyzja są poza MVP; A6 działa
+jako bezpiecznik klastrowania (poniżej), A7 jest oceniana z klastrów.
+
+## Klastrowanie Bitcoin metodą wspólnego wydatkowania (heurystyka)
+
+`buildCoSpendClusters(seeds, txs, { labels, prevTxs, rules, maxClusterSize?, previousSizes? }, runId)` łączy adresy
+wejść jednej transakcji (struktura zbiorów rozłącznych) z ziaren — adresów Bitcoin sprawy. To **heurystyka**: wynik jest
+obliczeniem, nie faktem, i nie zmienia Wskaźnika Pewności. Metodykę i ograniczenia opisuje
+[klastrowanie wspólnego wydatkowania](../../docs/methodology/klastrowanie-wspolwydatkowania.md).
+
+- Bezpieczniki (`coSpendGuard`, `detectCoinJoin`): Wasabi (≥ 11 równych wyjść), Whirlpool 5×5 z tx0 lub miksu
+  (nominały pul i próg opłaty w A6), ogólny wzorzec równych wyjść (≥ 3 wyjścia, ≥ 50 %), transakcja wspólna
+  (P2WSH lub `OP_CHECKMULTISIG` przy ≥ 2 adresach). Pominięte transakcje trafiają do `skipped` z powodem.
+- Bezpiecznik zapadania: usługa z etykietą rozstrzygającą wydana razem z adresem osoby nie dołącza do klastra
+  (`serviceMembers`, `flags.serviceMerge`); limit rozmiaru (`maxClusterSize`, domyślnie `a7.maxClusterSize` = 1000) daje
+  `flags.capped` i `cap_reached`; `flags.growthFactor` = rozmiar / `previousSize`.
+- Bez heurystyki adresu reszty. Identyfikator `c_…` i kolejność adresów zależą tylko od zbioru adresów.
+- `planClusterExpansion(clusters, fetched, { maxDepth, round, maxAddresses, exclude })` wskazuje partnerów do pobrania
+  (≤ 200 adresów, głębokość ≤ 2, bez usług i adresów z listy wykluczeń); pobieranie wykonuje etap analizy łańcucha.
+- `toClusterSummary(cluster)` i `evaluateClusterCollapse(summary, { rules, runId })` — reguła A7: decyzja `flagged`
+  dla każdego ziarna klastra, który wchłonął usługę, osiągnął limit lub urósł co najmniej `a7.minGrowthFactor` razy.

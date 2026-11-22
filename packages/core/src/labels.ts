@@ -186,6 +186,16 @@ export interface ExclusionDecision {
     codeBytes?: number;
     /** A8: the deny-list entry that matched. */
     denyList?: { kind: string; name: string; source: string };
+    /** A7: the co-spend cluster behind the flag (a heuristic result). */
+    cluster?: {
+      id: string;
+      size: number;
+      previousSize?: number;
+      growthFactor?: number;
+      /** Labelled services spent together with the cluster. */
+      serviceMembers?: string[];
+      capped?: boolean;
+    };
     /** Rule parameters used, e.g. `{ tauBlocks: 3200, alpha: '0.01', clock: 'blocks' }`. */
     params?: Record<string, number | string>;
   };

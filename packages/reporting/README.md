@@ -30,6 +30,10 @@ potoku `report.render`, który raport generuje i zapisuje.
    Trop KYC tylko wtedy, gdy analiza ustaliła autorstwo publikacji (`evidence.kycLead`); inne wzmianki są wymienione
    z autorami jako nieprzesądzające. Interakcje z giełdami są odnotowywane, a nie przypisywane osobie.
 5. Aktywność on-chain i przesłanki wyjścia do walut tradycyjnych — wartości w PLN z tabelą, datą i kursem NBP.
+   Podrozdział „Klastry adresów Bitcoin” (`ReportData.clusters`, gdy magazyn je przechowuje) przedstawia wynik
+   heurystyki wspólnego wydatkowania jako obliczenie, a nie fakt: rozmiar, ziarna, dowody połączeń, pominięte
+   transakcje CoinJoin i wspólne z powodem oraz ostrzeżenia (usługa, limit, wzrost). Klastry bez połączeń są
+   zliczone jednym zdaniem; powiązania `CLUSTER_ASSOCIATED` nie są liczone jako powiązania własnościowe.
 6. Chronologia przepływu środków — zdania w kolejności czasu, zbudowane z transakcji, krawędzi przepływu i zdarzeń
    wyjścia do walut tradycyjnych. Zdarzenie bez pobranej transakcji jest wynikiem reguły, a nie przelewem; wycena
    krawędzi trafia tylko do tego samego przepływu (sieć, transakcja, adresy, aktywo, kwota). Sumy liczą każdy

@@ -19,6 +19,7 @@ import type {
   RunWithProgress,
 } from '@olcys/core';
 import { addressKey, newId, nowIso, uniqueTransfers } from '@olcys/core';
+import { memoryClusterRepository } from './memory-clusters.ts';
 import { memoryAddressTypeRepository } from './memory-address-types.ts';
 import { memoryScheduleRepository } from './memory-schedules.ts';
 import { labelContentSha256 } from './sql/analysis.ts';
@@ -122,6 +123,7 @@ export function createMemoryRepositories(): Repositories {
     },
     schedules: memoryScheduleRepository(cases, runs),
     addressTypes: memoryAddressTypeRepository(runs),
+    clusters: memoryClusterRepository(runs),
     evidence: {
       async addEgressLog(entries) {
         store.egress.push(...copy(entries));

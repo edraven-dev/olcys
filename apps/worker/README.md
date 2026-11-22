@@ -57,7 +57,14 @@ Etapy (zbieranie, wyodrębnianie adresów, analiza łańcucha, punktacja, raport
    z pobrania i sondy przez tego samego dostawcę — EOA, delegacja EIP-7702, Safe, ERC-4337, kontrakt tokena, kontrakt,
    typ skryptu Bitcoin; zapis w `addressTypes`, nieudana sonda oznacza przebieg jako `partial`), reguły odrzucania
    A1–A4/A8 (A3 z rejestrem delegatów `config/labels/eip7702-delegates.v1.yaml`), rozszerzenie o kontrahentów, aktywność
-   i wskaźniki wyjścia do fiat wyceniane w PLN (NBP). Adresy otrzymują tylko dostawcy włączeni w zakresie sprawy
+   i wskaźniki wyjścia do fiat wyceniane w PLN (NBP). Dla adresów Bitcoin sprawy etap buduje klastry wspólnego
+   wydatkowania (`src/clusters.ts`, heurystyka z bezpiecznikami CoinJoin i usług — zob.
+   [metodyka](../../docs/methodology/klastrowanie-wspolwydatkowania.md)): historie partnerów są pobierane tym samym klientem
+   ruchu wychodzącego (≤ 200 adresów, głębokość 2, ≤ 5 stron; bez usług i adresów z listy wykluczeń), klastry są
+   zapisywane w `clusters` (tylko do dopisywania), a reguła A7 oznacza ziarna klastra, który wchłonął usługę, osiągnął
+   limit lub gwałtownie urósł względem poprzedniego przebiegu. Niepełna historia partnera daje powód `partial`
+   z kodem `counterparty_chain_incomplete`. Punktacja dostaje członków klastra jako powiązania `CLUSTER_ASSOCIATED`
+   (wynik 0, „nie oceniono”) wyłącznie dla ziaren z roszczeniem własności. Adresy otrzymują tylko dostawcy włączeni w zakresie sprawy
    (AMBER, np. `etherscan_v2`, `trongrid`, z uzasadnieniem analityka); kursy NBP przy włączonym `nbp_api`. Historia
    pobrana niecałkowicie (brak włączonego dostawcy, blokada, brak nagrania, obcięcie) oznacza przebieg jako `partial`.
    Użyte etykiety są zapisywane w magazynie (raport, API). Adres giełdy nigdy nie jest przypisywany osobie, ale

@@ -568,10 +568,14 @@ export async function computeActivity(
       entity: cp.entity,
       direction: leg.direction,
       count: 0,
+      priced: 0,
     };
     entry.count += 1;
     const valuation = valuations.get(leg);
-    if (valuation) entry.pln = dAdd(entry.pln ?? '0', valuation.pln);
+    if (valuation) {
+      entry.pln = dAdd(entry.pln ?? '0', valuation.pln);
+      entry.priced = (entry.priced ?? 0) + 1;
+    }
     interactions.set(key, entry);
   }
 

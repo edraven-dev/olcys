@@ -8,6 +8,7 @@ import type { AnalysisRun, Case, CaseSchedule, Identifier } from './case.ts';
 import type { ChangeEvent } from './changes.ts';
 import type { NormalizedTransfer } from './chain-data.ts';
 import type { AddressRef } from './chains.ts';
+import type { AddressCluster } from './clusters.ts';
 import type { Id, IsoDateTime } from './common.ts';
 import type { Capture, CustodyEvent, Observation, OnlineAccount } from './evidence.ts';
 import type { AddressCandidate, ExtractionResult } from './extraction.ts';
@@ -153,6 +154,19 @@ export interface AddressTypeRepository {
   list(runId: Id): Promise<AddressTypeClassification[]>;
 }
 
+/** Bitcoin co-spend clusters of the chain analysis (append-only; a heuristic result, one cluster id per run). */
+export interface ClusterRepository {
+  /** Stores the run's clusters; a cluster id already stored for the run is refused. */
+  add(runId: Id, clusters: AddressCluster[]): Promise<void>;
+  /** Ordered by id. */
+  list(runId: Id): Promise<AddressCluster[]>;
+  /**
+   * Sizes of the clusters of the case's earlier runs for these seeds (the newest earlier run with a cluster of the
+   * seed wins), for the growth factor of rule A7. `beforeRunId` excludes that run and every later one.
+   */
+  previousSizes(caseId: Id, seeds: readonly string[], beforeRunId: Id): Promise<Map<string, number>>;
+}
+
 /** Computed results of a run. */
 export interface AnalysisRepository {
   addExclusions(decisions: ExclusionDecision[]): Promise<void>;
@@ -216,6 +230,8 @@ export interface Repositories {
   chain: ChainDataRepository;
   /** Address-type classifications of the chain analysis (both `@olcys/db` implementations provide it). */
   addressTypes?: AddressTypeRepository;
+  /** Co-spend clusters of the chain analysis (both `@olcys/db` implementations provide it). */
+  clusters?: ClusterRepository;
   analysis: AnalysisRepository;
   labels: LabelRepository;
   /** Periodic re-runs (both `@olcys/db` implementations provide it; `ApiMeta.features.schedules`). */

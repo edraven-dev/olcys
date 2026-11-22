@@ -74,7 +74,7 @@ function resolvedOf(facts: AddressFacts): Pick<ExclusionDecision, 'resolved'> {
   return { resolved: canonicalAddress(resolved) };
 }
 
-function isDecidingService(label: AddressLabel, trustOrder: readonly string[]): boolean {
+export function isDecidingService(label: AddressLabel, trustOrder: readonly string[]): boolean {
   return (
     label.provenance.deciding === true &&
     label.provenance.sourceType !== undefined &&

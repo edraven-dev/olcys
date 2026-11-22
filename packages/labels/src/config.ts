@@ -69,6 +69,30 @@ export interface ExclusionRulesConfig {
   /** Record the delegate of an EIP-7702 delegated account; flag delegates listed as sweepers. */
   a3: { recordDelegate: boolean; flagKnownSweepers: boolean };
   a4: { tauBlocks: number; alpha: DecimalString };
+  /** CoinJoin shapes that stop co-spend clustering. */
+  a6: {
+    wasabiMinEqualOutputs: number;
+    whirlpool: { inputs: number; outputs: number; requiresTx0: boolean };
+    /** Pool denominations in satoshis. */
+    whirlpoolPools: number[];
+    /** Largest premix (tx0) output above its pool denomination, as a fraction of the denomination. */
+    whirlpoolPremixMaxFeeShare: DecimalString;
+    equalOutputs: { minCount: number; minShare: DecimalString };
+  };
+  /** Cluster collapse: the size cap and the growth factor against the previous run that flags a cluster. */
+  a7: { maxClusterSize: number; minGrowthFactor: number };
+}
+
+function positiveInt(value: unknown, where: string): number {
+  const n = Number(value);
+  if (!Number.isInteger(n) || n <= 0) throw new Error(`exclusion rules: ${where} must be a positive integer`);
+  return n;
+}
+
+function fraction(value: unknown, where: string): DecimalString {
+  const text = String(value);
+  if (!isDecimalString(text)) throw new Error(`exclusion rules: ${where} invalid`);
+  return text;
 }
 
 export function loadExclusionRules(yamlText: string): ExclusionRulesConfig {
@@ -91,6 +115,11 @@ export function loadExclusionRules(yamlText: string): ExclusionRulesConfig {
   const alpha = String(a4['alphaMaxAmountDiff']);
   if (!Number.isInteger(tauBlocks) || tauBlocks <= 0) throw new Error('exclusion rules: A4 tauBlocks invalid');
   if (!isDecimalString(alpha)) throw new Error('exclusion rules: A4 alphaMaxAmountDiff invalid');
+  const a6 = rule('A6_coinjoin');
+  const whirlpool = (a6['whirlpool'] ?? {}) as Record<string, unknown>;
+  const equal = (a6['equalOutputs'] ?? {}) as Record<string, unknown>;
+  const pools = Array.isArray(a6['whirlpoolPools']) ? a6['whirlpoolPools'] : [];
+  const a7 = rule('A7_cluster_collapse');
   return {
     version: doc.version,
     sha256: createHash('sha256').update(yamlText).digest('hex'),
@@ -98,5 +127,23 @@ export function loadExclusionRules(yamlText: string): ExclusionRulesConfig {
     a2: { keepAttributable: list(rule('A2_service_contract')['keepAttributable']) },
     a3: { recordDelegate: flag('recordDelegate'), flagKnownSweepers: flag('flagKnownSweepers') },
     a4: { tauBlocks, alpha },
+    a6: {
+      wasabiMinEqualOutputs: positiveInt(a6['wasabiMinEqualOutputs'], 'A6 wasabiMinEqualOutputs'),
+      whirlpool: {
+        inputs: positiveInt(whirlpool['inputs'], 'A6 whirlpool.inputs'),
+        outputs: positiveInt(whirlpool['outputs'], 'A6 whirlpool.outputs'),
+        requiresTx0: whirlpool['requiresTx0'] !== false,
+      },
+      whirlpoolPools: pools.map((p, i) => positiveInt(p, `A6 whirlpoolPools[${i}]`)),
+      whirlpoolPremixMaxFeeShare: fraction(a6['whirlpoolPremixMaxFeeShare'], 'A6 whirlpoolPremixMaxFeeShare'),
+      equalOutputs: {
+        minCount: positiveInt(equal['minCount'], 'A6 equalOutputs.minCount'),
+        minShare: fraction(equal['minShare'], 'A6 equalOutputs.minShare'),
+      },
+    },
+    a7: {
+      maxClusterSize: positiveInt(a7['maxClusterSize'], 'A7 maxClusterSize'),
+      minGrowthFactor: positiveInt(a7['minGrowthFactor'], 'A7 minGrowthFactor'),
+    },
   };
 }

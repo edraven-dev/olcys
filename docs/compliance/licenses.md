@@ -50,14 +50,14 @@ Poniższe tabele są generowane z `pnpm-lock.yaml`, `services/osint-py/pyproject
 
 ### Status bramki licencyjnej
 
-- Sprawdzone komponenty: 370 (npm: 360, Python: 2, obrazy: 8).
+- Sprawdzone komponenty: 377 (npm: 367, Python: 2, obrazy: 8).
 - Wynik: wszystkie komponenty zgodne z polityką licencyjną (`config/licenses.json`).
 - Wyjątki licencyjne (`config/compliance/license-exceptions.yaml`): 0.
 - SBOM (CycloneDX 1.6) powstają na żądanie poleceniem `pnpm compliance:sbom` (katalog `data/sbom/`, poza repozytorium); opisują je pliki `olcys-npm.cdx.json` i `olcys-osint-py.cdx.json`.
 
 ### Zależności bezpośrednie npm
 
-Wszystkie zależności bezpośrednie wszystkich pakietów monorepo (29 pakietów); „(dev)” oznacza zależność deweloperską.
+Wszystkie zależności bezpośrednie wszystkich pakietów monorepo (31 pakietów); „(dev)” oznacza zależność deweloperską.
 
 | Komponent | Wersja | Licencja (SPDX) | Zastosowanie | Gdzie |
 | --- | --- | --- | --- | --- |
@@ -74,8 +74,10 @@ Wszystkie zależności bezpośrednie wszystkich pakietów monorepo (29 pakietów
 | @vitejs/plugin-react | 6.3.0 | MIT | wtyczka Vite do budowania interfejsu | apps/web (dev) |
 | big.js | 7.0.1 | MIT | dokładna arytmetyka dziesiętna (kwoty, PLN) | packages/core |
 | cron-parser | 5.10.6 | MIT | wyrażenia cron harmonogramu analiz (UTC) | apps/worker |
+| cytoscape | 3.35.0 | MIT | graf powiązań (używany bezpośrednio, bez nakładki React; układy wbudowane) | apps/web |
 | entities | 9.0.0 | BSD-2-Clause | dekodowanie encji HTML przy normalizacji | packages/address-extractor |
 | fastify | 5.12.8 | MIT | API HTTP | apps/api |
+| happy-dom | 21.0.4 | MIT | środowisko DOM w testach komponentów (tylko testy) | apps/web (dev) |
 | kysely | 0.29.9 | MIT | typowany konstruktor zapytań SQL | packages/db |
 | license-checker-rseidelsohn | 5.0.1 | BSD-3-Clause | kontrola licencji zależności npm | root (dev) |
 | linkedom | 0.18.15 | ISC | parsowanie HTML zebranych stron (DOM bez przeglądarki) | packages/collectors |
@@ -117,11 +119,11 @@ Każdy `image:` z `compose.yml` i każde `FROM` z Dockerfile musi mieć wpis w `
 
 ### Zależności przechodnie npm (podsumowanie)
 
-331 pakietów przechodnich; pełna lista z wersjami, skrótami i licencjami jest w SBOM npm (`pnpm compliance:sbom`).
+336 pakietów przechodnich; pełna lista z wersjami, skrótami i licencjami jest w SBOM npm (`pnpm compliance:sbom`).
 
 | Licencja (SPDX) | Runtime | Tylko dev | Razem |
 | --- | --- | --- | --- |
-| MIT | 57 | 134 | 191 |
+| MIT | 57 | 139 | 196 |
 | ISC | 6 | 55 | 61 |
 | Apache-2.0 | 1 | 31 | 32 |
 | BSD-2-Clause | 12 | 2 | 14 |

@@ -8,6 +8,7 @@ import type {
   Observation,
   OnlineAccount,
 } from '@olcys/core';
+import { useEffect } from 'react';
 import { CandidateSnippet } from '../../components/evidence.tsx';
 import {
   AddressText,
@@ -36,7 +37,7 @@ import {
   type LinkView,
 } from '../../lib/domain.ts';
 import { formatNumber, formatProbability } from '../../lib/format.ts';
-import { Link, routePath } from '../../lib/router.tsx';
+import { Link, routePath, useLocation } from '../../lib/router.tsx';
 import { useList, useOptionalList } from '../../lib/use-api.ts';
 import type { RunScope } from '../run/RunPage.tsx';
 import {
@@ -70,6 +71,18 @@ export function RejectedTab({ scope }: { scope: RunScope }) {
   const addressTypes = useOptionalList<AddressTypeClassification>(apiPaths.runList(run.id, 'address-types'), {
     version,
   });
+
+  const location = useLocation();
+  const loaded = exclusions.data !== undefined && links.data !== undefined;
+
+  // A hash such as #exclusion-ID or #link-ID (e.g. from the graph) opens the card, also inside the „kept” section, and scrolls.
+  useEffect(() => {
+    if (!loaded || !/^#(exclusion|link)-/.test(location.hash)) return;
+    const card = document.getElementById(location.hash.slice(1));
+    const details = card?.closest('details');
+    if (details instanceof HTMLDetailsElement) details.open = true;
+    card?.scrollIntoView();
+  }, [loaded, location.hash]);
 
   const missing = [exclusions, links].find((r) => r.data === undefined && r.error);
   if (missing) return <ErrorState title={pl.rejected.loadError} error={missing.error} onRetry={missing.reload} />;
@@ -195,7 +208,7 @@ export function RejectedTab({ scope }: { scope: RunScope }) {
         ) : (
           <ul className="plain-list stack">
             {relationLinks.map((link) => (
-              <li key={link.id} className="card rejected-card">
+              <li key={link.id} className="card rejected-card" id={`link-${link.id}`}>
                 <p className="card-head">
                   <AddressText value={link.address.address} /> <span>{chainName(link.address.chain)}</span>{' '}
                   <span className="badge tone-critical">

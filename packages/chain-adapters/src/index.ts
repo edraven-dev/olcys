@@ -1,6 +1,6 @@
 /**
  * @olcys/chain-adapters — blockchain data providers behind the `ChainProvider` port (Esplora, Etherscan V2,
- * TronGrid): the same code serves public APIs, self-hosted nodes and the synthetic fixture site; only the base URL
+ * TronGrid, Otterscan API): the same code serves public APIs, self-hosted nodes and the synthetic fixture site; only the base URL
  * differs. Every request goes through the run's egress client (`ctx.http`).
  *
  * Contracts (types and ports) come from @olcys/core.
@@ -33,6 +33,19 @@ export {
   mapEtherscanRows,
   type EtherscanCursor,
 } from './etherscan.ts';
+export {
+  classifyOtterscan,
+  createOtterscanEvmProvider,
+  createOtterscanProvider,
+  decodeAbiString,
+  DEFAULT_LOG_BLOCK_RANGE,
+  DEFAULT_OTTERSCAN_MIN_API_LEVEL,
+  DEFAULT_OTTERSCAN_PAGE_SIZE,
+  ERC20_TRANSFER_TOPIC,
+  OTTERSCAN_PROVIDER_ID,
+  type OtterscanCursor,
+  type OtterscanEvmProviderOptions,
+} from './otterscan.ts';
 export { parseJsonExact } from './json.ts';
 export { ChainProviderRegistry, createChainProvider, createChainProviderRegistry } from './registry.ts';
 export {
