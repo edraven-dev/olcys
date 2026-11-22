@@ -4,7 +4,7 @@ Notatka opisuje, jak mierzymy jakość pakietu `@olcys/address-extractor` — wy
 adresów kryptowalutowych oraz maskowania sekretów — i jakie wyniki daje pomiar. Liczby pochodzą z raportu
 `data/bench/<wersja ekstraktora>/report.md` wygenerowanego poleceniem
 `pnpm --filter @olcys/address-extractor bench` i są tu skopiowane bez zmian (korpus 1.0.0, ekstraktor
-`0.1.0+patterns.v1+lexicon.v1+uri.v1`).
+`0.1.0+patterns.v2+lexicon.v1+uri.v1`).
 
 ## Dlaczego korpus syntetyczny
 

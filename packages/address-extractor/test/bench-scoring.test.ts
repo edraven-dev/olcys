@@ -101,6 +101,9 @@ describe('benchmark scoring rules', () => {
       expect.objectContaining({ docId: 'pl-test-001', expected: 'bitcoin', actual: 'tron' }),
     ]);
     expect(report.attribution['all']).toMatchObject({ total: 1, correct: 0 });
+    expect(report.attribution['bitcoin']).toMatchObject({ total: 1, correct: 0 });
+    expect(report.attribution['base58_1_3']).toMatchObject({ total: 1, correct: 0 });
+    expect(report.attribution['p2sh_3']).toMatchObject({ total: 1, correct: 0 });
   });
 
   it('does not count a partial redaction as redacted', async () => {

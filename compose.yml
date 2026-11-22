@@ -4,6 +4,10 @@
 #   docker compose --profile osint up -d --wait  # + Python OSINT worker (Maigret, socid-extractor, pyHanko)
 #   docker compose --profile llm up -d --wait    # + local LLM runtime (Ollama, OpenAI-compatible API)
 #
+# Podman: `podman compose` (or `docker compose` emulated by podman) runs this file unchanged. From a container, the
+# host is `host.docker.internal` (Docker) or `host.containers.internal` (Podman); nothing here needs either, because
+# the services reach each other by service name and the apps run on the host. See docs/development.md.
+#
 # App code (apps/api, apps/worker, apps/web) runs on the host with `pnpm dev`.
 # Every published port binds to 127.0.0.1 only. Versions are the newest stable releases at the time of
 # writing; bump them deliberately (see AGENTS.md "Dependency policy").
@@ -40,6 +44,13 @@ services:
     restart: unless-stopped
     ports:
       - '127.0.0.1:${GOTENBERG_PORT:-3100}:3000'
+    healthcheck:
+      # The official image ships curl; /health reports the chromium and libreoffice modules.
+      test: ['CMD-SHELL', 'curl --silent --fail http://127.0.0.1:3000/health || exit 1']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
 
   # Synthetic persona website used by demos and tests (apps/fixture-site).
   # Runs the TypeScript source directly on Node 26 (type stripping); uses Node built-ins only.
