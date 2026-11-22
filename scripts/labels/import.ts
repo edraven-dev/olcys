@@ -25,7 +25,6 @@ import {
   importContext,
   loadDatasetRegistry,
   loadPorProfiles,
-  ofacAssetChains,
   parseActorPack,
   parseConfidenceCsv,
   parseEsmaCasps,
@@ -111,10 +110,10 @@ export async function runImport(options: ImportOptions, deps: ImportDeps): Promi
       if (!/^\d{4}-\d{2}-\d{2}$/.test(version)) throw new Error('ofac-0xb10c: --version must be the snapshot date');
       const parsed = parseOfacList(asset, text, ctx);
       warnings = parsed.warnings;
-      const chains = new Set<string>(ofacAssetChains(asset));
+      // Each asset file has its own history: compare only with the labels of this dataset and asset.
       const previous = deps.labels
         ? (await deps.labels.list()).filter(
-            (l) => l.provenance.datasetId === entry.datasetId && chains.has(l.address.chain),
+            (l) => l.provenance.datasetId === entry.datasetId && l.provenance.asset === asset,
           )
         : undefined;
       labels = diffOfacVersions(previous, parsed.rows, version);

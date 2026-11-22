@@ -2,6 +2,8 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
+import { MemoryLabelLookup } from '../../packages/labels/src/index.ts';
+import { writeFile } from 'node:fs/promises';
 import { createMemoryRepositories } from '../../packages/db/src/index.ts';
 import { runImport } from './import.ts';
 
@@ -68,5 +70,38 @@ describe('labels:import', () => {
       records: unknown[];
     };
     expect(written.records).toHaveLength(2);
+  });
+
+  it('keeps assets separate and every listing period readable', async () => {
+    const dir = await dirPromise;
+    const repos = createMemoryRepositories();
+    const deps = { labels: repos.labels, dataDir: dir, now };
+    const eth = '0x8888888888888888888888888888888888888888';
+    const both = '0x9999999999999999999999999999999999999999';
+    const write = async (name: string, list: string[]): Promise<string> => {
+      const file = join(dir, name);
+      await writeFile(file, JSON.stringify(list));
+      return file;
+    };
+    const run = async (file: string, asset: string, version: string): Promise<void> => {
+      await runImport({ datasetId: 'ofac-0xb10c', file, asset, version }, deps);
+    };
+    await run(await write('eth1.json', [eth, both]), 'ETH', '2026-10-01');
+    await run(await write('usdt1.json', [both]), 'USDT', '2026-10-05');
+    const active = async (address: string, date: string): Promise<number> =>
+      (
+        await new MemoryLabelLookup(await repos.labels.list()).labelsFor(
+          { chain: 'evm:1', address },
+          `${date}T00:00:00Z`,
+        )
+      ).length;
+    // USDT snapshot does not end the ETH-only address
+    expect(await active(eth, '2026-10-10')).toBe(1);
+    // ETH delists it (2026-11-01), lists it again (2026-12-01): the first period stays readable
+    await run(await write('eth2.json', [both]), 'ETH', '2026-11-01');
+    await run(await write('eth3.json', [both, eth]), 'ETH', '2026-12-01');
+    expect(await active(eth, '2026-10-10')).toBe(1);
+    expect(await active(eth, '2026-11-15')).toBe(0);
+    expect(await active(eth, '2026-12-05')).toBe(1);
   });
 });

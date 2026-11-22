@@ -19,6 +19,8 @@ export interface ImportContext {
   lastmod: IsoDateTime;
   retrievedAt: IsoDateTime;
   synthetic?: boolean;
+  /** Datasets published per asset (OFAC): kept in the provenance so each asset has its own history. */
+  asset?: string;
 }
 
 export interface ImportResult<T> {
@@ -60,6 +62,7 @@ export function makeLabel(
       license: ctx.license,
       lastmod: fields.lastmod ?? ctx.lastmod,
       retrievedAt: ctx.retrievedAt,
+      ...(ctx.asset ? { asset: ctx.asset } : {}),
       ...(ctx.synthetic ? { synthetic: true } : {}),
     },
   };

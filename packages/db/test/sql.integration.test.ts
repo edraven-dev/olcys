@@ -197,6 +197,35 @@ describe.skipIf(!enabled)('SQL repositories (integration: needs OLCYS_TEST_DATAB
     expect((await mine()).map((l) => l.category)).toEqual(['exchange']);
   });
 
+  it('keeps every listing period of a label, separately per asset', async () => {
+    const repos = createSqlRepositories(db);
+    const address: AddressRef = { chain: 'evm:1', address: `0x${newId().replaceAll('-', '').padEnd(40, '0')}` };
+    const period = (
+      asset: string,
+      activeFrom: string,
+      activeTo: string | undefined,
+      lastmod: string,
+    ): AddressLabel => ({
+      id: newId(),
+      address,
+      entity: 'OFAC SDN list',
+      category: 'sanctioned_entity',
+      attributes: { sanctioned: true, activeFrom, ...(activeTo ? { activeTo } : {}) },
+      provenance: { datasetId: 'ofac-0xb10c', asset, url: 'u', license: 'x', lastmod, retrievedAt: lastmod },
+      confidence: 100,
+    });
+    await repos.labels.upsert([period('ETH', '2026-10-01', undefined, '2026-10-01T00:00:00.000Z')]);
+    await repos.labels.upsert([period('ETH', '2026-10-01', '2026-10-31', '2026-11-01T00:00:00.000Z')]);
+    await repos.labels.upsert([period('ETH', '2026-12-01', undefined, '2026-12-01T00:00:00.000Z')]);
+    await repos.labels.upsert([period('USDT', '2026-10-05', undefined, '2026-10-05T00:00:00.000Z')]);
+    const mine = (await repos.labels.list()).filter((l) => l.address.address === address.address);
+    expect(mine.map((l) => [l.provenance.asset, l.attributes.activeFrom, l.attributes.activeTo]).toSorted()).toEqual([
+      ['ETH', '2026-10-01', '2026-10-31'],
+      ['ETH', '2026-12-01', undefined],
+      ['USDT', '2026-10-05', undefined],
+    ]);
+  });
+
   it('migration history is not writable by the application role', async () => {
     await expect(
       db.insertInto('schema_migrations').values({ version: '9999', name: 'forged', sha256: 'x' }).execute(),

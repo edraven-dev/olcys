@@ -24,7 +24,7 @@ import { addressKey, newId, nowIso, traceFlows, uniqueTransfers } from '@olcys/c
 import { memoryClusterRepository } from './memory-clusters.ts';
 import { memoryAddressTypeRepository } from './memory-address-types.ts';
 import { memoryScheduleRepository } from './memory-schedules.ts';
-import { labelContentSha256 } from './sql/analysis.ts';
+import { labelContentSha256, labelPeriodKey } from './sql/analysis.ts';
 
 const copy = <T>(value: T): T => structuredClone(value);
 const byRun = <T extends { runId?: Id }>(items: readonly T[], runId: Id): T[] =>
@@ -294,13 +294,13 @@ export function createMemoryRepositories(): Repositories {
     labels: {
       async upsert(labels) {
         for (const label of labels) {
-          const key = `${addressKey(label.address)}|${label.entity}|${label.provenance.datasetId}`;
+          const key = labelPeriodKey(label);
           const sha = labelContentSha256(label);
           if (store.labels.some((v) => v.key === key && v.sha === sha)) continue;
           store.labels.push({ key, sha, lastmod: label.provenance.lastmod, label: copy(label) });
         }
       },
-      /** Current labels: the newest version (by `lastmod`, then insertion) per address, entity and dataset. */
+      /** Current labels: the newest version (by `lastmod`, then insertion) per address, entity, dataset, asset and period start. */
       async list() {
         const current = new Map<string, { lastmod: string; label: AddressLabel }>();
         for (const v of store.labels) {

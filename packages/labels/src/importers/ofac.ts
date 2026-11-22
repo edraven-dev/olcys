@@ -41,7 +41,8 @@ function chainOf(asset: string, address: string): ChainId | undefined {
   return ASSET_CHAINS[a];
 }
 
-export function parseOfacList(asset: string, json: string, ctx: ImportContext): ImportResult<AddressLabel> {
+export function parseOfacList(asset: string, json: string, baseCtx: ImportContext): ImportResult<AddressLabel> {
+  const ctx = { ...baseCtx, asset: asset.toUpperCase() };
   const warnings: string[] = [];
   const list: unknown = JSON.parse(json);
   if (!Array.isArray(list)) throw new Error(`ofac ${asset}: expected a JSON array of addresses`);
