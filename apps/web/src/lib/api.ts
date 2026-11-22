@@ -166,6 +166,8 @@ export const apiPaths = {
   case: (caseId: string) => `/api/cases/${enc(caseId)}`,
   caseRuns: (caseId: string) => `/api/cases/${enc(caseId)}/runs`,
   caseSchedule: (caseId: string) => `/api/cases/${enc(caseId)}/schedule`,
+  caseTimeline: (caseId: string, filter: { walletOnly?: boolean } = {}) =>
+    `/api/cases/${enc(caseId)}/timeline${filter.walletOnly ? '?walletOnly=true' : ''}`,
   run: (runId: string) => `/api/runs/${enc(runId)}`,
   runList: (runId: string, list: RunListName) => `/api/runs/${enc(runId)}/${list}`,
   report: (runId: string) => `/api/runs/${enc(runId)}/report`,

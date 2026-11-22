@@ -14,6 +14,7 @@ const settings = schedulingSettings(process.env);
 const app = buildApp({
   ...runtime,
   httpLog: true,
+  hsts: process.env['OLCYS_HSTS'] === '1',
   // Loopback hosts are always allowed; OLCYS_API_ALLOWED_HOSTS adds more (comma-separated).
   guard: { allowedHosts: listFromEnv(process.env['OLCYS_API_ALLOWED_HOSTS']), webPort: process.env['WEB_PORT'] },
   // One analyst identity for cases, schedule changes, judgements and overrides.

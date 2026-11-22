@@ -17,7 +17,7 @@ import type {
   RunWithProgress,
   SourceDescriptor,
 } from '@olcys/core';
-import { createSourceRegister, validateCaseScope, type ScopeViolation } from '@olcys/collectors';
+import { buildWaybackHistory, createSourceRegister, validateCaseScope, type ScopeViolation } from '@olcys/collectors';
 import {
   ContractError,
   CORE_CONTRACTS_VERSION,
@@ -26,6 +26,7 @@ import {
   nowIso,
   parse,
   StartRunSchema,
+  TimelineQuerySchema,
 } from '@olcys/core';
 import {
   buildReportModel,
@@ -41,12 +42,14 @@ import {
   isExportKind,
   REPORT_DATA_MEDIA_TYPE,
 } from '@olcys/reporting';
+import { buildPropertyTimelines, latestExtractions } from '@olcys/evidence';
 import { evidenceRunIdOf, TOOL_VERSION } from '@olcys/worker';
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from 'fastify';
 import { DEFAULT_ANALYST, registerAnalystRoutes, supportsJudgements, withJudgements } from './analyst-routes.ts';
 import { registerGuard, type GuardOptions } from './guard.ts';
 import { idOf } from './ids.ts';
 import { registerScheduleRoutes } from './schedule-routes.ts';
+import { httpLogOptions, registerAccessLog, registerSecurityHeaders, reportCsp, statedPurpose } from './security.ts';
 import { registerSuggestionRoutes } from './suggestion-routes.ts';
 
 export interface ApiDeps {
@@ -63,8 +66,14 @@ export interface ApiDeps {
    * else `analyst`): creates cases, changes schedules, records judgements and overrides. Never taken from a request.
    */
   analyst?: string;
+  /** Access-log dedupe window of repeated identical reads (default 60 s) and clock, for tests. */
+  accessLog?: { dedupeWindowMs?: number; nowMs?(): number };
+  /** Adds `Strict-Transport-Security`: only when the API is served over TLS (`OLCYS_HSTS=1`). */
+  hsts?: boolean;
   /** Fastify request logging. */
   httpLog?: boolean;
+  /** Destination of the request log (default: stdout); for tests. */
+  logStream?: { write(line: string): void };
   /** Extra allowed `Host` headers and `Origin`s on top of the loopback defaults (see `guard.ts`). */
   guard?: GuardOptions;
   /**
@@ -132,14 +141,29 @@ const describeViolation = (v: ScopeViolation): string => {
 const notFound = (reply: FastifyReply, what: string) =>
   reply.code(404).send({ error: 'not_found', message: `${what} not found` });
 
+/** Rows of several runs without repeats (a rescore reads the evidence of the run it rescored). */
+const unique = <T extends { id: string }>(rows: T[][]): T[] => [
+  ...new Map(rows.flat().map((row) => [row.id, row])).values(),
+];
+
 export function buildApp(deps: ApiDeps): FastifyInstance {
-  const app = Fastify({ logger: deps.httpLog ?? false });
+  const app = Fastify({
+    logger: deps.httpLog ? { ...httpLogOptions(), ...(deps.logStream ? { stream: deps.logStream } : {}) } : false,
+  });
   const { repos } = deps;
   const analyst = deps.analyst ?? DEFAULT_ANALYST;
   const sourceRegister = createSourceRegister(deps.sources);
 
   // DNS rebinding and cross-site writes: the API has no authentication, so it only serves its own console.
   registerGuard(app, deps.guard);
+  registerSecurityHeaders(app, { hsts: deps.hsts ?? false });
+  registerAccessLog(app, {
+    repos,
+    // The analyst label recorded with judgements when configured, otherwise a fixed local actor.
+    analyst: deps.analyst ?? 'local',
+    ...deps.accessLog,
+    onError: (error) => app.log.error({ err: error }, 'access log write failed'),
+  });
 
   app.setErrorHandler((error, _request, reply) => {
     if (error instanceof ContractError) {
@@ -180,7 +204,7 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
           action: 'exported',
           runId: run.id,
           subject: { type: 'report', id: run.id },
-          detail: { format, blobSha256: stored.sha256, purpose: kase?.purpose ?? '' },
+          detail: { format, blobSha256: stored.sha256, purpose: statedPurpose(request) ?? kase?.purpose ?? '' },
         },
       ]);
       deps.logger?.info('report export downloaded', { runId: run.id, format, analyst });
@@ -280,6 +304,45 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
     return { items: await repos.runs.listByCase(caseId) };
   });
 
+  /**
+   * History timeline of a case: what each page (and property) showed over time, from the live runs and the archived
+   * copies of the page. Read-only over the stored evidence of all the case's runs.
+   */
+  app.get<{ Params: { caseId: string } }>('/api/cases/:caseId/timeline', async (request, reply) => {
+    const caseId = idOf(request.params.caseId);
+    if (!caseId || !(await repos.cases.get(caseId))) return notFound(reply, 'case');
+    const filter = parse(TimelineQuerySchema, request.query);
+    const runs = await repos.runs.listByCase(caseId);
+    const evidenceRunIds = [...new Set(runs.map((run) => evidenceRunIdOf(run)))];
+    const [captures, observations, accounts, extractions] = await Promise.all([
+      Promise.all(evidenceRunIds.map((id) => repos.evidence.listCaptures(id))),
+      Promise.all(evidenceRunIds.map((id) => repos.evidence.listObservations(id))),
+      Promise.all(evidenceRunIds.map((id) => repos.evidence.listAccounts(id))),
+      // Oldest run first: the newest analysis of a capture (e.g. a rescore) decides what was found on it.
+      Promise.all(
+        runs
+          .toSorted((a, b) => a.queuedAt.localeCompare(b.queuedAt))
+          .map((run) => repos.evidence.listExtractionResults(run.id)),
+      ),
+    ]);
+    const allCaptures = unique(captures);
+    const allObservations = unique(observations);
+    return buildPropertyTimelines(
+      {
+        captures: allCaptures,
+        extractions: latestExtractions(extractions),
+        archive: buildWaybackHistory(allCaptures, allObservations),
+        observations: allObservations,
+        accounts: unique(accounts),
+      },
+      {
+        ...(filter.url !== undefined ? { url: filter.url } : {}),
+        ...(filter.property !== undefined ? { property: filter.property } : {}),
+        ...(filter.walletOnly !== undefined ? { walletOnly: filter.walletOnly } : {}),
+      },
+    );
+  });
+
   app.post<{ Params: { caseId: string } }>('/api/cases/:caseId/runs', async (request, reply) => {
     const caseId = idOf(request.params.caseId);
     const kase = caseId ? await repos.cases.get(caseId) : undefined;
@@ -356,6 +419,24 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
   runList('fund-flows', (id) => repos.analysis.listFlowViews?.(id) ?? Promise.resolve([]), 'evidence');
   runList('changes', (id) => repos.analysis.listChanges(id));
 
+  // Who viewed or exported which case and why (append-only log; the one local analyst reads it).
+  app.get<{ Querystring: { caseId?: string; actor?: string; limit?: string } }>(
+    '/api/access-log',
+    async (request, reply) => {
+      if (!repos.accessLog) return notFound(reply, 'access log');
+      const { caseId, actor, limit } = request.query;
+      const id = caseId === undefined ? undefined : idOf(caseId);
+      if (caseId !== undefined && !id) return reply.code(400).send({ error: 'invalid_input', message: 'bad caseId' });
+      const n = limit === undefined ? 100 : Number(limit);
+      if (!Number.isInteger(n) || n < 1 || n > 500) {
+        return reply.code(400).send({ error: 'invalid_input', message: 'limit is 1-500' });
+      }
+      return {
+        items: await repos.accessLog.list({ ...(id ? { caseId: id } : {}), ...(actor ? { actor } : {}), limit: n }),
+      };
+    },
+  );
+
   // Address labels (reference data, not run-scoped) with their provenance: dataset, URL, licence, lastmod.
   app.get('/api/labels', async () => ({ items: await repos.labels.list() }));
 
@@ -383,12 +464,12 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
     const runId = idOf(request.params.runId);
     const report = runId ? await repos.analysis.latestReport(runId, 'html') : undefined;
     if (!report) return notFound(reply, 'report');
-    const bytes = await deps.blobs.get(report.blobSha256);
+    const bytes = Buffer.from(await deps.blobs.get(report.blobSha256));
+    // The report's own stylesheets are allowed by hash; it has no script.
     return reply
       .header('content-type', report.mediaType)
-      .header('content-security-policy', "default-src 'none'; style-src 'unsafe-inline'; img-src data:")
-      .header('x-content-type-options', 'nosniff')
-      .send(Buffer.from(bytes));
+      .header('content-security-policy', reportCsp(bytes.toString('utf8')))
+      .send(bytes);
   });
 
   // The report model the HTML renderer is built from, plus the files of ONE published version with digests. Every

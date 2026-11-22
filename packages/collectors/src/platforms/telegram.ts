@@ -118,6 +118,7 @@ export function createTelegramCollector(): CollectorFactory {
             platform: 'telegram',
             handle: channel,
             profileUrl: `https://t.me/${channel}`,
+            profileCaptureId: capture.id,
             ...(preview.channel?.title ? { displayName: preview.channel.title } : {}),
             discoveredVia: { sourceId: descriptor.id, method: target.method, captureId: target.foundIn ?? capture.id },
           });

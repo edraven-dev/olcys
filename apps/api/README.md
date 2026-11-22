@@ -13,6 +13,7 @@ serwer deweloperski Vite (`/api`). W MVP uruchamia też potok analizy w tym samy
 | `GET /api/cases`, `POST /api/cases`, `GET /api/cases/:id`           | sprawy i ich identyfikatory (walidacja schematem `CreateCaseSchema`)                                                                                                                           |
 | `GET /api/cases/:id/runs`, `POST /api/cases/:id/runs`               | przebiegi sprawy; `POST` tworzy przebieg i uruchamia potok (odpowiedź 202)                                                                                                                     |
 | `GET /api/cases/:id/schedule`, `PUT /api/cases/:id/schedule`        | harmonogram analiz okresowych: cron (UTC), najbliższe terminy, wyzwolenia, zmiany                                                                                                              |
+| `GET /api/cases/:id/timeline`                                       | historia wartości stron i pól profilu: kopie archiwalne i przebiegi; filtry `url`, `property`, `walletOnly`                                                                                    |
 | `GET /api/runs/:id`                                                 | status i postęp przebiegu                                                                                                                                                                      |
 | `GET /api/runs/:id/{captures,observations,accounts,candidates}`     | dowody: przechwycenia stron, fakty, konta, kandydaci adresów                                                                                                                                   |
 | `GET /api/runs/:id/extractions`                                     | wyniki ekstrakcji z dopasowaniami odrzuconymi przy weryfikacji (np. homoglify)                                                                                                                 |
@@ -63,6 +64,19 @@ pole sekund, `H`, RRULE), 400 `schedule_too_frequent` (w trybie `live` terminy b
 `OLCYS_SCHEDULE_MIN_INTERVAL_MINUTES`, domyślnie 60 min; w trybach `offline` i `replay` minimum to 1 min), 400
 `invalid_input`, 404 `case_not_found`, 409 `case_closed`.
 
+## Oś czasu strony
+
+`GET /api/cases/:id/timeline?url=&property=&walletOnly=true` zwraca `PropertyTimeline[]` zbudowane z przechwyceń,
+kandydatów i faktów wszystkich przebiegów sprawy oraz wykazu migawek Wayback (`buildWaybackHistory`). Wszystkie filtry
+są opcjonalne; `walletOnly` przyjmuje wyłącznie `true` lub `false`, a nieprawidłowy filtr (lub nieznany parametr)
+daje 400 `invalid_input` ze ścieżką błędnego pola w `issues`. Trasa tylko czyta zapisane dane. Osie stron powstają dla
+stron, które mają kopie archiwalne; osie pól profilu (np. `profile.bitcoin_address`) — z faktów przebiegów na żywo.
+Punkty kopii archiwalnych mają `provenance: "archive"` i czas migawki z archiwum; luki (`values: null`) nigdy nie
+oznaczają usunięcia adresu. Dla każdego przechwycenia liczy się wynik wyodrębnienia z najnowszej analizy (ponowna
+ocena zastępuje wcześniejszy wynik); przechwycenie, którego wyodrębnienie jeszcze się nie zakończyło, jest luką
+(`extraction_pending`). Wiele pobrań tej samej migawki łączy się tak: użyteczne (status `ok`, skrót zgodny) wygrywa z
+niepobranym lub błędnym, a spośród równych — najnowsze.
+
 ## Oceny i korekty analityka
 
 Analityk jest brany z konfiguracji serwera (`OLCYS_ANALYST_NAME`, w razie braku `OLCYS_COLLECTOR_NAME`, domyślnie
@@ -103,7 +117,7 @@ sprawdzają to samo ponownie przy zbieraniu.
 (`html`, `pdf`, `manifest`, `timestamp`, eksporty) z rozmiarem, SHA-256 i ścieżką związaną z wersją (`version` w odpowiedzi to skrót wpisu `export_set`, rejestrowanego jako ostatni, więc wersja niepełna nie jest listowana; ponowne wygenerowanie raportu nie zmienia tego, co serwuje wcześniej wydany odnośnik). Błąd odczytu lub parsowania zapisanego raportu to 500, a nie „brak raportu”; PDF/A jest
 oznaczony jako niedostępny do czasu wdrożenia kroku PDF, a znaczniki RFC 3161 pojawiają się tylko dla zabezpieczeń, które je mają.
 Pobieranie plików nie wymaga logowania; opcjonalny nagłówek `X-Olcys-Purpose` (wartość zakodowana `encodeURIComponent`)
-niesie cel pobrania dla dziennika dostępu.
+niesie cel pobrania: trafia do dziennika dostępu (`statedPurpose`, pobrania wersji i eksportów są zawsze logowane, bez deduplikacji) i do zdarzenia `exported` w łańcuchu dowodowym, które bez nagłówka zapisuje cel sprawy.
 
 `GET /api/meta` zwraca ustawienia tylko do odczytu dla strony „Ustawienia”: z adresu modelu AI wystawia wyłącznie host
 (bez danych logowania, ścieżki i zapytania), nigdy klucza API; zmienne wyłączające telemetrię są podane z nazwy i stanem
@@ -117,3 +131,15 @@ zob. `packages/reporting/README.md`) jako załącznik z nagłówkami `x-content-
 przebiegu; szczegóły: format, skrót SHA-256 pliku i cel sprawy), z analitykiem z konfiguracji serwera. Nieznany format to
 400, nieznany przebieg lub brak eksportu — 404. Znacznik TLP i nazwa producenta STIX pochodzą ze zmiennych
 `OLCYS_EXPORT_TLP` (domyślnie `amber`) i `OLCYS_STIX_PRODUCER_NAME`.
+
+## Nagłówki bezpieczeństwa i dziennik dostępu
+
+Hak `onSend` (`src/security.ts`) dodaje do każdej odpowiedzi ścisłe CSP (`default-src 'none'; frame-ancestors 'none'`),
+`nosniff`, `Referrer-Policy: no-referrer`, `Permissions-Policy` i `Cache-Control: no-store`; HSTS tylko przy
+`OLCYS_HSTS=1`. Raport HTML dopuszcza swoje arkusze stylów po skrócie SHA-256. Odczyty spraw, uruchomień, dowodów,
+raportów i eksportów trafiają w tle do dziennika dostępu (`GET /api/access-log`): podmiotem jest etykieta analityka
+(`OLCYS_ANALYST_NAME`, inaczej `local`), cel tylko wtedy, gdy klient prześle nagłówek `X-Olcys-Purpose`
+(zakodowany `encodeURIComponent`, bo wartości nagłówków to Latin-1; API dekoduje go, przy błędnej sekwencji zachowuje
+wartość surową, przycina i ogranicza do 500 znaków). Powtórzone identyczne odczyty (odpytywanie postępu) są w oknie
+60 s zapisywane raz; pobrania plików, raportów i eksporty zawsze. Konta i logowanie
+są planowane w kolejnej wersji (poza zakresem MVP). Szczegóły: `docs/security.md`.

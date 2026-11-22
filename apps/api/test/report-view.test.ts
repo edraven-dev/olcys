@@ -143,6 +143,49 @@ describe('report view', () => {
   });
 });
 
+describe('download purpose', () => {
+  const purpose = 'Przekazanie do akt sprawy kontrolnej';
+  const stixPath = async () => {
+    const view = (await app.inject(`/api/runs/${runId}/report/view`)).json();
+    return view.files.find((f: { kind: string }) => f.kind === 'stix').path as string;
+  };
+  beforeAll(async () => {
+    await storeReport(
+      runtime,
+      await buildReportData(runtime.repos, runId, { generatedAt: '2026-11-23T08:00:00.000Z' }),
+    );
+  });
+  const tick = () => new Promise((resolve) => setTimeout(resolve, 20));
+
+  it('records the stated purpose in the access log and the custody event, never deduplicating downloads', async () => {
+    const path = await stixPath();
+    const headers = { 'x-olcys-purpose': encodeURIComponent(purpose) };
+    expect((await app.inject({ url: path, headers })).statusCode).toBe(200);
+    expect((await app.inject({ url: path, headers })).statusCode).toBe(200);
+    await tick();
+    const rows =
+      (await runtime.repos.accessLog?.list({ limit: 500 }))?.filter((r) => r.resource.endsWith('#stix')) ?? [];
+    expect(rows.filter((r) => r.purpose === purpose)).toHaveLength(2);
+    expect(rows[0]).toMatchObject({ action: 'export.download', runId, outcome: 'ok' });
+    const events = (await runtime.repos.custody?.listBySubjects([runId])) ?? [];
+    expect(events.some((e) => e.action === 'exported' && e.detail?.['purpose'] === purpose)).toBe(true);
+  });
+
+  it('downloads without a purpose; the custody event then carries the case purpose', async () => {
+    const path = await stixPath();
+    const before = ((await runtime.repos.custody?.listBySubjects([runId])) ?? []).length;
+    expect((await app.inject(path)).statusCode).toBe(200);
+    expect((await app.inject(path.replace('/stix', '/html'))).statusCode).toBe(200);
+    await tick();
+    const events = (await runtime.repos.custody?.listBySubjects([runId])) ?? [];
+    expect(events.length).toBe(before + 1);
+    const last = events.at(-1);
+    expect(last?.detail?.['purpose']).not.toBe(purpose);
+    const rows = (await runtime.repos.accessLog?.list({ limit: 500 })) ?? [];
+    expect(rows.some((r) => r.resource.endsWith('#html') && r.purpose === undefined)).toBe(true);
+  });
+});
+
 describe('meta settings', () => {
   it('shows the model host only, the telemetry opt-outs and never a secret', async () => {
     const response = await app.inject('/api/meta');
