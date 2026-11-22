@@ -1,9 +1,10 @@
 # OŁCyŚ — the whole application in containers, with only the web console reachable from the host.
 #
-#   cp .env.example .env
 #   docker compose -f compose.app.yml up -d --build --wait     # console: http://127.0.0.1:5173
 #   docker compose -f compose.app.yml exec app pnpm demo       # optional: the demo scenario
 #   docker compose -f compose.app.yml down                     # stop (data stays in the volumes)
+#
+# No .env is needed: the app reads .env.example, overridden by .env when present.
 #
 # All services share one network namespace (the `postgres` service's), so the app reaches PostgreSQL, Gotenberg and
 # the fixture site on 127.0.0.1 with the same ports as `pnpm dev` on the host — offline mode treats only loopback hosts
@@ -97,7 +98,8 @@ services:
       FIXTURE_HOST: 127.0.0.1
       FIXTURE_PORT: 4100
       FIXTURE_VARIANT: ${FIXTURE_VARIANT:-v1}
-      FIXTURE_ALLOW_VARIANT_SWITCH: ${FIXTURE_ALLOW_VARIANT_SWITCH:-0}
+      # On by default here (unlike compose.yml): this fixture site is not published, and `pnpm demo` switches v1 -> v2.
+      FIXTURE_ALLOW_VARIANT_SWITCH: ${FIXTURE_ALLOW_VARIANT_SWITCH:-1}
     volumes:
       - ./apps/fixture-site:/srv/fixture-site:ro
     depends_on:
