@@ -30,6 +30,21 @@ serwer deweloperski Vite (`/api`). W MVP uruchamia też potok analizy w tym samy
 Treść pobrana ze stron jest niezaufana: `/api/blobs` zwraca ją jako załącznik `application/octet-stream` z nagłówkami
 `nosniff` i `Content-Security-Policy: sandbox`, nigdy jako stronę w domenie konsoli.
 
+## Ochrona przed DNS rebinding i żądaniami z innych witryn
+
+API nie ma uwierzytelniania, więc każde żądanie przechodzi przez strażnika (`src/guard.ts`, hak `onRequest`):
+
+- nagłówek `Host` musi wskazywać `localhost`, `127.0.0.1` lub `[::1]` (dowolny port) albo host z
+  `OLCYS_API_ALLOWED_HOSTS` (lista rozdzielana przecinkami; sama nazwa dopuszcza dowolny port, `nazwa:port` jeden);
+  inaczej odpowiedź to 421 `misdirected_request`;
+- żądanie zmieniające stan (`POST`, `PUT`, `PATCH`, `DELETE`) z nagłówkiem `Origin` musi pochodzić z interfejsu
+  (`http://localhost:5173`, `http://127.0.0.1:5173`, `http://[::1]:5173`; port z `WEB_PORT`) albo z hosta
+  z `OLCYS_API_ALLOWED_HOSTS`; inaczej 403 `forbidden_origin`. Żądania bez `Origin` (curl, skrypty) i odczyty
+  (`GET`, `HEAD`) przechodzą.
+
+Serwer deweloperski Vite przekazuje nagłówki `Host` i `Origin` przeglądarki bez zmian, więc `pnpm dev` działa bez
+konfiguracji.
+
 ## Harmonogram analiz
 
 Proces API uruchamia też planistę analiz okresowych (`createScheduler` z `@olcys/worker`, zob. `docs/architecture.md`):

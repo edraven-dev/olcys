@@ -5,6 +5,7 @@
 import { createRuntime, createScheduler, schedulingSettings } from '@olcys/worker';
 import { analystName } from './analyst-routes.ts';
 import { buildApp } from './app.ts';
+import { listFromEnv } from './guard.ts';
 import { defaultStages, reportRenderer } from './stages.ts';
 
 const runtime = await createRuntime({ stages: defaultStages });
@@ -12,6 +13,8 @@ const settings = schedulingSettings(process.env);
 const app = buildApp({
   ...runtime,
   httpLog: true,
+  // Loopback hosts are always allowed; OLCYS_API_ALLOWED_HOSTS adds more (comma-separated).
+  guard: { allowedHosts: listFromEnv(process.env['OLCYS_API_ALLOWED_HOSTS']), webPort: process.env['WEB_PORT'] },
   // One analyst identity for cases, schedule changes, judgements and overrides.
   analyst: analystName(process.env),
   schedule: { minIntervalMinutes: settings.minIntervalMinutes },
