@@ -39,6 +39,8 @@ export interface ClusterRunResult {
   outcomes: ChainFetchOutcome[];
   /** Co-spend partners whose history was fetched. */
   expanded: number;
+  /** Eligible partners left unfetched because the 200-address bound was reached (the clusters may be incomplete). */
+  unexpanded: number;
 }
 
 export async function clusterBitcoin(input: ClusterRunInput): Promise<ClusterRunResult> {
@@ -76,6 +78,7 @@ export async function clusterBitcoin(input: ClusterRunInput): Promise<ClusterRun
 
   let clusters = await build();
   let expanded = 0;
+  const cut = new Set<string>();
   for (let round = 1; round <= CLUSTER_EXPANSION.maxDepth; round += 1) {
     const frontier = [...new Set(clusters.flatMap((c) => c.members))].filter((a) => !fetched.has(a));
     // Sequential on purpose: cheap local label lookups.
@@ -89,6 +92,9 @@ export async function clusterBitcoin(input: ClusterRunInput): Promise<ClusterRun
       maxAddresses: CLUSTER_EXPANSION.maxAddresses - expanded,
       exclude: (address) => blocked.get(address) === true,
     });
+    // Anything eligible that the plan left out was cut by the address bound, not by the depth.
+    const planned = new Set(plan);
+    for (const address of frontier) if (blocked.get(address) !== true && !planned.has(address)) cut.add(address);
     if (plan.length === 0) break;
     // oxlint-disable-next-line no-await-in-loop
     const result = await runChainFetch(
@@ -108,5 +114,5 @@ export async function clusterBitcoin(input: ClusterRunInput): Promise<ClusterRun
     // oxlint-disable-next-line no-await-in-loop
     clusters = await build();
   }
-  return { clusters, outcomes, expanded };
+  return { clusters, outcomes, expanded, unexpanded: [...cut].filter((a) => !fetched.has(a)).length };
 }

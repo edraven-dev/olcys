@@ -2,9 +2,10 @@
  * Co-spend clusters in chapter 5: a short Polish subsection that presents them as a heuristic, with the merge evidence
  * and the skipped CoinJoin transactions; singletons stay a one-line note; no cluster, no subsection. Synthetic data.
  */
-import type { AddressCluster } from '@olcys/core';
+import type { AddressCluster, AddressLabel } from '@olcys/core';
+import { createMemoryRepositories } from '@olcys/db';
 import { describe, expect, it } from 'vitest';
-import { renderReport, type ReportData } from '../src/index.ts';
+import { buildReportData, renderReport, type ReportData } from '../src/index.ts';
 import { buildView } from '../src/view.ts';
 import { personaData } from './fixtures.ts';
 
@@ -94,5 +95,58 @@ describe('clusters in the report', () => {
     const view = buildView({ ...data, links: [...data.links, lead] });
     expect(view.linked.map((l) => l.id)).not.toContain('link-cluster');
     expect(view.linked).toHaveLength(buildView(data).linked.length);
+  });
+
+  it('says how many skipped transactions are not shown', () => {
+    const skipped = Array.from({ length: 35 }, (_, i) => ({ txid: `tx-skip-${i}`, reason: 'equal_outputs' as const }));
+    const html = sectionOf(renderReport(withClusters([cluster('c_cccccccccccccccc', { skipped })])), 'aktywnosc');
+    expect(html).toContain('tx-skip-29');
+    expect(html).not.toContain('tx-skip-30');
+    expect(html).toContain('Pokazano 30 z 35 pozycji');
+  });
+
+  it('keeps the label of a service named only by a cluster', async () => {
+    const repos = createMemoryRepositories();
+    const fixture = personaData();
+    const kase = await repos.cases.create(
+      {
+        title: fixture.case.title,
+        purpose: fixture.case.purpose,
+        legalBasis: fixture.case.legalBasis,
+        identifiers: [{ kind: 'nickname', value: 'fikcyjny_kacper', platform: 'bitcointalk', isAnchor: true }],
+        scope: fixture.case.scope,
+      },
+      'analityk-testowy',
+    );
+    const run = { ...fixture.run, id: 'run-0001', caseId: kase.id, status: 'succeeded' as const };
+    delete run.previousRunId;
+    await repos.runs.create(run);
+    const label: AddressLabel = {
+      id: 'label-svc',
+      address: { chain: 'bitcoin', address: 'bc1q-service-only-in-cluster' },
+      entity: 'Giełda Testowa (SYNTHETIC)',
+      category: 'exchange',
+      attributes: {},
+      provenance: {
+        datasetId: 'test-por',
+        url: 'https://example.invalid',
+        license: 'CC0-1.0',
+        lastmod: '2026-01-01T00:00:00Z',
+        retrievedAt: '2026-01-01T00:00:00Z',
+        sourceType: 'por_file',
+        deciding: true,
+        synthetic: true,
+      },
+      confidence: 95,
+    };
+    await repos.labels.upsert([label]);
+    await repos.clusters!.add(run.id, [
+      cluster('c_dddddddddddddddd', {
+        runId: run.id,
+        serviceMembers: [{ address: label.address.address, labelId: label.id }],
+        flags: { serviceMerge: true, capped: false },
+      }),
+    ]);
+    expect((await buildReportData(repos, run.id)).labels.map((l) => l.id)).toContain(label.id);
   });
 });

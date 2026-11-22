@@ -149,7 +149,11 @@ export async function buildReportData(
       ...flows.flatMap((f) => [f.from, f.to]),
     ].map(refKey),
   );
-  const labelIds = new Set(exclusions.flatMap((e) => e.evidence?.labelIds ?? []));
+  // Labels cited by decisions and the labels of services spent together with a cluster (found in expanded histories).
+  const labelIds = new Set([
+    ...exclusions.flatMap((e) => e.evidence?.labelIds ?? []),
+    ...clusters.flatMap((c) => c.serviceMembers.map((s) => s.labelId)),
+  ]);
   const usedSources = new Set([
     ...captures.map((c) => c.sourceId),
     ...egress.map((e) => e.sourceId),

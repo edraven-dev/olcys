@@ -70,6 +70,7 @@ describe('A7 from a cluster summary', () => {
       address: { chain: 'bitcoin', address: addr('A') },
       evidence: { cluster: { id: c.id, serviceMembers: [addr('HOT-BTC-1')] } },
     });
+    expect(decisions[0]?.evidence.labelIds).toEqual(c.serviceMembers.map((m) => m.labelId));
     expect(decisions[0]?.reason).toMatch(/^A7: .*heuristic/);
   });
 

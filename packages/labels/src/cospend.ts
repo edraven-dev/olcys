@@ -288,6 +288,8 @@ export interface ClusterSummary {
   serviceMerge: boolean;
   /** Addresses of the labelled services spent together with the cluster. */
   serviceMembers: string[];
+  /** Labels that identify those services (evidence of the flag). */
+  serviceLabelIds: Id[];
   capped: boolean;
 }
 
@@ -300,6 +302,7 @@ export function toClusterSummary(c: AddressCluster): ClusterSummary {
     ...(c.flags.growthFactor !== undefined ? { growthFactor: c.flags.growthFactor } : {}),
     serviceMerge: c.flags.serviceMerge,
     serviceMembers: c.serviceMembers.map((s) => s.address),
+    serviceLabelIds: [...new Set(c.serviceMembers.map((s) => s.labelId))],
     capped: c.flags.capped,
   };
 }
@@ -331,6 +334,7 @@ export function evaluateClusterCollapse(
     outcome: 'flagged',
     reason: `A7: the co-spend cluster ${summary.clusterId} (${summary.size} addresses, heuristic) ${reasons.join('; ')}`,
     evidence: {
+      ...(summary.serviceLabelIds.length ? { labelIds: summary.serviceLabelIds } : {}),
       cluster: {
         id: summary.clusterId,
         size: summary.size,

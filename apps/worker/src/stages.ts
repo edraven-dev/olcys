@@ -83,7 +83,7 @@ import { createReportStage } from '@olcys/reporting';
 import { loadWeights, scoreRun } from '@olcys/scoring';
 import { classifyFetched } from './address-types.ts';
 import { withAnalystOverrides } from './analyst.ts';
-import { clusterBitcoin } from './clusters.ts';
+import { CLUSTER_EXPANSION, clusterBitcoin } from './clusters.ts';
 import { describeGaps, historyGaps, isOwnStatement, transfersOf } from './chain-data.ts';
 import { REPO_ROOT, TOOL_VERSION } from './config.ts';
 import type { Stage, StageContext } from './pipeline.ts';
@@ -607,6 +607,12 @@ export function createChainStage(options: StageOptions): Stage {
           ctx.markPartial(
             `co-spend partner chain data incomplete for ${clusterGaps.count} address(es): ${describeGaps(clusterGaps.items)}`,
             { code: 'counterparty_chain_incomplete', params: { count: clusterGaps.count, items: clusterGaps.items } },
+          );
+        }
+        if (result.unexpanded > 0) {
+          ctx.markPartial(
+            `co-spend expansion limited: ${result.unexpanded} partner address(es) not fetched (bound of ${CLUSTER_EXPANSION.maxAddresses} addresses)`,
+            { code: 'cluster_expansion_limited', params: { count: result.unexpanded } },
           );
         }
         await ctx.repos.clusters?.add(runId, result.clusters);

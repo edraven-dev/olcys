@@ -152,7 +152,12 @@ describe('clusterBitcoin', () => {
     const partners = Array.from({ length: 250 }, (_, i) => a(`p${String(i).padStart(3, '0')}`));
     const t1 = spend('t1', 100, [a('A'), ...partners]);
     const { registry, requests } = scripted({});
-    await clusterBitcoin(input([t1], registry));
+    const result = await clusterBitcoin(input([t1], registry));
     expect(requests).toHaveLength(200);
+    // The 50 partners cut by the bound are reported, so the run can be marked partial.
+    expect(result.unexpanded).toBe(50);
+    expect((await clusterBitcoin(input([spend('t2', 100, [a('A'), a('B')])], scripted({}).registry))).unexpanded).toBe(
+      0,
+    );
   });
 });

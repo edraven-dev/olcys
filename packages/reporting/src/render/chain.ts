@@ -434,6 +434,9 @@ function clusterCard(c: AddressCluster): SafeHtml {
           c.skipped.slice(0, MAX_CLUSTER_MEMBERS).map((s) => [hash(s.txid), x.reasons[s.reason]]),
           'grid compact',
         ),
+        c.skipped.length > MAX_CLUSTER_MEMBERS
+          ? para(t(pl.common.truncated, { shown: MAX_CLUSTER_MEMBERS, total: c.skipped.length }), 'muted')
+          : markup``,
       ])
     : markup``;
   const members = c.size > 1 ? capped(c.members, MAX_CLUSTER_MEMBERS, addr) : markup``;

@@ -296,6 +296,8 @@ export const pl = {
       pages_unavailable: 'część stron była niedostępna',
       chain_incomplete: 'niepełna historia łańcucha dla {count} adresów ({items})',
       counterparty_chain_incomplete: 'niepełna historia łańcucha dla {count} adresów kontrahentów ({items})',
+      cluster_expansion_limited:
+        'rozszerzenie klastrów ograniczone limitem: nie pobrano historii {count} partnerów wspólnego wydatkowania, klastry mogą być niepełne',
       address_type_probes_failed: 'nie udało się ustalić typu adresu (sondy zakończone błędem): {count}',
       valuation_unavailable: 'brak wyceny w PLN dla {count} transferów (brak ceny lub kursu NBP)',
     } as Record<string, string>,
