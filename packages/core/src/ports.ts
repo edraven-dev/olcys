@@ -10,7 +10,7 @@ import type { AddressRef, ChainId } from './chains.ts';
 import type { Id, IsoDateTime, Sha256Hex } from './common.ts';
 import type { AccountDiscoveryMethod, Capture, CaptureDraft, Observation, OnlineAccount } from './evidence.ts';
 import type { AddressLabel } from './labels.ts';
-import type { BlobRef, ChainTip, FetchMode, ProvenanceEnvelope } from './provenance.ts';
+import type { BlobRef, ChainTip, DelegatedRequestRecord, FetchMode, ProvenanceEnvelope } from './provenance.ts';
 import type { SourceDescriptor, SourceId } from './sources.ts';
 
 export interface Clock {
@@ -65,6 +65,19 @@ export interface EgressResponse {
 /** The ONLY way any package may talk to the network: allow-list, rate limits, logging, record/replay. */
 export interface EgressClient {
   fetch(request: EgressRequest): Promise<EgressResponse>;
+  /**
+   * Records requests an internal delegate made under its own allow-list (egress log, plus provenance for the records
+   * that carry a body). No network I/O. `viaFetchId` is the fetch that called the delegate. One entry per record, in
+   * order. Absent on clients that cannot merge a delegate's log: callers then treat the delegate's answer as unusable.
+   */
+  recordDelegated?(input: {
+    delegate: string;
+    sourceId: SourceId;
+    runId?: Id;
+    viaFetchId: Id;
+    toolVersion: string;
+    records: DelegatedRequestRecord[];
+  }): Promise<{ egressLogId: Id; provenance?: ProvenanceEnvelope }[]>;
 }
 
 /** Everything a job needs, injected by the worker. */
