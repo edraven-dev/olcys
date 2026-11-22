@@ -84,8 +84,15 @@ const KEPT_HEADERS = [
 const KEYED_REQUEST_HEADERS: ReadonlySet<string> = new Set(['accept', 'accept-language', 'content-type']);
 /** Fetch spec "request-body-header names": dropped together with the body when a redirect switches to GET. */
 const BODY_HEADERS = ['content-length', 'content-type', 'content-encoding', 'content-language', 'content-location'];
-/** Source kinds that stay live in replay mode (when they target a local host). */
-const LIVE_IN_REPLAY: ReadonlySet<SourceKind> = new Set<SourceKind>(['internal_service', 'ai_model']);
+/**
+ * Source kinds that stay live in replay mode (when they target a local host): internal services, the local model and
+ * the username enumeration, whose only local call is the one to osint-py (it reads the fixture site, never a cassette).
+ */
+const LIVE_IN_REPLAY: ReadonlySet<SourceKind> = new Set<SourceKind>([
+  'internal_service',
+  'ai_model',
+  'username_enumeration',
+]);
 
 interface Cassette {
   request: { method: string; url: string };

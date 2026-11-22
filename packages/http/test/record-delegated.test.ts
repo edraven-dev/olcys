@@ -129,3 +129,36 @@ describe('recordDelegated', () => {
     expect(logs).toEqual([]);
   });
 });
+
+describe('replay mode', () => {
+  it('keeps the call to a local osint-py live and does not record it', async () => {
+    const logs: EgressLogEntry[] = [];
+    const seen: string[] = [];
+    const client = createEgressClient({
+      mode: 'replay',
+      enabledSources: [SOURCE],
+      blobs: {
+        put: async (b, m) => ({ sha256: 'x', bytes: b.byteLength, mediaType: m }),
+        get: async () => new Uint8Array(),
+        has: async () => true,
+      },
+      sinks: { log: (e) => void logs.push(e), provenance: () => undefined },
+      toolVersion: 'test',
+      fetchImpl: (async (input: string | URL | Request) => {
+        seen.push(String(input));
+        return new Response('{}', { status: 200 });
+      }) as typeof fetch,
+    });
+    const response = await client.fetch({
+      url: 'http://127.0.0.1:8090/v1/usernames/search',
+      method: 'POST',
+      body: '{}',
+      sourceId: 'maigret',
+      purpose: 'test',
+      containsIdentifier: true,
+    });
+    expect(response.status).toBe(200);
+    expect(seen).toEqual(['http://127.0.0.1:8090/v1/usernames/search']);
+    expect(logs[0]?.allowed).toBe(true);
+  });
+});
