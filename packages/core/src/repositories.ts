@@ -15,7 +15,7 @@ import type { AddressLabel, AddressTypeClassification, ExclusionDecision } from 
 import type { EgressLogEntry, ProvenanceEnvelope } from './provenance.ts';
 import type { CaseScheduleChange, ScheduleTick, ScheduleTickOutcome } from './schedule.ts';
 import type { CreateCaseInput } from './schemas.ts';
-import type { LinkAssessment } from './scoring.ts';
+import type { AnalystJudgement, AnalystOverride, LinkAssessment } from './scoring.ts';
 
 export interface CaseWithIdentifiers extends Case {
   identifiers: Identifier[];
@@ -161,6 +161,8 @@ export interface AnalysisRepository {
   listActivity(runId: Id): Promise<ActivityIndicators[]>;
   listCashOuts(runId: Id): Promise<CashOutEvent[]>;
   listLinks(runId: Id): Promise<LinkAssessment[]>;
+  /** One stored assessment, whatever run it belongs to. */
+  getLink?(id: Id): Promise<LinkAssessment | undefined>;
   listChanges(runId: Id): Promise<ChangeEvent[]>;
   latestReport(
     runId: Id,
@@ -174,6 +176,26 @@ export interface LabelRepository {
   list(): Promise<AddressLabel[]>;
 }
 
+/**
+ * Analyst statements about links, recorded next to the computed assessment (append-only: added and read, never
+ * updated or deleted). Lists are ordered oldest first by (`at`, `id`).
+ */
+export interface JudgementRepository {
+  add(judgement: AnalystJudgement): Promise<void>;
+  listByLink(linkAssessmentId: Id): Promise<AnalystJudgement[]>;
+  /** Judgements on the links of one run. */
+  listByRun(runId: Id): Promise<AnalystJudgement[]>;
+}
+
+/**
+ * Analyst inputs to a case's evidence (append-only). They take effect only in a later rescore run. Lists are ordered
+ * oldest first by (`at`, `id`).
+ */
+export interface OverrideRepository {
+  add(override: AnalystOverride): Promise<void>;
+  listByCase(caseId: Id): Promise<AnalystOverride[]>;
+}
+
 export interface Repositories {
   cases: CaseRepository;
   runs: RunRepository;
@@ -183,6 +205,10 @@ export interface Repositories {
   addressTypes?: AddressTypeRepository;
   analysis: AnalysisRepository;
   labels: LabelRepository;
-  /** Periodic re-runs (both `@olcys/db` implementations provide it). */
+  /** Periodic re-runs (both `@olcys/db` implementations provide it; `ApiMeta.features.schedules`). */
   schedules?: ScheduleRepository;
+  /** Present when the store keeps analyst judgements (`ApiMeta.features.judgements`). */
+  judgements?: JudgementRepository;
+  /** Present when the store keeps analyst overrides. */
+  overrides?: OverrideRepository;
 }

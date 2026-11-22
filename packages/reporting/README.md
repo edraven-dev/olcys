@@ -35,6 +35,12 @@ podsumowanie dziennika połączeń wychodzących. 9. Metodyka i ograniczenia.
 
 Każda treść należy do jednej z trzech klas, renderowanych w osobnych, opisanych blokach (`data-statement="fakty"`,
 `"obliczenia"`, `"wnioski"`) z różnym obramowaniem (ciągłe, podwójne, przerywane — czytelne także w druku czarno-białym).
+Stanowisko analityka jest czwartą, osobną klasą (`data-statement="ocena-analityka"`, obramowanie kropkowane): oceny
+powiązania (aktualna i wcześniejsze, z analitykiem, czasem i uzasadnieniem) przy karcie powiązania — obok wyniku, którego
+nie zmieniają; oceny powiązań bez własnej karty (odrzuconych regułą) w osobnym bloku rozdziału 4 — oraz, w ponownej
+ocenie, tabela korekt analityka ze zbioru ustalonego przy zleceniu (`config.analystOverrides`). `buildReportData` czyta je z opcjonalnych
+portów `judgements` i `overrides`; raport zakończonego przebiegu można wygenerować ponownie (nowa wersja z ocenami
+zapisanymi do tej chwili, poprzednie pozostają w magazynie).
 
 ## Bezpieczeństwo i jakość dokumentu
 

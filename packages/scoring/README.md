@@ -17,6 +17,14 @@ Pakiet jest czysty i deterministyczny: nie łączy się z siecią, a zegar i gen
   (`LinkAssessment[]`, posortowane po adresie i relacji) oraz `notes` — powody, dla których zebrany materiał nie stał
   się cechą (`FEATURE_NOTE_CODES`, np. `signature_invalid`, `observation_address_invalid`, `no_identity_path`).
 - `buildClaims(input, weights)` — samo mapowanie materiału na roszczenia (`ClaimInput[]`) i notatki.
+- `applyOverrides(input, overrides, { candidates? })` — korekty analityka jako dane wejściowe ponownej oceny: wypełnia
+  `input.analyst` (`AnalystInputs`: oceny wiarygodności, decyzje o dopasowaniach wymagających przeglądu, przesłanki
+  dodane przez analityka z grupą pochodzenia `analyst:<id>` — jedna aktywna na konto, adres i cechę, z najnowszej
+  korekty), które `buildClaims` uwzględnia; reszta wejścia się nie zmienia. Odrzucony kandydat nie wraca przez
+  potwierdzenie obserwacji jego strony dopasowaniem z innej strony. `candidates` to zapisane kandydaty wskazane przez korekty — po ponownym wyodrębnieniu są odnajdywane po
+  przechwyceniu i położeniu. `overridesAt(overrides, queuedAt)`, `overridesVersion(overrides)`
+  (`overrides@<liczba>:<id>`), `latestJudgement(judgements)` (aktualna ocena: najnowsza według czasu i id). Zasady:
+  [metodyka Wskaźnika Pewności](../../docs/methodology/wskaznik-pewnosci.md).
 - `scoreLink(claim, weights, deps)` — ocena jednego roszczenia: `{ ok: true, assessment }` albo
   `{ ok: false, reason: 'invalid_checksum' | 'no_paths' }`.
 - Elementy arytmetyki: `scoreHop`, `discount`, `probabilityFromBits`, `combinePaths`, `analyticConfidence`.

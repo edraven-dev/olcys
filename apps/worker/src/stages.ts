@@ -57,6 +57,7 @@ import { createEgressClient, RobotsCache } from '@olcys/http';
 import { createReportStage } from '@olcys/reporting';
 import { loadWeights, scoreRun } from '@olcys/scoring';
 import { classifyFetched } from './address-types.ts';
+import { withAnalystOverrides } from './analyst.ts';
 import { incompleteHistories, isOwnStatement, transfersOf } from './chain-data.ts';
 import { REPO_ROOT, TOOL_VERSION } from './config.ts';
 import type { Stage, StageContext } from './pipeline.ts';
@@ -198,7 +199,10 @@ export function createScoreStage(options: Pick<StageOptions, 'sources'>): Stage 
         ctx.repos.evidence.listExtractionResults(runId),
         ctx.repos.analysis.listExclusions(ctx.evidenceRunId),
       ]);
-      const { assessments, notes } = scoreRun(
+      // A rescore applies the analyst overrides recorded until it was queued; other runs score the evidence as is.
+      const { input, applied } = await withAnalystOverrides(
+        ctx.repos,
+        ctx.run,
         {
           runId,
           identifiers: ctx.case.identifiers,
@@ -209,11 +213,15 @@ export function createScoreStage(options: Pick<StageOptions, 'sources'>): Stage 
           sources: (id) => byId.get(id),
           exclusions,
         },
-        w,
-        { clock: systemClock, newId },
+        ctx.logger,
       );
+      const { assessments, notes } = scoreRun(input, w, { clock: systemClock, newId });
       await ctx.repos.analysis.addLinks(assessments);
-      await ctx.progress({ links: assessments.length, scoringNotes: notes.length });
+      await ctx.progress({
+        links: assessments.length,
+        scoringNotes: notes.length,
+        ...(applied ? { analystOverrides: applied } : {}),
+      });
     },
   };
 }

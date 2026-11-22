@@ -54,6 +54,11 @@ export interface AddressContext {
   captures: ReadonlyMap<Id, Capture>;
   /** Valid candidates (checksum passed) by capture id. */
   candidates: ReadonlyMap<Id, AddressCandidate[]>;
+  /**
+   * Candidates an analyst rejected (rescore runs), by capture id: the observations of that page are never confirmed by
+   * another page's candidate, so an explicitly rejected match cannot come back through the cross-page fallback.
+   */
+  rejected?: ReadonlyMap<Id, AddressCandidate[]>;
   observations: readonly Observation[];
   /** Grade of an item: the given grade, or F when the source's register grade is F. */
   grade(grade: AdmiraltyReliability, sourceId: string | undefined): AdmiraltyReliability;
@@ -115,19 +120,36 @@ function confirm(value: string, captureId: Id, ctx: AddressContext): AddressCand
   const matches = textMatch(value);
   const local = (ctx.candidates.get(captureId) ?? []).filter(matches).toSorted(strength)[0];
   if (local) return local;
+  if (rejectedOnPage(value, captureId, ctx)) return undefined;
   return [...ctx.candidates.values()]
     .flat()
     .filter((c) => matches(c) && c.chainAttribution.method === 'format_unique')
     .toSorted(strength)[0];
 }
 
-/** Why an observed address did not become a feature: no valid candidate at all, or only context-attributed elsewhere. */
+/** The analyst rejected the match of this value on the observation's own page. */
+function rejectedOnPage(value: string, captureId: Id, ctx: AddressContext): boolean {
+  return (ctx.rejected?.get(captureId) ?? []).some(textMatch(value));
+}
+
+/**
+ * Why an observed address did not become a feature: the analyst rejected its match on this page, no valid candidate at
+ * all, or only context-attributed elsewhere.
+ */
 function unconfirmed(
   value: string,
   base: string,
   ctx: AddressContext,
   where: { captureId: Id; observationId: Id },
 ): void {
+  if (rejectedOnPage(value, where.captureId, ctx)) {
+    ctx.note({
+      code: 'analyst_rejected_candidate',
+      detail: `${base}: the analyst rejected the address match on this page; not confirmed by another page`,
+      ...where,
+    });
+    return;
+  }
   const elsewhere = [...ctx.candidates.values()].flat().some(textMatch(value));
   ctx.note(
     elsewhere

@@ -4,6 +4,8 @@ import type {
   AddressLabel,
   AdmiraltyReliability,
   AnalysisRun,
+  AnalystJudgement,
+  AnalystOverride,
   Capture,
   CaseWithIdentifiers,
   CashOutEvent,
@@ -80,4 +82,11 @@ export interface ReportData {
   activity: ActivityIndicators[];
   cashOuts: CashOutEvent[];
   changes: ChangeEvent[];
+  /**
+   * Analyst judgements on this run's links recorded until the report was generated (oldest first): statements next
+   * to the computed results, never part of them.
+   */
+  judgements?: AnalystJudgement[];
+  /** Analyst overrides this run applied (rescore runs: those recorded until it was queued), oldest first. */
+  overrides?: AnalystOverride[];
 }

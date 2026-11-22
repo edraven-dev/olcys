@@ -2,10 +2,21 @@
  * HTTP API for the analyst console. Reads the append-only store through the repository ports; starting a run hands
  * it to the pipeline (in-process in the MVP). Inputs are validated with the `@olcys/core` schemas.
  */
-import type { BlobStore, FetchMode, Repositories, RunWithProgress, SourceDescriptor } from '@olcys/core';
+import type {
+  ApiMeta,
+  BlobStore,
+  FetchMode,
+  Logger,
+  Repositories,
+  RunConfigSnapshot,
+  RunWithProgress,
+  SourceDescriptor,
+} from '@olcys/core';
 import { ContractError, CORE_CONTRACTS_VERSION, CreateCaseSchema, parse, StartRunSchema } from '@olcys/core';
-import { evidenceRunIdOf } from '@olcys/worker';
+import { evidenceRunIdOf, TOOL_VERSION } from '@olcys/worker';
 import Fastify, { type FastifyInstance, type FastifyReply } from 'fastify';
+import { DEFAULT_ANALYST, registerAnalystRoutes, supportsJudgements, withJudgements } from './analyst-routes.ts';
+import { idOf } from './ids.ts';
 import { registerScheduleRoutes } from './schedule-routes.ts';
 
 export interface ApiDeps {
@@ -17,25 +28,30 @@ export interface ApiDeps {
     caseId: string,
     input: { trigger?: 'manual' | 'rescore'; rescoreOfRunId?: string },
   ): Promise<RunWithProgress>;
-  /** Who acts; the MVP has a single local analyst. */
+  /**
+   * Who acts — the one local analyst of the MVP (`analystName()`: `OLCYS_ANALYST_NAME`, else `OLCYS_COLLECTOR_NAME`,
+   * else `analyst`): creates cases, changes schedules, records judgements and overrides. Never taken from a request.
+   */
   analyst?: string;
   /** Fastify request logging. */
   httpLog?: boolean;
-  /** Fetch mode of the runs: in live mode schedules keep the minimum interval (the strict rule when absent). */
+  /**
+   * Fetch mode of the runs: shown by `GET /api/meta`; in live mode schedules keep the minimum interval (the strict
+   * rule when absent).
+   */
   mode?: FetchMode;
+  /** Configuration snapshot of new runs, for `GET /api/meta`. */
+  config?: { snapshot: RunConfigSnapshot };
+  /** Audit log of analyst actions (judgements, overrides). */
+  logger?: Logger;
+  /** Renders a new version of a finished run's report (`POST /api/runs/:runId/report`). */
+  renderReport?(run: RunWithProgress): Promise<void>;
   /** Periodic re-runs: live-mode minimum interval (default 60 min), who changes schedules (default: `analyst`), clock. */
   schedule?: { minIntervalMinutes?: number; analyst?: string; clock?: () => Date };
 }
 
 const notFound = (reply: FastifyReply, what: string) =>
   reply.code(404).send({ error: 'not_found', message: `${what} not found` });
-
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-/**
- * Ids are UUIDs in canonical lowercase form; anything else cannot exist and must not reach the database. Both stores
- * then see the same spelling (PostgreSQL's uuid type ignores case, the in-memory store does not).
- */
-const idOf = (value: string): string | undefined => (UUID.test(value) ? value.toLowerCase() : undefined);
 
 /** Minimum length of an AMBER justification (matches the collectors' scope lock). */
 export const MIN_AMBER_JUSTIFICATION = 20;
@@ -69,7 +85,7 @@ export function scopeProblems(
 export function buildApp(deps: ApiDeps): FastifyInstance {
   const app = Fastify({ logger: deps.httpLog ?? false });
   const { repos } = deps;
-  const analyst = deps.analyst ?? 'analityk';
+  const analyst = deps.analyst ?? DEFAULT_ANALYST;
 
   app.setErrorHandler((error, _request, reply) => {
     if (error instanceof ContractError) {
@@ -87,6 +103,32 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
   });
 
   app.get('/api/health', async () => ({ status: 'ok', service: '@olcys/api', contracts: CORE_CONTRACTS_VERSION }));
+
+  app.get('/api/meta', async (): Promise<ApiMeta> => {
+    const snapshot = deps.config?.snapshot;
+    return {
+      toolVersion: snapshot?.toolVersion ?? TOOL_VERSION,
+      contracts: CORE_CONTRACTS_VERSION,
+      mode: deps.mode ?? 'offline',
+      features: {
+        judgements: supportsJudgements(repos),
+        suggestions: false,
+        schedules: repos.schedules !== undefined,
+        reportPdf: false,
+        exports: false,
+        auth: false,
+      },
+      ...(snapshot
+        ? {
+            scoring: {
+              weightsVersion: snapshot.weightsVersion,
+              weightsSha256: snapshot.weightsSha256,
+              rulesVersions: snapshot.rulesVersions,
+            },
+          }
+        : {}),
+    };
+  });
 
   app.get('/api/sources', async () => ({
     items: deps.sources.map((s) => ({
@@ -149,7 +191,7 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
     repos,
     mode: deps.mode ?? 'live',
     minIntervalMinutes: deps.schedule?.minIntervalMinutes ?? 60,
-    analyst: deps.schedule?.analyst ?? deps.analyst ?? 'analyst',
+    analyst: deps.schedule?.analyst ?? analyst,
     clock: deps.schedule?.clock ?? (() => new Date()),
     idOf,
   });
@@ -180,7 +222,8 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
   runList('extractions', (id) => repos.evidence.listExtractionResults(id));
   runList('egress', (id) => repos.evidence.listEgressLog(id), 'evidence');
   runList('transfers', (id) => repos.chain.listTransfers(id), 'evidence');
-  runList('links', (id) => repos.analysis.listLinks(id));
+  // Each link carries the analyst judgements recorded next to it (the assessment itself is never changed).
+  runList('links', async (id) => withJudgements(repos, id, await repos.analysis.listLinks(id)));
   runList('exclusions', (id) => repos.analysis.listExclusions(id), 'evidence');
   runList('activity', (id) => repos.analysis.listActivity(id), 'evidence');
   runList('cash-outs', (id) => repos.analysis.listCashOuts(id), 'evidence');
@@ -219,6 +262,14 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
       .header('content-security-policy', "default-src 'none'; style-src 'unsafe-inline'; img-src data:")
       .header('x-content-type-options', 'nosniff')
       .send(Buffer.from(bytes));
+  });
+
+  registerAnalystRoutes(app, {
+    repos,
+    sources: deps.sources,
+    analyst,
+    ...(deps.logger ? { logger: deps.logger } : {}),
+    ...(deps.renderReport ? { renderReport: deps.renderReport } : {}),
   });
 
   return app;

@@ -1,6 +1,6 @@
 import type { AddressRef } from './chains.ts';
 import type { Id, IsoDateTime, Sha256Hex } from './common.ts';
-import type { AdmiraltyReliability } from './sources.ts';
+import type { AdmiraltyReliability, SourceId } from './sources.ts';
 
 /**
  * Kind of evidence binding an address to an account.
@@ -158,11 +158,76 @@ export interface LinkAssessment {
   computedAt: IsoDateTime;
 }
 
-/** Analyst decision recorded next to (never instead of) the computed score. */
+/**
+ * An analyst's statement about a link: the account and the address belong to the subject (`same`), they do not
+ * (`not_same`), or the evidence does not settle it (`unsure`).
+ */
+export const JUDGEMENT_VALUES = ['same', 'not_same', 'unsure'] as const;
+export type JudgementValue = (typeof JUDGEMENT_VALUES)[number];
+
+/**
+ * Analyst decision recorded next to (never instead of) the computed score. Append-only: several judgements per link
+ * are allowed and the current one is the latest by (`at`, `id`); none of them changes the assessment.
+ */
 export interface AnalystJudgement {
   id: Id;
   linkAssessmentId: Id;
-  judgement: 'same' | 'not_same' | 'unsure';
+  judgement: JudgementValue;
+  justification: string;
+  analyst: string;
+  at: IsoDateTime;
+}
+
+/** Bounds of an analyst's justification (judgements and overrides), counted after trimming. */
+export const JUSTIFICATION_LENGTH = { min: 10, max: 2000 } as const;
+
+/**
+ * Inputs an analyst adds to a case's evidence. They change nothing until a rescore run applies them, which yields a
+ * new, separately versioned assessment: `reliability_grade` grades an observation, candidate or source (A–E; F
+ * cannot be set), `review_decision` confirms or rejects a review-required candidate, `add_evidence` adds one item of
+ * an allowed feature (`ADD_EVIDENCE_FEATURES`).
+ */
+export const ANALYST_OVERRIDE_KINDS = ['reliability_grade', 'review_decision', 'add_evidence'] as const;
+export type AnalystOverrideKind = (typeof ANALYST_OVERRIDE_KINDS)[number];
+
+export const REVIEW_DECISIONS = ['confirmed', 'rejected'] as const;
+export type ReviewDecision = (typeof REVIEW_DECISIONS)[number];
+
+/**
+ * Features of the weights table an analyst may add as evidence: `contradicting_attribute` (identity hop of an
+ * account), `second_independent_origin` and `onchain_consistency` (address hop of an account's path to an address).
+ * `second_independent_origin` is never added automatically.
+ */
+export const ADD_EVIDENCE_FEATURES = [
+  'contradicting_attribute',
+  'second_independent_origin',
+  'onchain_consistency',
+] as const;
+export type AddEvidenceFeature = (typeof ADD_EVIDENCE_FEATURES)[number];
+
+/** The hop each analyst evidence feature belongs to: identity items need an account, address items an address too. */
+export const ADD_EVIDENCE_HOPS: Readonly<Record<AddEvidenceFeature, Hop>> = {
+  contradicting_attribute: 'identity',
+  second_independent_origin: 'address',
+  onchain_consistency: 'address',
+};
+
+/** What an override refers to; ids are those of a run of the override's case. */
+export interface AnalystOverrideTarget {
+  sourceId?: SourceId;
+  observationId?: Id;
+  candidateId?: Id;
+  accountId?: Id;
+  address?: AddressRef;
+}
+
+export interface AnalystOverride {
+  id: Id;
+  caseId: Id;
+  kind: AnalystOverrideKind;
+  target: AnalystOverrideTarget;
+  /** reliability_grade: 'A'…'E'; review_decision: 'confirmed' | 'rejected'; add_evidence: a weights feature key */
+  value: string;
   justification: string;
   analyst: string;
   at: IsoDateTime;

@@ -8,6 +8,11 @@ export { buildClaims, scoreRun } from './features/claims.ts';
 export { normaliseHandle } from './features/normalise.ts';
 export {
   FEATURE_NOTE_CODES,
+  type AnalystCue,
+  type AnalystEvidence,
+  type AnalystGrade,
+  type AnalystInputs,
+  type AnalystReview,
   type FeatureExtractionInput,
   type FeatureNote,
   type FeatureNoteCode,
@@ -21,6 +26,7 @@ export {
   type PathInput,
   type ScoreResult,
 } from './link.ts';
+export { ANALYST_EVIDENCE, applyOverrides, latestJudgement, overridesAt, overridesVersion } from './overrides.ts';
 export { enfsiTerm, icd203Term, SCORE_BAND_FLOORS, scoreBand } from './scales.ts';
 export { ALGORITHM_VERSION, RELATION_RULES_VERSION } from './version.ts';
 export {

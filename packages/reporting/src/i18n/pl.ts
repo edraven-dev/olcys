@@ -4,6 +4,7 @@
  */
 import type {
   AdmiraltyReliability,
+  AnalystOverrideKind,
   AnalyticConfidence,
   CaptureStatus,
   CashOutRuleId,
@@ -16,8 +17,10 @@ import type {
   FetchMode,
   IdentifierKind,
   IndicatorStrength,
+  JudgementValue,
   LinkGateId,
   Relation,
+  ReviewDecision,
   RunStatus,
   RunTrigger,
   TextView,
@@ -38,6 +41,7 @@ export const pl = {
     facts: 'Fakty źródłowe',
     computed: 'Wyniki obliczeń',
     inferences: 'Wnioski do weryfikacji',
+    analyst: 'Oceny analityka',
   },
   legend: {
     title: 'Jak czytać ten raport',
@@ -47,6 +51,55 @@ export const pl = {
       'wyniki algorytmów: weryfikacja adresów, Wskaźnik Pewności, reguły odrzucania i przesłanek wyjścia do walut tradycyjnych, wyceny w PLN. Te same dane i wersje algorytmów zawsze dają te same wyniki.',
     inferences:
       'hipotezy wynikające z faktów i obliczeń. Nie są ustaleniami — analityk musi je potwierdzić lub odrzucić, np. wnioskiem do giełdy.',
+    analyst:
+      'stanowisko analityka: ocena powiązania (kto, kiedy, z jakim uzasadnieniem) i korekty materiału dowodowego. Ocena jest zapisywana obok wyniku i nie zmienia obliczonego Wskaźnika Pewności; korekta działa dopiero w ponownej ocenie (rescore), która tworzy nowy, osobno wersjonowany wynik.',
+  },
+  judgements: {
+    current: 'Aktualna ocena analityka: {label}.',
+    entry: '{label} — {analyst}, {at}',
+    justification: 'Uzasadnienie: „{text}”',
+    notice: 'Ocena jest zapisywana obok wyniku i nie zmienia obliczonego Wskaźnika Pewności.',
+    automationBias: 'Wynik wspiera ocenę analityka — nie zastępuje jej.',
+    otherTitle: 'Oceny analityka dotyczące odrzuconych powiązań',
+    otherIntro:
+      'Powiązania odrzucone regułą lub bez relacji własności, które analityk ocenił. Ocena nie zmienia ani wyniku, ani decyzji reguły.',
+    otherLink: 'Powiązanie: {address} ({chain}) · relacja: {relation} · wynik {score}/100',
+    values: {
+      same: {
+        label: 'Powiązanie potwierdzone',
+        description: 'Konto i adres należą do badanej osoby — ocena analityka',
+      },
+      not_same: {
+        label: 'Powiązanie odrzucone',
+        description: 'Konto lub adres nie należy do badanej osoby — ocena analityka',
+      },
+      unsure: { label: 'Niepewne', description: 'Dowody nie pozwalają rozstrzygnąć' },
+    } satisfies Record<JudgementValue, { label: string; description: string }>,
+  },
+  overrides: {
+    title: 'Korekty analityka uwzględnione w tym przebiegu',
+    intro:
+      'Ta ponowna ocena (rescore) uwzględniła korekty zapisane przez analityka do chwili jej zlecenia. Korekty zmieniły dane wejściowe obliczeń tego przebiegu; wyniki wcześniejszych przebiegów pozostały bez zmian.',
+    columns: {
+      kind: 'Rodzaj korekty',
+      target: 'Dotyczy',
+      value: 'Wartość',
+      analyst: 'Analityk i czas',
+      justification: 'Uzasadnienie',
+    },
+    kinds: {
+      reliability_grade: 'Ocena wiarygodności',
+      review_decision: 'Decyzja o dopasowaniu wymagającym przeglądu',
+      add_evidence: 'Przesłanka dodana przez analityka',
+    } satisfies Record<AnalystOverrideKind, string>,
+    decisions: { confirmed: 'potwierdzone', rejected: 'odrzucone' } satisfies Record<ReviewDecision, string>,
+    targets: {
+      observation: 'obserwacja: {property}',
+      candidate: 'wykryty adres (kandydat {id})',
+      source: 'źródło: {source}',
+      account: 'konto: {account}',
+      address: 'adres: {address}',
+    },
   },
   sections: {
     metadata: '1. Metryka raportu i parametry odtwarzalności',
@@ -728,6 +781,9 @@ export const pl = {
       'Z jednej grupy pochodzenia (to samo konto, domena, łańcuch repostów) liczy się tylko najsilniejsza przesłanka danego rodzaju — powtórzenia w ramach jednego serwisu nie podnoszą wyniku. Ten sam adres w co najmniej dwóch niezależnych źródłach różnego pochodzenia (synergia śladów) podnosi wynik.',
     gates:
       'Warunki konieczne poza arytmetyką: błędna suma kontrolna — brak powiązania; przypisanie przez stronę trzecią to relacja, a nie słaby dowód własności; reguły wykluczeń A1–A8 przenoszą adres do odrzuconych; sugestie AI mają wagę 0 do czasu potwierdzenia przez analityka.',
+    analystTitle: 'Ocena i korekty analityka',
+    analyst:
+      'Analityk może zapisać ocenę powiązania (potwierdzone, odrzucone, niepewne) z uzasadnieniem. Ocena jest zapisywana obok obliczonego wyniku — nie zmienia Wskaźnika Pewności, przedziału ani zmian względem poprzedniego uruchomienia. Korekta analityka (ocena wiarygodności źródła, obserwacji lub wykrytego adresu, decyzja o dopasowaniu wymagającym przeglądu, przesłanka z zamkniętej listy) zmienia dane wejściowe dopiero w ponownej ocenie zapisanych danych (rescore). Ta tworzy nowy, osobno wersjonowany wynik i zapisuje w parametrach uruchomienia, które korekty uwzględniła; wcześniejsze wyniki pozostają bez zmian.',
     weights: 'Wagi {version} — status: {status}; SHA-256 pliku wag: {sha}.',
     bandsTitle: 'Przedziały Wskaźnika Pewności',
     bandsColumns: { range: 'Wynik', band: 'Przedział', meaning: 'Typowa sytuacja' },

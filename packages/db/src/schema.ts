@@ -19,6 +19,8 @@ import type {
   ProvenanceEnvelope,
   ActivityIndicators,
   AddressCandidate,
+  AnalystOverrideKind,
+  AnalystOverrideTarget,
   ScheduleTickOutcome,
 } from '@olcys/core';
 import type { ColumnType, Generated } from 'kysely';
@@ -223,6 +225,18 @@ export interface AnalystJudgementsTable {
   at: GeneratedTimestamp;
 }
 
+/** migrations/0003_analyst_overrides.sql */
+export interface AnalystOverridesTable {
+  id: string;
+  case_id: string;
+  kind: AnalystOverrideKind;
+  target: Json<AnalystOverrideTarget>;
+  value: string;
+  justification: string;
+  analyst: string;
+  at: Timestamp;
+}
+
 export interface ChangeEventsTable extends RunRecordTable<ChangeEvent> {
   previous_run_id: string;
   kind: string;
@@ -265,6 +279,7 @@ export interface Database {
   cash_out_events: CashOutEventsTable;
   link_assessments: LinkAssessmentsTable;
   analyst_judgements: AnalystJudgementsTable;
+  analyst_overrides: AnalystOverridesTable;
   change_events: ChangeEventsTable;
   reports: ReportsTable;
   schema_migrations: SchemaMigrationsTable;

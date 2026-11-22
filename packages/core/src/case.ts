@@ -76,6 +76,11 @@ export interface RunConfigSnapshot {
   /** e.g. `{ exclusion: 'exclusion.v1', cashout: 'cashout.v1' }` */
   rulesVersions: Record<string, string>;
   llm?: { baseUrl: string; model: string; modelDigest?: string };
+  /**
+   * Rescore runs: ids of the analyst overrides the run applies, fixed when it was queued (those recorded until then,
+   * oldest first). Scoring and reports use exactly this set; `rulesVersions.overrides` labels it.
+   */
+  analystOverrides?: Id[];
 }
 
 /** One execution of a case analysis. Re-runs never modify earlier runs; they are diffed. */

@@ -3,6 +3,7 @@ import {
   type AddressCandidate,
   type AdmiraltyReliability,
   type Clock,
+  type EvidenceFeature,
   type EvidenceTier,
   type Id,
   type Identifier,
@@ -13,8 +14,9 @@ import { compareText } from '../compare.ts';
 import { scoreLink, type ClaimInput, type PathInput } from '../link.ts';
 import { RELATION_RULES_VERSION } from '../version.ts';
 import type { ScoringWeights } from '../weights.ts';
-import { buildAccountIndex, observationsByAccount, type AccountInfo } from './accounts.ts';
-import { collectAddressEvidence, type AccountAddressEvidence } from './address.ts';
+import { buildAccountIndex, observationsByAccount, type AccountIndex, type AccountInfo } from './accounts.ts';
+import { collectAddressEvidence, type AccountAddressEvidence, type AddressEvidence } from './address.ts';
+import { analystContext, type AnalystContext } from './analyst.ts';
 import { buildAuthorship } from './authorship.ts';
 import { identityItems } from './identity.ts';
 import type { FeatureExtractionInput, FeatureNote } from './types.ts';
@@ -47,6 +49,60 @@ function sortedNotes(notes: readonly FeatureNote[]): FeatureNote[] {
 }
 
 /**
+ * Adds the analyst's evidence items: identity-hop items to the account's identity hop, address-hop items to the
+ * account's path to the address. Items whose account or path is not in this run's evidence change nothing (a note
+ * says so); an anchor's identity hop is a recorded assumption and takes no items.
+ */
+function addAnalystEvidence(
+  analyst: AnalystContext,
+  ctx: {
+    index: AccountIndex;
+    identity: Map<string, EvidenceFeature[]>;
+    evidence: AddressEvidence;
+    weights: ScoringWeights;
+    note: (note: FeatureNote) => void;
+  },
+): void {
+  for (const item of analyst.evidence) {
+    const { accountId, address, overrideId, ...feature } = item;
+    const unmatched = (why: string): void =>
+      ctx.note({
+        code: 'analyst_evidence_unmatched',
+        detail: `analyst evidence ${overrideId} (${item.feature}): ${why}`,
+      });
+    const weight = ctx.weights.features.get(item.feature);
+    if (!weight || weight.hop !== item.hop) {
+      ctx.note({
+        code: 'feature_not_in_weights',
+        detail: `${item.feature} is not a ${item.hop} feature of ${ctx.weights.version}`,
+      });
+      continue;
+    }
+    const info = accountId ? ctx.index.byId(accountId) : undefined;
+    if (!info) {
+      unmatched('the account is not in the evidence of this run');
+      continue;
+    }
+    const added: EvidenceFeature = { ...feature, reliability: weight.defaultGrade ?? item.reliability };
+    if (item.hop === 'identity') {
+      if (info.anchor) {
+        unmatched(`${info.key} is an anchor: its identity hop is a recorded assumption`);
+        continue;
+      }
+      ctx.identity.set(info.key, [...(ctx.identity.get(info.key) ?? []), added]);
+      continue;
+    }
+    const entry = address ? ctx.evidence.byAccount.get(`${info.key} ${addressKey(address)}`) : undefined;
+    const candidate = entry ? strongest(entry.items.map((i) => i.candidate)) : undefined;
+    if (!entry || !candidate) {
+      unmatched(`${info.key} has no path to ${address ? addressKey(address) : 'the address'} in this run`);
+      continue;
+    }
+    entry.items.push({ feature: added, candidate });
+  }
+}
+
+/**
  * Turns what a run collected into scorable claims: which accounts are paths to the subject (anchors, and accounts
  * with positive identity evidence), which features each hop gets, and the relation and tier of each (subject,
  * address) claim. Third-party warnings become separate THIRD_PARTY_ATTRIBUTION claims without paths.
@@ -67,6 +123,11 @@ export function buildClaims(
   }
 
   const captures = new Map(i.captures.map((c) => [c.id, c]));
+  const analyst = analystContext(
+    i.analyst,
+    { observations: new Map(i.observations.map((o) => [o.id, o])), captures },
+    note,
+  );
   const grade = (g: AdmiraltyReliability, sourceId: string | undefined): AdmiraltyReliability =>
     sourceId !== undefined && i.sources(sourceId)?.reliability === 'F' ? 'F' : g;
   const index = buildAccountIndex(i.accounts, i.identifiers);
@@ -74,8 +135,15 @@ export function buildClaims(
   const authorship = buildAuthorship(i.captures, i.observations, index);
 
   const candidates = new Map<Id, AddressCandidate[]>();
+  // Rejected by an analyst: left out, and remembered so their page's observations do not borrow another page's match.
+  const rejected = new Map<Id, AddressCandidate[]>();
   for (const extraction of i.extractions) {
-    const valid = extraction.candidates.filter((c) => c.checksum.valid);
+    const valid: AddressCandidate[] = [];
+    for (const c of extraction.candidates.filter((x) => x.checksum.valid)) {
+      const decided = analyst.candidate(c);
+      if (decided) valid.push(decided);
+      else rejected.set(c.captureId, [...(rejected.get(c.captureId) ?? []), c]);
+    }
     candidates.set(extraction.captureId, [...(candidates.get(extraction.captureId) ?? []), ...valid]);
   }
   const evidence = collectAddressEvidence({
@@ -83,10 +151,14 @@ export function buildClaims(
     authorship,
     captures,
     candidates,
+    rejected,
     observations: i.observations,
     grade,
     note,
   });
+  for (const entry of evidence.byAccount.values()) {
+    for (const item of entry.items) item.feature = analyst.item(item.feature);
+  }
 
   // Paths: anchors, plus accounts with at least one positive identity item (third parties keep the 1:9 prior only).
   const identity = new Map<string, PathInput['identity']>();
@@ -102,9 +174,10 @@ export function buildClaims(
         weights: w,
         grade,
         note,
-      }),
+      }).map((f) => analyst.item(f, info.account.discoveredVia.sourceId)),
     );
   }
+  addAnalystEvidence(analyst, { index, identity, evidence, weights: w, note });
   const hasPath = (info: AccountInfo): boolean =>
     info.anchor || (identity.get(info.key) ?? []).some((f) => (w.features.get(f.feature)?.bayesFactor ?? 0) > 1);
 

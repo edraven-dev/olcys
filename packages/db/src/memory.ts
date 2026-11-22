@@ -5,6 +5,8 @@
 import type {
   ActivityIndicators,
   AddressLabel,
+  AnalystJudgement,
+  AnalystOverride,
   CashOutEvent,
   ChangeEvent,
   CaseWithIdentifiers,
@@ -22,6 +24,10 @@ import { labelContentSha256 } from './sql/analysis.ts';
 const copy = <T>(value: T): T => structuredClone(value);
 const byRun = <T extends { runId?: Id }>(items: readonly T[], runId: Id): T[] =>
   copy(items.filter((i) => i.runId === runId));
+const text = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
+/** Oldest first by (`at`, `id`), as the SQL implementation orders analyst records. */
+const chronological = <T extends { at: string; id: Id }>(items: readonly T[]): T[] =>
+  copy(items.toSorted((a, b) => text(a.at, b.at) || text(a.id, b.id)));
 
 export function createMemoryRepositories(): Repositories {
   const cases = new Map<Id, CaseWithIdentifiers>();
@@ -42,6 +48,8 @@ export function createMemoryRepositories(): Repositories {
     reports: [] as { runId: Id; kind: string; blobSha256: string; mediaType: string; createdAt: string }[],
     /** Label versions, as in SQL: exact re-imports are no-ops, a corrected record is a new version. */
     labels: [] as { key: string; sha: string; lastmod: string; label: AddressLabel }[],
+    judgements: [] as AnalystJudgement[],
+    overrides: [] as AnalystOverride[],
   };
 
   return {
@@ -191,6 +199,10 @@ export function createMemoryRepositories(): Repositories {
       async listLinks(runId) {
         return byRun(store.links, runId);
       },
+      async getLink(id) {
+        const found = store.links.find((l) => l.id === id);
+        return found ? copy(found) : undefined;
+      },
       async listChanges(runId) {
         return byRun(store.changes, runId);
       },
@@ -218,6 +230,31 @@ export function createMemoryRepositories(): Repositories {
           if (!seen || v.lastmod >= seen.lastmod) current.set(v.key, v);
         }
         return copy([...current.values()].map((v) => v.label));
+      },
+    },
+    // Analyst records reference a stored link or case, like the foreign keys of the SQL tables.
+    judgements: {
+      async add(judgement) {
+        if (!store.links.some((l) => l.id === judgement.linkAssessmentId)) {
+          throw new Error(`link ${judgement.linkAssessmentId} not found`);
+        }
+        store.judgements.push(copy(judgement));
+      },
+      async listByLink(linkAssessmentId) {
+        return chronological(store.judgements.filter((j) => j.linkAssessmentId === linkAssessmentId));
+      },
+      async listByRun(runId) {
+        const links = new Set(store.links.filter((l) => l.runId === runId).map((l) => l.id));
+        return chronological(store.judgements.filter((j) => links.has(j.linkAssessmentId)));
+      },
+    },
+    overrides: {
+      async add(override) {
+        if (!cases.has(override.caseId)) throw new Error(`case ${override.caseId} not found`);
+        store.overrides.push(copy(override));
+      },
+      async listByCase(caseId) {
+        return chronological(store.overrides.filter((o) => o.caseId === caseId));
       },
     },
   };
