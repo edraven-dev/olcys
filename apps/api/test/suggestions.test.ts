@@ -155,7 +155,18 @@ describe('report after a decision', () => {
   it('renders a new report version that shows the decided status, without waiting for it', async () => {
     const repos = createMemoryRepositories();
     const rt = await createRuntime({ env: LLM_ENV, repos, blobs: new InMemoryBlobStore(), logger: silent });
-    const renderApp = buildApp({ ...rt, analyst: ANALYST, renderReport: reportRenderer(rt) });
+    // A slow render makes the two decisions below overlap with a render in progress.
+    const render = reportRenderer(rt);
+    let renders = 0;
+    const renderApp = buildApp({
+      ...rt,
+      analyst: ANALYST,
+      renderReport: async (r) => {
+        renders += 1;
+        await new Promise((resolve) => setTimeout(resolve, 150));
+        await render(r);
+      },
+    });
     const kase = await repos.cases.create(
       {
         title: 'Kacper Fikcyjny (test raportu)',
@@ -249,7 +260,20 @@ describe('report after a decision', () => {
       finishedAt: '2026-11-22T10:00:01.000Z',
     });
     const id = newId();
+    const id2 = newId();
     await repos.llm!.addSuggestions([
+      {
+        id: id2,
+        runId: run.id,
+        task: 'address-role-classification',
+        target: { candidateId },
+        label: 'quote',
+        output: { role: 'quote', evidenceSpan: 'portfel' },
+        model: 'm',
+        promptVersion: 'v1',
+        callId,
+        createdAt: '2026-11-22T10:00:02.000Z',
+      },
       {
         id,
         runId: run.id,
@@ -268,14 +292,35 @@ describe('report after a decision', () => {
       return report ? new TextDecoder().decode(await rt.blobs.get(report.blobSha256)) : '';
     };
     expect(await html()).toBe('');
-    const response = await renderApp.inject({
-      method: 'POST',
-      url: `/api/suggestions/${id}/decision`,
-      payload: { decision: 'confirmed', justification: 'Zgodne z treścią wpisu.' },
-    });
+    const [response, second] = await Promise.all([
+      renderApp.inject({
+        method: 'POST',
+        url: `/api/suggestions/${id}/decision`,
+        payload: { decision: 'confirmed', justification: 'Zgodne z treścią wpisu.' },
+      }),
+      renderApp.inject({
+        method: 'POST',
+        url: `/api/suggestions/${id2}/decision`,
+        payload: { decision: 'rejected', justification: 'To tylko cytat z wpisu.' },
+      }),
+    ]);
     expect(response.statusCode).toBe(200);
-    await vi.waitFor(async () => expect(await html()).toContain('potwierdzona przez analityka'), { timeout: 15_000 });
-    expect(await html()).toContain('Sugestia AI');
+    expect(second.statusCode).toBe(200);
+    // Renders of the run are serialized and coalesced; the last stored version shows both decisions.
+    await vi.waitFor(
+      async () => {
+        const latest = await html();
+        expect(latest).toContain('potwierdzona przez analityka');
+        expect(latest).toContain('odrzucona przez analityka');
+      },
+      { timeout: 15_000 },
+    );
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    const latest = await html();
+    expect(latest).toContain('potwierdzona przez analityka');
+    expect(latest).toContain('odrzucona przez analityka');
+    expect(renders).toBeLessThanOrEqual(2);
+    expect(latest).toContain('Sugestia AI');
     await renderApp.close();
     await rt.close();
   }, 30_000);
