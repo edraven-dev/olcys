@@ -120,6 +120,7 @@ sekcjach.
 | `ceidg`             | `ceidg`         | offline, live | CEIDG API v3: firmy jednoosobowe po imieniu i nazwisku (w `live` wymaga tokenu)           |
 | `vat_whitelist`     | `vat_whitelist` | offline, live | wykaz podatników VAT po NIP lub REGON: status VAT, rachunki bankowe, osoby (nazwa i rola) |
 | `krs`               | `krs`           | offline, live | KRS Open API: odpis aktualny spółki po numerze KRS (zarząd, prokurenci, wspólnicy)        |
+| `wayback_cdx`       | `wayback`       | offline, live | historia profilu w Wayback Machine (tylko odczyt; sekcja „Historia z archiwum”)           |
 
 Profil forum po nazwie (`action=profile;user=`) jest sprawdzony tylko na stronie testowej; w trybie `live` potrzebny
 jest numer uid albo adres profilu. Strony Wykopu, GitHuba (HTML) i ogłoszeń istnieją tylko na stronie testowej.
@@ -243,21 +244,76 @@ wyników), `error` (błąd, zmienione zapytanie albo niepełny indeks — brak w
 zbierają ich własne kolektory (reguła E3) — raz, niezależnie od tego, czy trafiono na nie bezpośrednio, czy przez
 wyszukiwarkę.
 
-## Pivoty (`pivot.v1`)
+## Historia z archiwum (Wayback Machine)
 
-| Reguła | Wyzwalacz                                                                | Zadanie                                                                                                                         |
-| ------ | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
-| I1     | identyfikator podany dla platformy P                                     | kolektor platformy P                                                                                                            |
-| I2     | nick / login                                                             | ten sam nick na pozostałych platformach (GitHub: `_` i `.` → `-`)                                                               |
-| I3     | dowolny identyfikator                                                    | strony z listy obserwowanych; zachowane tylko, gdy zawierają identyfikator                                                      |
-| I4     | identyfikator będący adresem profilu                                     | kolektor rozpoznanej platformy                                                                                                  |
-| E1     | `account.link` do rozpoznanego konta                                     | kolektor tej platformy (głębokość + 1)                                                                                          |
-| E2     | konto znalezione dla osoby inaczej niż próbą nicku (nie kanał ostrzeżeń) | jego login na pozostałych platformach (głębokość + 1)                                                                           |
-| I5     | imię i nazwisko, nick, e-mail, adres kryptowaluty                        | każda zarejestrowana wyszukiwarka: jedno zapytanie (dokładna fraza)                                                             |
-| E3     | `search.result_url` (wynik wyszukiwania)                                 | kolektor strony (klucz jak I3) albo konta (jak E1) (głębokość + 1)                                                              |
-| I6     | imię i nazwisko (`full_name`)                                            | CEIDG: jedno wyszukiwanie po imieniu i nazwisku (klucz `name:<imię nazwisko>`)                                                  |
-| E4     | `registry.nip` z CEIDG                                                   | wykaz VAT (głębokość + 1) — **tylko** gdy `registry.ceidg.result_count` = 1; w przeciwnym razie pominięcie `ambiguous_namesake` |
-| E5     | `registry.krs` z wykazu VAT                                              | KRS (głębokość + 1)                                                                                                             |
+Kolektor `wayback_cdx` (`src/wayback`) odpowiada na pytanie „co profil pokazywał, zanim zaczęliśmy go obserwować”, czyli
+pozwala wykryć zmianę portfela, która nastąpiła przed pierwszym przebiegiem. Działa wyłącznie w trybie odczytu:
+
+1. **Availability API** (`archive.org/wayback/available?url=…`): brak `archived_snapshots.closest` oznacza `not_found`
+   po jednym zapytaniu.
+2. **CDX** (`web.archive.org/cdx/search/cdx`, parametry w stałej kolejności: `url`, `output=json`, `fl`,
+   `filter=statuscode:200`, `collapse=digest`, `limit=500`, `showResumeKey=true`, opcjonalnie `from`) wylicza tylko
+   przechwycenia, w których treść się zmieniła. Kolejne strony wyników pobierane są kluczem wznowienia, do
+   `maxCdxPages` (domyślnie 3). Zbiegają się tylko sąsiednie, identyczne skróty, więc A → B → A to trzy wpisy — i to jest
+   oś czasu.
+3. **Wybór migawek** (`selectSnapshots`): do `maxSnapshotsPerUrl` (domyślnie 12) — pierwsza, ostatnia i równomiernie
+   rozłożone pozostałe; rosnąco i deterministycznie.
+4. **Pobranie surowej migawki** (`…/web/<znacznik>id_/<adres>`): bajty archiwum bez przepisywania przez Wayback. Skrót
+   SHA-1 (base32, bez dopełnienia) porównywany jest ze skrótem z CDX; wynik (`match` / `mismatch`) jest tylko
+   zapisywany, bo ponowne kodowanie przy transferze może dać niezgodność.
+
+Zasady:
+
+- **Save Page Now nigdy nie jest używane** — publikuje przechwycenie strony podejrzanej i ujawnia zainteresowanie
+  śledczych. `assertWaybackReadUrl` (`guard.ts`) odrzuca każdy adres punktu zapisu archiwum i dopuszcza na hostach
+  archiwum wyłącznie punkty odczytu (CDX, Availability, odtwarzanie); wysyłane jest wyłącznie `GET`. Test sprawdza też, że
+  żaden plik `src/wayback` nie zawiera ścieżki tego punktu.
+- Jedno zapytanie naraz, do 20 na minutę łącznie dla obu hostów źródła (`config/sources.yaml`; klient wyjściowy limituje teraz także na źródło, nie tylko na host). Odpowiedź 429, która
+  utrzymuje się po odczekaniu klienta, otwiera **obwód na resztę przebiegu** (wspólny dla wszystkich zadań Wayback tego
+  przebiegu): kolejne zadania nie wysyłają nic i kończą się `blocked`, bieżące — `partial` (albo `blocked`) z notatką
+  `rate_limited: wayback rate limited (circuit open)`. Odpowiedź 5xx kończy tylko to jedno zapytanie (`error`).
+- Każde zapytanie ma `containsIdentifier: true` (adres profilu pochodzi od podmiotu sprawy i jest ujawniany archiwum);
+  cele: `wayback availability`, `wayback cdx listing`, `wayback snapshot`. robots.txt hosta archiwum jest respektowany przy pobieraniu migawek (zakaz daje `blocked` z notatką
+  `robots_disallowed`; odpowiedź 429 na robots.txt jest traktowana jak nieosiągalny plik i dodatkowo wstrzymuje źródło do końca przebiegu (`rate_limited`), bez zapytania o migawkę; wynik jest buforowany w przebiegu jak dla innych hostów), a robots.txt
+  witryny źródłowej nie jest sprawdzany dla kopii z archiwum. Zapytania Availability i CDX (API JSON) nie podlegają
+  robots.txt. Treść migawki nie jest oceniana jako bariera (zarchiwizowana strona logowania jest treścią, nie blokadą).
+- **Kopia archiwalna to ta sama grupa pochodzenia co strona, którą odwzorowuje.** Przechwycenie ma profil
+  `archive_snapshot` i pole `archive` (`provider`, `snapshotTimestamp`, `originalUrl`, ponadto w manifeście
+  `replayUrl` i `cdxDigest`); `collectedAt` to czas pobrania, nigdy czas migawki. Ocena punktowa przypisuje wzmianki w
+  kopii temu samemu kontu co żywa strona, więc archiwum dodaje historię, nie punkty.
+- **Pivot E6:** adres profilu konta podanego przez analityka albo wskazanego przez stronę własnego konta podmiotu (`input`,
+  `cross_link`, w nieprzerwanym łańcuchu od konta podanego przez analityka — nigdy przez trafienie wyszukiwarki ani stronę osoby trzeciej) oraz strona z listy obserwowanych, na której dopasowano identyfikator, dostają jedno zadanie Wayback,
+  o ile źródło `wayback_cdx` jest włączone w sprawie. Stron osób trzecich (próby tego samego nicku, wyniki
+  wyszukiwania, kanały ostrzeżeń) i stron istniejących tylko na stronie testowej nigdy się nie sprawdza.
+
+Obserwacje (podmiot: strona `{ type: 'page', key: <adres oryginalny> }`, lokalizator `wayback:<adres>@<znacznik>`):
+`archive.snapshot` (znacznik) i `archive.digest` (skrót z CDX) dla każdego wpisu listy — fakty — oraz
+`computed.archive_digest_check` (`match` / `mismatch`) dla każdej pobranej migawki — obliczenie. Każda odpowiedź API
+(Availability, kolejne strony CDX) jest osobnym przechwyceniem w formacie JSON. `buildWaybackHistory(captures,
+observations)` łączy je w wpisy osi czasu (`WaybackHistoryEntry`: adres, znacznik, czas ISO, skrót, `fetched`,
+`captureId`, `digestCheck`), posortowane rosnąco — dane wejściowe dla osi czasu zmian profilu.
+
+W trybach `offline` i `replay` archiwum symuluje strona testowa (`web.archive.org` → `/wayback`, `archive.org` →
+`/archive-org`): migawki profilu persony na forum, z których starsza nie zawiera portfela, a nowsza pokazuje BTC-1.
+Warunki korzystania z Internet Archive dopuszczają dostęp „dla celów naukowych i badawczych”; ich zgodność z użyciem
+przez KAS pozostaje otwartym pytaniem prawnym (patrz `docs/compliance/sources.md`).
+
+## Pivoty (`pivot.v2`)
+
+| Reguła                 | Wyzwalacz                                                                                                                         | Zadanie                                                                                                                         |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| I1                     | identyfikator podany dla platformy P                                                                                              | kolektor platformy P                                                                                                            |
+| I2                     | nick / login                                                                                                                      | ten sam nick na pozostałych platformach (GitHub: `_` i `.` → `-`)                                                               |
+| I3                     | dowolny identyfikator                                                                                                             | strony z listy obserwowanych; zachowane tylko, gdy zawierają identyfikator                                                      |
+| I4                     | identyfikator będący adresem profilu                                                                                              | kolektor rozpoznanej platformy                                                                                                  |
+| E1                     | `account.link` do rozpoznanego konta                                                                                              | kolektor tej platformy (głębokość + 1)                                                                                          |
+| E2                     | konto znalezione dla osoby inaczej niż próbą nicku (nie kanał ostrzeżeń)                                                          | jego login na pozostałych platformach (głębokość + 1)                                                                           |
+| I5                     | imię i nazwisko, nick, e-mail, adres kryptowaluty                                                                                 | każda zarejestrowana wyszukiwarka: jedno zapytanie (dokładna fraza)                                                             |
+| E3                     | `search.result_url` (wynik wyszukiwania)                                                                                          | kolektor strony (klucz jak I3) albo konta (jak E1) (głębokość + 1)                                                              |
+| I6                     | imię i nazwisko (`full_name`)                                                                                                     | CEIDG: jedno wyszukiwanie po imieniu i nazwisku (klucz `name:<imię nazwisko>`)                                                  |
+| E4                     | `registry.nip` z CEIDG                                                                                                            | wykaz VAT (głębokość + 1) — **tylko** gdy `registry.ceidg.result_count` = 1; w przeciwnym razie pominięcie `ambiguous_namesake` |
+| E5                     | `registry.krs` z wykazu VAT                                                                                                       | KRS (głębokość + 1)                                                                                                             |
+| E6 (nowa w `pivot.v2`) | profil własnego konta (`input`, `cross_link` w nieprzerwanym łańcuchu własnych kont) albo dopasowana strona z listy obserwowanych | historia z archiwum (Wayback), ta sama głębokość: to sprawdzenie, nie pivot; nigdy strony osób trzecich                         |
 
 Osoby trzecie z rejestrów (reprezentanci, prokurenci, wspólnicy, zarząd) nigdy nie są pivotami. Wyszukiwania (I5) są planowane po wszystkich pozostałych regułach identyfikatorów, więc nie zabierają limitu zadań
 kolektorom platform. Wyniki wyszukiwania (E3) trafiają do kolektora strony z listy obserwowanych, który ją czyta — pod
@@ -296,6 +352,7 @@ ekstraktor może przypisać wzmiankę autorowi. Lokalizator: `<klucz>#<właściw
 | `profile.name`, `profile.login`, `profile.email`, `profile.member_since`      | konto `tablica:<login>`           | dane sprzedającego z ogłoszenia P2P                                                       |
 | `post.title`, `post.price`                                                    | strona `tablica:ad=<id>`          | tytuł i cena ogłoszenia                                                                   |
 | `profile.name`, `profile.description`                                         | konto `telegram:<kanał>`          | nazwa i opis kanału                                                                       |
+| `archive.snapshot`, `archive.digest`, `computed.archive_digest_check`         | strona (adres oryginalny)         | wpis listy CDX Wayback (znacznik, skrót) i obliczone porównanie skrótu pobranej migawki   |
 | `computed.identifier_match`                                                   | konto sprzedającego / post kanału | obliczenie OŁCyŚ: który identyfikator sprawy pasuje (`email`, `full_name`, `nickname`, …) |
 | `search.result_url`                                                           | strona `search:<dostawca>:<sha>`  | adres wyniku; lokalizator `search:<dostawca>:<sha256 zapytania>#rank=<n>`                 |
 | `search.result_count`                                                         | strona `search:<dostawca>:<sha>`  | liczba wyników (tylko pełna lista)                                                        |

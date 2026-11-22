@@ -133,6 +133,8 @@ export interface EvidenceRepository {
   addObservations(observations: Observation[]): Promise<void>;
   /** Stores the result, its candidates and secret positions (never secret values). */
   addExtraction(runId: Id, result: ExtractionResult): Promise<void>;
+  /** Stores several results all or nothing: when any write fails, none of them is stored. */
+  addExtractions?(runId: Id, results: readonly ExtractionResult[]): Promise<void>;
   listEgressLog(runId: Id): Promise<EgressLogEntry[]>;
   listCaptures(runId: Id): Promise<Capture[]>;
   getCapture(id: Id): Promise<Capture | undefined>;

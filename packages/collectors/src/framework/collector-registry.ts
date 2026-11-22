@@ -27,6 +27,11 @@ export interface CollectorFactory {
   readonly pivotOnAccounts?: boolean;
   /** True for web search: one query per input identifier (I5), and the result URLs it finds are followed (E3). */
   readonly webSearch?: boolean;
+  /**
+   * True for an archive lookup (Wayback): the planner gives it the profile URLs of the subject's own accounts and
+   * the watch-list pages that matched, never third-party pages, and no collector pivots from its results.
+   */
+  readonly archiveHistory?: boolean;
   /** Identifier kinds the source looks up by themselves (registries: a full name), one task per identifier (I6). */
   readonly identifierKinds?: readonly IdentifierKind[];
   create(descriptor: SourceDescriptor, deps: CollectorDeps): SourceCollector;

@@ -104,7 +104,9 @@ export function buildAuthorship(
   const byUrl = new Map<string, Id>();
   for (const c of captures) {
     if (c.archive) continue;
-    for (const url of [c.url, c.finalUrl]) {
+    // Offline and in replay a capture's URL is the fixture URL; the live URL it stands for is the logical one.
+    for (const url of [c.url, c.finalUrl, c.technical?.logicalUrl]) {
+      if (url === undefined) continue;
       const key = normaliseUrl(url);
       if (key && !byUrl.has(key)) byUrl.set(key, c.id);
     }

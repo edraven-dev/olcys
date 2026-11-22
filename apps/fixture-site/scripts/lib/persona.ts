@@ -17,6 +17,7 @@ import {
   type GeneratedFile,
 } from './chain.ts';
 import * as crypto from './crypto.ts';
+import { waybackRoutes } from './wayback.ts';
 
 export const PERSONA = {
   fullName: 'Kacper Fikcyjny',
@@ -65,6 +66,8 @@ const HOST_PREFIXES: Record<string, string> = {
   'dane.biznes.gov.pl/api/ceidg/v3': '/registries/ceidg/v3',
   'wykazpodatnikowvat.mf.gov.pl/api': '/registries/vat-whitelist/api',
   'api-krs.ms.gov.pl/api/krs': '/registries/krs/api',
+  'web.archive.org': '/wayback',
+  'archive.org': '/archive-org',
 };
 
 const BT = '/bitcointalk/index.php';
@@ -644,6 +647,7 @@ export function routesFor(chainRoutes: readonly FixtureRouteOut[]): FixtureRoute
       file: 'barriers/challenge.html',
     },
     ...REGISTRY_ROUTES,
+    ...waybackRoutes(),
     { path: '/barriers/redirect-private', status: 302, headers: { location: '/private/' } },
     { path: '/barriers/redirect-external', status: 302, headers: { location: 'https://example.org/' } },
     ...chainRoutes,
