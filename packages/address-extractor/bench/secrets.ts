@@ -137,9 +137,19 @@ export interface LeakFragments {
   words: ReadonlySet<string>;
 }
 
-/** Letter runs joined by single spaces (`1. abandon\nability` → `abandon ability`). */
+const JSON_ESCAPE = /\\(?:u([0-9a-fA-F]{4})|(["\\/bfnrt]))/g;
+const JSON_SIMPLE: Record<string, string> = { b: '\b', f: '\f', n: '\n', r: '\r', t: '\t' };
+
+/** Decodes JSON string escapes (`\n`, `\t`, `\"`, `\\`, `\uXXXX`) so a serialised log reads like the original text. */
+export function unescapeJson(text: string): string {
+  return text.replace(JSON_ESCAPE, (_m, hexCode: string | undefined, simple: string | undefined) =>
+    hexCode ? String.fromCharCode(parseInt(hexCode, 16)) : (JSON_SIMPLE[simple ?? ''] ?? simple ?? ''),
+  );
+}
+
+/** Letter runs joined by single spaces (`1. abandon\nability` or its JSON-escaped form → `abandon ability`). */
 export function wordsOf(text: string): string {
-  return (text.match(/\p{L}+/gu) ?? []).join(' ');
+  return (unescapeJson(text).match(/\p{L}+/gu) ?? []).join(' ');
 }
 
 function windows(value: string, into: Set<string>): void {
