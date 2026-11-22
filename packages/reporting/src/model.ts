@@ -17,6 +17,8 @@ import type {
 import { formatAmount, formatPln, formatUtc, plural } from './format.ts';
 import { fill } from './html.ts';
 import { pl } from './i18n/pl.ts';
+import { readPartialReasons, renderPartialReason } from '@olcys/core';
+import { unavailableCaptures } from './render/header.ts';
 import { flowSteps } from './render/chain.ts';
 import { isWalletSwap, changeWhere } from './render/annex.ts';
 import { COMPUTED_PREFIX, isKycLead, linkEvidence, propertyLabel, uniqueRejected } from './render/links.ts';
@@ -304,12 +306,30 @@ function registerEntry(view: View, c: Capture): ReportModel['evidenceRegister'][
   return entry;
 }
 
+/** Why the analysis is incomplete, as the HTML report states it; `undefined` for a complete run. */
+function coverageOf(view: View): ReportModel['coverage'] {
+  const { data } = view;
+  const reasons = readPartialReasons({ partial: data.partialReasons, partialCodes: data.partialCodes }).map((reason) =>
+    renderPartialReason(reason, pl.summary.partialReasons, {
+      item: pl.summary.partialItem,
+      labels: { status: pl.summary.partialStatuses },
+    }),
+  );
+  const pages = unavailableCaptures(view);
+  if (!reasons.length && !pages.length && data.run.status !== 'partial') return undefined;
+  return {
+    reasons: reasons.length || pages.length ? reasons : [pl.summary.incompleteGeneric],
+    unavailable: pages.map((c) => ({ sourceName: view.sourceName(c.sourceId), url: c.url, status: c.status })),
+  };
+}
+
 export function buildReportModel(data: ReportData): ReportModel {
   const view = buildView(data);
   const cfg = data.run.config;
   const algorithms = [...new Set(data.links.map((l) => l.algorithmVersion))].toSorted(cmp);
   const confidence: AnalyticConfidence = lowestConfidence(view.linked.map((l) => l.analyticConfidence)) ?? 'Low';
   const steps = flowSteps(view);
+  const coverage = coverageOf(view);
   return {
     reportId: data.reportId,
     caseId: data.case.id,
@@ -343,6 +363,7 @@ export function buildReportModel(data: ReportData): ReportModel {
       ),
       analyticConfidence: confidence,
     },
+    ...(coverage ? { coverage } : {}),
     facts: factsOf(view),
     computed: computedOf(view),
     inferences: inferencesOf(view),

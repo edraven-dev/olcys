@@ -78,11 +78,18 @@ export interface ReportFile {
   captureId?: string;
 }
 
+/** `GET /api/runs/:runId/report/view` for a report saved in the old format: files only, links not bound to a version. */
+export interface LegacyReportView {
+  legacy: true;
+  files: ReportFile[];
+}
+
 /**
  * `GET /api/runs/:runId/report/view`: the report model the HTML renderer is built from, plus the downloadable files.
  * 404 until a report exists.
  */
 export interface ReportView {
+  legacy?: false;
   /** Id of the published report version the model and every file below belong to (download paths are bound to it). */
   version: string;
   report: ReportModel;

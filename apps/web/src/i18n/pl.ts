@@ -1352,6 +1352,16 @@ export const pl = {
     },
     confidence: 'Pewność analityczna oceny: {level}.',
     confidenceLevels: { High: 'wysoka', Moderate: 'umiarkowana', Low: 'niska' },
+    coverage: {
+      title: 'Analiza niepełna',
+      intro:
+        'Część źródeł była niedostępna lub etapy analizy zgłosiły braki. Brak danych z tych źródeł nie oznacza, że nie zawierają one śladów; wyniki dotyczą wyłącznie zebranych danych.',
+      pages: 'Strony bez dostępu do treści',
+      page: '{source} — {status}: {url}',
+      reasons: 'Zgłoszone przez etapy analizy',
+    },
+    legacy:
+      'Raport w starszym formacie — wygeneruj ponownie. Poniższe pliki to bieżące pliki przebiegu; ich odnośniki nie są związane z wersją raportu.',
     noLikelihoods: 'Nie ustalono adresów powiązanych z identyfikatorami sprawy.',
     none: 'Brak pozycji w tej sekcji.',
     computedKinds: {

@@ -1,4 +1,4 @@
-import type { ApiMeta, ReportView } from '@olcys/core';
+import type { ApiMeta, LegacyReportView, ReportView } from '@olcys/core';
 import { useState } from 'react';
 import { ErrorState, Icon, LoadingState, StaleNotice } from '../../components/ui.tsx';
 import { pl } from '../../i18n/pl.ts';
@@ -11,9 +11,9 @@ import { DownloadsPanel } from './DownloadsPanel.tsx';
 import { ReportDocument } from './ReportDocument.tsx';
 
 /** `null` while the run has no report (404), so the tab can say so instead of failing. */
-async function loadReport(runId: string): Promise<ReportView | null> {
+async function loadReport(runId: string): Promise<ReportView | LegacyReportView | null> {
   try {
-    return await api.get<ReportView>(apiPaths.reportView(runId));
+    return await api.get<ReportView | LegacyReportView>(apiPaths.reportView(runId));
   } catch (error) {
     if (error instanceof ApiRequestError && error.status === 404) return null;
     throw error;
@@ -29,7 +29,7 @@ export function ReportTab({ scope }: { scope: RunScope }) {
   const { run, version } = scope;
   const done = isTerminal(run.status);
   const [regenerations, setRegenerations] = useState(0);
-  const report = useResource<ReportView | null>(
+  const report = useResource<ReportView | LegacyReportView | null>(
     done ? `${apiPaths.reportView(run.id)}#${reportVersion(version, regenerations)}` : null,
     () => loadReport(run.id),
   );
@@ -53,8 +53,9 @@ export function ReportTab({ scope }: { scope: RunScope }) {
       ) : (
         <>
           {report.error ? <StaleNotice resource={report as Resource<unknown>} /> : null}
+          {report.data.legacy ? <p className="notice">{pl.report.legacy}</p> : null}
           <DownloadsPanel files={report.data.files} />
-          <ReportDocument report={report.data.report} names={names} />
+          {report.data.legacy ? null : <ReportDocument report={report.data.report} names={names} />}
         </>
       )}
       {done && report.data && meta.data?.features.judgements ? (

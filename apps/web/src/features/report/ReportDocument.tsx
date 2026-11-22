@@ -1,7 +1,7 @@
 import type { Capture, ChangeEvent, ReportComputed, ReportFact, ReportInference, ReportModel } from '@olcys/core';
 import { useState } from 'react';
 import { CaptureCard } from '../../components/evidence.tsx';
-import { AddressText, DateTime, HashText, KindBadge, LoadingState, type InfoKind } from '../../components/ui.tsx';
+import { AddressText, DateTime, HashText, Icon, KindBadge, LoadingState, type InfoKind } from '../../components/ui.tsx';
 import { pl } from '../../i18n/pl.ts';
 import { t } from '../../i18n/t.ts';
 import { apiPaths } from '../../lib/api.ts';
@@ -32,6 +32,7 @@ export function ReportDocument({
       <p className="muted">{t(pl.report.generatedAt, { at: report.generatedAt })}</p>
       <Legend />
       <Reproducibility report={report} />
+      <Coverage report={report} />
       <Summary report={report} />
       <FactsSection facts={report.facts} />
       <ComputedSection items={report.computed} targets={targets} />
@@ -131,6 +132,47 @@ function Reproducibility({ report }: { report: ReportModel }) {
 
 const lookupStatus = (status: string): string | undefined =>
   (pl.report.repro.weightsStatuses as Record<string, string>)[status];
+
+/** Prominent warning when the analysis is incomplete: which pages could not be read and why. */
+function Coverage({ report }: { report: ReportModel }) {
+  const { coverage } = report;
+  if (!coverage) return null;
+  return (
+    <section aria-labelledby="report-coverage" className="alert-card" role="alert">
+      <h3 id="report-coverage">
+        <Icon name="warn" />
+        {pl.report.coverage.title}
+      </h3>
+      <p>{pl.report.coverage.intro}</p>
+      {coverage.unavailable.length > 0 ? (
+        <div>
+          <h4>{pl.report.coverage.pages}</h4>
+          <ul>
+            {coverage.unavailable.map((page) => (
+              <li key={`${page.sourceName}|${page.url}|${page.status}`}>
+                {t(pl.report.coverage.page, {
+                  source: page.sourceName,
+                  status: (pl.captureStatus as Record<string, string>)[page.status] ?? page.status,
+                  url: page.url,
+                })}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+      {coverage.reasons.length > 0 ? (
+        <div>
+          <h4>{pl.report.coverage.reasons}</h4>
+          <ul>
+            {coverage.reasons.map((reason) => (
+              <li key={reason}>{reason}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+    </section>
+  );
+}
 
 /** ICD 203: each likelihood statement is its own paragraph and the analytic confidence is a separate sentence. */
 function Summary({ report }: { report: ReportModel }) {

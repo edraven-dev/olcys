@@ -7,6 +7,7 @@ import type {
   AnalysisRun,
   ApiMeta,
   BlobStore,
+  LegacyReportView,
   ReportFile,
   ReportView,
   FetchMode,
@@ -38,6 +39,7 @@ import {
   loadReportVersion,
   REPORT_HTML_MEDIA_TYPE,
   type ExportKind,
+  type ExportSet,
   type ReportData,
   isExportKind,
   REPORT_DATA_MEDIA_TYPE,
@@ -181,6 +183,34 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
   });
 
   /** Sends one stored export after checking its digest; a download that leaves the tool is a custody event. */
+  /** Files of a report in the old format, served by the run's current-report routes. */
+  const legacyFiles = (runId: string, set: ExportSet): ReportFile[] => [
+    {
+      kind: 'html',
+      fileName: `olcys-raport-${runId}.html`,
+      mediaType: REPORT_HTML_MEDIA_TYPE,
+      available: true,
+      path: `/api/runs/${runId}/report`,
+      sha256: set.htmlSha256,
+    },
+    { kind: 'pdf', fileName: `olcys-raport-${runId}.pdf`, mediaType: 'application/pdf', available: false, path: '' },
+    ...EXPORT_KINDS.flatMap((format): ReportFile[] => {
+      const e = set.exports[format];
+      return e
+        ? [
+            {
+              kind: format,
+              fileName: `olcys-${runId}-${EXPORT_FILE_EXTENSIONS[format]}`,
+              mediaType: EXPORT_MEDIA_TYPES[format],
+              available: true,
+              path: `/api/runs/${runId}/exports/${format}`,
+              sha256: e.sha256,
+            },
+          ]
+        : [];
+    }),
+  ];
+
   const sendExport = async (
     request: FastifyRequest,
     reply: FastifyReply,
@@ -479,6 +509,11 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
     const runId = idOf(request.params.runId);
     const published = runId ? await findPublishedReport(deps, runId) : undefined;
     if (!runId || !published) return notFound(reply, 'report');
+    if (published.legacy) {
+      // Saved before versioned downloads: the run's current HTML and exports, without a version guarantee.
+      const legacy: LegacyReportView = { legacy: true, files: legacyFiles(runId, published.set) };
+      return legacy;
+    }
     const { set, version } = published;
     // A blob that cannot be read or parsed is a fault (500), never "no report".
     const data = JSON.parse(new TextDecoder().decode(await deps.blobs.get(set.dataSha256))) as ReportData;

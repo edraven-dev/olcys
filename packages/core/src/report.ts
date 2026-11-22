@@ -34,6 +34,11 @@ export interface ReportModel {
     dataSha256?: Sha256Hex;
   };
   summary: { headline: string; likelihoodStatements: string[]; analyticConfidence: AnalyticConfidence };
+  /**
+   * Set when the analysis is incomplete (a source blocked, a login wall, a CAPTCHA, a fetch error, or a stage that
+   * reported missing data): which pages and why. Absent for a complete run.
+   */
+  coverage?: ReportCoverage;
   facts: ReportFact[];
   computed: ReportComputed[];
   inferences: ReportInference[];
@@ -49,6 +54,13 @@ export interface ReportModel {
     /** Display name of the source (the register's Polish name when it has one). */
     sourceName?: string;
   }[];
+}
+
+export interface ReportCoverage {
+  /** Polish sentences of the reasons the stages reported (`partialReasons` / `partialCodes`). */
+  reasons: string[];
+  /** Pages whose content could not be read; a block, login wall, CAPTCHA or error is not "page does not exist". */
+  unavailable: { sourceName: string; url: string; status: string }[];
 }
 
 export interface ReportFact {

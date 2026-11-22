@@ -142,6 +142,29 @@ describe('report document', () => {
   });
 });
 
+describe('coverage warning', () => {
+  it('shows which pages and reasons make the analysis incomplete, beside the summary', () => {
+    const result = dom({
+      ...personaReport,
+      coverage: {
+        reasons: ['niedostępne źródła: Keybase'],
+        unavailable: [{ sourceName: 'Keybase', url: 'http://127.0.0.1:4100/keybase/x/', status: 'blocked' }],
+      },
+    });
+    const warning = section(result, 'report-coverage');
+    expect(warning.getAttribute('role')).toBe('alert');
+    expect(warning.textContent).toContain('Analiza niepełna');
+    expect(warning.textContent).toContain('Keybase — zablokowane');
+    expect(warning.textContent).toContain('niedostępne źródła: Keybase');
+    const order = [...result.querySelectorAll('h3[id^="report-"]')].map((h) => h.id);
+    expect(order.indexOf('report-coverage')).toBeLessThan(order.indexOf('report-summary'));
+  });
+
+  it('shows no warning for a complete run', () => {
+    expect(dom(personaReport).querySelector('#report-coverage')).toBeNull();
+  });
+});
+
 describe('capture card on demand', () => {
   let root: Root;
   let container: HTMLElement;

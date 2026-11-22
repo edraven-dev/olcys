@@ -155,46 +155,56 @@ export async function findExportSet(
 
 /** One complete published report version: the set blob that names its HTML, data and exports (all content-addressed). */
 export interface PublishedReport {
+  legacy?: false;
   /** SHA-256 of the export-set blob: the version id (the set is registered last, so it exists only for a complete version). */
   version: string;
   set: ExportSet & { runId: string; dataSha256: string };
 }
 
+/**
+ * A report saved before versioned downloads (its export set names neither run nor data). Its HTML and exports are the
+ * run's current ones, but their links cannot be bound to a version.
+ */
+export interface LegacyReport {
+  legacy: true;
+  set: ExportSet;
+}
+
 const isPublishedSet = (set: ExportSet, runId: Id): set is PublishedReport['set'] =>
   set.version === 1 && set.runId === runId && typeof set.dataSha256 === 'string';
 
+const parseSet = (bytes: Uint8Array): ExportSet => JSON.parse(new TextDecoder().decode(bytes)) as ExportSet;
+
 /**
- * The run's current report version, or `undefined` when there is none (no rows, or the newest HTML is not covered by
- * a complete version yet). A stored blob that cannot be read or parsed is a fault and throws.
+ * The run's current report, or `undefined` when there is none (no rows, or the newest HTML is not covered by a
+ * complete set yet). A report in the old format is returned as `legacy`. A stored blob that cannot be read or parsed
+ * is a fault and throws.
  */
 export async function findPublishedReport(
   deps: { repos: Repositories; blobs: BlobStore },
   runId: Id,
-): Promise<PublishedReport | undefined> {
+): Promise<PublishedReport | LegacyReport | undefined> {
   const [html, stored] = await Promise.all([
     deps.repos.analysis.latestReport(runId, REPORT_KINDS.html),
     deps.repos.analysis.latestReport(runId, REPORT_KINDS.exportSet),
   ]);
   if (!html || !stored) return undefined;
-  const set = JSON.parse(new TextDecoder().decode(await deps.blobs.get(stored.blobSha256))) as ExportSet;
-  return set.htmlSha256 === html.blobSha256 && isPublishedSet(set, runId)
-    ? { version: stored.blobSha256, set }
-    : undefined;
+  const set = parseSet(await deps.blobs.get(stored.blobSha256));
+  if (set.version !== 1 || set.htmlSha256 !== html.blobSha256) return undefined;
+  return isPublishedSet(set, runId) ? { version: stored.blobSha256, set } : { legacy: true, set };
 }
 
-/** A published version named by its id (a download link of an earlier listing); `undefined` when it is not one of the run. */
+/**
+ * A published version named by its id (a download link of an earlier listing). `undefined` only when no such version
+ * exists (no blob, or a blob that is not a version of this run); an unreadable or unparsable stored blob throws.
+ */
 export async function loadReportVersion(
   deps: { repos: Repositories; blobs: BlobStore },
   runId: Id,
   version: string,
 ): Promise<PublishedReport | undefined> {
   if (!(await deps.blobs.has(version))) return undefined;
-  let set: ExportSet;
-  try {
-    set = JSON.parse(new TextDecoder().decode(await deps.blobs.get(version))) as ExportSet;
-  } catch {
-    return undefined;
-  }
+  const set = parseSet(await deps.blobs.get(version));
   return set !== null && typeof set === 'object' && isPublishedSet(set, runId) ? { version, set } : undefined;
 }
 

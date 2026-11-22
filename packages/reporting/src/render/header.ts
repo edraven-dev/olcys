@@ -93,7 +93,7 @@ export function metadataSection(view: View): SafeHtml {
 }
 
 /** Pages whose content could not be read: block, login wall, CAPTCHA or a fetch error (not "page does not exist"). */
-function unavailableCaptures(view: View) {
+export function unavailableCaptures(view: View) {
   return view.data.captures.filter((c) => ['blocked', 'login_wall', 'captcha', 'error'].includes(c.status));
 }
 

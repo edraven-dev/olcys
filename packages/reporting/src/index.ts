@@ -44,6 +44,7 @@ export {
   findExportSet,
   findPublishedReport,
   loadReportVersion,
+  type LegacyReport,
   type PublishedReport,
   REPORT_DATA_MEDIA_TYPE,
   REPORT_HTML_MEDIA_TYPE,

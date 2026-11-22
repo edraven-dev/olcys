@@ -57,4 +57,25 @@ describe('report tab', () => {
     expect(alert?.textContent).toContain('Nie udało się odświeżyć danych');
     expect([...(alert?.querySelectorAll('button') ?? [])].map((b) => b.textContent)).toContain('Spróbuj ponownie');
   });
+
+  it('offers a report in the old format with a notice, the downloads and the regeneration button', async () => {
+    const legacyScope = {
+      ...scope,
+      run: { ...scope.run, id: 'run-legacy' },
+      version: 'v-legacy',
+    } as unknown as RunScope;
+    setFetch(async (input) => {
+      if (input.endsWith('/report/view'))
+        return new Response(JSON.stringify({ legacy: true, files: personaView.files }), { status: 200 });
+      return new Response(JSON.stringify(input === '/api/meta' ? { features: { judgements: true } } : { items: [] }), {
+        status: 200,
+      });
+    });
+    act(() => root.render(<ReportTab scope={legacyScope} />));
+    await flush();
+    expect(host.textContent).toContain('Raport w starszym formacie — wygeneruj ponownie');
+    expect(host.textContent).toContain('Pliki do pobrania');
+    expect(host.textContent).not.toContain('A. Fakty źródłowe');
+    expect([...host.querySelectorAll('button')].map((b) => b.textContent)).toContain('Wygeneruj raport ponownie');
+  });
 });

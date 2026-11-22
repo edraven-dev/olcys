@@ -89,4 +89,36 @@ describe('report model', () => {
       expect(model.computed.find((c) => c.id === l.id)?.basedOn ?? []).toEqual(expect.arrayContaining(expected));
     }
   });
+
+  it('carries the coverage warning of an incomplete run: blocked sources and the reasons the stages reported', () => {
+    const data = personaData();
+    const [first, ...rest] = data.captures;
+    if (!first) throw new Error('fixture has no captures');
+    const partial = {
+      ...data,
+      captures: [{ ...first, status: 'blocked' as const }, ...rest],
+      partialReasons: ['sources unavailable: Bitcointalk (forum)'],
+      partialCodes: [
+        {
+          text: 'sources unavailable: Bitcointalk (forum)',
+          code: 'sources_unavailable',
+          params: { sources: 'Bitcointalk (forum)' },
+        },
+      ],
+    };
+    const { coverage } = buildReportModel(partial);
+    expect(coverage?.unavailable).toContainEqual({
+      sourceName: 'Bitcointalk (forum)',
+      url: first.url,
+      status: 'blocked',
+    });
+    expect(coverage?.reasons.join(' ')).toContain('Bitcointalk (forum)');
+    // the persona run already has a blocked source (keybase); a run without any problem has no warning
+    expect(buildReportModel(personaData()).coverage?.unavailable.map((p) => p.sourceName)).toContain('keybase');
+    const clean = emptyData();
+    expect(buildReportModel(clean).coverage).toBeUndefined();
+    expect(buildReportModel({ ...clean, run: { ...clean.run, status: 'partial' } }).coverage?.reasons).toEqual([
+      expect.stringContaining('częściowe'),
+    ]);
+  });
 });

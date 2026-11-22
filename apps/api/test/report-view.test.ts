@@ -204,3 +204,59 @@ describe('meta settings', () => {
     for (const secret of ['secret', 'sk-never-shown', 'key=abc', 'user:']) expect(response.body).not.toContain(secret);
   });
 });
+
+describe('older and damaged reports', () => {
+  const newRun = async () => {
+    const id = (await app.inject({ method: 'POST', url: `/api/cases/${caseId}/runs`, payload: {} })).json()
+      .id as string;
+    await runtime.idle();
+    await storeReport(runtime, await buildReportData(runtime.repos, id, { generatedAt: '2026-11-21T13:41:00.000Z' }));
+    return id;
+  };
+  const setOf = async (id: string) => {
+    const row = await runtime.repos.analysis.latestReport(id, 'export_set');
+    const sha = row?.blobSha256 ?? '';
+    return { sha, set: JSON.parse(new TextDecoder().decode(await runtime.blobs.get(sha))) as Record<string, unknown> };
+  };
+
+  it('lists a report saved before versioned downloads as legacy, with its current files', async () => {
+    const id = await newRun();
+    const { set } = await setOf(id);
+    const { runId: _runId, dataSha256: _data, ...old } = set;
+    const ref = await runtime.blobs.put(new TextEncoder().encode(JSON.stringify(old)), 'application/json');
+    await runtime.repos.analysis.addReport({
+      runId: id,
+      kind: 'export_set',
+      blobSha256: ref.sha256,
+      mediaType: 'application/json',
+    });
+    const response = await app.inject(`/api/runs/${id}/report/view`);
+    expect(response.statusCode).toBe(200);
+    const view = response.json();
+    expect(view.legacy).toBe(true);
+    expect(view.report).toBeUndefined();
+    const html = view.files.find((f: { kind: string }) => f.kind === 'html');
+    expect(sha256((await app.inject(html.path)).body)).toBe(html.sha256);
+    const stix = view.files.find((f: { kind: string }) => f.kind === 'stix');
+    expect(sha256((await app.inject(stix.path)).body)).toBe(stix.sha256);
+  });
+
+  it('lists a current report as a version, not as legacy', async () => {
+    const id = await newRun();
+    const view = (await app.inject(`/api/runs/${id}/report/view`)).json();
+    expect(view.legacy).not.toBe(true);
+    expect(view.version).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it('answers 500, not 404, when a stored version blob is damaged, and 404 only for a missing version', async () => {
+    const id = await newRun();
+    const { sha } = await setOf(id);
+    const path = `/api/runs/${id}/report/versions/${sha}/html`;
+    expect((await app.inject(path)).statusCode).toBe(200);
+    damaged.add(sha);
+    expect((await app.inject(path)).statusCode).toBe(500);
+    expect((await app.inject(`/api/runs/${id}/report/view`)).statusCode).toBe(500);
+    damaged.clear();
+    expect((await app.inject(path.replace(sha, 'e'.repeat(64)))).statusCode).toBe(404);
+  });
+});
