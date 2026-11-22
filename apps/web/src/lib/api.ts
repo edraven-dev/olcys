@@ -132,6 +132,20 @@ export const api = {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(body),
     }),
+  /**
+   * File download as bytes (the console saves it through a blob URL). The optional purpose travels in the
+   * `X-Olcys-Purpose` header, percent-encoded (header values are Latin-1); a download never requires it.
+   */
+  download: async (path: string, purpose?: string): Promise<Blob> => {
+    const text = purpose?.trim();
+    const response = await send(path, {
+      headers: { accept: '*/*', ...(text ? { [PURPOSE_HEADER]: encodeURIComponent(text) } : {}) },
+    });
+    if (!response.ok) {
+      throw new ApiRequestError(response.status, parseErrorBody(response.status, await readJson(response)).code, '');
+    }
+    return response.blob();
+  },
   /** HEAD request: true when the resource exists. */
   exists: async (path: string): Promise<boolean> => {
     const response = await send(path, { method: 'HEAD' });
@@ -141,6 +155,9 @@ export const api = {
   },
 };
 
+/** Optional purpose of a download, read by the API's access log. */
+export const PURPOSE_HEADER = 'X-Olcys-Purpose';
+
 const enc = encodeURIComponent;
 
 export const apiPaths = {
@@ -149,9 +166,14 @@ export const apiPaths = {
   case: (caseId: string) => `/api/cases/${enc(caseId)}`,
   caseRuns: (caseId: string) => `/api/cases/${enc(caseId)}/runs`,
   caseSchedule: (caseId: string) => `/api/cases/${enc(caseId)}/schedule`,
+  caseTimeline: (caseId: string, filter: { walletOnly?: boolean } = {}) =>
+    `/api/cases/${enc(caseId)}/timeline${filter.walletOnly ? '?walletOnly=true' : ''}`,
   run: (runId: string) => `/api/runs/${enc(runId)}`,
   runList: (runId: string, list: RunListName) => `/api/runs/${enc(runId)}/${list}`,
+  runSuggestions: (runId: string) => `/api/runs/${enc(runId)}/suggestions`,
+  suggestionDecision: (id: string) => `/api/suggestions/${enc(id)}/decision`,
   report: (runId: string) => `/api/runs/${enc(runId)}/report`,
+  reportView: (runId: string) => `/api/runs/${enc(runId)}/report/view`,
   meta: '/api/meta',
   linkJudgements: (linkId: string) => `/api/links/${enc(linkId)}/judgements`,
   caseOverrides: (caseId: string) => `/api/cases/${enc(caseId)}/overrides`,

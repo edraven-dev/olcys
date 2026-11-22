@@ -18,6 +18,7 @@ import { formatDateTime } from '../../lib/format.ts';
 import { useJson, useList } from '../../lib/use-api.ts';
 import type { RunScope } from '../run/RunPage.tsx';
 import { UNAVAILABLE_STATUSES } from '../run/run-model.ts';
+import { PageTimelinePanel } from './PageTimeline.tsx';
 import { CHANGE_KIND_ORDER, diffParts, groupChanges, type DiffPart } from './changes-model.ts';
 
 const propertyLabel = (property: string) => lookup(pl.changes.properties, property);
@@ -67,6 +68,7 @@ export function ChangesTab({ scope }: { scope: RunScope }) {
           </Async>
         </>
       )}
+      <PageTimelinePanel caseId={run.caseId} version={version} />
     </section>
   );
 }
@@ -81,7 +83,7 @@ function Parts({ parts }: { parts: DiffPart[] }) {
   );
 }
 
-function ChangeGroups({ changes, names }: { changes: ChangeView[]; names: ReadonlyMap<string, string> }) {
+export function ChangeGroups({ changes, names }: { changes: ChangeView[]; names: ReadonlyMap<string, string> }) {
   const { alerts, byKind } = groupChanges(changes);
   return (
     <>

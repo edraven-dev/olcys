@@ -177,11 +177,22 @@ skrypt nazywa się `dev:doctor`.
 | `gotenberg`    | 3100          | `GET /health` (curl)                  |
 | `fixture-site` | 4100          | `GET /healthz` (wget)                 |
 | `osint-py`     | 8090          | profil `osint`; czeka na fixture-site |
-| `ollama`       | 11434         | profil `llm`                          |
+| `ollama`       | 11434         | profil `llm`; `ollama list`           |
+| `llamacpp`     | 8081          | profil `llm-llamacpp`; `GET /health`  |
 
 Model AI domyślnie nie działa w compose: sugestie korzystają z OpenVINO Model Server uruchomionego na komputerze
 (`LLM_BASE_URL=http://localhost:2140/v3`, `LLM_MODEL=qwen3.6-35b-ov`; włączane przez `LLM_ENABLED=true`). Usługa
 `ollama` (profil `llm`) jest opcjonalną alternatywą — wtedy `LLM_BASE_URL=http://127.0.0.1:11434/v1`.
+
+## Zamiana modelu
+
+Zmiana modelu to wyłącznie zmiana `.env`: `LLM_BASE_URL` i `LLM_MODEL` (oraz `LLM_CHAT_TEMPLATE_KWARGS`, jeśli serwer
+tego wymaga) przenoszą OŁCyŚ między OpenVINO Model Server, Ollamą, llama.cpp i vLLM bez zmian w kodzie. Alternatywne
+serwery to profile compose `llm` (Ollama, `http://127.0.0.1:11434/v1`) i `llm-llamacpp` (llama.cpp,
+`http://127.0.0.1:8081/v1`, plik GGUF w `data/models/`, zmienne `LLAMACPP_*`); sprawdza je
+`docker compose --profile llm --profile llm-llamacpp config -q`. Po zmianie uruchom `pnpm llm:check` (host, model,
+modele serwera, skrót, próba ze schematem JSON, opóźnienie; kod wyjścia różny od zera przy błędzie). Szczegóły i tabela
+adresów: `packages/llm/README.md`.
 
 Wszystkie porty są wiązane do `127.0.0.1` i konfigurowane w `.env`. Profile: `docker compose --profile osint --profile
 llm up -d --wait`. Poprawność pliku sprawdza `docker compose --profile osint --profile llm --profile sandbox config -q`.

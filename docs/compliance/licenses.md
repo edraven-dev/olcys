@@ -50,7 +50,7 @@ Poniższe tabele są generowane z `pnpm-lock.yaml`, `services/osint-py/pyproject
 
 ### Status bramki licencyjnej
 
-- Sprawdzone komponenty: 384 (npm: 374, Python: 2, obrazy: 8).
+- Sprawdzone komponenty: 431 (npm: 374, Python: 48, obrazy: 9).
 - Wynik: wszystkie komponenty zgodne z polityką licencyjną (`config/licenses.json`).
 - Wyjątki licencyjne (`config/compliance/license-exceptions.yaml`): 0.
 - SBOM (CycloneDX 1.6) powstają na żądanie poleceniem `pnpm compliance:sbom` (katalog `data/sbom/`, poza repozytorium); opisują je pliki `olcys-npm.cdx.json` i `olcys-osint-py.cdx.json`.
@@ -98,12 +98,58 @@ Wszystkie zależności bezpośrednie wszystkich pakietów monorepo (34 pakietów
 
 ### Pakiety Pythona (services/osint-py)
 
-Zależności bezpośrednie z `pyproject.toml` (przypięte `==`). Plik `uv.lock` nie jest jeszcze zatwierdzony, więc zależności przechodnie nie są ujęte w SBOM; licencje pochodzą z zatwierdzonej tabeli w `config/compliance/components.yaml`.
+Zależności bezpośrednie i przechodnie z `uv.lock`; licencje pochodzą z zatwierdzonej tabeli w `config/compliance/components.yaml`.
 
 | Komponent | Wersja | Licencja (SPDX) | Zastosowanie | Gdzie |
 | --- | --- | --- | --- | --- |
+| about-time | 4.2.1 | MIT | zależność przechodnia | services/osint-py (uv.lock) |
+| aiodns | 4.0.4 | MIT | zależność przechodnia | services/osint-py (uv.lock) |
+| aiohappyeyeballs | 2.7.1 | PSF-2.0 | zależność przechodnia | services/osint-py (uv.lock) |
+| aiohttp | 3.14.5 | Apache-2.0 AND MIT | klient HTTP strażnika sieciowego usługi (jedyna ścieżka ruchu wychodzącego osint-py) i zależność Maigret | services/osint-py |
+| aiosignal | 1.4.0 | Apache-2.0 | zależność przechodnia | services/osint-py (uv.lock) |
+| alive-progress | 3.3.0 | MIT | zależność przechodnia | services/osint-py (uv.lock) |
+| annotated-doc | 0.0.7 | MIT | zależność przechodnia | services/osint-py (uv.lock) |
+| annotated-types | 0.8.0 | MIT | zależność przechodnia | services/osint-py (uv.lock) |
+| anyio | 4.16.0 | MIT | zależność przechodnia | services/osint-py (uv.lock) |
+| attrs | 26.1.0 | MIT | zależność przechodnia | services/osint-py (uv.lock) |
+| beautifulsoup4 | 4.15.0 | MIT | zależność przechodnia | services/osint-py (uv.lock) |
+| certifi | 2026.11.20 | MPL-2.0 | zależność przechodnia | services/osint-py (uv.lock) |
+| cffi | 2.1.1 | MIT-0 | zależność przechodnia | services/osint-py (uv.lock) |
+| charset-normalizer | 3.5.2 | MIT | zależność przechodnia | services/osint-py (uv.lock) |
+| click | 8.5.1 | BSD-3-Clause | zależność przechodnia | services/osint-py (uv.lock) |
+| colorama | 0.4.6 | BSD-3-Clause | zależność przechodnia | services/osint-py (uv.lock) |
 | fastapi | 0.165.0 | MIT | API serwisu osint-py | services/osint-py |
+| frozenlist | 1.8.0 | Apache-2.0 | zależność przechodnia | services/osint-py (uv.lock) |
+| graphemeu | 0.7.2 | MIT | zależność przechodnia | services/osint-py (uv.lock) |
+| h11 | 0.16.0 | MIT | zależność przechodnia | services/osint-py (uv.lock) |
+| html5lib | 1.1 | MIT | zależność przechodnia | services/osint-py (uv.lock) |
+| idna | 3.20 | BSD-3-Clause | zależność przechodnia | services/osint-py (uv.lock) |
+| jinja2 | 3.1.6 | BSD-3-Clause | zależność przechodnia | services/osint-py (uv.lock) |
+| lxml | 6.1.3 | BSD-3-Clause | zależność przechodnia | services/osint-py (uv.lock) |
+| maigret | 0.6.6 | MIT | wyszukiwanie nazwy użytkownika w serwisach publicznych (jako biblioteka, z przypiętą bazą serwisów; bez proxy, Tor i obchodzenia zabezpieczeń) | services/osint-py |
+| markupsafe | 3.0.4 | BSD-3-Clause | zależność przechodnia | services/osint-py (uv.lock) |
+| multidict | 7.2.1 | Apache-2.0 | zależność przechodnia | services/osint-py (uv.lock) |
+| opentelemetry-api | 1.45.2 | Apache-2.0 | zależność przechodnia | services/osint-py (uv.lock) |
+| platformdirs | 4.14.8 | MIT | zależność przechodnia | services/osint-py (uv.lock) |
+| propcache | 0.5.4 | Apache-2.0 | zależność przechodnia | services/osint-py (uv.lock) |
+| pycares | 5.2.1 | MIT | zależność przechodnia | services/osint-py (uv.lock) |
+| pycparser | 3.12 | BSD-3-Clause | zależność przechodnia | services/osint-py (uv.lock) |
+| pydantic | 2.14.4 | MIT | modele i schematy żądań oraz odpowiedzi API | services/osint-py |
+| pydantic-core | 2.50.5 | MIT | zależność przechodnia | services/osint-py (uv.lock) |
+| python-dateutil | 3.0.0 | Apache-2.0 OR BSD-3-Clause | zależność przechodnia | services/osint-py (uv.lock) |
+| requests | 2.34.2 | Apache-2.0 | zależność przechodnia | services/osint-py (uv.lock) |
+| six | 1.17.0 | MIT | zależność przechodnia | services/osint-py (uv.lock) |
+| socid-extractor | 0.1.2 | MIT | wyciąganie identyfikatorów i odnośników ze zrzutów stron profili (bez sieci i bez trybu AI) | services/osint-py |
+| soupsieve | 2.10 | MIT | zależność przechodnia | services/osint-py (uv.lock) |
+| starlette | 1.10.0 | BSD-3-Clause | zależność przechodnia | services/osint-py (uv.lock) |
+| typing-extensions | 4.16.0 | PSF-2.0 | zależność przechodnia | services/osint-py (uv.lock) |
+| typing-inspection | 0.4.5 | MIT | zależność przechodnia | services/osint-py (uv.lock) |
+| tzdata | 2026.6 | Apache-2.0 | zależność przechodnia | services/osint-py (uv.lock) |
+| urllib3 | 2.8.0 | MIT | zależność przechodnia | services/osint-py (uv.lock) |
 | uvicorn | 0.54.0 | BSD-3-Clause | serwer ASGI serwisu osint-py | services/osint-py |
+| webencodings | 0.6.1 | BSD-3-Clause | zależność przechodnia | services/osint-py (uv.lock) |
+| xmind | 1.2.0 | MIT | zależność przechodnia | services/osint-py (uv.lock) |
+| yarl | 1.25.1 | Apache-2.0 | zależność przechodnia | services/osint-py (uv.lock) |
 
 ### Obrazy kontenerów
 
@@ -115,6 +161,7 @@ Każdy `image:` z `compose.yml` i każde `FROM` z Dockerfile musi mieć wpis w `
 | gotenberg/gotenberg | 9.9.1 | MIT | HTML → PDF/A (raporty) | compose.yml (gotenberg) | nie |
 | node | 26.13.1-alpine | MIT | środowisko uruchomieniowe serwisu strony testowej (fixture-site) | compose.yml (fixture-site) | nie |
 | ollama/ollama | 0.40.17 | MIT | lokalne środowisko modeli z API zgodnym z OpenAI (opcjonalne, profil llm) | compose.yml (ollama) | nie |
+| ghcr.io/ggml-org/llama.cpp | server-b12602 | MIT | lokalny serwer modeli llama.cpp z API zgodnym z OpenAI (opcjonalny, profil llm-llamacpp) | compose.yml (llamacpp) | nie |
 | blockstream/esplora | v3.0.1 | MIT | lokalny węzeł Bitcoin regtest z API Esplora (profil sandbox, dane demonstracyjne) | compose.yml (esplora-regtest) | nie |
 | ghcr.io/foundry-rs/foundry | v1.10.0 | MIT OR Apache-2.0 | lokalna sieć EVM (anvil; profil sandbox, dane demonstracyjne) | compose.yml (anvil) | nie |
 | ghcr.io/astral-sh/uv | 0.13.9 | MIT OR Apache-2.0 | zarządzanie zależnościami Pythona (etap budowania obrazu osint-py) | services/osint-py/Dockerfile (FROM) | nie |

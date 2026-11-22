@@ -35,7 +35,7 @@ import {
   url,
 } from './blocks.ts';
 
-const COMPUTED_PREFIX = 'computed.';
+export const COMPUTED_PREFIX = 'computed.';
 
 export function propertyLabel(property: string): string {
   const base = property.replace(/\[\d+\]/g, '');
@@ -99,7 +99,7 @@ const byCapture = (view: View) => (a: { captureId: Id; id: Id }, b: { captureId:
   (view.captureNo.get(a.captureId) ?? 1e9) - (view.captureNo.get(b.captureId) ?? 1e9) || cmp(a.id, b.id);
 
 /** Evidence the link rests on: path accounts, cited observations/candidates and every trace of the address. */
-function linkEvidence(view: View, link: LinkAssessment) {
+export function linkEvidence(view: View, link: LinkAssessment) {
   const accounts = new Map<Id, OnlineAccount>();
   const observations = new Map<Id, Observation>();
   const candidates = new Map<Id, AddressCandidate>();

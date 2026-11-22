@@ -166,6 +166,8 @@ export interface OnlineAccount {
   /** Stable platform id when available (numeric Bitcointalk uid, Farcaster FID, GitHub user id). */
   platformUserId?: string;
   profileUrl: string;
+  /** The capture that actually read the account's profile page (`discoveredVia.captureId` may name a page that linked to it). */
+  profileCaptureId?: Id;
   displayName?: string;
   discoveredVia: { sourceId: SourceId; method: AccountDiscoveryMethod; captureId?: Id; fromAccountId?: Id };
 }

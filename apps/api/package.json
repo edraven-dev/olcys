@@ -9,14 +9,15 @@
     "start": "node src/main.ts"
   },
   "dependencies": {
+    "@olcys/address-extractor": "workspace:*",
     "@olcys/collectors": "workspace:*",
     "@olcys/core": "workspace:*",
+    "@olcys/evidence": "workspace:*",
     "@olcys/reporting": "workspace:*",
     "@olcys/worker": "workspace:*",
     "fastify": "5.12.8"
   },
   "devDependencies": {
-    "@olcys/db": "workspace:*",
-    "@olcys/evidence": "workspace:*"
+    "@olcys/db": "workspace:*"
   }
 }

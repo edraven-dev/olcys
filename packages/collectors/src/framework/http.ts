@@ -45,6 +45,11 @@ export interface CollectorDeps {
   breaker: SourceCircuitBreaker;
   /** Applied to every fetched body before it is stored or parsed, and to every observation value. */
   redactor: SecretRedactor;
+  /**
+   * Hosts of register sources that are not enabled for the run: a delegate that contacts sites by itself (the Maigret
+   * username search) must not contact them. Set by `collectCase`; absent in unit tests.
+   */
+  deniedHosts?: readonly string[];
 }
 
 export type SourceHttpRequest = Omit<EgressRequest, 'sourceId' | 'runId'>;

@@ -3,8 +3,9 @@ import { newId } from '@olcys/core';
 import { createMemoryRepositories } from '@olcys/db';
 import { InMemoryBlobStore } from '@olcys/evidence';
 import { createRuntime, type Runtime } from '@olcys/worker';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { buildApp } from '../src/app.ts';
+import { reportRenderer } from '../src/stages.ts';
 import { silent } from './analyst-fixtures.ts';
 
 const LLM_ENV = {
@@ -148,4 +149,179 @@ describe('suggestions', () => {
     );
     expect((await runtime.repos.llm!.getSuggestion(s.id))?.status).toBe('pending');
   });
+});
+
+describe('report after a decision', () => {
+  it('renders a new report version that shows the decided status, without waiting for it', async () => {
+    const repos = createMemoryRepositories();
+    const rt = await createRuntime({ env: LLM_ENV, repos, blobs: new InMemoryBlobStore(), logger: silent });
+    // A slow render makes the two decisions below overlap with a render in progress.
+    const render = reportRenderer(rt);
+    let renders = 0;
+    const renderApp = buildApp({
+      ...rt,
+      analyst: ANALYST,
+      renderReport: async (r) => {
+        renders += 1;
+        await new Promise((resolve) => setTimeout(resolve, 150));
+        await render(r);
+      },
+    });
+    const kase = await repos.cases.create(
+      {
+        title: 'Kacper Fikcyjny (test raportu)',
+        purpose: 'Test raportu po decyzji na danych syntetycznych',
+        legalBasis: 'demonstracja',
+        identifiers: [{ kind: 'nickname', value: 'fikcyjny_kacper', platform: 'bitcointalk', isAnchor: true }],
+        scope: { enabledSources: ['fixture_site'], amberJustifications: {}, chains: [], maxPivotDepth: 2 },
+      },
+      'test',
+    );
+    const run: AnalysisRun = {
+      id: newId(),
+      caseId: kase.id,
+      trigger: 'manual',
+      mode: 'offline',
+      status: 'succeeded',
+      config: {
+        toolVersion: '0.0.0',
+        sourcesConfigSha256: 'a',
+        weightsVersion: 'w',
+        weightsSha256: 'b',
+        rulesVersions: {},
+      },
+      queuedAt: '2026-11-22T10:00:00.000Z',
+    };
+    await repos.runs.create(run);
+    const captureId = newId();
+    await repos.evidence.addCaptures([
+      {
+        id: captureId,
+        runId: run.id,
+        sourceId: 'wykop',
+        url: 'http://127.0.0.1/p',
+        finalUrl: 'http://127.0.0.1/p',
+        collectedAt: '2026-11-22T10:00:00.000Z',
+        collector: 'test',
+        clockSynced: true,
+        toolVersion: '0.0.0',
+        userAgent: 'test',
+        httpStatus: 200,
+        status: 'ok',
+        artifacts: [],
+        manifestSha256: '0'.repeat(64),
+        fetchIds: [],
+      },
+    ]);
+    const candidateId = newId();
+    await repos.evidence.addExtraction(run.id, {
+      captureId,
+      candidates: [
+        {
+          id: candidateId,
+          captureId,
+          raw: 'TFake1',
+          address: { chain: 'tron', address: 'TFake000000000000000000000000000001' },
+          format: 'tron_base58',
+          checksum: { scheme: 'base58check', present: true, valid: true, bits: 32 },
+          chainAttribution: { method: 'format_unique' },
+          view: 'visible_text',
+          span: { start: 0, end: 6 },
+          transforms: [],
+          context: {
+            snippet: 'mój portfel: TFake1 dla wszystkich',
+            inCode: false,
+            roleCues: [],
+            pageAddressDensity: 1,
+            occurrencesInCapture: 1,
+          },
+          reviewRequired: false,
+        },
+      ],
+      rejected: [],
+      secrets: [],
+      extractorVersion: 'test',
+    });
+    const callId = newId();
+    await repos.llm!.addCall({
+      id: callId,
+      runId: run.id,
+      task: 'address-role-classification',
+      promptVersion: 'v1',
+      promptSha256: 'a'.repeat(64),
+      baseUrl: LLM_ENV.LLM_BASE_URL,
+      modelRequested: 'm',
+      params: {},
+      inputSha256: 'b'.repeat(64),
+      inputCaptureIds: [],
+      inputSourceIds: [],
+      outcome: 'ok',
+      startedAt: '2026-11-22T10:00:00.000Z',
+      finishedAt: '2026-11-22T10:00:01.000Z',
+    });
+    const id = newId();
+    const id2 = newId();
+    await repos.llm!.addSuggestions([
+      {
+        id: id2,
+        runId: run.id,
+        task: 'address-role-classification',
+        target: { candidateId },
+        label: 'quote',
+        output: { role: 'quote', evidenceSpan: 'portfel' },
+        model: 'm',
+        promptVersion: 'v1',
+        callId,
+        createdAt: '2026-11-22T10:00:02.000Z',
+      },
+      {
+        id,
+        runId: run.id,
+        task: 'address-role-classification',
+        target: { candidateId },
+        label: 'first_person_owner',
+        output: { role: 'first_person_owner', evidenceSpan: 'mój portfel' },
+        model: 'm',
+        promptVersion: 'v1',
+        callId,
+        createdAt: '2026-11-22T10:00:01.000Z',
+      },
+    ]);
+    const html = async (): Promise<string> => {
+      const report = await repos.analysis.latestReport(run.id, 'html');
+      return report ? new TextDecoder().decode(await rt.blobs.get(report.blobSha256)) : '';
+    };
+    expect(await html()).toBe('');
+    const [response, second] = await Promise.all([
+      renderApp.inject({
+        method: 'POST',
+        url: `/api/suggestions/${id}/decision`,
+        payload: { decision: 'confirmed', justification: 'Zgodne z treścią wpisu.' },
+      }),
+      renderApp.inject({
+        method: 'POST',
+        url: `/api/suggestions/${id2}/decision`,
+        payload: { decision: 'rejected', justification: 'To tylko cytat z wpisu.' },
+      }),
+    ]);
+    expect(response.statusCode).toBe(200);
+    expect(second.statusCode).toBe(200);
+    // Renders of the run are serialized and coalesced; the last stored version shows both decisions.
+    await vi.waitFor(
+      async () => {
+        const latest = await html();
+        expect(latest).toContain('potwierdzona przez analityka');
+        expect(latest).toContain('odrzucona przez analityka');
+      },
+      { timeout: 15_000 },
+    );
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    const latest = await html();
+    expect(latest).toContain('potwierdzona przez analityka');
+    expect(latest).toContain('odrzucona przez analityka');
+    expect(renders).toBeLessThanOrEqual(2);
+    expect(latest).toContain('Sugestia AI');
+    await renderApp.close();
+    await rt.close();
+  }, 30_000);
 });

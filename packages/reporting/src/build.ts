@@ -3,6 +3,7 @@
  * its SHA-256) does not depend on the storage order of the repository implementation.
  */
 import type {
+  AddressCandidate,
   AnalysisRepository,
   AnalysisRun,
   AnalystOverride,
@@ -10,6 +11,7 @@ import type {
   FlowEdge,
   Id,
   IsoDateTime,
+  LlmSuggestion,
   Repositories,
   RunWithProgress,
   SourceDescriptor,
@@ -61,6 +63,55 @@ function toReportSource(s: SourceDescriptor): ReportSource {
   };
 }
 
+const ROLE_TASK = 'address-role-classification';
+
+/**
+ * The role suggestions a report shows. A collecting run shows its own, with their current status. A rescore creates
+ * none: it shows exactly the confirmed suggestions its config snapshot lists (from the rescored run, as confirmed when
+ * the rescore was queued — later decisions never appear), attached to the rescore's re-extracted candidates.
+ */
+async function roleSuggestionsOf(
+  repos: Repositories,
+  run: Pick<AnalysisRun, 'id' | 'trigger' | 'config' | 'rescoreOfRunId'>,
+  candidates: readonly AddressCandidate[],
+  evidenceRunId: Id,
+): Promise<LlmSuggestion[]> {
+  const llm = repos.llm;
+  if (!llm) return [];
+  if (run.trigger !== 'rescore') {
+    return (await llm.listSuggestionsByRun(run.id)).filter((x) => x.task === ROLE_TASK);
+  }
+  const refs = run.config.confirmedSuggestions ?? [];
+  if (refs.length === 0) return [];
+  const sourceRunId = run.rescoreOfRunId ?? evidenceRunId;
+  const [stored, earlier] = await Promise.all([
+    llm.listSuggestionsByRun(sourceRunId),
+    repos.evidence.listCandidates(sourceRunId),
+  ]);
+  const storedById = new Map(stored.map((x) => [x.id, x]));
+  const earlierById = new Map(earlier.map((c) => [c.id, c]));
+  const out: LlmSuggestion[] = [];
+  for (const ref of refs) {
+    const original = storedById.get(ref.suggestionId);
+    const before = earlierById.get(ref.candidateId);
+    if (!original || !before) continue;
+    // The same mention re-extracted: same capture and address, preferably the same position.
+    const same = candidates.filter(
+      (c) => c.captureId === before.captureId && refKey(c.address) === refKey(before.address),
+    );
+    const now = same.find((c) => c.view === before.view && c.span.start === before.span.start) ?? same[0];
+    if (!now) continue;
+    // Decision state as recorded at queue time: confirmed, at the time the snapshot lists.
+    out.push({
+      ...original,
+      status: 'confirmed',
+      decidedAt: ref.decidedAt,
+      target: { ...original.target, candidateId: now.id },
+    });
+  }
+  return out;
+}
+
 export async function buildReportData(
   repos: Repositories,
   runId: Id,
@@ -110,12 +161,15 @@ export async function buildReportData(
   ]);
 
   // Analyst statements and inputs, kept apart from the computed results (optional ports of the store).
-  const [judgements, overrides] = await Promise.all([
+  const [judgements, overrides, suggestions] = await Promise.all([
     repos.judgements ? repos.judgements.listByRun(runId) : Promise.resolve([]),
     repos.overrides && run.trigger === 'rescore' && run.config.analystOverrides?.length
       ? repos.overrides.listByCase(run.caseId)
       : Promise.resolve([]),
+    repos.llm ? roleSuggestionsOf(repos, run, candidates, evidenceRunId) : Promise.resolve([]),
   ]);
+  // Address-mention roles proposed by the model: hypotheses of zero weight, listed with their status.
+  const roleSuggestions = suggestions.toSorted((a, b) => cmp(a.createdAt, b.createdAt) || cmp(a.id, b.id));
   const applied = appliedOverrides(plainRun(run), overrides);
 
   // Reasons the pipeline recorded so far (`markPartial`): sources or stages that could not deliver data.
@@ -227,6 +281,7 @@ export async function buildReportData(
     cashOuts: byId(cashOuts),
     changes: byId(changes),
     ...(judgements.length ? { judgements: byTime(judgements) } : {}),
+    ...(roleSuggestions.length ? { suggestions: roleSuggestions } : {}),
     ...(applied.length ? { overrides: applied } : {}),
   };
 }

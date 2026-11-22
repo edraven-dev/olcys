@@ -15,6 +15,7 @@ import type {
   Clock,
   ExclusionDecision,
   FetchMode,
+  LlmClient,
   NormalizedTransfer,
   PriceSource,
   RunContext,
@@ -97,6 +98,7 @@ import { describeGaps, historyGaps, isOwnStatement, transfersOf } from './chain-
 import { computeFlowGraph, coSpendTransfers, expandFlowHops, flowSettings, type EndpointClass } from './flows.ts';
 import { REPO_ROOT, TOOL_VERSION } from './config.ts';
 import type { Stage, StageContext } from './pipeline.ts';
+import { createSuggestRolesStage, maxMentionsFromEnv } from './suggest-roles.ts';
 
 export const USER_AGENT = `OLCYS/${TOOL_VERSION} (OSINT research prototype; synthetic demo)`;
 const TEXT_ARTIFACTS = new Set(['html', 'json', 'text']);
@@ -107,6 +109,8 @@ export interface StageOptions {
   /** Environment for collector configuration (fixture base URL, watch pages) and cassettes. */
   env?: Readonly<Record<string, string | undefined>>;
   sources: readonly SourceDescriptor[];
+  /** The AI model; its suggestion step is part of the pipeline only when the client is enabled. */
+  llm?: LlmClient;
   /** Stamps every persisted capture manifest (RFC 3161); without it captures are not timestamped. */
   timestamper?: TrustedTimestamper;
 }
@@ -968,6 +972,10 @@ export function defaultStages(options: StageOptions): Stage[] {
     createExtractStage(),
     createChainStage(options),
     createScoreStage(options),
+    // Suggestions only (zero score weight); present when the model is enabled.
+    ...(options.llm?.enabled
+      ? [createSuggestRolesStage({ sources: options.sources, llm: options.llm, maxMentions: maxMentionsFromEnv(env) })]
+      : []),
     // Runs after the built-in comparison with the previous run, so the report includes the changes.
     createReportStage({
       sources: options.sources,

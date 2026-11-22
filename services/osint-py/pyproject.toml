@@ -4,8 +4,47 @@ version = "0.0.0"
 description = "OŁCyŚ Python worker: Maigret username enumeration + socid-extractor, PDF signing with pyHanko."
 readme = "README.md"
 requires-python = ">=3.15"
-# Pinned to exact newest stable releases. Maigret, socid-extractor and pyHanko are added with those features.
-dependencies = ["fastapi==0.165.0", "uvicorn==0.54.0"]
+# Pinned to exact newest stable releases. pyHanko is added with the PDF signing feature.
+dependencies = [
+  "aiohttp==3.14.5",
+  "fastapi==0.165.0",
+  "maigret==0.6.6",
+  "pydantic==2.14.4",
+  "socid-extractor==0.1.2",
+  "uvicorn==0.54.0",
+]
+
+[dependency-groups]
+dev = ["httpx==0.28.1", "pytest==9.2.0", "pytest-asyncio==1.5.0", "pytest-socket==0.8.1", "ruff==0.17.6"]
 
 [tool.uv]
 package = false
+# Maigret declares proxy, SOCKS and TLS-impersonation helpers (aiohttp-socks, PySocks, curl-cffi). They are removed
+# from the resolution with never-true markers, so they are neither locked nor installed; the service never uses a
+# proxy and never impersonates a browser. The report, graph and web-UI dependencies of Maigret (flask, pyvis, networkx,
+# reportlab, pycountry) belong to code the service never runs; excluding them keeps the licence surface small (pycountry
+# is LGPL). tests/test_no_bypass.py proves the environment is clean.
+override-dependencies = [
+  "aiohttp-socks; python_version < '0'",
+  "pysocks; python_version < '0'",
+  "curl-cffi; python_version < '0'",
+  "flask; python_version < '0'",
+  "pyvis; python_version < '0'",
+  "networkx; python_version < '0'",
+  "reportlab; python_version < '0'",
+  "pycountry; python_version < '0'",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+addopts = "--disable-socket --allow-hosts=127.0.0.1,::1"
+
+[tool.ruff]
+line-length = 120
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

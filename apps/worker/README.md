@@ -140,3 +140,25 @@ z `expansionHop ≥ 1` i nie są częścią listy transferów raportu.
 
 Transfer między dwoma analizowanymi adresami jest zapisywany raz na przebieg (klucz `transferKey` z `@olcys/core`);
 odczyt `listTransfers` także usuwa powtórzenia, więc raport i API nie liczą go podwójnie.
+
+## Sugestie ról wzmianek o adresach (`llm.suggest`)
+
+Krok `llm.suggest` (po `score.links`, przed porównaniem z poprzednim przebiegiem) działa w procesie, bez kolejki, i jest
+częścią potoku tylko wtedy, gdy klient modelu jest włączony (`LLM_ENABLED=true`). Dla wzmianek o adresach wykrytych w
+przebiegu (najpierw adresy cytowane przez ocenę powiązań lub reguły odrzucania) prosi model o rolę wzmianki
+(`classifyAddressMention` z `@olcys/llm`) i zapisuje wyniki jako oczekujące `LlmSuggestion` — bez żadnego wpływu na
+Wskaźnik Pewności. Przetwarzanie jest sekwencyjne i ograniczone: `LLM_MAX_MENTIONS_PER_RUN` (domyślnie 20) wywołań na
+przebieg. Przechwycenia z Telegrama (źródło `telegram_preview`, host `t.me`, kopie archiwalne takich stron) są pomijane
+przed wysłaniem i nie zużywają limitu.
+
+Model nigdy nie psuje przebiegu: niedostępność lub błąd (limit czasu, błąd HTTP, odmowa ruchu) kończy przebieg jako
+`partial` z kodem `llm_unavailable` i liczbą wzmianek bez sugestii, a po 3 kolejnych niepowodzeniach krok przestaje
+wywoływać model. Odpowiedź, która nie jest użyteczna (zły JSON, naruszenie schematu, cytat spoza tekstu), jest
+odrzucana bez zmiany statusu przebiegu. Ponowna ocena (`rescore`) nie wywołuje modelu.
+
+Potwierdzona przez analityka sugestia jest jedynym sposobem, w jaki rola od modelu wpływa na ocenę: przebieg ponownej
+oceny (`rescore`) zapisuje w migawce konfiguracji (`confirmedSuggestions`: id sugestii, czas decyzji, rola, kandydat i
+adres; etykieta `rulesVersions.confirmedSuggestions`) role potwierdzone przed jego zakolejkowaniem i przekazuje dokładnie
+te wpisy jako `AnalystCue` (`applyOverrides`, opcja
+`cues`; kandydaci są odnajdywani po zabezpieczeniu, adresie i pozycji). Oczekujące i odrzucone sugestie nigdy nie są
+sygnałem. Potwierdzenie nie zmienia wcześniej zapisanych ocen.

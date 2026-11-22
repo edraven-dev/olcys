@@ -3,6 +3,7 @@ import { useDocumentTitle } from './components/ui.tsx';
 import { CaseListPage } from './features/cases/CaseList.tsx';
 import { CasePage } from './features/cases/CasePage.tsx';
 import { NewCasePage } from './features/cases/NewCase.tsx';
+import { SettingsPage } from './features/settings/SettingsPage.tsx';
 import { RunPage } from './features/run/RunPage.tsx';
 import { pl } from './i18n/pl.ts';
 import { Link, parseRoute, routePath, useLocation, type Route } from './lib/router.tsx';
@@ -44,6 +45,11 @@ export function App() {
                 {pl.app.navNewCase}
               </Link>
             </li>
+            <li>
+              <Link to={routePath({ name: 'settings' })} aria-current={route.name === 'settings' ? 'page' : undefined}>
+                {pl.app.navSettings}
+              </Link>
+            </li>
           </ul>
         </nav>
       </header>
@@ -63,6 +69,8 @@ function Page({ route }: { route: Route }) {
       return <CaseListPage />;
     case 'newCase':
       return <NewCasePage />;
+    case 'settings':
+      return <SettingsPage />;
     case 'case':
       return <CasePage caseId={route.caseId} />;
     case 'run':

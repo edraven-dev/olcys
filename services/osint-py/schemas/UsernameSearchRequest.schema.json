@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "username": {
+      "maxLength": 64,
+      "pattern": "^[^\\s/?#@:]+$",
+      "title": "Username",
+      "type": "string"
+    },
+    "database": {
+      "enum": ["fixture", "upstream"],
+      "title": "Database",
+      "type": "string"
+    },
+    "deniedHostSuffixes": {
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 200,
+      "title": "Deniedhostsuffixes",
+      "type": "array"
+    },
+    "tags": {
+      "anyOf": [
+        {
+          "items": {
+            "enum": ["crypto", "finance", "pl", "social", "coding", "messaging"],
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Tags"
+    },
+    "timeoutSeconds": {
+      "default": 10,
+      "maximum": 30,
+      "minimum": 1,
+      "title": "Timeoutseconds",
+      "type": "number"
+    }
+  },
+  "required": ["username", "database"],
+  "title": "UsernameSearchRequest",
+  "type": "object"
+}

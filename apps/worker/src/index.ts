@@ -10,7 +10,8 @@ export {
   type StageContext,
   type StartRunInput,
 } from './pipeline.ts';
-export { createLlmRuntime, LlmConfigError, type LlmRuntime, type LlmRuntimeOptions } from './llm.ts';
+export { createLlmRuntime, llmSnapshot, LlmConfigError, type LlmRuntime, type LlmRuntimeOptions } from './llm.ts';
+export { runLlmCheck, type LlmCheckResult } from './llm-check.ts';
 export { consoleLogger, createRuntime, type Runtime, type RuntimeOptions } from './runtime.ts';
 export {
   latestOccurrence,
@@ -44,6 +45,13 @@ export {
   USER_AGENT,
   type StageOptions,
 } from './stages.ts';
+export {
+  createSuggestRolesStage,
+  DEFAULT_MAX_MENTIONS,
+  maxMentionsFromEnv,
+  MAX_CONSECUTIVE_FAILURES,
+  type SuggestRolesOptions,
+} from './suggest-roles.ts';
 export {
   assertTsaAllowListed,
   createTrustedTimestamper,

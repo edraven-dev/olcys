@@ -5,6 +5,7 @@ import type {
   ApiMeta,
   Capture,
   Identifier,
+  LlmSuggestion,
   Observation,
   OnlineAccount,
 } from '@olcys/core';
@@ -43,6 +44,7 @@ import type { RunScope } from '../run/RunPage.tsx';
 import { isTerminal } from '../run/run-model.ts';
 import { CaseOverrides, JudgementSection, OverrideForm } from './AnalystPanel.tsx';
 import { evidenceRefs, isAnchorHop, synergyOf } from './score-model.ts';
+import { isRoleSuggestion, SuggestionCard } from './SuggestionCard.tsx';
 import { ContributionTable, Waterfall } from './Waterfall.tsx';
 
 /** Analyst actions on the links of a run, when the API supports them (`ApiMeta.features.judgements`). */
@@ -60,6 +62,9 @@ interface LinkContext {
   captures: ReadonlyMap<string, Capture>;
   observations: ReadonlyMap<string, Observation>;
   candidates: ReadonlyMap<string, AddressCandidate>;
+  /** Model suggestions about address mentions, by candidate (only when the API offers them). */
+  suggestions?: ReadonlyMap<string, LlmSuggestion[]>;
+  onSuggestionDecided?: () => void;
   sourceNames: ReadonlyMap<string, string>;
 }
 
@@ -74,6 +79,8 @@ export function LinksTab({ scope }: { scope: RunScope }) {
   const sources = useList<SourceItem>(apiPaths.sources);
   const meta = useJson<ApiMeta>(apiPaths.meta);
   const judgements = meta.data?.features.judgements === true;
+  const suggestionsOn = meta.data?.features.suggestions === true;
+  const suggestions = useList<LlmSuggestion>(suggestionsOn ? apiPaths.runSuggestions(run.id) : null, { version });
   const overrides = useList<AnalystOverride>(judgements ? apiPaths.caseOverrides(run.caseId) : null, { version });
   const location = useLocation();
   const loaded = links.data !== undefined;
@@ -106,6 +113,8 @@ export function LinksTab({ scope }: { scope: RunScope }) {
     captures: new Map((captures.data ?? []).map((c) => [c.id, c])),
     observations: new Map((observations.data ?? []).map((o) => [o.id, o])),
     candidates: new Map((candidates.data ?? []).map((c) => [c.id, c])),
+    suggestions: suggestionsByCandidate(suggestions.data ?? []),
+    onSuggestionDecided: suggestions.reload,
     sourceNames: new Map((sources.data ?? []).map((s) => [s.id, s.name])),
   };
   const analyst: AnalystScope = {
@@ -405,6 +414,15 @@ function ScoreExplanation({ link, ctx }: { link: LinkView; ctx: LinkContext }) {
   );
 }
 
+function suggestionsByCandidate(items: readonly LlmSuggestion[]): Map<string, LlmSuggestion[]> {
+  const out = new Map<string, LlmSuggestion[]>();
+  for (const s of items.filter(isRoleSuggestion)) {
+    const id = s.target.candidateId;
+    if (id) out.set(id, [...(out.get(id) ?? []), s]);
+  }
+  return out;
+}
+
 function LinkEvidence({ link, ctx }: { link: LinkView; ctx: LinkContext }) {
   const refs = evidenceRefs(link);
   const observations = refs.observationIds.flatMap((id) => {
@@ -445,7 +463,12 @@ function LinkEvidence({ link, ctx }: { link: LinkView; ctx: LinkContext }) {
               {candidates
                 .filter((c) => c.captureId === capture.id)
                 .map((c) => (
-                  <CandidateSnippet key={c.id} candidate={c} />
+                  <div key={c.id}>
+                    <CandidateSnippet candidate={c} />
+                    {(ctx.suggestions?.get(c.id) ?? []).map((s) => (
+                      <SuggestionCard key={s.id} suggestion={s} onDecided={ctx.onSuggestionDecided} />
+                    ))}
+                  </div>
                 ))}
             </CaptureCard>
           ))}

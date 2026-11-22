@@ -1,0 +1,344 @@
+/**
+ * The `llm.suggest` step with a fake model client (no network): suggestions are stored pending and with zero score
+ * weight, Telegram-sourced captures never reach the model, the work is bounded, and an unreachable or failing model
+ * never fails the run (it ends `partial` with a coded reason). In-memory store.
+ */
+import type {
+  AddressCandidate,
+  AnalysisRun,
+  Capture,
+  LlmClient,
+  LlmRequest,
+  LlmResult,
+  Logger,
+  Repositories,
+} from '@olcys/core';
+import { newId, nowIso, readPartialReasons } from '@olcys/core';
+import { createMemoryRepositories } from '@olcys/db';
+import type { FeatureExtractionInput } from '@olcys/scoring';
+import { InMemoryBlobStore } from '@olcys/evidence';
+import { describe, expect, it } from 'vitest';
+import { withAnalystOverrides } from '../src/analyst.ts';
+import { loadConfig } from '../src/config.ts';
+import { createLlmRuntime } from '../src/llm.ts';
+import {
+  createRun,
+  createSuggestRolesStage,
+  defaultStages,
+  maxMentionsFromEnv,
+  runPipeline,
+  type PipelineDeps,
+} from '../src/index.ts';
+
+const silent: Logger = { debug() {}, info() {}, warn() {}, error() {} };
+const CONFIG: AnalysisRun['config'] = {
+  toolVersion: '0.1.0',
+  sourcesConfigSha256: 'a'.repeat(64),
+  weightsVersion: 'weights.v1',
+  weightsSha256: 'b'.repeat(64),
+  rulesVersions: {},
+};
+const SOURCES = [
+  { id: 'wykop', llmAllowed: true },
+  { id: 'telegram_preview', llmAllowed: false },
+] as never;
+
+function fakeModel(mode: 'ok' | 'down' | 'bad_span' | 'throws' = 'ok', enabled = true) {
+  const requests: LlmRequest[] = [];
+  const client: LlmClient = {
+    enabled,
+    async complete<T>(request: LlmRequest<T>): Promise<LlmResult<T>> {
+      requests.push(request as LlmRequest);
+      if (mode === 'throws') throw new Error('boom');
+      if (mode === 'down') return { ok: false, code: 'timeout', message: 'down', callId: newId() };
+      const evidenceSpan = mode === 'bad_span' ? 'nie ma takiego cytatu' : 'mój portfel';
+      const output = request.parseOutput({
+        role: 'first_person_owner',
+        evidenceSpan,
+        rationale: 'Autor nazywa adres swoim.',
+        confidence: 'high',
+      });
+      return { ok: true, output, callId: newId(), model: 'fake-model' };
+    },
+  };
+  return { client, requests };
+}
+
+function candidate(captureId: string, n: number): AddressCandidate {
+  return {
+    id: newId(),
+    captureId,
+    raw: `TFake${n}`,
+    address: { chain: 'tron', address: `TFake${String(n).padStart(30, '0')}` },
+    format: 'tron_base58',
+    checksum: { scheme: 'base58check', present: true, valid: true, bits: 32 },
+    chainAttribution: { method: 'format_unique' },
+    view: 'visible_text',
+    span: { start: 10, end: 20 },
+    transforms: [],
+    context: {
+      snippet: `Cześć, oto mój portfel ${n}: TFake${n} — pozdrawiam wszystkich`,
+      inCode: false,
+      roleCues: [],
+      pageAddressDensity: 1,
+      occurrencesInCapture: 1,
+    },
+    reviewRequired: false,
+  };
+}
+
+async function capture(repos: Repositories, runId: string, sourceId: string, url: string): Promise<Capture> {
+  const c: Capture = {
+    id: newId(),
+    runId,
+    sourceId,
+    url,
+    finalUrl: url,
+    collectedAt: nowIso(),
+    collector: 'test',
+    clockSynced: true,
+    toolVersion: '0.1.0',
+    userAgent: 'test',
+    httpStatus: 200,
+    status: 'ok',
+    artifacts: [],
+    manifestSha256: '0'.repeat(64),
+    fetchIds: [],
+  };
+  await repos.evidence.addCaptures([c]);
+  return c;
+}
+
+async function setup(counts: { wykop: number; telegram: number }) {
+  const repos = createMemoryRepositories();
+  const kase = await repos.cases.create(
+    {
+      title: 'Test',
+      purpose: 'Test',
+      legalBasis: 'demonstracja',
+      identifiers: [{ kind: 'nickname', value: 'fikcyjny_kacper', isAnchor: true }],
+      scope: { enabledSources: [], amberJustifications: {}, chains: [], maxPivotDepth: 1 },
+    },
+    'test',
+  );
+  const run = await createRun(repos, { caseId: kase.id, mode: 'offline' }, CONFIG);
+  const wykop = await capture(repos, run.id, 'wykop', 'http://127.0.0.1:4100/wykop/p');
+  const telegram = await capture(repos, run.id, 'telegram_preview', 'http://127.0.0.1:4100/telegram/s/x');
+  const candidates = [
+    ...Array.from({ length: counts.telegram }, (_, i) => candidate(telegram.id, 100 + i)),
+    ...Array.from({ length: counts.wykop }, (_, i) => candidate(wykop.id, i)),
+  ];
+  await repos.evidence.addExtractions!(
+    run.id,
+    candidates.map((c) => ({
+      captureId: c.captureId,
+      candidates: [c],
+      rejected: [],
+      secrets: [],
+      extractorVersion: 'test',
+    })),
+  );
+  const deps = (stage: PipelineDeps['stages'][number]): PipelineDeps => ({
+    repos,
+    blobs: new InMemoryBlobStore(),
+    logger: silent,
+    stages: [stage],
+  });
+  return { repos, run, wykop, telegram, deps };
+}
+
+const steps = (llm?: LlmClient) =>
+  defaultStages({ mode: 'offline', sources: SOURCES, env: {}, ...(llm ? { llm } : {}) }).map((s) => s.step);
+
+describe('llm.suggest step', () => {
+  it('stores pending suggestions with zero score weight and never sends Telegram captures', async () => {
+    const { repos, run, deps } = await setup({ wykop: 2, telegram: 2 });
+    const model = fakeModel();
+    const links = await repos.analysis.listLinks(run.id);
+    const finished = await runPipeline(run.id, deps(createSuggestRolesStage({ sources: SOURCES, llm: model.client })));
+    expect(finished.status).toBe('succeeded');
+    expect(model.requests).toHaveLength(2);
+    expect(model.requests.every((r) => r.inputs.every((i) => i.sourceId === 'wykop' && i.llmAllowed))).toBe(true);
+    expect(model.requests.some((r) => r.untrustedInput.includes('TFake1'))).toBe(true);
+    expect(model.requests.some((r) => r.untrustedInput.includes('TFake0000000000000000000000000100'))).toBe(false);
+    const suggestions = await repos.llm!.listSuggestionsByRun(run.id);
+    expect(suggestions).toHaveLength(2);
+    expect(suggestions.every((s) => s.status === 'pending' && s.label === 'first_person_owner')).toBe(true);
+    expect(suggestions.every((s) => s.model === 'fake-model' && s.promptVersion === 'v1')).toBe(true);
+    // Zero weight: the step writes no assessment, exclusion or other analysis row.
+    expect(await repos.analysis.listLinks(run.id)).toEqual(links);
+    expect(await repos.analysis.listExclusions(run.id)).toEqual([]);
+  });
+
+  it('is bounded by the per-run limit and counts only calls', async () => {
+    const { repos, run, deps } = await setup({ wykop: 5, telegram: 3 });
+    const model = fakeModel();
+    await runPipeline(run.id, deps(createSuggestRolesStage({ sources: SOURCES, llm: model.client, maxMentions: 3 })));
+    expect(model.requests).toHaveLength(3);
+    expect(await repos.llm!.listSuggestionsByRun(run.id)).toHaveLength(3);
+  });
+
+  it('keeps the run alive when the model is unreachable: partial with a coded reason, calls stop after 3 failures', async () => {
+    const { run, deps } = await setup({ wykop: 6, telegram: 0 });
+    const model = fakeModel('down');
+    const finished = await runPipeline(run.id, deps(createSuggestRolesStage({ sources: SOURCES, llm: model.client })));
+    expect(finished.status).toBe('partial');
+    expect(model.requests).toHaveLength(3);
+    const [reason] = readPartialReasons(finished.progress);
+    expect(reason).toMatchObject({ code: 'llm_unavailable', params: { count: 6 } });
+  });
+
+  it('lets an unexpected error reach the pipeline: the run fails, it is not counted as an unreachable model', async () => {
+    const { repos, run, deps } = await setup({ wykop: 2, telegram: 0 });
+    const finished = await runPipeline(
+      run.id,
+      deps(createSuggestRolesStage({ sources: SOURCES, llm: fakeModel('throws').client })),
+    );
+    expect(finished.status).toBe('failed');
+    expect(readPartialReasons(finished.progress)).toEqual([]);
+    expect(await repos.llm!.listSuggestionsByRun(run.id)).toEqual([]);
+  });
+
+  it('propagates a failing call log and a failing blob store of the real client', async () => {
+    const sources = (await loadConfig()).sources;
+    const env = { LLM_ENABLED: 'true', LLM_BASE_URL: 'http://localhost:2140/v3', LLM_MODEL: 'm' };
+    const broken = async (mutate: (repos: Repositories) => void, blobs: InMemoryBlobStore) => {
+      const { repos, run, deps } = await setup({ wykop: 1, telegram: 0 });
+      mutate(repos);
+      const llm = createLlmRuntime({ env, repos, blobs, sources, mode: 'offline' }).client;
+      return runPipeline(run.id, deps(createSuggestRolesStage({ sources, llm })));
+    };
+    class BrokenBlobs extends InMemoryBlobStore {
+      override put(): never {
+        throw new Error('disk full');
+      }
+    }
+    const noBlobs = await broken(() => {}, new BrokenBlobs());
+    expect(noBlobs.status).toBe('failed');
+    expect(noBlobs.error).toContain('disk full');
+    const noLog = await broken((repos) => {
+      repos.llm!.addCall = async () => {
+        throw new Error('log down');
+      };
+    }, new InMemoryBlobStore());
+    expect(noLog.status).toBe('failed');
+    expect(noLog.error).toContain('log down');
+  });
+
+  it('drops an answer whose span is not in the text, without failing or marking the run partial', async () => {
+    const { repos, run, deps } = await setup({ wykop: 2, telegram: 0 });
+    const finished = await runPipeline(
+      run.id,
+      deps(createSuggestRolesStage({ sources: SOURCES, llm: fakeModel('bad_span').client })),
+    );
+    expect(finished.status).toBe('succeeded');
+    expect(readPartialReasons(finished.progress)).toEqual([]);
+    expect(await repos.llm!.listSuggestionsByRun(run.id)).toEqual([]);
+  });
+
+  it('is part of the default pipeline only when the model is enabled', () => {
+    expect(steps()).not.toContain('llm.suggest');
+    expect(steps(fakeModel('ok', false).client)).not.toContain('llm.suggest');
+    expect(steps(fakeModel().client)).toContain('llm.suggest');
+  });
+
+  it('reads the per-run limit from LLM_MAX_MENTIONS_PER_RUN', () => {
+    expect(maxMentionsFromEnv({})).toBe(20);
+    expect(maxMentionsFromEnv({ LLM_MAX_MENTIONS_PER_RUN: '5' })).toBe(5);
+    expect(maxMentionsFromEnv({ LLM_MAX_MENTIONS_PER_RUN: 'x' })).toBe(20);
+  });
+});
+
+describe('confirmed suggestions in a rescore', () => {
+  it('only a confirmed suggestion becomes a cue of a later rescore, found again under the re-extracted id', async () => {
+    const { repos, run, deps } = await setup({ wykop: 2, telegram: 0 });
+    await runPipeline(run.id, deps(createSuggestRolesStage({ sources: SOURCES, llm: fakeModel().client })));
+    const [first, second] = await repos.llm!.listSuggestionsByRun(run.id);
+    await repos.llm!.decide({
+      id: newId(),
+      suggestionId: first!.id,
+      decision: 'confirmed',
+      justification: 'Zgodne z treścią wpisu',
+      decidedBy: 'Analityk Testowy',
+      decidedAt: nowIso(),
+    });
+    await repos.llm!.decide({
+      id: newId(),
+      suggestionId: second!.id,
+      decision: 'rejected',
+      justification: 'Nietrafiona rola, wpis jest cytatem',
+      decidedBy: 'Analityk Testowy',
+      decidedAt: nowIso(),
+    });
+    const rescore = await createRun(
+      repos,
+      { caseId: run.caseId, mode: 'offline', trigger: 'rescore', rescoreOfRunId: run.id },
+      CONFIG,
+    );
+    // The rescore re-extracts the same captures under new candidate ids.
+    const stored = await repos.evidence.listCandidates(run.id);
+    const candidates = stored.map((c) => ({ ...c, id: newId() }));
+    const input = { extractions: [{ captureId: 'x', candidates, rejected: [], secrets: [], extractorVersion: 't' }] };
+    const { input: applied } = await withAnalystOverrides(repos, rescore, input as unknown as FeatureExtractionInput);
+    const original = stored.find((c) => c.id === first!.target.candidateId)!;
+    const reextracted = candidates.find((c) => c.address.address === original.address.address)!;
+    expect(applied.analyst?.cues).toEqual([
+      { candidateId: reextracted.id, cue: 'first_person_owner', suggestionId: first!.id },
+    ]);
+    // A collecting run reads no suggestions at all.
+    const manual = await createRun(repos, { caseId: run.caseId, mode: 'offline' }, CONFIG);
+    const { input: plain } = await withAnalystOverrides(repos, manual, input as unknown as FeatureExtractionInput);
+    expect(plain.analyst).toBeUndefined();
+  });
+
+  it('records the confirmed suggestions in the rescore snapshot and ignores decisions made after it was queued', async () => {
+    const { repos, run, deps } = await setup({ wykop: 2, telegram: 0 });
+    await runPipeline(run.id, deps(createSuggestRolesStage({ sources: SOURCES, llm: fakeModel().client })));
+    const [first, second] = await repos.llm!.listSuggestionsByRun(run.id);
+    const decide = (id: string, decision: 'confirmed' | 'rejected') =>
+      repos.llm!.decide({
+        id: newId(),
+        suggestionId: id,
+        decision,
+        justification: 'Decyzja analityka w teście',
+        decidedBy: 'Analityk Testowy',
+        decidedAt: nowIso(),
+      });
+    await decide(first!.id, 'confirmed');
+    const rescore = await createRun(
+      repos,
+      { caseId: run.caseId, mode: 'offline', trigger: 'rescore', rescoreOfRunId: run.id },
+      CONFIG,
+    );
+    const listed = rescore.config.confirmedSuggestions;
+    expect(listed).toHaveLength(1);
+    expect(listed![0]).toMatchObject({
+      suggestionId: first!.id,
+      role: 'first_person_owner',
+      candidateId: first!.target.candidateId,
+    });
+    expect(listed![0]!.decidedAt).toMatch(/^\d{4}-/);
+    expect(listed![0]!.address?.chain).toBe('tron');
+    expect(rescore.config.rulesVersions['confirmedSuggestions']).toBe('suggestions@1');
+    // Decided after the rescore was queued: the rescore still applies exactly its snapshot.
+    await decide(second!.id, 'confirmed');
+    const stored = (await repos.runs.get(rescore.id))!;
+    const stored1 = await repos.evidence.listCandidates(run.id);
+    const input = {
+      extractions: [{ captureId: 'x', candidates: stored1, rejected: [], secrets: [], extractorVersion: 't' }],
+    };
+    const { input: applied } = await withAnalystOverrides(repos, stored, input as unknown as FeatureExtractionInput);
+    expect(applied.analyst?.cues.map((c) => c.suggestionId)).toEqual([first!.id]);
+    // A rescore queued now lists both.
+    const later = await createRun(
+      repos,
+      { caseId: run.caseId, mode: 'offline', trigger: 'rescore', rescoreOfRunId: run.id },
+      CONFIG,
+    );
+    expect(later.config.confirmedSuggestions).toHaveLength(2);
+    // Collecting runs record none.
+    expect(
+      (await createRun(repos, { caseId: run.caseId, mode: 'offline' }, CONFIG)).config.confirmedSuggestions,
+    ).toBeUndefined();
+  });
+});

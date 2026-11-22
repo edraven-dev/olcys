@@ -81,6 +81,7 @@ export {
   type FixtureMapping,
   type RecognisedAccount,
 } from './framework/urls.ts';
+export * from './maigret/index.ts';
 export { detectAccessBarrier, type BarrierInput, type BarrierVerdict } from './html/barrier.ts';
 export { blockText, decodeBody, parseHtml } from './html/dom.ts';
 export { fetchPage, type PageRequest, type PageResult } from './html/page.ts';

@@ -1,0 +1,17 @@
+# SYNTHETIC TEST DATA
+title: Synthetic actor tagpack
+creator: OLCYS tests
+lastmod: 2026-11-10
+is_public: true
+currency: BTC
+category: exchange
+confidence: ownership
+tags:
+  - address: bc1qppppppppppppppppppppppppppppppppppppp
+    label: ignored when the actor is known
+    actor: wygasla-gielda
+    source: https://tagpacks.example/synthetic/4
+  - address: bc1qzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz
+    label: bisq node
+    actor: bisq
+    source: https://tagpacks.example/synthetic/5

@@ -1,0 +1,5 @@
+id,label,level
+ownership,Ownership,100
+ledger_immanent,Ledger immanent,100
+web_crawl,Web crawl,20
+heuristic,Heuristic,10

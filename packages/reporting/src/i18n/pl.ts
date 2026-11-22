@@ -302,6 +302,8 @@ export const pl = {
       valuation_unavailable: 'brak wyceny w PLN dla {count} transferów (brak ceny lub kursu NBP)',
       flow_graph_truncated:
         'graf przepływów środków przycięty limitem {limit} krawędzi (zapytań: {count}); część dalszych przepływów nie została pokazana',
+      llm_unavailable:
+        'model AI był niedostępny lub zawiódł dla {count} wzmianek o adresach: nie powstały dla nich sugestie ról (nie wpływa to na wyniki)',
     } as Record<string, string>,
     addresses: 'W treści zabezpieczonych stron znaleziono {addresses} o poprawnym formacie i sumie kontrolnej.',
     transfers: 'Z publicznych danych blockchain pobrano {transfers} dotyczące analizowanych adresów.',
@@ -324,6 +326,24 @@ export const pl = {
     inferenceKyc:
       'Trop KYC: osoba sama opublikowała adres depozytowy giełdy ({address}) — giełda może na wniosek wskazać posiadacza konta.',
     inferenceSwap: 'Możliwa podmiana portfela: {where} — poprzednio {before}, obecnie {after}.',
+    inferenceAiRole:
+      'Sugestia AI — {status}: rola wzmianki o adresie {address} ({url}): {role} — „{span}”. Model: {model}, prompt {prompt}. Sugestia ma zerowy wpływ na Wskaźnik Pewności.',
+    aiStatus: {
+      pending: 'niezweryfikowana',
+      confirmed: 'potwierdzona przez analityka {analyst} ({date}); uwzględniana dopiero w ponownej ocenie (rescore)',
+      rejected: 'odrzucona przez analityka {analyst} ({date})',
+    },
+    aiRoles: {
+      first_person_owner: 'wypowiedź o własności w 1. osobie',
+      payment_request: 'prośba o płatność',
+      donation: 'darowizna',
+      scam_report: 'zgłoszenie oszustwa',
+      warning: 'ostrzeżenie',
+      quote: 'cytat',
+      exchange_deposit: 'wpłata na giełdę',
+      listing: 'lista adresów',
+      unclear: 'niejasne',
+    } as Record<string, string>,
     noInferences: 'Brak wniosków wymagających weryfikacji.',
     tableColumns: {
       identity: 'Identyfikator',
@@ -955,6 +975,29 @@ export const pl = {
       compliance: 'Status zgodności',
       reliability: 'Domyślna wiarygodność',
       identifiers: 'Ujawnia identyfikator sprawy',
+    },
+  },
+  /** Plain-text statements of the structured report model (`buildReportModel`), shown by the console. */
+  model: {
+    headlineIdentifiers: 'Analiza dotyczy: {identifiers}.',
+    likelihood:
+      'Powiązanie adresu {address} ({chain}) z identyfikatorem „{identity}”: {term} (Wskaźnik Pewności {score}/100, {band}).',
+    candidateQuote: 'Adres {address} wystąpił na stronie {url} ({source}).',
+    rejected: 'Dopasowanie „{raw}” nie przeszło walidacji adresu: {reason}.',
+    exclusion: 'Reguła {id} — {name}: {outcome}; adres {address} ({chain}).',
+    cashOut: 'Reguła {id} — {name} ({strength}): {amount} z adresu {address}; odbiorca {counterparty}.',
+    valuation: 'Wycena przepływu {amount}: {pln} (kurs NBP z dnia roboczego poprzedzającego transakcję).',
+    activity: 'Adres {address} ({chain}): {count} transakcji, kontrahentów: {counterparties}.',
+    indicatorPrefix: 'Wynik reguły (bez zapisu w danych blockchain): {text}',
+    judgement: 'Ocena analityka {analyst} ({at}): {label} — „{text}”.',
+    alternatives: {
+      link: [
+        'Adres należy do osoby trzeciej, która posługuje się podobnym identyfikatorem.',
+        'Adres opublikowano na koncie przejętym lub podszywającym się pod osobę.',
+      ],
+      kyc: ['Adres depozytowy należy do innego klienta giełdy niż badana osoba.'],
+      cashOut: ['Przepływ jest przelewem między własnymi portfelami lub rozliczeniem poza obrotem fiat.'],
+      swap: ['Osoba korzysta z obu portfeli jednocześnie lub profil zmieniła osoba trzecia.'],
     },
   },
 };

@@ -3,7 +3,7 @@
  * the analyst's confirmation or rejection (append-only, once per suggestion, with a justification); it never changes
  * a stored score and takes effect only in a later rescore. The analyst is the API's configured identity.
  */
-import type { LlmSuggestionDecision, Logger, Repositories } from '@olcys/core';
+import type { LlmSuggestionDecision, Logger, Repositories, RunWithProgress } from '@olcys/core';
 import { newId, nowIso, parse, SuggestionDecisionSchema } from '@olcys/core';
 import type { FastifyInstance } from 'fastify';
 import { idOf } from './ids.ts';
@@ -12,11 +12,45 @@ export interface SuggestionRouteDeps {
   repos: Repositories;
   analyst: string;
   logger?: Logger;
+  /** Renders the run's report again (a new stored version); see `reportRenderer`. */
+  renderReport?(run: RunWithProgress): Promise<void>;
 }
 
 export function registerSuggestionRoutes(app: FastifyInstance, deps: SuggestionRouteDeps): void {
   const llm = deps.repos.llm;
   if (!llm) return;
+
+  // Renders of one run never overlap, so an older render cannot be stored after a newer one; renders requested while
+  // one is running are coalesced into a single follow-up that reads every decision made so far.
+  const renders = new Map<string, { again: boolean }>();
+  const scheduleRender = (runId: string): void => {
+    const active = renders.get(runId);
+    if (active) {
+      active.again = true;
+      return;
+    }
+    const state = { again: false };
+    renders.set(runId, state);
+    void (async () => {
+      try {
+        do {
+          state.again = false;
+          // Sequential on purpose: one render of a run at a time.
+          // oxlint-disable-next-line no-await-in-loop
+          const run = await deps.repos.runs.get(runId);
+          if (!run || (run.status !== 'succeeded' && run.status !== 'partial')) return;
+          // oxlint-disable-next-line no-await-in-loop
+          await deps
+            .renderReport?.(run)
+            .catch((error: unknown) =>
+              deps.logger?.error('report not rendered after a suggestion decision', { runId, error: String(error) }),
+            );
+        } while (state.again);
+      } finally {
+        renders.delete(runId);
+      }
+    })();
+  };
 
   app.get<{ Params: { runId: string } }>('/api/runs/:runId/suggestions', async (request, reply) => {
     const runId = idOf(request.params.runId);
@@ -48,6 +82,9 @@ export function registerSuggestionRoutes(app: FastifyInstance, deps: SuggestionR
       decision: decision.decision,
       analyst: decision.decidedBy,
     });
+    // The stored report is a fixed document: a decision adds a new version that shows it. The response does not wait
+    // for the rendering (it can be slow); a failure is logged and the earlier versions stay.
+    if (deps.renderReport) scheduleRender(suggestion.runId);
     return await llm.getSuggestion(suggestion.id);
   });
 }

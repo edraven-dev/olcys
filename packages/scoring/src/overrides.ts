@@ -21,6 +21,7 @@ import {
 import { compareText } from './compare.ts';
 import { truncate } from './features/normalise.ts';
 import type {
+  AnalystCue,
   AnalystEvidence,
   AnalystGrade,
   AnalystInputs,
@@ -108,17 +109,24 @@ function candidateResolver(
  * `reliability_grade` needs an A–E grade and one observation, candidate or source; `review_decision` a candidate and
  * `confirmed`/`rejected`; `add_evidence` an allowed feature, an account and — on the address hop — an address.
  * `candidates` are the stored candidates the overrides name (from any run of the case), used to find them again in a
- * re-extraction.
+ * re-extraction. `cues` are the role cues of confirmed model suggestions (candidates of earlier runs are resolved
+ * like override targets).
  */
 export function applyOverrides(
   input: FeatureExtractionInput,
   overrides: readonly AnalystOverride[],
-  options: { candidates?: readonly AddressCandidate[] } = {},
+  options: { candidates?: readonly AddressCandidate[]; cues?: readonly AnalystCue[] } = {},
 ): FeatureExtractionInput {
   const resolve = candidateResolver(input, options.candidates ?? []);
   const grades: AnalystGrade[] = [];
   const reviews: AnalystReview[] = [];
   const evidence: AnalystEvidence[] = [];
+  // Role cues from suggestions an analyst confirmed (never pending or rejected ones), found again by position.
+  const cues: AnalystCue[] = [];
+  for (const cue of options.cues ?? []) {
+    const candidateId = resolve(cue.candidateId);
+    if (candidateId) cues.push({ ...cue, candidateId });
+  }
 
   for (const o of overrides.toSorted(byTime)) {
     const { target } = o;
@@ -162,7 +170,7 @@ export function applyOverrides(
     grades: [...(previous?.grades ?? []), ...grades],
     reviews: [...(previous?.reviews ?? []), ...reviews],
     evidence: latestEvidence([...(previous?.evidence ?? []), ...evidence]),
-    cues: [...(previous?.cues ?? [])],
+    cues: [...(previous?.cues ?? []), ...cues],
   };
   return { ...input, analyst };
 }
