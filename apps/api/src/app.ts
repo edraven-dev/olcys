@@ -46,6 +46,8 @@ export interface ApiDeps {
    * else `analyst`): creates cases, changes schedules, records judgements and overrides. Never taken from a request.
    */
   analyst?: string;
+  /** Access-log dedupe window of repeated identical reads (default 60 s) and clock, for tests. */
+  accessLog?: { dedupeWindowMs?: number; nowMs?(): number };
   /** Adds `Strict-Transport-Security`: only when the API is served over TLS (`OLCYS_HSTS=1`). */
   hsts?: boolean;
   /** Fastify request logging. */
@@ -100,6 +102,7 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
     repos,
     // The analyst label recorded with judgements when configured, otherwise a fixed local actor.
     analyst: deps.analyst ?? 'local',
+    ...deps.accessLog,
     onError: (error) => app.log.error({ err: error }, 'access log write failed'),
   });
 

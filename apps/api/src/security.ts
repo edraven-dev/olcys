@@ -84,14 +84,28 @@ function statedPurpose(request: FastifyRequest): string | undefined {
 export interface AccessLogOptions {
   repos: Repositories;
   analyst: string;
+  /** Identical reads (same actor, action, case, run, resource and outcome) within this window are logged once. Default 60 s. */
+  dedupeWindowMs?: number;
+  /** Most distinct reads remembered for the window (oldest dropped first). Default 1000. */
+  dedupeMax?: number;
+  /** Clock in milliseconds, for tests. */
+  nowMs?(): number;
   onError(error: unknown): void;
 }
+
+/** Downloads and exports are always logged: each one is a disclosure, never noise. */
+const ALWAYS_LOGGED = new Set<AccessAction>(['export.download']);
 
 /** One access-log row per audited request (reads only; HEAD and GET), written after the response is sent. */
 export function registerAccessLog(app: FastifyInstance, options: AccessLogOptions): void {
   const { repos } = options;
   const log = repos.accessLog;
   if (!log) return;
+  const windowMs = options.dedupeWindowMs ?? 60_000;
+  const maxKeys = options.dedupeMax ?? 1000;
+  const now = options.nowMs ?? Date.now;
+  // key -> time of the last write; insertion order = age, so the oldest entry is dropped first.
+  const recent = new Map<string, number>();
   app.addHook('onResponse', async (request, reply) => {
     if (request.method !== 'GET' && request.method !== 'HEAD') return;
     const pattern = request.routeOptions.url;
@@ -107,6 +121,20 @@ export function registerAccessLog(app: FastifyInstance, options: AccessLogOption
         caseId = runId ? (await repos.runs.get(runId))?.caseId : undefined;
       }
       const purpose = statedPurpose(request);
+      const resource = params.format ? `${pattern}#${params.format}` : (pattern ?? '');
+      const outcome = outcomeOf(reply.statusCode);
+      // Polling (run progress) must not flood the log; files and exports are never deduplicated.
+      const downloads =
+        ALWAYS_LOGGED.has(audited.action) || pattern === '/api/blobs/:sha256' || pattern === '/api/runs/:runId/report';
+      if (!downloads && windowMs > 0) {
+        const key = [options.analyst, audited.action, caseId ?? '', runId ?? '', resource, outcome].join('\u0000');
+        const t = now();
+        const last = recent.get(key);
+        if (last !== undefined && t - last < windowMs) return;
+        recent.delete(key);
+        recent.set(key, t);
+        while (recent.size > maxKeys) recent.delete(recent.keys().next().value as string);
+      }
       await log.add({
         id: newId(),
         at: nowIso(),
@@ -114,9 +142,9 @@ export function registerAccessLog(app: FastifyInstance, options: AccessLogOption
         action: audited.action,
         ...(caseId ? { caseId } : {}),
         ...(runId ? { runId } : {}),
-        resource: params.format ? `${pattern}#${params.format}` : (pattern ?? ''),
+        resource,
         ...(purpose ? { purpose } : {}),
-        outcome: outcomeOf(reply.statusCode),
+        outcome,
         ip: request.ip,
       });
     } catch (error) {

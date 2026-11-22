@@ -156,3 +156,29 @@ describe('access log actor', () => {
     await plain.close();
   });
 });
+
+describe('access log dedupe window', () => {
+  it('logs polling once per window, and every export download', async () => {
+    let clock = 1_000_000;
+    const polled = buildApp({
+      ...runtime,
+      analyst: 'poller',
+      accessLog: { dedupeWindowMs: 60_000, nowMs: () => clock },
+    });
+    const rows = async (action: string) =>
+      (await runtime.repos.accessLog!.list({ actor: 'poller', limit: 500 })).filter((e) => e.action === action).length;
+    await polled.inject(`/api/runs/${runId}`);
+    await polled.inject(`/api/runs/${runId}`);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(await rows('run.view')).toBe(1);
+    clock += 61_000;
+    await polled.inject(`/api/runs/${runId}`);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(await rows('run.view')).toBe(2);
+    await polled.inject(`/api/runs/${runId}/exports/csv`);
+    await polled.inject(`/api/runs/${runId}/exports/csv`);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(await rows('export.download')).toBe(2);
+    await polled.close();
+  });
+});
