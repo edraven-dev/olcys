@@ -127,6 +127,34 @@ export function hostOfBaseUrl(baseUrl: string): string {
   }
 }
 
+/** Files of a report in the old format, served by the run's current-report routes. */
+const legacyFiles = (runId: string, set: ExportSet): ReportFile[] => [
+  {
+    kind: 'html',
+    fileName: `olcys-raport-${runId}.html`,
+    mediaType: REPORT_HTML_MEDIA_TYPE,
+    available: true,
+    path: `/api/runs/${runId}/report`,
+    sha256: set.htmlSha256,
+  },
+  { kind: 'pdf', fileName: `olcys-raport-${runId}.pdf`, mediaType: 'application/pdf', available: false, path: '' },
+  ...EXPORT_KINDS.flatMap((format): ReportFile[] => {
+    const e = set.exports[format];
+    return e
+      ? [
+          {
+            kind: format,
+            fileName: `olcys-${runId}-${EXPORT_FILE_EXTENSIONS[format]}`,
+            mediaType: EXPORT_MEDIA_TYPES[format],
+            available: true,
+            path: `/api/runs/${runId}/exports/${format}`,
+            sha256: e.sha256,
+          },
+        ]
+      : [];
+  }),
+];
+
 const describeViolation = (v: ScopeViolation): string => {
   switch (v.code) {
     case 'justification_too_short':
@@ -183,34 +211,6 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
   });
 
   /** Sends one stored export after checking its digest; a download that leaves the tool is a custody event. */
-  /** Files of a report in the old format, served by the run's current-report routes. */
-  const legacyFiles = (runId: string, set: ExportSet): ReportFile[] => [
-    {
-      kind: 'html',
-      fileName: `olcys-raport-${runId}.html`,
-      mediaType: REPORT_HTML_MEDIA_TYPE,
-      available: true,
-      path: `/api/runs/${runId}/report`,
-      sha256: set.htmlSha256,
-    },
-    { kind: 'pdf', fileName: `olcys-raport-${runId}.pdf`, mediaType: 'application/pdf', available: false, path: '' },
-    ...EXPORT_KINDS.flatMap((format): ReportFile[] => {
-      const e = set.exports[format];
-      return e
-        ? [
-            {
-              kind: format,
-              fileName: `olcys-${runId}-${EXPORT_FILE_EXTENSIONS[format]}`,
-              mediaType: EXPORT_MEDIA_TYPES[format],
-              available: true,
-              path: `/api/runs/${runId}/exports/${format}`,
-              sha256: e.sha256,
-            },
-          ]
-        : [];
-    }),
-  ];
-
   const sendExport = async (
     request: FastifyRequest,
     reply: FastifyReply,

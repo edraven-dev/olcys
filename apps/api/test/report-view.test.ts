@@ -205,20 +205,19 @@ describe('meta settings', () => {
   });
 });
 
-describe('older and damaged reports', () => {
-  const newRun = async () => {
-    const id = (await app.inject({ method: 'POST', url: `/api/cases/${caseId}/runs`, payload: {} })).json()
-      .id as string;
-    await runtime.idle();
-    await storeReport(runtime, await buildReportData(runtime.repos, id, { generatedAt: '2026-11-21T13:41:00.000Z' }));
-    return id;
-  };
-  const setOf = async (id: string) => {
-    const row = await runtime.repos.analysis.latestReport(id, 'export_set');
-    const sha = row?.blobSha256 ?? '';
-    return { sha, set: JSON.parse(new TextDecoder().decode(await runtime.blobs.get(sha))) as Record<string, unknown> };
-  };
+const newRun = async () => {
+  const id = (await app.inject({ method: 'POST', url: `/api/cases/${caseId}/runs`, payload: {} })).json().id as string;
+  await runtime.idle();
+  await storeReport(runtime, await buildReportData(runtime.repos, id, { generatedAt: '2026-11-21T13:41:00.000Z' }));
+  return id;
+};
+const setOf = async (id: string) => {
+  const row = await runtime.repos.analysis.latestReport(id, 'export_set');
+  const sha = row?.blobSha256 ?? '';
+  return { sha, set: JSON.parse(new TextDecoder().decode(await runtime.blobs.get(sha))) as Record<string, unknown> };
+};
 
+describe('older and damaged reports', () => {
   it('lists a report saved before versioned downloads as legacy, with its current files', async () => {
     const id = await newRun();
     const { set } = await setOf(id);
