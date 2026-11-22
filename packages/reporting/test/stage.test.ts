@@ -5,6 +5,8 @@ import { describe, expect, it } from 'vitest';
 import {
   buildReportData,
   createReportStage,
+  EXPORT_KINDS,
+  EXPORT_MEDIA_TYPES,
   REPORT_HTML_MEDIA_TYPE,
   renderReport,
   type ReportData,
@@ -98,6 +100,26 @@ describe('report.render stage', () => {
     expect(html).toContain(data?.blobSha256);
     const parsed = JSON.parse(decode(await blobs.get(data?.blobSha256 ?? ''))) as ReportData;
     expect(renderReport(parsed)).toBe(html);
+  });
+
+  it('stores the STIX, MISP and CSV exports as further reports of the run', async () => {
+    const { repos, blobs, run } = await seed();
+    const stage = createReportStage({
+      exports: { producerName: 'OŁCyŚ (test)', tlp: 'green' },
+      clock: { now: () => new Date('2026-11-21T13:41:00.000Z') },
+    });
+    await stage.run({ run, repos, blobs, async progress() {} });
+    for (const kind of EXPORT_KINDS) {
+      // oxlint-disable-next-line no-await-in-loop
+      const stored = await repos.analysis.latestReport(run.id, kind);
+      expect(stored?.mediaType).toBe(EXPORT_MEDIA_TYPES[kind]);
+      // oxlint-disable-next-line no-await-in-loop
+      expect(await blobs.has(stored?.blobSha256 ?? '')).toBe(true);
+    }
+    const stix = await repos.analysis.latestReport(run.id, 'stix');
+    const bundle = JSON.parse(decode(await blobs.get(stix?.blobSha256 ?? ''))) as { objects: { name?: string }[] };
+    expect(bundle.objects.some((o) => o.name === 'OŁCyŚ (test)')).toBe(true);
+    expect(bundle.objects.some((o) => o.name === 'TLP:GREEN')).toBe(true);
   });
 
   it('assembles the data from the repositories with stable ordering', async () => {

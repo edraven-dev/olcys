@@ -1,0 +1,27 @@
+{
+  "name": "coin-address",
+  "meta-category": "financial",
+  "uuid": "00000000-0000-0000-0000-000000000000",
+  "version": 1,
+  "description": "An address used in a cryptocurrency (subset of the MISP object template; see README.md in this directory)",
+  "attributes": {
+    "address": {
+      "misp-attribute": "btc",
+      "ui-priority": 1,
+      "multiple": true,
+      "description": "Address of the cryptocurrency (Bitcoin-style encoding)"
+    },
+    "address-other": {
+      "misp-attribute": "text",
+      "ui-priority": 1,
+      "multiple": true,
+      "description": "Address of a cryptocurrency without a dedicated MISP attribute type"
+    },
+    "address-xmr": { "misp-attribute": "xmr", "ui-priority": 1, "multiple": true, "description": "Monero address" },
+    "symbol": { "misp-attribute": "text", "ui-priority": 1, "description": "Cryptocurrency symbol, e.g. BTC" },
+    "first-seen": { "misp-attribute": "datetime", "ui-priority": 0, "description": "First time the address was seen" },
+    "last-seen": { "misp-attribute": "datetime", "ui-priority": 0, "description": "Last time the address was seen" },
+    "text": { "misp-attribute": "text", "ui-priority": 0, "description": "Free text" }
+  },
+  "requiredOneOf": ["address", "address-other", "address-xmr"]
+}

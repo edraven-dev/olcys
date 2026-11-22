@@ -5,6 +5,8 @@
  */
 import type { AnalysisRun, BlobRef, BlobStore, Clock, Id, Logger, Repositories, SourceDescriptor } from '@olcys/core';
 import { buildReportData } from './build.ts';
+import { buildExports, EXPORT_MEDIA_TYPES, type ExportSettings } from './export/index.ts';
+import { pl } from './i18n/pl.ts';
 import { renderReport } from './render/document.ts';
 import { assertSelfContainedHtml } from './self-contained.ts';
 import type { ReportData } from './types.ts';
@@ -30,6 +32,8 @@ export interface ReportStage {
 }
 
 export interface ReportStageOptions {
+  /** STIX producer name and TLP marking of the exports (default: the demo instance name and TLP:AMBER). */
+  exports?: Partial<ExportSettings>;
   sources?: readonly SourceDescriptor[];
   weightsStatus?: string;
   clock?: Clock;
@@ -38,12 +42,15 @@ export interface ReportStageOptions {
 export interface StoredReport {
   html: BlobRef;
   data: BlobRef;
+  /** The STIX, MISP and CSV exports, keyed by export kind (also the report kind they are stored under). */
+  exports: Record<string, BlobRef>;
 }
 
 /** Renders and stores one report; returns the blob references of the HTML and of its input data. */
 export async function storeReport(
   deps: { repos: Repositories; blobs: BlobStore },
   data: ReportData,
+  settings: Partial<ExportSettings> = {},
 ): Promise<StoredReport> {
   const html = renderReport(data);
   assertSelfContainedHtml(html);
@@ -62,7 +69,24 @@ export async function storeReport(
     blobSha256: htmlRef.sha256,
     mediaType: REPORT_HTML_MEDIA_TYPE,
   });
-  return { html: htmlRef, data: dataRef };
+  // Exports come from the same data as the document; each is stored as an additional report of the run.
+  const exports: Record<string, BlobRef> = {};
+  for (const artifact of buildExports(
+    { data },
+    { producerName: settings.producerName ?? pl.exports.producerDefault, tlp: settings.tlp ?? 'amber' },
+  )) {
+    // oxlint-disable-next-line no-await-in-loop
+    const ref = await deps.blobs.put(encoder.encode(artifact.content), artifact.mediaType);
+    // oxlint-disable-next-line no-await-in-loop
+    await deps.repos.analysis.addReport({
+      runId: data.run.id,
+      kind: artifact.kind,
+      blobSha256: ref.sha256,
+      mediaType: EXPORT_MEDIA_TYPES[artifact.kind],
+    });
+    exports[artifact.kind] = ref;
+  }
+  return { html: htmlRef, data: dataRef, exports };
 }
 
 export function createReportStage(options: ReportStageOptions = {}): ReportStage {
@@ -76,7 +100,7 @@ export function createReportStage(options: ReportStageOptions = {}): ReportStage
         generatedAt: clock.now().toISOString(),
         ...(ctx.evidenceRunId ? { evidenceRunId: ctx.evidenceRunId } : {}),
       });
-      const stored = await storeReport(ctx, data);
+      const stored = await storeReport(ctx, data, options.exports);
       await ctx.progress?.({ report: stored.html.sha256 });
       ctx.logger?.info('report rendered', { runId: ctx.run.id, html: stored.html.sha256, bytes: stored.html.bytes });
     },
