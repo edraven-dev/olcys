@@ -101,6 +101,38 @@
       "file": "barriers/challenge.html"
     },
     {
+      "path": "/registries/ceidg/v3/firmy",
+      "params": {
+        "imie[]": "Kacper",
+        "nazwisko[]": "Fikcyjny"
+      },
+      "file": "registries/ceidg/v3/firmy.json"
+    },
+    {
+      "path": "/registries/ceidg/v3/firmy",
+      "params": {
+        "nip[]": "0001234562"
+      },
+      "file": "registries/ceidg/v3/firmy.json"
+    },
+    {
+      "path": "/registries/ceidg/v3/firmy",
+      "status": 204
+    },
+    {
+      "path": "/registries/ceidg/v3/firma/00000000-0000-4000-8000-000000000001",
+      "file": "registries/ceidg/v3/firma.json"
+    },
+    {
+      "path": "/registries/vat-whitelist/api/search/nip/0001234562",
+      "file": "registries/vat-whitelist/api/search/nip/0001234562.json"
+    },
+    {
+      "path": "/registries/krs/api/OdpisAktualny/0009999901",
+      "status": 404,
+      "file": "registries/krs/not-found.json"
+    },
+    {
       "path": "/barriers/redirect-private",
       "status": 302,
       "headers": {

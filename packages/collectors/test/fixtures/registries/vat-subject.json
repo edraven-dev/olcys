@@ -1,0 +1,28 @@
+{
+  "result": {
+    "subject": {
+      "name": "Kacper Fikcyjny Usługi Testowe",
+      "nip": "0001234562",
+      "statusVat": "Czynny",
+      "regon": "001234562",
+      "pesel": "77777777770",
+      "krs": "0009999901",
+      "residenceAddress": "Fikcyjna 1, 00-000 Testowo",
+      "workingAddress": null,
+      "representatives": [
+        { "companyName": null, "firstName": "Jan", "lastName": "Przykładowy", "pesel": "77777777771", "nip": null }
+      ],
+      "authorizedClerks": [
+        { "companyName": null, "firstName": "Ewa", "lastName": "Testowa", "pesel": "77777777772", "nip": null }
+      ],
+      "partners": [
+        { "companyName": "Spółka Testowa", "firstName": null, "lastName": null, "pesel": null, "nip": "0001234562" }
+      ],
+      "registrationLegalDate": "2024-02-01",
+      "removalDate": null,
+      "accountNumbers": ["25000000000000000000010001", "95000000000000000000010002", "00000000000000000000000000"],
+      "hasVirtualAccounts": false
+    },
+    "requestId": "olcys-test0001"
+  }
+}

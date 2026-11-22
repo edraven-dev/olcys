@@ -1,0 +1,11 @@
+{
+  "firma": [
+    {
+      "id": "00000000-0000-4000-8000-000000000001",
+      "nazwa": "Kacper Fikcyjny Usługi Testowe",
+      "www": "https://example.org/fikcyjny-uslugi",
+      "email": "biuro@example.org",
+      "telefon": "+48000000000"
+    }
+  ]
+}

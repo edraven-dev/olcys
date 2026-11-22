@@ -94,6 +94,34 @@ describe('fixture server', () => {
     }
   });
 
+  it('serves the Polish registries of the persona in their documented shapes', async () => {
+    const search = await get('/registries/ceidg/v3/firmy?imie%5B%5D=Kacper&nazwisko%5B%5D=Fikcyjny&page=1&limit=25');
+    const firms = (await search.json()) as { firmy: { wlasciciel: { nip: string } }[]; count: number };
+    expect([search.status, firms.count, firms.firmy[0]?.wlasciciel.nip]).toEqual([200, 1, '0001234562']);
+    expect((await get('/registries/ceidg/v3/firmy?imie%5B%5D=Anna&nazwisko%5B%5D=Nowak&page=1&limit=25')).status).toBe(
+      204,
+    );
+    expect((await get('/registries/ceidg/v3/firma/00000000-0000-4000-8000-000000000001')).status).toBe(200);
+    const vat = (await (await get('/registries/vat-whitelist/api/search/nip/0001234562?date=2026-11-22')).json()) as {
+      result: { subject: { accountNumbers: string[]; pesel: null }; requestId: string };
+    };
+    expect(vat.result.subject.accountNumbers).toHaveLength(2);
+    expect([vat.result.subject.pesel, typeof vat.result.requestId]).toEqual([null, 'string']);
+    expect((await get('/registries/vat-whitelist/api/search/nip/0001234563?date=2026-11-22')).status).toBe(404);
+    for (const register of ['P', 'S']) {
+      // oxlint-disable-next-line no-await-in-loop
+      const krs = await get(`/registries/krs/api/OdpisAktualny/0009999901?rejestr=${register}&format=json`);
+      expect(krs.status).toBe(404);
+    }
+    for (const host of [
+      'dane.biznes.gov.pl/api/ceidg/v3',
+      'wykazpodatnikowvat.mf.gov.pl/api',
+      'api-krs.ms.gov.pl/api/krs',
+    ]) {
+      expect(manifest.hostPrefixes[host]).toMatch(/^\/registries\//);
+    }
+  });
+
   it('serves synthetic chain data in provider formats', async () => {
     const stats = (await (await get(`/chain/esplora/api/address/${addr('BTC-1')}`)).json()) as {
       chain_stats: { tx_count: number };

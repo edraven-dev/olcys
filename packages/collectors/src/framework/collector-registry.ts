@@ -1,6 +1,7 @@
 import type {
   CollectorInput,
   CollectorResult,
+  IdentifierKind,
   RunContext,
   SourceCollector,
   SourceDescriptor,
@@ -24,6 +25,8 @@ export interface CollectorFactory {
   readonly pivotOnAccounts?: boolean;
   /** True for web search: one query per input identifier (I5), and the result URLs it finds are followed (E3). */
   readonly webSearch?: boolean;
+  /** Identifier kinds the source looks up by themselves (registries: a full name), one task per identifier (I6). */
+  readonly identifierKinds?: readonly IdentifierKind[];
   create(descriptor: SourceDescriptor, deps: CollectorDeps): SourceCollector;
 }
 

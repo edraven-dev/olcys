@@ -1,0 +1,44 @@
+{
+  "odpis": {
+    "naglowekA": { "numerKRS": "0009999901", "stanZDnia": "22.11.2026" },
+    "dane": {
+      "dzial1": {
+        "danePodmiotu": {
+          "nazwa": "SPÓŁKA TESTOWA SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ",
+          "formaPrawna": "SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ",
+          "identyfikatory": { "nip": "0001234562", "regon": "001234562" }
+        },
+        "siedzibaIAdres": {
+          "siedziba": { "kraj": "POLSKA", "miejscowosc": "TESTOWO" },
+          "adres": {
+            "ulica": "FIKCYJNA",
+            "nrDomu": "1",
+            "nrLokalu": "2",
+            "kodPocztowy": "00-000",
+            "miejscowosc": "TESTOWO"
+          }
+        },
+        "wspolnicySpzoo": [{ "nazwa": "HOLDING TESTOWY", "identyfikator": { "regon": "001234562" } }]
+      },
+      "dzial2": {
+        "reprezentacja": {
+          "sklad": [
+            {
+              "nazwisko": { "nazwiskoICzlon": "PRZYKŁADOWY" },
+              "imiona": { "imie": "JAN" },
+              "identyfikator": { "pesel": "77777777771" },
+              "funkcjaWOrganie": "PREZES ZARZĄDU"
+            }
+          ]
+        },
+        "prokurenci": [
+          {
+            "nazwisko": { "nazwiskoICzlon": "TESTOWA" },
+            "imiona": { "imie": "EWA" },
+            "identyfikator": { "pesel": "77777777772" }
+          }
+        ]
+      }
+    }
+  }
+}

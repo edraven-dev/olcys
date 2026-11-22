@@ -45,6 +45,10 @@ const SYNTHETIC_IDENTIFIERS = [
   'test_weryfikator',
   'test_moderator',
   'olcys_test_ostrzezenia',
+  // Registry identifiers of the persona's firm (deliberately unassigned values).
+  '0001234562',
+  '001234562',
+  '0009999901',
 ];
 
 const HOST_PREFIXES: Record<string, string> = {
@@ -58,6 +62,9 @@ const HOST_PREFIXES: Record<string, string> = {
   'api.etherscan.io/v2/api': '/chain/etherscan/v2/api',
   'api.trongrid.io': '/chain/trongrid',
   'api.nbp.pl/api': '/nbp/api',
+  'dane.biznes.gov.pl/api/ceidg/v3': '/registries/ceidg/v3',
+  'wykazpodatnikowvat.mf.gov.pl/api': '/registries/vat-whitelist/api',
+  'api-krs.ms.gov.pl/api/krs': '/registries/krs/api',
 };
 
 const BT = '/bitcointalk/index.php';
@@ -582,6 +589,28 @@ export function tokensFor(manifest: World['manifest'], variant: Variant | 'share
   return tokens;
 }
 
+const CEIDG = '/registries/ceidg/v3';
+const CEIDG_FIRM_ID = '00000000-0000-4000-8000-000000000001';
+
+/** Polish public registries (CEIDG v3, VAT white list, KRS) in their documented response shapes; synthetic data. */
+const REGISTRY_ROUTES: FixtureRouteOut[] = [
+  {
+    path: `${CEIDG}/firmy`,
+    params: { 'imie[]': 'Kacper', 'nazwisko[]': 'Fikcyjny' },
+    file: 'registries/ceidg/v3/firmy.json',
+  },
+  { path: `${CEIDG}/firmy`, params: { 'nip[]': '0001234562' }, file: 'registries/ceidg/v3/firmy.json' },
+  // CEIDG answers 204 when nothing matches.
+  { path: `${CEIDG}/firmy`, status: 204 },
+  { path: `${CEIDG}/firma/${CEIDG_FIRM_ID}`, file: 'registries/ceidg/v3/firma.json' },
+  {
+    path: '/registries/vat-whitelist/api/search/nip/0001234562',
+    file: 'registries/vat-whitelist/api/search/nip/0001234562.json',
+  },
+  // The persona has no company: the KRS number is unassigned in both registers.
+  { path: '/registries/krs/api/OdpisAktualny/0009999901', status: 404, file: 'registries/krs/not-found.json' },
+];
+
 export function routesFor(chainRoutes: readonly FixtureRouteOut[]): FixtureRouteOut[] {
   const topic = (t: string, msgs: string[]) =>
     [`${t}.0`, ...msgs.map((m) => `${t}.msg${m}`)].map((query) => ({
@@ -614,6 +643,7 @@ export function routesFor(chainRoutes: readonly FixtureRouteOut[]): FixtureRoute
       headers: { 'cf-mitigated': 'challenge' },
       file: 'barriers/challenge.html',
     },
+    ...REGISTRY_ROUTES,
     { path: '/barriers/redirect-private', status: 302, headers: { location: '/private/' } },
     { path: '/barriers/redirect-external', status: 302, headers: { location: 'https://example.org/' } },
     ...chainRoutes,

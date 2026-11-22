@@ -1,0 +1,13 @@
+{
+  "firmy": [
+    {
+      "id": "00000000-0000-4000-8000-000000000001",
+      "nazwa": "Kacper Fikcyjny Usługi Testowe",
+      "wlasciciel": { "imie": "Kacper", "nazwisko": "Fikcyjny", "nip": "0001234562", "regon": "001234562" },
+      "adresDzialalnosci": { "ulica": "Fikcyjna", "budynek": "1", "lokal": "2", "kod": "00-000", "miasto": "Testowo" },
+      "status": "AKTYWNY",
+      "dataRozpoczecia": "2024-01-15"
+    }
+  ],
+  "count": 1
+}

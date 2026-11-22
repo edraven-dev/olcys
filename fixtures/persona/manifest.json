@@ -21,7 +21,10 @@
     "900003",
     "test_weryfikator",
     "test_moderator",
-    "olcys_test_ostrzezenia"
+    "olcys_test_ostrzezenia",
+    "0001234562",
+    "001234562",
+    "0009999901"
   ],
   "hostPrefixes": {
     "bitcointalk.org": "/bitcointalk",
@@ -33,7 +36,10 @@
     "blockstream.info/api": "/chain/esplora/api",
     "api.etherscan.io/v2/api": "/chain/etherscan/v2/api",
     "api.trongrid.io": "/chain/trongrid",
-    "api.nbp.pl/api": "/nbp/api"
+    "api.nbp.pl/api": "/nbp/api",
+    "dane.biznes.gov.pl/api/ceidg/v3": "/registries/ceidg/v3",
+    "wykazpodatnikowvat.mf.gov.pl/api": "/registries/vat-whitelist/api",
+    "api-krs.ms.gov.pl/api/krs": "/registries/krs/api"
   },
   "addresses": {
     "BTC-1": {
@@ -1369,8 +1375,12 @@
     "shared/nbp/api/exchangerates/rates/a/usd/2026-10.json": "b0811d8ef704b26c0547b3582ee96fcf82d7d091c8ddc96c2ecb6ffee3c39d5a",
     "shared/nbp/api/exchangerates/rates/a/usd/2026-11.json": "b00dd193548dfb6147c3419ee0f3ef5a1691cc517618fdbf966831fe98389feb",
     "shared/private/index.html": "2147bc9dc9d5fb2f294833fe79ec9e1ac75ddd55d74b2f492ec59190be62ecfc",
+    "shared/registries/ceidg/v3/firma.json": "00d63d23d2a7af4c4e760d3c1202769b4a4078af6b2e40ab74bf04f9702d2c78",
+    "shared/registries/ceidg/v3/firmy.json": "1c72e5f65f05dab4b8b19388c17d75b8ccb87bbd79532c7a9e393af8b115acd3",
+    "shared/registries/krs/not-found.json": "32e6eeefa45c87691221ad4f43475674bf648088a0f15c772564f600f4464ae5",
+    "shared/registries/vat-whitelist/api/search/nip/0001234562.json": "1733c882b3610af640367e0d192a733532b8816e0ee32849a32fa8028f5c6384",
     "shared/robots.txt": "a8c45e0f2927fc148d29acfa827d09268d578be9c78dbb1e401828ce7cd504e3",
-    "shared/routes.json": "45320a64e1ee2f036f304e7d1ccd4a4c925fa168211a113d289863d9024e3e55",
+    "shared/routes.json": "9a919d33ceae50caa79ccf51fa667c4d184d5979bc67a325b29f20eeb2053710",
     "shared/tablica/ogloszenie/81000001/index.html": "db498d6cce7e8f0dda2d413b496e88ff37210317ec83ee07f12900f737a88f7f",
     "shared/telegram/s/olcys_test_ostrzezenia/index.html": "32d0b2e0d6c2f5e8e03f3d953c51e886c8350d6111c596a0bbe33e3a4bde5c6a",
     "shared/wykop/ludzie/fikcyjny_kacper/index.html": "4633d3a7ab3befaa8d967e6d330fc6194db27974e7d2d2ae597e9984b5531653",
