@@ -3,10 +3,25 @@
  * self-contained, stores both in the blob store and records them as the run's `html` and `data_json` reports.
  * Structurally compatible with the worker's `Stage` (this package does not depend on the worker).
  */
-import type { AnalysisRun, BlobRef, BlobStore, Clock, Id, Logger, Repositories, SourceDescriptor } from '@olcys/core';
+import type {
+  AnalysisRun,
+  BlobRef,
+  BlobStore,
+  Clock,
+  EgressClient,
+  Id,
+  Logger,
+  PartialCode,
+  PartialParams,
+  Repositories,
+  SourceDescriptor,
+  TrustedTimestamper,
+} from '@olcys/core';
 import { canonicalJson } from '@olcys/core';
 import { buildReportData } from './build.ts';
 import { buildExports, type ExportSettings } from './export/index.ts';
+import { createReportManifest } from './manifest.ts';
+import { PdfRenderError, renderReportPdf, type ReportPdfDeps, type ReportPdfResult } from './pdf.ts';
 import { pl } from './i18n/pl.ts';
 import { renderReport } from './render/document.ts';
 import { assertSelfContainedHtml } from './self-contained.ts';
@@ -25,6 +40,8 @@ export interface ReportStageContext {
   blobs: BlobStore;
   logger?: Logger;
   progress?(detail: Record<string, unknown>): Promise<void>;
+  /** The report is incomplete (e.g. the PDF could not be produced): the run ends as `partial`. */
+  markPartial?(reason: string, coded?: { code: PartialCode; params?: PartialParams }): void;
 }
 
 export interface ReportStage {
@@ -38,6 +55,16 @@ export interface ReportStageOptions {
   sources?: readonly SourceDescriptor[];
   weightsStatus?: string;
   clock?: Clock;
+  /** PDF/A rendering and signing; absent: the report has HTML, data and exports only. */
+  pdf?: ReportPdfOptions;
+}
+
+/** Wiring of the PDF step: the egress client is created per run (it logs into the run's repositories). */
+export interface ReportPdfOptions {
+  createHttp(ctx: { repos: Repositories; blobs: BlobStore; runId: Id }): EgressClient;
+  timestamper?: TrustedTimestamper;
+  config: ReportPdfDeps['config'];
+  gitCommit?: string;
 }
 
 export interface StoredReport {
@@ -45,6 +72,10 @@ export interface StoredReport {
   data: BlobRef;
   /** The STIX, MISP and CSV exports, keyed by export kind (also the report kind they are stored under). */
   exports: Record<string, BlobRef>;
+  /** The PDF step's result (absent when the step is not configured or failed). */
+  pdf?: ReportPdfResult;
+  /** Why the PDF could not be produced (stable code), when it could not. */
+  pdfError?: string;
 }
 
 /** Renders and stores one report; returns the blob references of the HTML and of its input data. */
@@ -52,6 +83,7 @@ export async function storeReport(
   deps: { repos: Repositories; blobs: BlobStore },
   data: ReportData,
   settings: Partial<ExportSettings> = {},
+  pdfStep?: { deps: ReportPdfDeps; gitCommit?: string },
 ): Promise<StoredReport> {
   const html = renderReport(data);
   assertSelfContainedHtml(html);
@@ -80,6 +112,22 @@ export async function storeReport(
     exports[artifact.kind] = ref;
     set.exports[artifact.kind] = { sha256: ref.sha256, mediaType: artifact.mediaType };
   });
+  // The PDF belongs to this version: it is part of the set (and so of the version id), never added afterwards.
+  let pdf: ReportPdfResult | undefined;
+  let pdfError: string | undefined;
+  if (pdfStep) {
+    try {
+      const manifest = await createReportManifest(data, htmlRef.sha256, deps.blobs, pdfStep.gitCommit);
+      pdf = await renderReportPdf({ reportId: data.reportId, runId: data.run.id, html, manifest }, pdfStep.deps);
+      set.pdf = pdfSetEntry(data.reportId, pdf);
+    } catch (error) {
+      pdfError = error instanceof PdfRenderError ? error.code : 'pdf_failed';
+      pdfStep.deps.logger?.error('report PDF failed', {
+        runId: data.run.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
   const setRef = await deps.blobs.put(encoder.encode(canonicalJson(set)), REPORT_DATA_MEDIA_TYPE);
   // One publication at a time per run: concurrent renders must not interleave their rows, or the latest HTML
   // and the latest export set could belong to different versions.
@@ -104,7 +152,30 @@ export async function storeReport(
       mediaType: REPORT_DATA_MEDIA_TYPE,
     });
   });
-  return { html: htmlRef, data: dataRef, exports };
+  return { html: htmlRef, data: dataRef, exports, ...(pdf ? { pdf } : {}), ...(pdfError ? { pdfError } : {}) };
+}
+
+function pdfSetEntry(reportId: Id, pdf: ReportPdfResult): PdfSetEntry {
+  const blob = (kind: string) => pdf.artifacts.find((a) => a.kind === kind)?.blob;
+  const file = blob('pdf_signed') ?? blob('pdf');
+  const manifest = blob('manifest_json');
+  if (!file || !manifest) throw new PdfRenderError('pdf_incomplete', 'the PDF step returned no file');
+  const token = blob('timestamp_reply');
+  return {
+    reportId,
+    status: pdf.status,
+    sha256: file.sha256,
+    bytes: file.bytes,
+    mediaType: file.mediaType,
+    manifestSha256: manifest.sha256,
+    pdfa: pdf.pdfa,
+    demoCertificate: true,
+    warnings: pdf.warnings,
+    ...(pdf.signature ? { signature: pdf.signature } : {}),
+    ...(pdf.status === 'signed_timestamped' && token
+      ? { timestampSha256: token.sha256, timestampBytes: token.bytes }
+      : {}),
+  };
 }
 
 const publishing = new Map<string, Promise<unknown>>();
@@ -129,6 +200,27 @@ export interface ExportSet {
   htmlSha256: string;
   dataSha256?: string;
   exports: Record<string, { sha256: string; mediaType: string }>;
+  /** The PDF/A of this version (the signed one when signing succeeded), absent when it was not produced. */
+  pdf?: PdfSetEntry;
+}
+
+/** The PDF of a report version. A `report_pdf` time-stamp requested for a `signed` PDF is granted later, outside the set. */
+export interface PdfSetEntry {
+  reportId: Id;
+  status: 'signed_timestamped' | 'signed' | 'unsigned';
+  /** SHA-256, size and media type of the served PDF (signed when it is signed). */
+  sha256: string;
+  bytes: number;
+  mediaType: string;
+  manifestSha256: string;
+  pdfa: { profile: string; compliant: boolean; residual: number };
+  /** Always true: the signing certificate is a self-signed demo one, not a qualified one. */
+  demoCertificate: true;
+  warnings: string[];
+  signature?: { signerCertSha256: string; signedAt: string; timestamped: boolean };
+  /** The RFC 3161 token embedded in the signature (status `signed_timestamped`). */
+  timestampSha256?: string;
+  timestampBytes?: number;
 }
 
 /**
@@ -219,7 +311,29 @@ export function createReportStage(options: ReportStageOptions = {}): ReportStage
         generatedAt: clock.now().toISOString(),
         ...(ctx.evidenceRunId ? { evidenceRunId: ctx.evidenceRunId } : {}),
       });
-      const stored = await storeReport(ctx, data, options.exports);
+      const pdf = options.pdf;
+      const stored = await storeReport(
+        ctx,
+        data,
+        options.exports,
+        pdf
+          ? {
+              deps: {
+                http: pdf.createHttp({ repos: ctx.repos, blobs: ctx.blobs, runId: ctx.run.id }),
+                blobs: ctx.blobs,
+                ...(pdf.timestamper ? { timestamper: pdf.timestamper } : {}),
+                ...(ctx.logger ? { logger: ctx.logger } : {}),
+                config: pdf.config,
+              },
+              ...(pdf.gitCommit ? { gitCommit: pdf.gitCommit } : {}),
+            }
+          : undefined,
+      );
+      if (stored.pdfError)
+        ctx.markPartial?.(`report PDF not produced: ${stored.pdfError}`, {
+          code: 'pdf_unavailable',
+          params: { reason: stored.pdfError },
+        });
       await ctx.progress?.({ report: stored.html.sha256 });
       ctx.logger?.info('report rendered', { runId: ctx.run.id, html: stored.html.sha256, bytes: stored.html.bytes });
     },

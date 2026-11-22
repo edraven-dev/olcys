@@ -27,5 +27,13 @@ export {
   type RoleClassificationOutcome,
   type RoleSkipReason,
 } from './address-role.ts';
+export {
+  buildDraftContext,
+  draftInferences,
+  type DraftContext,
+  type DraftInput,
+  type DraftOutcome,
+  type DraftSuggestion,
+} from './inference-draft.ts';
 export * from './prompts/index.ts';
 export { z } from 'zod';

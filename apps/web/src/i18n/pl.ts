@@ -531,6 +531,8 @@ export const pl = {
         'graf przepływów środków przycięty limitem {limit} krawędzi (zapytań: {count}); część dalszych przepływów nie została pokazana',
       llm_unavailable:
         'model AI był niedostępny lub zawiódł dla {count} wzmianek o adresach: nie powstały dla nich sugestie ról (nie wpływa to na wyniki)',
+      pdf_unavailable:
+        'nie powstał raport PDF/A (usługa renderowania lub walidacja PDF/A zawiodła: {reason}); dostępny jest raport HTML i manifest (nie wpływa to na wyniki)',
     } as Record<string, string>,
     counters: 'Liczniki etapu',
     counterLabels: {
@@ -849,6 +851,69 @@ export const pl = {
       justification_too_long: 'Uzasadnienie może mieć najwyżej 2000 znaków.',
       already_decided: 'Ta sugestia ma już decyzję analityka.',
       not_found: 'Nie znaleziono sugestii.',
+    } as Record<string, string>,
+  },
+  drafts: {
+    title: 'Wnioski zaproponowane przez AI',
+    intro:
+      'Model lokalny może przygotować szkice wniosków do sekcji C na podstawie faktów (A) i wyników obliczeń (B) tego raportu. Szkice to sugestie: nie zmieniają Wskaźnika Pewności ani podsumowania, a do raportu trafiają dopiero po potwierdzeniu przez analityka. Treści z Telegramu nigdy nie są wysyłane do modelu.',
+    propose: 'Zaproponuj wnioski (AI)',
+    proposing: 'Model przygotowuje szkice…',
+    modelOff:
+      'Model AI jest wyłączony: nowych szkiców nie można zamówić, ale zapisane szkice można nadal rozstrzygnąć.',
+    waitingReport: 'Czekam na zaktualizowany raport…',
+    reportTimeout:
+      'Zaktualizowany raport nie pojawił się w ciągu minuty. Decyzja jest zapisana; raport powstanie, gdy zakończy się jego generowanie.',
+    reportCheckFailed: 'Nie udało się sprawdzić, czy raport został zaktualizowany.',
+    retryReport: 'Sprawdź ponownie',
+    badge: 'Sugestia AI — niezweryfikowana',
+    badgeConfirmed: 'Sugestia AI — potwierdzona przez analityka',
+    badgeRejected: 'Sugestia AI — odrzucona przez analityka',
+    none: 'Brak szkiców. Użyj przycisku, aby poprosić model o propozycje.',
+    inReport:
+      'Potwierdzony szkic znajduje się w sekcji C raportu (jako „wspomagane AI, zatwierdzone przez analityka”).',
+    notInReport: 'Szkic niepotwierdzony nie trafia do raportu ani do PDF.',
+    basedOn: 'Oparte na',
+    alternatives: 'Wyjaśnienia alternatywne',
+    steps: 'Kroki weryfikacji',
+    model: 'Model {model}, prompt {prompt}',
+    decidedBy: '{analyst}, {at}',
+    editedNote: 'Analityk zmienił tekst szkicu; w raporcie jest tekst analityka.',
+    confirm: 'Potwierdź',
+    reject: 'Odrzuć',
+    editedText: 'Tekst wniosku (możesz go poprawić przed potwierdzeniem)',
+    justification: 'Uzasadnienie decyzji',
+    justificationHint: 'Od {min} do {max} znaków; zapisywane są analityk, czas i uzasadnienie.',
+    submitConfirm: 'Zapisz potwierdzenie',
+    submitReject: 'Zapisz odrzucenie',
+    cancel: 'Anuluj',
+    saving: 'Zapisywanie…',
+    refreshing: 'Raport zostanie odświeżony po zapisaniu decyzji.',
+    result: {
+      drafted: 'Dodano szkiców: {created}. Odrzucone przez kontrolę: {dropped}.',
+      none: 'Model nie zaproponował żadnego poprawnego szkicu (odrzucone przez kontrolę: {dropped}).',
+      nothing_to_draft: 'Raport nie zawiera danych, na podstawie których można przygotować szkice.',
+      pending_drafts: 'Najpierw rozstrzygnij szkice oczekujące na decyzję.',
+      busy: 'Model już przygotowuje szkice dla tego raportu.',
+      no_report: 'Raport tego przebiegu nie jest jeszcze gotowy.',
+      failed:
+        'Model nie jest dostępny albo nie zwrócił poprawnej odpowiedzi ({reason}). Raport i wyniki nie zostały zmienione; spróbuj ponownie później.',
+    } as Record<string, string>,
+    failures: {
+      disabled: 'model wyłączony',
+      input_rejected: 'dane wejściowe odrzucone',
+      egress_denied: 'połączenie niedozwolone',
+      timeout: 'przekroczono czas oczekiwania',
+      http_error: 'błąd usługi modelu',
+      invalid_json: 'odpowiedź nie jest poprawnym JSON-em',
+      schema_violation: 'odpowiedź niezgodna ze schematem',
+    } as Record<string, string>,
+    errors: {
+      justification_too_short: 'Uzasadnienie musi mieć co najmniej 10 znaków.',
+      justification_too_long: 'Uzasadnienie może mieć najwyżej 2000 znaków.',
+      already_decided: 'Ten szkic ma już decyzję analityka.',
+      not_found: 'Nie znaleziono szkicu.',
+      llm_disabled: 'Model AI jest wyłączony.',
     } as Record<string, string>,
   },
   overrides: {
@@ -1407,6 +1472,11 @@ export const pl = {
     },
     origins: { analyst: 'Analityk', rule: 'Reguła', ai_suggestion: 'Sugestia AI — niezweryfikowana' },
     alternatives: 'Hipotezy alternatywne',
+    verificationSteps: 'Kroki weryfikacji',
+    aiAssisted: 'Wspomagane AI, zatwierdzone przez analityka',
+    aiConfirmed: 'Wspomagane AI, zatwierdzone przez analityka: {analyst} ({at}). Model {model}, prompt {prompt}.',
+    aiEdited:
+      'Wspomagane AI, zatwierdzone przez analityka: {analyst} ({at}) — tekst zredagowany przez analityka na podstawie sugestii AI. Model {model}, prompt {prompt}.',
     requiresVerification: 'Wymaga weryfikacji',
     basedOn: 'Na podstawie',
     data: 'Dane (JSON)',
@@ -1449,7 +1519,8 @@ export const pl = {
       downloaded: 'Pobrano plik {name}.',
       kinds: {
         html: 'Raport HTML',
-        pdf: 'Raport PDF/A (podpisany)',
+        pdf: 'Raport PDF/A-3b',
+        pdf_timestamp: 'Znacznik czasu RFC 3161 (.tsr) — plik PDF raportu',
         manifest: 'Manifest raportu (JSON)',
         timestamp: 'Znacznik czasu RFC 3161 (.tsr) — zabezpieczenie {id}',
         stix: 'Eksport STIX 2.1 (JSON)',
@@ -1460,6 +1531,21 @@ export const pl = {
         csv_changes: 'Eksport CSV: zmiany od poprzedniego uruchomienia',
       },
       pdfUnavailable: 'PDF/A niedostępny w tej wersji — dostępny raport HTML.',
+      pdfStatus: {
+        signed_timestamped:
+          'Podpisany (PAdES B-T) z znacznikiem czasu RFC 3161 w podpisie · {pdfa} · podpis demonstracyjny, niekwalifikowany',
+        signed:
+          'Podpisany (PAdES B-B), bez znacznika czasu w podpisie; znacznik czasu całego pliku jest w kolejce lub dołączony poniżej · {pdfa} · podpis demonstracyjny, niekwalifikowany',
+        unsigned: 'Bez podpisu — {reason} · {pdfa}',
+      },
+      pdfWarnings: {
+        signing_unavailable: 'usługa podpisu była niedostępna',
+        signing_disabled: 'podpisywanie jest wyłączone w konfiguracji',
+      } as Record<string, string>,
+      pdfDemoNote:
+        'Certyfikat podpisu jest samopodpisany i demonstracyjny — nie jest to podpis kwalifikowany w rozumieniu eIDAS.',
+      pdfaCompliant: 'zgodny z {profile}',
+      pdfaNotCompliant: 'niezgodny z {profile}',
       exportsHint:
         'Eksporty zawierają dane sprawy (domyślnie oznaczenie TLP:AMBER); obejmują fakty i wyniki obliczeń, bez niezatwierdzonych sugestii modelu AI.',
     },

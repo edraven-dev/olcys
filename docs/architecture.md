@@ -90,6 +90,15 @@ report.render     ReportModel → HTML → PDF/A (+ manifest, podpis, znacznik c
 run.finish        status succeeded | partial | failed
 ```
 
+**Raport PDF/A i podpis.** Po zapisaniu HTML krok `report.render` renderuje PDF/A-3b w Gotenbergu (silnik Chromium, usługa
+lokalna bez dostępu do sieci), dołącza kanoniczny manifest JSON jako plik skojarzony PDF/A-3 i podpisuje plik w
+`services/osint-py` (pyHanko, PAdES, podpis przerwany: `prepare` → znacznik RFC 3161 → `finish`). Żądanie do TSA wysyła
+worker przez klienta ruchu wychodzącego (`TrustedTimestamper`; pyHanko nie ma dostępu do sieci). Wynik: `signed_timestamped`
+(B-T), `signed` (B-B; w trybie offline kolejkowany jest znacznik `report_pdf`) albo `unsigned` (usługa podpisu
+niedostępna — PDF i manifest zapisane, ostrzeżenie, przebieg nie kończy się błędem); awaria Gotenberga daje przebieg
+`partial`. Podpis jest **demonstracyjny i niekwalifikowany** (samopodpisany certyfikat tworzony lokalnie, poza
+repozytorium); PDF należy do tej samej wersji raportu co HTML i dane. Szczegóły: `packages/reporting/README.md`.
+
 Przebieg **ponownej oceny** (`trigger: 'rescore'`) przetwarza zapisane zabezpieczenia wcześniejszego przebiegu nowymi
 wersjami algorytmu lub reguł bez ponownego pobierania danych — pozwala to odróżnić zmianę danych od zmiany algorytmu.
 Tylko ponowna ocena stosuje też korekty analityka zapisane do chwili jej zlecenia (zbiór ustalony przy zleceniu,
@@ -280,6 +289,15 @@ ocenie, a uwzględnia je dopiero kolejny przebieg ponownej oceny (potwierdzona r
 `AnalystCue` do punktu wejścia oceny; oczekujące i odrzucone sugestie nigdy). Krok `llm.suggest` nigdy nie kończy
 przebiegu błędem: niedostępny lub zawodzący model daje kod `llm_unavailable` (przebieg `partial`), a po 3 kolejnych
 niepowodzeniach kolejne wzmianki nie są wysyłane. Decyzja o sugestii zleca w tle ponowne wygenerowanie raportu przebiegu (nowa wersja, wcześniejsze zostają); odpowiedź nie czeka na renderowanie. Tekst z Telegrama nie trafia do modelu. Fakty, wyniki obliczeń i wnioski pozostają rozdzielone.
+
+Szkice wniosków do sekcji C raportu powstają wyłącznie na wyraźną prośbę analityka (`POST /api/runs/:runId/report/drafts`,
+dostępne, gdy `meta.features.inferenceDrafts`): jedno ograniczone wywołanie (najwyżej 6 szkiców) czyta zapisany model
+raportu — fakty (A) i wyniki obliczeń (B), bez pozycji opartych na Telegramie — i zwraca sugestie powiązane
+identyfikatorami z A/B; szkic cytujący nieistniejący identyfikator albo powtarzający wynik punktowy jest odrzucany.
+Awaria modelu to typowany wynik pokazany komunikatem po polsku, nie błąd. Szkice mają wagę 0 i nie zmieniają ocen ani
+podsumowania; analityk potwierdza (opcjonalnie poprawiając tekst) lub odrzuca je tą samą decyzją co inne sugestie, a do
+raportu i PDF trafiają tylko szkice potwierdzone, z etykietą „wspomagane AI, zatwierdzone przez analityka”, nazwiskiem
+analityka i czasem decyzji.
 
 ## Bezpieczeństwo
 

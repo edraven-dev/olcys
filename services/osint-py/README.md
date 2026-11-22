@@ -18,18 +18,20 @@ curl http://127.0.0.1:8090/healthz
   `config/compliance/components.yaml` i do `docs/compliance/licenses.md`. Zależność `opentelemetry-api` pochodzi od
   FastAPI: to wyłącznie interfejs (bez SDK i eksportera), więc nic nie opuszcza usługi.
 - Telemetria wyłączona (`DO_NOT_TRACK`, `HF_HUB_OFFLINE` w `Dockerfile` i `compose.yml`).
-- Podpisywanie PDF działa dwufazowo (`/v1/pdf/sign/prepare`, `/v1/pdf/sign/finish`; jeszcze niezaimplementowane);
+- Podpisywanie PDF (pyHanko 0.38.2, PAdES) działa dwufazowo (`/v1/pdf/sign/prepare`, `/v1/pdf/sign/finish`);
   zapytanie do serwera znaczników czasu wykonuje worker w Node przez klienta ruchu wychodzącego, więc ten serwis nie
-  łączy się z nim sam.
+  łączy się z nim sam (testy podpisu uruchamiają się z zablokowanym `socket.socket.connect`).
 
 ## Interfejs
 
-| Metoda i ścieżka                     | Znaczenie                                                                              |
-| ------------------------------------ | -------------------------------------------------------------------------------------- |
-| `GET /healthz`                       | stan usługi (`allow_external`, wersja)                                                 |
-| `POST /v1/usernames/search`          | wyszukanie nicku w serwisach z przypiętej bazy Maigreta (opis niżej)                   |
-| `POST /v1/profiles/extract`          | `{ html, url }` → `{ ids, idsLinks }`: socid-extractor na zapisanej stronie, bez sieci |
-| `POST /v1/pdf/sign/{prepare,finish}` | podpisywanie PDF (pyHanko) — jeszcze niezaimplementowane                               |
+| Metoda i ścieżka            | Znaczenie                                                                                         |
+| --------------------------- | ------------------------------------------------------------------------------------------------- |
+| `GET /healthz`              | stan usługi (`allow_external`, wersja)                                                            |
+| `POST /v1/usernames/search` | wyszukanie nicku w serwisach z przypiętej bazy Maigreta (opis niżej)                              |
+| `POST /v1/profiles/extract` | `{ html, url }` → `{ ids, idsLinks }`: socid-extractor na zapisanej stronie, bez sieci            |
+| `POST /v1/pdf/sign/prepare` | podpis przerwany: przygotowuje PDF i zwraca `sessionId` oraz `signatureDigestSha256` (opis niżej) |
+| `POST /v1/pdf/sign/finish`  | wstawia znacznik czasu (lub nie) i kończy podpis; zwraca podpisany PDF (opis niżej)               |
+| `GET /v1/pdf/signer`        | część publiczna tożsamości demonstracyjnej (certyfikat, urząd certyfikacji)                       |
 
 Błędy mają postać `{ "code", "message" }`: `409` (`external_disabled`, `db_hash_mismatch`) i `422` (`invalid_request`).
 Schematy JSON (draft 2020-12) generowane z modeli Pydantic leżą w `schemas/` (`python scripts/generate_schemas.py`;
@@ -112,6 +114,39 @@ barier. Węzeł Node scala ten dziennik z dziennikiem ruchu wychodzącego (`reco
   samo jak w `RobotsCache` po stronie Node. Na stronie testowej `/private/` jest wyłączone w robots.txt, a syntetyczny
   serwis `Archiwum` w bazie `fixture` wskazuje tam, więc zawsze kończy się jako `skipped`.
 - **Czego usługa nie robi:** nie loguje się, nie rozwiązuje CAPTCHA, nie skanuje hostów, nie rotuje adresów.
+
+## Podpis PDF (PAdES, pyHanko)
+
+Raport PDF/A-3b renderuje Gotenberg po stronie Node; ten serwis tylko go podpisuje. Przebieg (podpis przerwany):
+
+1. `POST /v1/pdf/sign/prepare` `{ pdfBase64, fieldName: "Podpis", reason }` dodaje niewidoczne pole podpisu z
+   certyfikacją (DocMDP: wypełnianie formularzy), rezerwuje 32 KiB na CMS, podpisuje lokalnym kluczem demonstracyjnym
+   (RSA PKCS#1 v1.5, SHA-256, atrybuty PAdES) i zwraca `{ sessionId, signatureDigestSha256 }`, gdzie skrót to
+   SHA-256 wartości podpisu. Sesja żyje w pamięci 10 minut (maks. 8).
+2. Worker w Node prosi o znacznik czasu RFC 3161 dla tego skrótu (`TrustedTimestamper`, klient ruchu wychodzącego,
+   źródło `timestamping`); w trybie offline lub przy niedostępnej usłudze znacznika nie ma.
+3. `POST /v1/pdf/sign/finish` `{ sessionId, timestampTokenBase64 | null }` wstawia znacznik jako atrybut
+   niepodpisany (`PrefetchedTimeStamper` sprawdza, że odcisk znacznika równa się skrótowi podpisu) i zwraca
+   `{ pdfBase64, signerCertSha256, signedAt, timestamped }`: PAdES B-T albo, bez znacznika, B-B. Wtedy worker kolejkuje
+   osobny znacznik `report_pdf` dla skrótu całego podpisanego pliku.
+
+Znacznik w `timestampTokenBase64` może być pełną odpowiedzią RFC 3161 (`TimeStampResp`, w takiej postaci zwraca go
+timestamper workera; musi mieć status „granted”) albo samym tokenem CMS.
+
+**Limity rozmiaru** (spójne w całym łańcuchu): PDF do 50 MiB (`PDF_MAX_BYTES`; większy zostaje bez podpisu z ostrzeżeniem
+`signing_unavailable`, a usługa odpowiada `413`). Ciało żądania i odpowiedź niosą PDF jako base64 (+33%), więc klient
+ruchu wychodzącego w workerze ma dla usług PDF limit odpowiedzi `PDF_MAX_RESPONSE_BYTES` (ok. 67 MiB), a nie domyślne 25 MiB.
+
+Błędy: `410 session_expired` (nieznana lub wygasła sesja), `400 timestamp_mismatch` (znacznik dla innego skrótu; sesja
+zostaje, można dokończyć bez znacznika), `400 invalid_pdf`, `413 too_large` (ponad 50 MB), `429` (zbyt wiele sesji),
+`503 signing_unavailable` (brak klucza).
+
+**Klucz i certyfikat demonstracyjny.** Przy pierwszym użyciu usługa tworzy w katalogu `OLCYS_SIGNING_DIR` (w compose:
+wolumen `signing-keys` zamontowany w `/signing`) samopodpisany urząd certyfikacji i certyfikat RSA-3072 z EKU
+`documentSigning`; nazwa zawiera „niekwalifikowany”. **To podpis demonstracyjny, a nie kwalifikowany** — raport i
+konsola mówią o tym wprost. Klucz prywatny nigdy nie trafia do repozytorium, obrazu, dziennika ani odpowiedzi API.
+Można go utworzyć z wyprzedzeniem: `pnpm signing:init`. Środowisko produkcyjne powinno użyć certyfikatu kwalifikowanego
+na module HSM (PKCS#11) — to kolejny krok. Testy tworzą własne, jednorazowe klucze.
 
 ## Testy
 

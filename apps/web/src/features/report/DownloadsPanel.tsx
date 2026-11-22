@@ -1,4 +1,4 @@
-import type { ReportFile } from '@olcys/core';
+import type { ReportFile, ReportPdfInfo } from '@olcys/core';
 import { useId, useState } from 'react';
 import { AddressText, Icon } from '../../components/ui.tsx';
 import { pl } from '../../i18n/pl.ts';
@@ -25,6 +25,19 @@ const labelOf = (file: ReportFile): string => {
   const base = pl.report.downloads.kinds[file.kind];
   return file.captureId ? t(base, { id: file.captureId.slice(0, 8) }) : base;
 };
+
+/** Signature and PDF/A status of the report PDF; the certificate is always labelled as a demo one. */
+function PdfStatus({ pdf }: { pdf: ReportPdfInfo }) {
+  const d = pl.report.downloads;
+  const pdfa = t(pdf.pdfaCompliant ? d.pdfaCompliant : d.pdfaNotCompliant, { profile: pdf.pdfaProfile });
+  const reason = pdf.warnings.map((w) => d.pdfWarnings[w] ?? w).join(', ') || pl.common.dash;
+  return (
+    <>
+      <span className="muted small block">{t(d.pdfStatus[pdf.status], { pdfa, reason })}</span>
+      <span className="muted small block">{d.pdfDemoNote}</span>
+    </>
+  );
+}
 
 /**
  * Downloads of the report and its exports with SHA-256 digests. A purpose is an optional text: when it is filled in it
@@ -91,6 +104,7 @@ export function DownloadsPanel({ files }: { files: readonly ReportFile[] }) {
                   {!file.available && file.kind === 'pdf' ? (
                     <span className="muted small block">{pl.report.downloads.pdfUnavailable}</span>
                   ) : null}
+                  {file.pdf ? <PdfStatus pdf={file.pdf} /> : null}
                 </td>
                 <td>{file.bytes === undefined ? pl.common.dash : formatBytes(file.bytes)}</td>
                 <td className="break">{file.sha256 ? <AddressText value={file.sha256} /> : pl.common.dash}</td>

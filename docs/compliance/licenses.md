@@ -43,6 +43,20 @@ pakietów. SBOM obrazów kontenerów nie jest generowany (obrazy sprawdza kontro
 licencje „source-available” (np. Blockscout ≥ v11) oraz licencje wykluczające sektor publiczny (np. QuestPDF Community).
 **GPL/AGPL:** wyłącznie jako osobne, niemodyfikowane usługi lub kontenery.
 
+**Renderowanie i podpis raportu PDF.** Raport PDF/A-3b renderuje Gotenberg 9 (MIT, osobny kontener z silnikiem Chromium)
+i podpisuje pyHanko 0.38.2 (MIT; zależności: `pyhanko-certvalidator`, `asn1crypto`, `oscrypto`, `uritools`, `tzlocal` –
+MIT, `cryptography` – Apache-2.0 OR BSD-3-Clause) w usłudze `services/osint-py`. Świadomie **nie** użyto:
+
+- **QuestPDF** (biblioteka .NET) – licencja Community (v3.0 z 2026-07-06) wyklucza podmioty sektora publicznego i nie jest
+  zatwierdzona przez OSI, więc nie może być używana przez administrację skarbową;
+- **PdfSharp od wersji 6.5.0** (.NET) – licencja zmieniła się z MIT na AGPL-3.0-only (silny copyleft w bibliotece);
+- **Puppeteer/Playwright `page.pdf()`** – nie potrafią wytworzyć PDF/A, a ich użycie wymagałoby własnej przeglądarki w
+  procesie aplikacji; Gotenberg działa jako izolowana usługa bez dostępu do sieci.
+
+Zapasowym silnikiem renderującym pozostaje WeasyPrint (BSD-3-Clause) z zablokowanym pobieraniem zasobów (`url_fetcher`).
+Certyfikat użyty do podpisu jest samopodpisanym certyfikatem **demonstracyjnym, niekwalifikowanym**; klucz powstaje
+lokalnie przy pierwszym użyciu i nigdy nie trafia do repozytorium.
+
 <!-- prettier-ignore-start -->
 <!-- generated:licenses:start -->
 
@@ -50,21 +64,22 @@ Poniższe tabele są generowane z `pnpm-lock.yaml`, `services/osint-py/pyproject
 
 ### Status bramki licencyjnej
 
-- Sprawdzone komponenty: 428 (npm: 371, Python: 48, obrazy: 9).
+- Sprawdzone komponenty: 438 (npm: 374, Python: 55, obrazy: 9).
 - Wynik: wszystkie komponenty zgodne z polityką licencyjną (`config/licenses.json`).
 - Wyjątki licencyjne (`config/compliance/license-exceptions.yaml`): 0.
 - SBOM (CycloneDX 1.6) powstają na żądanie poleceniem `pnpm compliance:sbom` (katalog `data/sbom/`, poza repozytorium); opisują je pliki `olcys-npm.cdx.json` i `olcys-osint-py.cdx.json`.
 
 ### Zależności bezpośrednie npm
 
-Wszystkie zależności bezpośrednie wszystkich pakietów monorepo (33 pakietów); „(dev)” oznacza zależność deweloperską.
+Wszystkie zależności bezpośrednie wszystkich pakietów monorepo (34 pakietów); „(dev)” oznacza zależność deweloperską.
 
 | Komponent | Wersja | Licencja (SPDX) | Zastosowanie | Gdzie |
 | --- | --- | --- | --- | --- |
 | @noble/curves | 2.4.0 | MIT | podpisy secp256k1 i weryfikacja BIP-137; generator danych syntetycznych | apps/fixture-site (dev), packages/scoring |
-| @noble/hashes | 2.4.0 | MIT | SHA-256, RIPEMD-160 i Keccak-256 (sumy kontrolne adresów, BIP-137, skrót wag); generator danych | apps/fixture-site (dev), packages/address-extractor, packages/collectors, packages/labels (dev), packages/scoring |
+| @noble/hashes | 2.4.0 | MIT | SHA-256, RIPEMD-160 i Keccak-256 (sumy kontrolne adresów, BIP-137, skrót wag); generator danych | apps/fixture-site (dev), packages/address-extractor, packages/labels (dev), packages/scoring |
+| @playwright/test | 1.65.1 | Apache-2.0 | testy akceptacyjne E2E i nagranie filmu demonstracyjnego (lokalny Chromium, bez pobierania przeglądarek) | root (dev) |
 | @safe-global/safe-deployments | 1.37.67 | MIT | adresy singletonów Safe (klasyfikacja typu adresu) | packages/labels |
-| @scure/base | 2.4.0 | MIT | bech32/bech32m, base58check i base64 (adresy, BIP-137); generator danych | apps/fixture-site (dev), packages/address-extractor, packages/collectors, packages/labels, packages/scoring |
+| @scure/base | 2.4.0 | MIT | bech32/bech32m, base58check i base64 (adresy, BIP-137); generator danych | apps/fixture-site (dev), packages/address-extractor, packages/labels, packages/scoring |
 | @scure/bip39 | 2.4.0 | MIT | listy słów BIP-39 do wykrywania i maskowania fraz seed | packages/address-extractor |
 | @types/big.js | 7.0.0 | MIT | typy biblioteki big.js | packages/core (dev) |
 | @types/node | 26.6.6 | MIT | typy Node.js | root (dev) |
@@ -110,6 +125,7 @@ Zależności bezpośrednie i przechodnie z `uv.lock`; licencje pochodzą z zatwi
 | annotated-doc | 0.0.7 | MIT | zależność przechodnia | services/osint-py (uv.lock) |
 | annotated-types | 0.8.0 | MIT | zależność przechodnia | services/osint-py (uv.lock) |
 | anyio | 4.16.0 | MIT | zależność przechodnia | services/osint-py (uv.lock) |
+| asn1crypto | 1.5.1 | MIT | zależność przechodnia | services/osint-py (uv.lock) |
 | attrs | 26.1.0 | MIT | zależność przechodnia | services/osint-py (uv.lock) |
 | beautifulsoup4 | 4.15.0 | MIT | zależność przechodnia | services/osint-py (uv.lock) |
 | certifi | 2026.11.20 | MPL-2.0 | zależność przechodnia | services/osint-py (uv.lock) |
@@ -117,6 +133,7 @@ Zależności bezpośrednie i przechodnie z `uv.lock`; licencje pochodzą z zatwi
 | charset-normalizer | 3.5.2 | MIT | zależność przechodnia | services/osint-py (uv.lock) |
 | click | 8.5.1 | BSD-3-Clause | zależność przechodnia | services/osint-py (uv.lock) |
 | colorama | 0.4.6 | BSD-3-Clause | zależność przechodnia | services/osint-py (uv.lock) |
+| cryptography | 50.0.2 | Apache-2.0 OR BSD-3-Clause | zależność przechodnia | services/osint-py (uv.lock) |
 | fastapi | 0.165.0 | MIT | API serwisu osint-py | services/osint-py |
 | frozenlist | 1.8.0 | Apache-2.0 | zależność przechodnia | services/osint-py (uv.lock) |
 | graphemeu | 0.7.2 | MIT | zależność przechodnia | services/osint-py (uv.lock) |
@@ -129,12 +146,15 @@ Zależności bezpośrednie i przechodnie z `uv.lock`; licencje pochodzą z zatwi
 | markupsafe | 3.0.4 | BSD-3-Clause | zależność przechodnia | services/osint-py (uv.lock) |
 | multidict | 7.2.1 | Apache-2.0 | zależność przechodnia | services/osint-py (uv.lock) |
 | opentelemetry-api | 1.45.2 | Apache-2.0 | zależność przechodnia | services/osint-py (uv.lock) |
+| oscrypto | 1.3.0 | MIT | zależność przechodnia | services/osint-py (uv.lock) |
 | platformdirs | 4.14.8 | MIT | zależność przechodnia | services/osint-py (uv.lock) |
 | propcache | 0.5.4 | Apache-2.0 | zależność przechodnia | services/osint-py (uv.lock) |
 | pycares | 5.2.1 | MIT | zależność przechodnia | services/osint-py (uv.lock) |
 | pycparser | 3.12 | BSD-3-Clause | zależność przechodnia | services/osint-py (uv.lock) |
 | pydantic | 2.14.4 | MIT | modele i schematy żądań oraz odpowiedzi API | services/osint-py |
 | pydantic-core | 2.50.5 | MIT | zależność przechodnia | services/osint-py (uv.lock) |
+| pyhanko | 0.38.2 | MIT | podpis PDF w formacie PAdES (podpis przerwany: przygotowanie, znacznik czasu z Node, dokończenie); usługa nie łączy się z siecią | services/osint-py |
+| pyhanko-certvalidator | 0.33.0 | MIT | zależność przechodnia | services/osint-py (uv.lock) |
 | python-dateutil | 3.0.0 | Apache-2.0 OR BSD-3-Clause | zależność przechodnia | services/osint-py (uv.lock) |
 | requests | 2.34.2 | Apache-2.0 | zależność przechodnia | services/osint-py (uv.lock) |
 | six | 1.17.0 | MIT | zależność przechodnia | services/osint-py (uv.lock) |
@@ -144,6 +164,8 @@ Zależności bezpośrednie i przechodnie z `uv.lock`; licencje pochodzą z zatwi
 | typing-extensions | 4.16.0 | PSF-2.0 | zależność przechodnia | services/osint-py (uv.lock) |
 | typing-inspection | 0.4.5 | MIT | zależność przechodnia | services/osint-py (uv.lock) |
 | tzdata | 2026.6 | Apache-2.0 | zależność przechodnia | services/osint-py (uv.lock) |
+| tzlocal | 5.4.5 | MIT | zależność przechodnia | services/osint-py (uv.lock) |
+| uritools | 7.0.1 | MIT | zależność przechodnia | services/osint-py (uv.lock) |
 | urllib3 | 2.8.0 | MIT | zależność przechodnia | services/osint-py (uv.lock) |
 | uvicorn | 0.54.0 | BSD-3-Clause | serwer ASGI serwisu osint-py | services/osint-py |
 | webencodings | 0.6.1 | BSD-3-Clause | zależność przechodnia | services/osint-py (uv.lock) |
@@ -168,13 +190,13 @@ Każdy `image:` z `compose.yml` i każde `FROM` z Dockerfile musi mieć wpis w `
 
 ### Zależności przechodnie npm (podsumowanie)
 
-338 pakietów przechodnich; pełna lista z wersjami, skrótami i licencjami jest w SBOM npm (`pnpm compliance:sbom`).
+340 pakietów przechodnich; pełna lista z wersjami, skrótami i licencjami jest w SBOM npm (`pnpm compliance:sbom`).
 
 | Licencja (SPDX) | Runtime | Tylko dev | Razem |
 | --- | --- | --- | --- |
 | MIT | 58 | 139 | 197 |
 | ISC | 6 | 55 | 61 |
-| Apache-2.0 | 1 | 31 | 32 |
+| Apache-2.0 | 1 | 33 | 34 |
 | BSD-2-Clause | 12 | 2 | 14 |
 | BlueOak-1.0.0 | 0 | 12 | 12 |
 | MPL-2.0 | 0 | 12 | 12 |

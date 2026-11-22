@@ -3,6 +3,8 @@ import { readPartialReasons, renderPartialReason } from '@olcys/core';
 import { formatLongDate, formatPln, formatUtc, plural } from '../format.ts';
 import { join, markup, t, type SafeHtml } from '../html.ts';
 import { pl } from '../i18n/pl.ts';
+import { inferencesFromDrafts } from '../drafts.ts';
+import { citedHref } from './refs.ts';
 import { cmp, icdTerm, linkBand, lowestConfidence, type View } from '../view.ts';
 import { isWalletSwap, changeWhere } from './annex.ts';
 import { addr, bandBadge, block, chainName, hash, kv, list, para, section, table } from './blocks.ts';
@@ -30,6 +32,36 @@ function aiRoleInferences(view: View): SafeHtml[] {
         model: s.model,
         prompt: s.promptVersion,
       }),
+    ];
+  });
+}
+
+/**
+ * Drafts of the model that an analyst confirmed (the only ones that reach the report): labelled as AI-assisted, with
+ * the analyst and the decision time, the facts and results they rely on, alternatives and verification steps.
+ */
+function aiDraftInferences(view: View): SafeHtml[] {
+  const a = pl.summary.aiDraft;
+  return inferencesFromDrafts(view.data.inferenceDrafts ?? []).flatMap((inference) => {
+    const ai = inference.ai;
+    if (!ai) return [];
+    const refs = inference.basedOn.map((id) => {
+      const href = citedHref(view, id);
+      return href
+        ? markup`<a class="ref" href="${href}"><code class="addr">${id}</code></a>`
+        : markup`<code class="addr">${id}</code>`;
+    });
+    return [
+      markup`<span class="ai-draft"><strong>${t(ai.review === 'edited' ? a.edited : a.confirmed, {
+        analyst: ai.analyst,
+        date: formatLongDate(ai.decidedAt),
+      })}</strong> ${inference.statement}</span>${
+        refs.length ? para(markup`${a.basedOn}: ${join(refs, ', ')}`, 'muted') : ''
+      }${inference.alternatives.length ? markup`<div>${a.alternatives}:${list(inference.alternatives)}</div>` : ''}${
+        inference.verificationSteps?.length
+          ? markup`<div>${a.verification}:${list(inference.verificationSteps)}</div>`
+          : ''
+      }${para(t(a.model, { model: ai.model, prompt: ai.promptVersion }), 'muted')}`,
     ];
   });
 }
@@ -236,6 +268,7 @@ export function summarySection(view: View): SafeHtml {
       }),
     ),
     ...aiRoleInferences(view),
+    ...aiDraftInferences(view),
   ];
 
   return section(

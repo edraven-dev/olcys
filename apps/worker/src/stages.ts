@@ -90,6 +90,7 @@ import {
 } from '@olcys/evidence';
 import { createEgressClient, RobotsCache } from '@olcys/http';
 import { createReportStage, parseTlp } from '@olcys/reporting';
+import { reportPdfOptions } from './report-pdf.ts';
 import { loadWeights, scoreRun } from '@olcys/scoring';
 import { classifyFetched } from './address-types.ts';
 import { withAnalystOverrides } from './analyst.ts';
@@ -981,6 +982,12 @@ export function defaultStages(options: StageOptions): Stage[] {
     createReportStage({
       sources: options.sources,
       weightsStatus: 'uncalibrated',
+      pdf: reportPdfOptions({
+        mode: options.mode,
+        env,
+        sources: options.sources,
+        ...(options.timestamper ? { timestamper: options.timestamper } : {}),
+      }),
       exports: {
         ...(producerName ? { producerName } : {}),
         tlp: parseTlp(env['OLCYS_EXPORT_TLP']),

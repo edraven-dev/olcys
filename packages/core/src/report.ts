@@ -88,4 +88,20 @@ export interface ReportInference {
   alternatives: string[];
   origin: 'analyst' | 'ai_suggestion' | 'rule';
   requiresVerification: true;
+  /** Steps that would confirm or refute the hypothesis (AI-assisted drafts; rule inferences have none). */
+  verificationSteps?: string[];
+  /** Set on an inference drafted by the model and confirmed by an analyst (never on a pending or rejected draft). */
+  ai?: ReportInferenceAi;
+}
+
+/** Provenance of an AI-assisted inference: what the model produced and which analyst approved it, and when. */
+export interface ReportInferenceAi {
+  /** `confirmed` as drafted, or `edited`: the analyst changed the text (the statement is the analyst's text). */
+  review: 'confirmed' | 'edited';
+  analyst: string;
+  decidedAt: IsoDateTime;
+  model: string;
+  promptVersion: string;
+  /** The draft as the model wrote it, kept when the analyst edited it. */
+  draftStatement?: string;
 }

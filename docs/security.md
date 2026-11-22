@@ -32,8 +32,11 @@ stylów, dlatego jego polityka dopuszcza je wyłącznie po skrócie SHA-256 (`st
 `'unsafe-inline'` i bez żadnych skryptów.
 
 Zbudowana aplikacja webowa (`pnpm --filter @olcys/web build`, a następnie `preview`) wysyła ścisłą politykę
-`default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self';
-frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'` oraz pozostałe nagłówki z tabeli.
+`default-src 'self'; script-src 'self'; style-src 'self'; style-src-elem 'self' 'sha256-pgvDUBa4IjFA2yuSJ2cqcyxmNYJMborsd0ORcRv9vw8='; img-src 'self' data: blob:;
+font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'` oraz pozostałe nagłówki z tabeli.
+Jedyne poluzowanie dotyczy wyłącznie CSS: biblioteka grafu (Cytoscape) wstrzykuje jeden stały element `<style>`, który
+jest dopuszczony wyłącznie po skrócie SHA-256 (`style-src-elem`); bez `'unsafe-inline'`, a `script-src 'self'` bez zmian —
+skrypty wbudowane nadal są zablokowane.
 Serwer deweloperski Vite nie może jej zastosować (React Refresh wstrzykuje skrypt, HMR otwiera gniazdo), dlatego
 dostaje tylko pozostałe nagłówki. Ustawienia: `apps/web/vite.settings.ts`.
 
@@ -65,6 +68,20 @@ i z jakim wynikiem. Jest dopisywana w tle, bez żadnego monitu przed wyświetlen
 - Log żądań API maskuje nagłówki `authorization`, `cookie` i `set-cookie` oraz pola `password`, `token`, `apiKey`;
   rejestruje samą ścieżkę (bez ciągu zapytania, który może zawierać identyfikatory) i nie zapisuje nagłówków żądania.
   Klucze prywatne i frazy odzyskiwania nie są przechowywane ani logowane (ekstraktor adresów usuwa je z pamięci).
+
+## Podpis raportu i renderowanie PDF
+
+- **Gotenberg** (renderowanie PDF/A) jest utwardzony w `compose.yml`: Chromium może czytać tylko pliki przesłane w żądaniu
+  (zakotwiczona lista dozwolonych `^file:///tmp/.*`), adresy publiczne i prywatne są odrzucane, JavaScript jest wyłączony,
+  pobieranie z adresu i webhooki są wyłączone, a usługa nie ma dostępu do żadnego serwera znaczników czasu (`PDF_DENY_*`).
+  Nie ustawiamy `CHROMIUM_PROXY_SERVER` (wyłączyłoby ochronę przed przepięciem DNS). Dostęp do usługi: tylko przez klienta
+  ruchu wychodzącego, jako źródło lokalne `gotenberg` (`internal_service`), z `containsIdentifier: true`.
+- **Podpis** (pyHanko w `services/osint-py`, źródło `pdf_signing`) używa lokalnego klucza **demonstracyjnego**: certyfikat
+  jest samopodpisany i **niekwalifikowany** — nie daje domniemań prawnych podpisu kwalifikowanego (eIDAS), a raport i konsola
+  mówią o tym wprost. Klucz prywatny powstaje na maszynie przy pierwszym użyciu w wolumenie kontenera, nie trafia do
+  repozytorium, obrazu, dziennika ani odpowiedzi API (`GET /v1/pdf/signer` zwraca wyłącznie certyfikaty). Zastosowanie
+  produkcyjne wymaga certyfikatu kwalifikowanego na module HSM (PKCS#11).
+- Poza system wychodzi wyłącznie skrót SHA-256 podpisu (znacznik czasu RFC 3161, jak dla zabezpieczeń dowodowych).
 
 ## Telemetria wyłączona
 

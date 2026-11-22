@@ -39,3 +39,7 @@ pnpm-debug.log*
 
 # --- Local agent settings ---
 .claude/settings.local.json
+e2e/.state/
+e2e/.results/
+playwright-report/
+e2e/.video/
