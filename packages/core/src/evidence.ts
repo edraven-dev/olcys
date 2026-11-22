@@ -1,5 +1,5 @@
 import type { Id, IsoDateTime, Sha256Hex } from './common.ts';
-import type { BlobRef } from './provenance.ts';
+import type { BlobRef, FetchMode } from './provenance.ts';
 import type { SourceId } from './sources.ts';
 
 export const CAPTURE_STATUSES = ['ok', 'not_found', 'blocked', 'login_wall', 'captcha', 'error'] as const;
@@ -9,7 +9,11 @@ export const CAPTURE_STATUSES = ['ok', 'not_found', 'blocked', 'login_wall', 'ca
  */
 export type CaptureStatus = (typeof CAPTURE_STATUSES)[number];
 
-export const ARTIFACT_KINDS = ['html', 'text', 'screenshot', 'json', 'headers', 'warc'] as const;
+/**
+ * `html` is the response body exactly as received; `rendered_html` is the DOM serialised by a browser after load and
+ * `screenshot` a full-page image (both produced only by a browser capture, which this deployment does not enable).
+ */
+export const ARTIFACT_KINDS = ['html', 'rendered_html', 'text', 'screenshot', 'json', 'headers', 'warc'] as const;
 export type ArtifactKind = (typeof ARTIFACT_KINDS)[number];
 
 export interface CaptureArtifact {
@@ -118,4 +122,133 @@ export interface Observation {
   /** Stable position of the fact within the source, e.g. `bitcointalk:u=557798#profile.bitcoin_address`. */
   locator: string;
   observedAt: IsoDateTime;
+}
+
+// --- Berkeley Protocol capture records ---------------------------------------------------------------------------
+
+export const CAPTURE_PROFILES = ['web_page', 'api_response', 'archive_snapshot'] as const;
+/** What kind of resource a capture preserves; decides which artifacts are required (completeness). */
+export type CaptureProfile = (typeof CAPTURE_PROFILES)[number];
+
+export const CLOCK_SYNC_METHODS = ['chrony', 'timedatectl', 'timesyncd_marker', 'injected', 'unknown'] as const;
+export type ClockSyncMethod = (typeof CLOCK_SYNC_METHODS)[number];
+
+/** Whether the collecting machine's clock was disciplined by NTP, from local OS state only (never from the network). */
+export interface ClockSyncStatus {
+  synced: boolean;
+  method: ClockSyncMethod;
+  source?: string;
+  /** System-time offset in milliseconds when the method reports it. */
+  offsetMs?: number;
+  checkedAt: IsoDateTime;
+}
+
+export const CAPTURE_MANIFEST_SCHEMA_ID = 'olcys.capture-manifest/1' as const;
+
+/**
+ * The capture manifest (Berkeley Protocol ¶155 and Annex IV collection form): canonical JSON stored as a blob, whose
+ * SHA-256 is `Capture.manifestSha256`. Contains the analyst name and machine IP: never log it.
+ */
+export interface CaptureManifest {
+  schema: typeof CAPTURE_MANIFEST_SCHEMA_ID;
+  captureId: Id;
+  caseId: Id;
+  runId: Id;
+  sourceId: SourceId;
+  profile: CaptureProfile;
+  mode: FetchMode;
+  userAgent: string;
+  fetchIds: Id[];
+  collector: {
+    name: string;
+    host: string;
+    ip?: string;
+    ipSource: 'configured' | 'local_interface' | 'unknown';
+    /** Always null: no virtual identity (sock-puppet account) is ever used. */
+    virtualIdentity: null;
+  };
+  time: {
+    startedAt: IsoDateTime;
+    collectedAt: IsoDateTime;
+    endedAt: IsoDateTime;
+    hashedAt: IsoDateTime;
+    clock: ClockSyncStatus;
+  };
+  target: {
+    url: string;
+    finalUrl: string;
+    httpStatus: number;
+    status: CaptureStatus;
+    serverIp?: string;
+    responseHeaders: Record<string, string>;
+  };
+  tools: { name: string; version: string }[];
+  artifacts: { kind: ArtifactKind; sha256: Sha256Hex; bytes: number; mediaType: string; description: string }[];
+  completeness: { required: ArtifactKind[]; missing: ArtifactKind[] };
+  /** Berkeley Protocol ¶154: conversions made by the collection process. */
+  transformations: string[];
+  discovery?: {
+    method: AccountDiscoveryMethod;
+    fromAccountId?: Id;
+    searchProvider?: string;
+    query?: string;
+    rank?: number;
+  };
+  archive?: {
+    provider: 'wayback';
+    snapshotTimestamp: string;
+    originalUrl: string;
+    replayUrl?: string;
+    cdxDigest?: string;
+  };
+  technical?: Omit<CaptureTechnicalReport, 'software' | 'transformations'>;
+}
+
+/** An artifact handed to the recorder: raw bytes, or a blob the egress client already stored (re-hashed on record). */
+export type CaptureDraftArtifact = { kind: ArtifactKind; description: string } & (
+  | { bytes: Uint8Array; mediaType: string }
+  | { blob: BlobRef }
+);
+
+/** What a collector knows about a capture; the recorder adds identity, clock, tool version, ids and the manifest. */
+export interface CaptureDraft extends Pick<
+  CaptureManifest,
+  'sourceId' | 'profile' | 'userAgent' | 'fetchIds' | 'discovery' | 'archive'
+> {
+  url: string;
+  finalUrl: string;
+  startedAt: IsoDateTime;
+  collectedAt: IsoDateTime;
+  endedAt: IsoDateTime;
+  httpStatus: number;
+  status: CaptureStatus;
+  serverIp?: string;
+  responseHeaders?: Record<string, string>;
+  artifacts: CaptureDraftArtifact[];
+  transformations: string[];
+  tools?: { name: string; version: string }[];
+  technical?: CaptureTechnicalReport;
+}
+
+export const CUSTODY_ACTIONS = [
+  'collected',
+  'timestamped',
+  'timestamp_failed',
+  'verified',
+  'verification_failed',
+  'included_in_report',
+  'exported',
+  'viewed',
+] as const;
+export type CustodyAction = (typeof CUSTODY_ACTIONS)[number];
+
+/** One append-only chain-of-custody entry about a capture or report. */
+export interface CustodyEvent {
+  id: Id;
+  at: IsoDateTime;
+  actor: string;
+  action: CustodyAction;
+  runId?: Id;
+  subject: { type: 'capture' | 'report' | 'report_artifact'; id: Id };
+  detail: Record<string, string | number | boolean>;
 }

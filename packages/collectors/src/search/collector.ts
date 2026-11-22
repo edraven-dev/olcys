@@ -16,8 +16,8 @@ import type {
   SourceCollector,
   SourceDescriptor,
 } from '@olcys/core';
-import { canonicalJson, newId, nowIso } from '@olcys/core';
-import { captureManifestSha256, sha256Hex } from '../framework/capture.ts';
+import { canonicalJson, nowIso } from '@olcys/core';
+import { sha256Hex } from '../framework/capture.ts';
 import type { CollectorFactory } from '../framework/collector-registry.ts';
 import { COLLECTORS_VERSION } from '../framework/config.ts';
 import { createSourceHttp, type CollectorDeps } from '../framework/http.ts';
@@ -134,29 +134,33 @@ export function createSearchCollector(options: SearchCollectorOptions): SourceCo
       });
       const blob = await ctx.blobs.put(new TextEncoder().encode(artifact), 'application/json');
       const p = run.provenance;
-      const draft: Omit<Capture, 'manifestSha256'> = {
-        id: newId(),
-        runId: ctx.runId,
-        sourceId: descriptor.id,
-        url: p.url,
-        finalUrl: p.finalUrl ?? p.url,
-        collectedAt: run.retrievedAt,
-        collector: deps.config.collectorName,
-        ...(deps.config.collectorHost ? { collectorHost: deps.config.collectorHost } : {}),
-        clockSynced: deps.config.clockSynced,
-        toolVersion: p.toolVersion,
-        userAgent: p.userAgent,
-        httpStatus: p.httpStatus,
-        status: CAPTURE_STATUS[run.status],
-        artifacts: [{ kind: 'json', blob }],
-        fetchIds: run.fetchIds,
-        technical: {
-          method: 'http',
+      if (!ctx.evidence) throw new Error('RunContext.evidence (the capture recorder) is not configured');
+      const capture: Capture = await ctx.evidence.record(
+        {
+          sourceId: descriptor.id,
+          profile: 'api_response',
+          userAgent: p.userAgent,
+          fetchIds: run.fetchIds,
+          url: p.url,
+          finalUrl: p.finalUrl ?? p.url,
           startedAt,
-          redirects: [],
-          software: [
-            { name: '@olcys/collectors', version: COLLECTORS_VERSION },
-            { name: `${SEARCH_SOFTWARE_PREFIX}${provider.id}`, version: SEARCH_COLLECTOR_VERSION },
+          collectedAt: run.retrievedAt,
+          endedAt: nowIso(ctx.clock) > run.retrievedAt ? nowIso(ctx.clock) : run.retrievedAt,
+          httpStatus: p.httpStatus,
+          status: CAPTURE_STATUS[run.status],
+          responseHeaders: p.responseHeaders,
+          artifacts: [
+            {
+              kind: 'json',
+              blob,
+              description: 'search result list (canonical JSON; provider responses are hashed, not stored)',
+            },
+            {
+              kind: 'headers',
+              bytes: new TextEncoder().encode(canonicalJson({ status: p.httpStatus, headers: p.responseHeaders })),
+              mediaType: 'application/json',
+              description: 'HTTP status and kept response headers (canonical JSON)',
+            },
           ],
           transformations: [
             'provider responses hashed, not stored (scraped snippets may hold secrets)',
@@ -164,10 +168,20 @@ export function createSearchCollector(options: SearchCollectorOptions): SourceCo
               ? 'result list as canonical JSON: rank, URL, title and snippet (secrets redacted)'
               : 'result list as canonical JSON with rank and URL only (provider terms)',
           ],
-          notes,
+          technical: {
+            method: 'http',
+            startedAt,
+            redirects: [],
+            software: [
+              { name: '@olcys/collectors', version: COLLECTORS_VERSION },
+              { name: `${SEARCH_SOFTWARE_PREFIX}${provider.id}`, version: SEARCH_COLLECTOR_VERSION },
+            ],
+            transformations: [],
+            notes,
+          },
         },
-      };
-      const capture: Capture = { ...draft, manifestSha256: captureManifestSha256(draft) };
+        ctx,
+      );
       rb.addPage({ status: capture.status, capture, notes });
       if (run.status !== 'error' && run.status !== 'blocked') {
         const key = searchSubjectKey(provider.id, query.text);

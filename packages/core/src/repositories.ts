@@ -9,7 +9,7 @@ import type { ChangeEvent } from './changes.ts';
 import type { NormalizedTransfer } from './chain-data.ts';
 import type { AddressRef } from './chains.ts';
 import type { Id, IsoDateTime } from './common.ts';
-import type { Capture, Observation, OnlineAccount } from './evidence.ts';
+import type { Capture, CustodyEvent, Observation, OnlineAccount } from './evidence.ts';
 import type { AddressCandidate, ExtractionResult } from './extraction.ts';
 import type { AddressLabel, ExclusionDecision } from './labels.ts';
 import type { EgressLogEntry, ProvenanceEnvelope } from './provenance.ts';
@@ -122,7 +122,11 @@ export interface ScheduleRepository {
 export interface EvidenceRepository {
   addEgressLog(entries: EgressLogEntry[]): Promise<void>;
   addRawFetches(envelopes: ProvenanceEnvelope[]): Promise<void>;
-  addCaptures(captures: Capture[]): Promise<void>;
+  /**
+   * Stores captures and, when given, their custody events in ONE transaction (both or neither), so a capture never
+   * exists without its `collected` event. Needs a store that keeps custody events (`Repositories.custody`).
+   */
+  addCaptures(captures: Capture[], custodyEvents?: CustodyEvent[]): Promise<void>;
   addAccounts(accounts: OnlineAccount[]): Promise<void>;
   addObservations(observations: Observation[]): Promise<void>;
   /** Stores the result, its candidates and secret positions (never secret values). */
@@ -188,6 +192,15 @@ export interface OverrideRepository {
   listByCase(caseId: Id): Promise<AnalystOverride[]>;
 }
 
+/**
+ * Chain-of-custody events (append-only: added and read, never updated or deleted). Lists are ordered oldest first by
+ * (`at`, `id`).
+ */
+export interface CustodyRepository {
+  add(events: CustodyEvent[]): Promise<void>;
+  listBySubjects(subjectIds: Id[]): Promise<CustodyEvent[]>;
+}
+
 export interface Repositories {
   cases: CaseRepository;
   runs: RunRepository;
@@ -201,4 +214,6 @@ export interface Repositories {
   judgements?: JudgementRepository;
   /** Present when the store keeps analyst overrides. */
   overrides?: OverrideRepository;
+  /** Present when the store keeps chain-of-custody events. */
+  custody?: CustodyRepository;
 }

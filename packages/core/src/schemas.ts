@@ -4,6 +4,16 @@
 import { z } from 'zod';
 import { IDENTIFIER_KINDS } from './case.ts';
 import { CHAIN_FAMILIES, type ChainId } from './chains.ts';
+import {
+  ACCOUNT_DISCOVERY_METHODS,
+  ARTIFACT_KINDS,
+  CAPTURE_MANIFEST_SCHEMA_ID,
+  CAPTURE_PROFILES,
+  CAPTURE_STATUSES,
+  CLOCK_SYNC_METHODS,
+  type CaptureManifest,
+} from './evidence.ts';
+import { FETCH_MODES } from './provenance.ts';
 import { DENY_LIST_KINDS } from './labels.ts';
 import { ANALYST_OVERRIDE_KINDS, EVIDENCE_TIERS, JUDGEMENT_VALUES } from './scoring.ts';
 import { ADMIRALTY_RELIABILITY, COMPLIANCE_STATUSES, SOURCE_KINDS } from './sources.ts';
@@ -227,3 +237,83 @@ export const DenyListSchema = z.strictObject({
   entries: z.array(DenyListEntrySchema),
 });
 export type DenyListConfig = z.infer<typeof DenyListSchema>;
+
+// --- capture manifest ----------------------------------------------------------------------------------------------
+
+const IsoUtc = z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/, 'expected an ISO 8601 UTC time');
+const Sha256 = z.string().regex(/^[0-9a-f]{64}$/, 'expected a lower-case SHA-256 hex digest');
+const ArtifactKindSchema = z.enum(ARTIFACT_KINDS);
+const NameVersion = z.strictObject({ name: z.string().min(1), version: z.string() });
+
+/** Validates a stored capture manifest (`olcys.capture-manifest/1`). */
+export const CaptureManifestSchema = z.strictObject({
+  schema: z.literal(CAPTURE_MANIFEST_SCHEMA_ID),
+  // UUIDs only: the capture id becomes a path segment of collection packages.
+  captureId: z.uuid(),
+  caseId: z.uuid(),
+  runId: z.uuid(),
+  sourceId: z.string().min(1),
+  profile: z.enum(CAPTURE_PROFILES),
+  mode: z.enum(FETCH_MODES),
+  userAgent: z.string(),
+  fetchIds: z.array(z.uuid()),
+  collector: z.strictObject({
+    name: z.string().min(1),
+    host: z.string(),
+    ip: z.string().optional(),
+    ipSource: z.enum(['configured', 'local_interface', 'unknown']),
+    virtualIdentity: z.null(),
+  }),
+  time: z.strictObject({
+    startedAt: IsoUtc,
+    collectedAt: IsoUtc,
+    endedAt: IsoUtc,
+    hashedAt: IsoUtc,
+    clock: z.strictObject({
+      synced: z.boolean(),
+      method: z.enum(CLOCK_SYNC_METHODS),
+      source: z.string().optional(),
+      offsetMs: z.number().optional(),
+      checkedAt: IsoUtc,
+    }),
+  }),
+  target: z.strictObject({
+    url: z.string(),
+    finalUrl: z.string(),
+    httpStatus: z.number().int(),
+    status: z.enum(CAPTURE_STATUSES),
+    serverIp: z.string().optional(),
+    responseHeaders: z.record(z.string(), z.string()),
+  }),
+  tools: z.array(NameVersion),
+  artifacts: z.array(
+    z.strictObject({
+      kind: ArtifactKindSchema,
+      sha256: Sha256,
+      bytes: z.number().int().nonnegative(),
+      mediaType: z.string(),
+      description: z.string(),
+    }),
+  ),
+  completeness: z.strictObject({ required: z.array(ArtifactKindSchema), missing: z.array(ArtifactKindSchema) }),
+  transformations: z.array(z.string()),
+  discovery: z
+    .strictObject({
+      method: z.enum(ACCOUNT_DISCOVERY_METHODS),
+      fromAccountId: z.string().optional(),
+      searchProvider: z.string().optional(),
+      query: z.string().optional(),
+      rank: z.number().optional(),
+    })
+    .optional(),
+  archive: z
+    .strictObject({
+      provider: z.literal('wayback'),
+      snapshotTimestamp: z.string(),
+      originalUrl: z.string(),
+      replayUrl: z.string().optional(),
+      cdxDigest: z.string().optional(),
+    })
+    .optional(),
+  technical: z.looseObject({}).optional(),
+}) as unknown as z.ZodType<CaptureManifest>;

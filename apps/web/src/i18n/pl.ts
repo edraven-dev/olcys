@@ -731,6 +731,7 @@ export const pl = {
   } satisfies Record<CaptureStatus, string>,
   artifactKinds: {
     html: 'HTML',
+    rendered_html: 'HTML po wyrenderowaniu',
     text: 'tekst',
     screenshot: 'zrzut ekranu',
     json: 'JSON',

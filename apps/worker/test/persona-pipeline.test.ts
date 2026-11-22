@@ -7,7 +7,7 @@ import { readFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import type { Logger } from '@olcys/core';
 import { createMemoryRepositories } from '@olcys/db';
-import { InMemoryBlobStore } from '@olcys/evidence';
+import { InMemoryBlobStore, verifyCapture } from '@olcys/evidence';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createFixtureServer, type FixtureServer } from '../../fixture-site/src/fixture-server.ts';
 import { createRuntime, defaultStages, type Runtime } from '../src/index.ts';
@@ -144,6 +144,18 @@ describe('demo scenario on the synthetic persona', () => {
       // The exchange label that rejected the deposit address is shown with it.
       expect(html).toContain('Giełda Testowa (SYNTHETIC)');
 
+      // Every capture has its manifest blob (verifiable down to the artifacts) and exactly one `collected` custody event.
+      const captures = await runtime.repos.evidence.listCaptures(first.id);
+      expect(captures.length).toBeGreaterThan(0);
+      const custody = await runtime.repos.custody!.listBySubjects(captures.map((c) => c.id));
+      for (const capture of captures) {
+        // oxlint-disable-next-line no-await-in-loop
+        const verification = await verifyCapture(capture.manifestSha256, runtime.blobs);
+        expect([capture.url, verification.ok]).toEqual([capture.url, true]);
+        expect(custody.filter((e) => e.subject.id === capture.id).map((e) => e.action)).toEqual(['collected']);
+      }
+      expect(custody).toHaveLength(captures.length);
+
       // Nothing secret or third-party-only becomes an ownership link with a positive score.
       expect(score('TRON-2').every((s) => s === 0)).toBe(true);
       const egress = await runtime.repos.evidence.listEgressLog(first.id);
@@ -162,7 +174,6 @@ describe('demo scenario on the synthetic persona', () => {
       // by their own collectors, and its result lists are never read for addresses (no second copy of a mention).
       expect(contacted).toContain('mock_search');
       expect(egress.filter((e) => e.sourceId === 'mock_search').every((e) => !e.containsIdentifier)).toBe(true);
-      const captures = await runtime.repos.evidence.listCaptures(first.id);
       const searchCaptures = new Set(captures.filter((c) => c.sourceId === 'mock_search').map((c) => c.id));
       expect(searchCaptures.size).toBe(3);
       expect(extracted.filter((r) => searchCaptures.has(r.captureId))).toEqual([]);

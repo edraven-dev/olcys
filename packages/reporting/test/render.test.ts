@@ -224,6 +224,19 @@ describe('renderReport', () => {
     );
   });
 
+  it('mentions missing screenshots only for captured web pages', () => {
+    const notice = 'nie zebrano zrzutów ekranu całych stron';
+    const data = personaData();
+    const blob = { sha256: 'a'.repeat(64), bytes: 1, mediaType: 'text/plain' };
+    const withKind = (kind: 'html' | 'json') => {
+      const map = (c: (typeof data.captures)[number]) => ({ ...c, artifacts: [{ kind, blob }] });
+      return { ...data, captures: data.captures.map(map), earlierCaptures: data.earlierCaptures.map(map) };
+    };
+    expect(sectionOf(renderReport(withKind('html')), 'rejestr')).toContain(notice);
+    // API responses and search result lists (JSON artifacts) are complete without a screenshot.
+    expect(sectionOf(renderReport(withKind('json')), 'rejestr')).not.toContain(notice);
+  });
+
   it('records the reproducibility parameters', () => {
     const data = personaData();
     const meta = sectionOf(report, 'metryka');

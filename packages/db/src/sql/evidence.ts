@@ -1,5 +1,6 @@
 import type { EvidenceRepository, Observation } from '@olcys/core';
 import { json, type Db } from '../client.ts';
+import { insertCustodyEvents } from './custody.ts';
 
 export function sqlEvidenceRepository(db: Db): EvidenceRepository {
   return {
@@ -26,24 +27,29 @@ export function sqlEvidenceRepository(db: Db): EvidenceRepository {
         .execute();
     },
 
-    async addCaptures(captures) {
-      if (!captures.length) return;
-      await db
-        .insertInto('captures')
-        .values(
-          captures.map((c) => ({
-            id: c.id,
-            run_id: c.runId,
-            source_id: c.sourceId,
-            url: c.url,
-            final_url: c.finalUrl,
-            status: c.status,
-            collected_at: c.collectedAt,
-            manifest_sha256: c.manifestSha256,
-            record: json(c),
-          })),
-        )
-        .execute();
+    async addCaptures(captures, custodyEvents) {
+      if (!captures.length && !custodyEvents?.length) return;
+      await db.transaction().execute(async (trx) => {
+        if (captures.length) {
+          await trx
+            .insertInto('captures')
+            .values(
+              captures.map((c) => ({
+                id: c.id,
+                run_id: c.runId,
+                source_id: c.sourceId,
+                url: c.url,
+                final_url: c.finalUrl,
+                status: c.status,
+                collected_at: c.collectedAt,
+                manifest_sha256: c.manifestSha256,
+                record: json(c),
+              })),
+            )
+            .execute();
+        }
+        await insertCustodyEvents(trx, custodyEvents ?? []);
+      });
     },
 
     async addAccounts(accounts) {

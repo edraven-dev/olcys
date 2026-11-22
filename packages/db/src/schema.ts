@@ -20,6 +20,8 @@ import type {
   ActivityIndicators,
   AddressCandidate,
   AnalystOverrideKind,
+  CustodyAction,
+  CustodyEvent,
   AnalystOverrideTarget,
   ScheduleTickOutcome,
 } from '@olcys/core';
@@ -225,6 +227,19 @@ export interface AnalystJudgementsTable {
   at: GeneratedTimestamp;
 }
 
+/** migrations/0005_custody_events.sql */
+export interface CustodyEventTable {
+  id: string;
+  at: Timestamp;
+  actor: string;
+  action: CustodyAction;
+  subject_type: CustodyEvent['subject']['type'];
+  subject_id: string;
+  run_id: string | null;
+  detail: Json<CustodyEvent['detail']>;
+  created_at: GeneratedTimestamp;
+}
+
 /** migrations/0003_analyst_overrides.sql */
 export interface AnalystOverridesTable {
   id: string;
@@ -280,6 +295,7 @@ export interface Database {
   link_assessments: LinkAssessmentsTable;
   analyst_judgements: AnalystJudgementsTable;
   analyst_overrides: AnalystOverridesTable;
+  custody_event: CustodyEventTable;
   change_events: ChangeEventsTable;
   reports: ReportsTable;
   schema_migrations: SchemaMigrationsTable;

@@ -8,7 +8,7 @@ import type { Identifier } from './case.ts';
 import type { AddressSummary, NormalizedTransfer, UtxoTransaction } from './chain-data.ts';
 import type { AddressRef, ChainId } from './chains.ts';
 import type { Id, IsoDateTime, Sha256Hex } from './common.ts';
-import type { AccountDiscoveryMethod, Capture, Observation, OnlineAccount } from './evidence.ts';
+import type { AccountDiscoveryMethod, Capture, CaptureDraft, Observation, OnlineAccount } from './evidence.ts';
 import type { AddressLabel } from './labels.ts';
 import type { BlobRef, ChainTip, FetchMode, ProvenanceEnvelope } from './provenance.ts';
 import type { SourceDescriptor, SourceId } from './sources.ts';
@@ -77,6 +77,16 @@ export interface RunContext {
   clock: Clock;
   logger: Logger;
   signal?: AbortSignal;
+  /** Records captures as manifests (jobs that never capture, e.g. chain analysis, leave it unset). */
+  evidence?: CaptureRecorder;
+}
+
+/**
+ * Turns a draft into a stored `Capture`: stores the artifacts, builds and stores the capture manifest and sets the
+ * collector identity, clock status and tool version itself (values supplied by a collector are ignored).
+ */
+export interface CaptureRecorder {
+  record(draft: CaptureDraft, ctx: RunContext): Promise<Capture>;
 }
 
 /** A secret (private key, seed phrase) found in text: its kind and UTF-16 span in the input — never its value. */

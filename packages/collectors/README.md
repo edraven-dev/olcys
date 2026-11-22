@@ -71,10 +71,15 @@ const result = await collectCase({
 - Elementy do ponownego użycia: `fetchPage`, `detectAccessBarrier`, `toFixtureUrl` / `toLogicalUrl` /
   `recogniseAccountUrl`, `ResultBuilder`, `buildCapture`, `rollupStatus`, parsery stron.
 
+Kolektory nie liczą manifestów: `buildCapture` przekazuje szkic do `ctx.evidence` (`CaptureRecorder` z `@olcys/evidence`),
+który zapisuje artefakty i manifest oraz ustawia tożsamość kolektora, stan zegara (`OLCYS_COLLECTOR_NAME`,
+`OLCYS_COLLECTOR_IP`, `OLCYS_CLOCK_MAX_OFFSET_MS`) i wersję narzędzia. Strony WWW zbierane bez przeglądarki nie mają zrzutu
+ekranu (`completeness.missing: ['screenshot']`).
+
 Przechwycenie (`Capture`): adres pobrany i końcowy, czas, kolektor, wersja narzędzia, user agent, status HTTP i status
 zbierania, artefakty `html`/`json`/`text` (bajty jak odebrane albo — gdy usunięto sekrety — tekst po redakcji w UTF-8; skrót
 oryginału zostaje w kopercie pochodzenia i w `technical.redaction`) oraz `headers` (kanoniczny JSON), identyfikatory pobrań całego łańcucha przekierowań,
-`manifestSha256` oraz `technical` (adres logiczny, przekierowania, decyzja robots.txt, sygnały bariery, redakcja, wersje parserów).
+`manifestSha256` (skrót pliku manifestu w magazynie) oraz `technical` (adres logiczny, przekierowania, decyzja robots.txt, sygnały bariery, redakcja, wersje parserów).
 
 ## Kolektory
 
@@ -240,8 +245,7 @@ Notatki mają postać `kod: szczegóły`; interfejs tłumaczy kod.
 
 ## Konfiguracja
 
-`OLCYS_FIXTURE_BASE_URL` (lub `FIXTURE_SITE_URL`) — adres strony testowej; `OLCYS_COLLECTOR_NAME` — osoba lub konto
-usługi zapisywane w przechwyceniach; `OLCYS_CLOCK_SYNCED=1` — zegar zweryfikowany z NTP; `OLCYS_WATCH_PAGES` — lista
+`OLCYS_FIXTURE_BASE_URL` (lub `FIXTURE_SITE_URL`) — adres strony testowej; `OLCYS_WATCH_PAGES` — lista
 obserwowanych stron w trybie `live`. Wyszukiwarki: `OLCYS_SEARCH_MODE` (`off` | `mock` | `external`, domyślnie `mock`),
 `BRAVE_SEARCH_API_KEY`, `BRAVE_SEARCH_STORAGE_RIGHTS` (`true` tylko z planem, który pozwala przechowywać wyniki),
 `MOJEEK_API_KEY`, `MOJEEK_PLAN` (`startup` | `business` | `enterprise`, domyślnie `startup`). Klucze wyłącznie ze
