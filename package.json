@@ -26,6 +26,7 @@
     "db:reset": "node --env-file-if-exists=.env scripts/dev/db-reset.ts",
     "demo": "node --env-file-if-exists=.env scripts/demo/run.ts",
     "seed": "node --env-file-if-exists=.env scripts/dev/seed.ts",
+    "llm:check": "node --env-file-if-exists=.env scripts/dev/llm-check.ts",
     "dev:doctor": "node --env-file-if-exists=.env scripts/dev/doctor.ts",
     "db:status": "node --env-file-if-exists=.env packages/db/src/migrate.ts --status"
   },
