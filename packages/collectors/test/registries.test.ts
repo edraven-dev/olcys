@@ -220,6 +220,17 @@ describe('VAT white list', () => {
     expect(result.observations.some((o) => /pesel/i.test(o.property))).toBe(false);
   });
 
+  it('removes PESEL values from the stored body and records it', async () => {
+    const { run, test } = setup(async () => ({ status: 200, body: await fixture('vat-subject.json') }));
+    const result = await run(createVatWhitelistCollector(), valuesInput('nip', NIP));
+    const stored = [...test.blobs.data.values()].map((b) => new TextDecoder().decode(b)).join('\n');
+    for (const pesel of ['77777777770', '77777777771', '77777777772']) expect(stored).not.toContain(pesel);
+    expect(stored).toContain('Przykładowy');
+    expect(result.captures[0]?.technical?.transformations.join('\n')).toContain('PESEL removed before storage');
+    expect(values(result, 'registry.vat_request_id')).toEqual(['olcys-test0001']);
+    expect(values(result, 'registry.bank_account')).toHaveLength(2);
+  });
+
   it('records third parties as name and role only', async () => {
     const { run } = setup(async () => ({ status: 200, body: await fixture('vat-subject.json') }));
     const result = await run(createVatWhitelistCollector(), valuesInput('nip', NIP));

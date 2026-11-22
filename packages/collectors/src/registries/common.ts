@@ -60,6 +60,26 @@ function parseJson(text: string): { value: unknown } | undefined {
   }
 }
 
+/** Replaces the value of every JSON key named `pesel` (any depth, any case) with null; non-JSON text is unchanged. */
+export function removePesel(text: string): { text: string; removed: number } {
+  const parsed = parseJson(text);
+  if (!parsed) return { text, removed: 0 };
+  let removed = 0;
+  const walk = (value: unknown): unknown => {
+    if (Array.isArray(value)) return value.map(walk);
+    if (typeof value !== 'object' || value === null) return value;
+    return Object.fromEntries(
+      Object.entries(value).map(([key, v]) => {
+        if (key.toLowerCase() !== 'pesel') return [key, walk(v)];
+        if (v !== null) removed += 1;
+        return [key, null];
+      }),
+    );
+  };
+  const clean = walk(parsed.value);
+  return removed ? { text: JSON.stringify(clean), removed } : { text, removed: 0 };
+}
+
 const failed = (status: CaptureStatus, text: string): RegistryAnswer => ({
   status,
   contentType: '',
@@ -107,16 +127,20 @@ export async function registryFetch(http: SourceHttp, request: RegistryRequest):
   const redaction = http.deps.redactor.redact(raw);
   const secretKinds = [...new Set(redaction.findings.map((f) => f.kind))].toSorted();
   const mediaType = contentType || 'application/octet-stream';
-  const stored = redaction.findings.length
+  // Data minimisation: a `pesel` value is removed from the body before it is stored or read (provenance keeps the
+  // hash of the body as received).
+  const minimised = removePesel(redaction.text);
+  const rewritten = redaction.findings.length > 0 || minimised.removed > 0;
+  const stored = rewritten
     ? await http.ctx.blobs.put(
-        new TextEncoder().encode(redaction.text),
+        new TextEncoder().encode(minimised.text),
         `${mediaType.split(';')[0]?.trim()}; charset=utf-8`,
       )
     : await http.ctx.blobs.put(response.body, mediaType);
 
   const notes: string[] = [];
   let status = captureStatusFor(response.status);
-  const parsed = response.body.byteLength && !/html/i.test(contentType) ? parseJson(redaction.text) : undefined;
+  const parsed = response.body.byteLength && !/html/i.test(contentType) ? parseJson(minimised.text) : undefined;
   const notJson = status === 'ok' && parsed === undefined;
   if (notJson) {
     status = 'error';
@@ -148,6 +172,7 @@ export async function registryFetch(http: SourceHttp, request: RegistryRequest):
     },
     software: [{ name: '@olcys/collectors', version: COLLECTORS_VERSION }, ...request.software],
     transformations: [
+      ...(minimised.removed ? [`PESEL removed before storage (data minimisation): ${minimised.removed} value(s)`] : []),
       redaction.findings.length
         ? `${redaction.findings.length} secret(s) redacted in memory (${secretKinds.join(', ')})`
         : 'official API answer stored as received (JSON); observations are read from it by field path',

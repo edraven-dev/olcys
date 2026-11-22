@@ -132,9 +132,9 @@ Wskaźnika Pewności adresów; służą korroboracji tożsamości i kontekstowi 
 **Minimalizacja danych.** Pola PESEL (biała lista, identyfikatory osób w KRS) nie są czytane — nie powstaje żadna
 obserwacja z numerem PESEL. Osoby trzecie (reprezentanci, prokurenci, wspólnicy, członkowie zarządu) zapisywane są
 wyłącznie jako nazwa i rola (`registry.representative`, `registry.partner`, wartość `<nazwa> — <rola>`) i **nigdy nie są
-pivotami**. Surowa odpowiedź rejestru jest zapisana jako przechwycenie (dowód) w stanie otrzymanym; nie zawiera niczego,
-co kolektor miałby czytać poza powyższymi polami, ale na białej liście reprezentanci mogą mieć w niej PESEL — warto to
-uwzględnić w polityce retencji. Każde zapytanie ma `containsIdentifier: true` (imię, nazwisko i numery podatkowe to
+pivotami**. Odpowiedź rejestru jest zapisana jako przechwycenie (dowód), ale przed zapisem wartość każdego klucza `pesel` (na dowolnej
+głębokości, także u reprezentantów, prokurentów i wspólników) jest zastępowana przez `null`; liczba usuniętych wartości
+trafia do `technical.transformations`, a skrót oryginału zostaje w kopercie pochodzenia i w `technical.redaction`. Każde zapytanie ma `containsIdentifier: true` (imię, nazwisko i numery podatkowe to
 identyfikatory sprawy). W trybie `live` imię i nazwisko będące syntetycznym identyfikatorem persony nie jest wysyłane.
 
 **Obserwacje** (podmiot `ceidg:<id>` / `vat:<nip>` / `krs:<numer>` / `ceidg-search:<sha256 „imię nazwisko”>`; lokalizator
