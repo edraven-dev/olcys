@@ -48,6 +48,7 @@ pnpm install
 pnpm dev:deps        # PostgreSQL 19, Gotenberg 9, strona testowa
 pnpm dev             # API :4000, interfejs :5173, worker (strona testowa działa w kontenerze)
 pnpm dev:fixture     # strona testowa na hoście zamiast kontenera (najpierw zatrzymaj kontener)
+pnpm demo            # (po `pnpm dev`) cały scenariusz demo i podsumowanie po polsku, zob. docs/development.md
 pnpm check           # formatowanie, lint, kontrola typów, testy
 ```
 
