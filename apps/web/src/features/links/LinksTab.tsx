@@ -1,4 +1,12 @@
-import type { AddressCandidate, Capture, Identifier, Observation, OnlineAccount } from '@olcys/core';
+import type {
+  AddressCandidate,
+  AnalystOverride,
+  ApiMeta,
+  Capture,
+  Identifier,
+  Observation,
+  OnlineAccount,
+} from '@olcys/core';
 import { CandidateSnippet, CaptureCard, ObservationLine } from '../../components/evidence.tsx';
 import {
   AddressText,
@@ -29,11 +37,19 @@ import {
 } from '../../lib/domain.ts';
 import { formatDateTime, formatLikelihoodRatio, formatProbability, shortHash } from '../../lib/format.ts';
 import { Link, routePath } from '../../lib/router.tsx';
-import { useList } from '../../lib/use-api.ts';
+import { useJson, useList } from '../../lib/use-api.ts';
 import type { RunScope } from '../run/RunPage.tsx';
 import { isTerminal } from '../run/run-model.ts';
+import { CaseOverrides, JudgementSection, OverrideForm } from './AnalystPanel.tsx';
 import { evidenceRefs, isAnchorHop, synergyOf } from './score-model.ts';
 import { ContributionTable, Waterfall } from './Waterfall.tsx';
+
+/** Analyst actions on the links of a run, when the API supports them (`ApiMeta.features.judgements`). */
+export interface AnalystScope {
+  enabled: boolean;
+  caseId: string;
+  onOverrideSaved?: () => void;
+}
 
 interface LinkContext {
   identities: ReadonlyMap<string, Identifier>;
@@ -53,6 +69,9 @@ export function LinksTab({ scope }: { scope: RunScope }) {
   const observations = useList<Observation>(apiPaths.runList(run.id, 'observations'), { version });
   const candidates = useList<AddressCandidate>(apiPaths.runList(run.id, 'candidates'), { version });
   const sources = useList<SourceItem>(apiPaths.sources);
+  const meta = useJson<ApiMeta>(apiPaths.meta);
+  const judgements = meta.data?.features.judgements === true;
+  const overrides = useList<AnalystOverride>(judgements ? apiPaths.caseOverrides(run.caseId) : null, { version });
 
   if (!links.data) {
     if (links.error) return <ErrorState title={pl.links.loadError} error={links.error} onRetry={links.reload} />;
@@ -75,6 +94,7 @@ export function LinksTab({ scope }: { scope: RunScope }) {
     candidates: new Map((candidates.data ?? []).map((c) => [c.id, c])),
     sourceNames: new Map((sources.data ?? []).map((s) => [s.id, s.name])),
   };
+  const analyst: AnalystScope = { enabled: judgements, caseId: run.caseId, onOverrideSaved: overrides.reload };
 
   return (
     <section aria-labelledby="links-title" className="stack">
@@ -87,6 +107,7 @@ export function LinksTab({ scope }: { scope: RunScope }) {
         </p>
       </div>
       <ResourceNotices resources={[links, exclusions, accounts, captures, observations, candidates, sources]} />
+      {judgements ? <CaseOverrides run={run} overrides={overrides} ctx={ctx} /> : null}
       <BandLegend />
       <KindLegend />
       {main.length > 0 ? <p className="muted">{plural(main.length, pl.links.count)}</p> : null}
@@ -102,7 +123,7 @@ export function LinksTab({ scope }: { scope: RunScope }) {
       ) : (
         <ol className="link-list">
           {main.map((link) => (
-            <LinkCard key={link.id} link={link} ctx={ctx} excluded={excluded} />
+            <LinkCard key={link.id} link={link} ctx={ctx} excluded={excluded} analyst={analyst} />
           ))}
         </ol>
       )}
@@ -131,7 +152,17 @@ function identityText(identity: Identifier | undefined): { value: string; kind: 
   return { value: identity.value, kind: identity.platform ? `${kind}, ${identity.platform}` : kind };
 }
 
-export function LinkCard({ link, ctx, excluded }: { link: LinkView; ctx: LinkContext; excluded: ReadonlySet<string> }) {
+export function LinkCard({
+  link,
+  ctx,
+  excluded,
+  analyst,
+}: {
+  link: LinkView;
+  ctx: LinkContext;
+  excluded: ReadonlySet<string>;
+  analyst?: AnalystScope;
+}) {
   const band = linkBand(link, excluded);
   const identity = identityText(ctx.identities.get(link.identityId));
   const term = lookup(pl.icd203, link.icd203) ?? link.icd203;
@@ -206,11 +237,20 @@ export function LinkCard({ link, ctx, excluded }: { link: LinkView; ctx: LinkCon
           </p>
           <p className="muted small">{pl.score.confidenceHint}</p>
         </div>
+        <JudgementSection link={link} enabled={analyst?.enabled ?? false} />
 
         <details className="explain">
           <summary>{pl.links.explain}</summary>
           <ScoreExplanation link={link} ctx={ctx} />
           <LinkEvidence link={link} ctx={ctx} />
+          {analyst?.enabled ? (
+            <OverrideForm
+              link={link}
+              ctx={ctx}
+              caseId={analyst.caseId}
+              {...(analyst.onOverrideSaved ? { onSaved: analyst.onOverrideSaved } : {})}
+            />
+          ) : null}
         </details>
       </article>
     </li>

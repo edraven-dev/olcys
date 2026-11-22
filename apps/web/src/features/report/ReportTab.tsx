@@ -1,7 +1,9 @@
+import type { ApiMeta } from '@olcys/core';
+import { useState } from 'react';
 import { ErrorState, Icon, LoadingState } from '../../components/ui.tsx';
 import { pl } from '../../i18n/pl.ts';
 import { api, apiPaths } from '../../lib/api.ts';
-import { useResource } from '../../lib/use-api.ts';
+import { useJson, useResource } from '../../lib/use-api.ts';
 import type { RunScope } from '../run/RunPage.tsx';
 import { isTerminal } from '../run/run-model.ts';
 
@@ -11,6 +13,7 @@ export function ReportTab({ scope }: { scope: RunScope }) {
   const done = isTerminal(run.status);
   const path = apiPaths.report(run.id);
   const available = useResource<boolean>(done ? `${path}#head#${version}` : null, () => api.exists(path));
+  const meta = useJson<ApiMeta>(apiPaths.meta);
   return (
     <section aria-labelledby="report-title" className="stack">
       <h2 id="report-title">{pl.report.title}</h2>
@@ -31,6 +34,44 @@ export function ReportTab({ scope }: { scope: RunScope }) {
       ) : (
         <p className="notice">{pl.report.missing}</p>
       )}
+      {done && available.data && meta.data?.features.judgements ? <RegenerateReport runId={run.id} /> : null}
     </section>
+  );
+}
+
+/** A new version of the report, e.g. with the analyst judgements recorded since; earlier versions stay stored. */
+function RegenerateReport({ runId }: { runId: string }) {
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+  const [error, setError] = useState<unknown>();
+  const regenerate = async () => {
+    setBusy(true);
+    setDone(false);
+    setError(undefined);
+    try {
+      await api.post(apiPaths.report(runId), {});
+      setDone(true);
+    } catch (failure) {
+      setError(failure);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="stack">
+      <p className="hint">{pl.overrides.regenerateHint}</p>
+      <p>
+        <button type="button" className="button" disabled={busy} onClick={() => void regenerate()}>
+          {busy ? pl.overrides.regenerating : pl.overrides.regenerate}
+        </button>
+      </p>
+      {done ? (
+        <output className="hint block">
+          <Icon name="check" />
+          {pl.overrides.regenerated}
+        </output>
+      ) : null}
+      {error ? <ErrorState error={error} /> : null}
+    </div>
   );
 }

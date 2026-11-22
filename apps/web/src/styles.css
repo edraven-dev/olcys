@@ -842,6 +842,44 @@ progress {
   padding: 0.5rem 0.75rem;
   background: var(--surface-2);
 }
+/* Analyst judgements and overrides: the analyst's own statements, set apart from the computed result. */
+.analyst-box {
+  border: 1px dashed var(--border);
+  border-left: 4px solid var(--ink);
+  border-radius: var(--radius);
+  padding: 0.5rem 0.75rem;
+  margin-top: 0.75rem;
+}
+.analyst-box h4,
+.analyst-box h5 {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+  margin: 0 0 0.35rem;
+}
+.analyst-box form {
+  margin-top: 0.5rem;
+}
+.check input[type='radio'] {
+  width: 1.1rem;
+  height: 1.1rem;
+  flex: none;
+  margin: 0.15rem 0 0;
+  padding: 0;
+}
+.judgement-list > li {
+  padding: 0.35rem 0;
+}
+.judgement-option {
+  margin-bottom: 0.4rem;
+}
+.judgement-option .hint {
+  margin-left: 1.6rem;
+}
+.judgement-list p {
+  margin: 0.15rem 0 0;
+  overflow-wrap: anywhere;
+}
 .explain > summary,
 details > summary {
   cursor: pointer;
