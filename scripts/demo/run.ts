@@ -16,7 +16,7 @@ import {
   type RunResults,
 } from './compare.ts';
 import { loadExpectations, type Expectations } from './expectations.ts';
-import { assertLoopbackUrl, localRequest, NotLoopbackError } from './local-http.ts';
+import { assertLoopbackUrl, isUnreachable, localRequest, NotLoopbackError } from './local-http.ts';
 import { pl } from './pl.ts';
 import { summarise } from './summary.ts';
 
@@ -67,9 +67,13 @@ export async function runDemo(options: DemoOptions): Promise<DemoResult> {
 
   log(pl.health(api, fixture));
   const health = await localRequest(`${api}/api/health`);
-  if (!health || health.status !== 200) throw new DemoError(pl.apiDown(api));
+  if (isUnreachable(health) || health.status !== 200)
+    throw new DemoError(pl.apiDown(api, isUnreachable(health) ? health.cause : `HTTP ${health.status}`));
   const fixtureHealth = await localRequest(`${fixture}/healthz`);
-  if (!fixtureHealth || fixtureHealth.status !== 200) throw new DemoError(pl.fixtureDown(fixture));
+  if (isUnreachable(fixtureHealth) || fixtureHealth.status !== 200)
+    throw new DemoError(
+      pl.fixtureDown(fixture, isUnreachable(fixtureHealth) ? fixtureHealth.cause : `HTTP ${fixtureHealth.status}`),
+    );
 
   const setVariant = async (variant: 'v1' | 'v2') => {
     const response = await localRequest(`${fixture}/__fixture/variant`, {
@@ -77,7 +81,7 @@ export async function runDemo(options: DemoOptions): Promise<DemoResult> {
       body: variant,
       contentType: 'text/plain',
     });
-    if (!response) throw new DemoError(pl.fixtureDown(fixture));
+    if (isUnreachable(response)) throw new DemoError(pl.fixtureDown(fixture, response.cause));
     if (response.status !== 204) throw new DemoError(pl.variantSwitchOff());
     log(pl.step.variant(variant));
   };
@@ -87,8 +91,9 @@ export async function runDemo(options: DemoOptions): Promise<DemoResult> {
       method,
       ...(body === undefined ? {} : { body: JSON.stringify(body), contentType: 'application/json' }),
     });
-    if (!response || response.status >= 300) {
-      throw new DemoError(pl.step.http(`${method} ${path}`, response?.status, response?.text ?? ''));
+    if (isUnreachable(response)) throw new DemoError(pl.apiDown(api, response.cause));
+    if (response.status >= 300) {
+      throw new DemoError(pl.step.http(`${method} ${path}`, response.status, response.text));
     }
     return JSON.parse(response.text) as T;
   };
@@ -134,7 +139,7 @@ export async function runDemo(options: DemoOptions): Promise<DemoResult> {
       extractions: await items<ExtractionLike>('extractions'),
       cashOuts: await items<CashOutLike>('cash-outs'),
       changes: await items<ChangeLike>('changes'),
-      ...(report && report.status === 200 ? { reportHtml: report.text } : {}),
+      ...(!isUnreachable(report) && report.status === 200 ? { reportHtml: report.text } : {}),
     };
   };
 
@@ -184,6 +189,19 @@ function finish(
   };
 }
 
+/** URLs from the environment: explicit overrides first, else loopback with the configured ports. */
+export function urlsFromEnv(env: Record<string, string | undefined>): {
+  apiUrl: string;
+  fixtureUrl: string;
+  webUrl: string;
+} {
+  return {
+    apiUrl: env['API_URL'] ?? `http://127.0.0.1:${env['API_PORT'] ?? '4000'}`,
+    fixtureUrl: env['FIXTURE_SITE_URL'] ?? `http://127.0.0.1:${env['FIXTURE_PORT'] ?? '4100'}`,
+    webUrl: env['WEB_URL'] ?? `http://127.0.0.1:${env['WEB_PORT'] ?? '5173'}`,
+  };
+}
+
 if (import.meta.main) {
   const args = new Set(process.argv.slice(2));
   const unknown = [...args].filter((a) => a !== '--ci');
@@ -193,9 +211,7 @@ if (import.meta.main) {
   }
   try {
     const result = await runDemo({
-      apiUrl: process.env['API_URL'] ?? 'http://127.0.0.1:4000',
-      fixtureUrl: process.env['FIXTURE_SITE_URL'] ?? 'http://127.0.0.1:4100',
-      webUrl: process.env['WEB_URL'] ?? `http://127.0.0.1:${process.env['WEB_PORT'] ?? '5173'}`,
+      ...urlsFromEnv(process.env),
       ci: args.has('--ci'),
     });
     process.exitCode = result.exitCode;

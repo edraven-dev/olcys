@@ -26,11 +26,32 @@ export interface LocalResponse {
   text: string;
 }
 
-/** Request over loopback; network failures are returned as `undefined` so callers can print a hint. */
+/** The service could not be reached (connection refused/reset, host unreachable or unknown, timeout). */
+export interface Unreachable {
+  unreachable: true;
+  /** Error code or name of the underlying failure, e.g. `ECONNREFUSED`. */
+  cause: string;
+}
+
+export const isUnreachable = (value: LocalResponse | Unreachable): value is Unreachable => 'unreachable' in value;
+
+const CONNECTION_CODES = new Set(['ECONNREFUSED', 'ECONNRESET', 'EHOSTUNREACH', 'ENOTFOUND']);
+
+/** Classifies a failure as a real connection problem (returns its code) or `undefined` for anything unexpected. */
+export function connectionFailure(error: unknown): string | undefined {
+  if (error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')) return error.name;
+  if (error instanceof TypeError && error.message === 'fetch failed') {
+    const code = (error.cause as { code?: unknown } | undefined)?.code;
+    if (typeof code === 'string' && CONNECTION_CODES.has(code)) return code;
+  }
+  return undefined;
+}
+
+/** Request over loopback. Connection failures come back as `Unreachable`; every other error is rethrown. */
 export async function localRequest(
   url: string,
   init: { method?: string; body?: string; contentType?: string } = {},
-): Promise<LocalResponse | undefined> {
+): Promise<LocalResponse | Unreachable> {
   assertLoopbackUrl(url);
   try {
     const response = await fetch(url, {
@@ -41,7 +62,9 @@ export async function localRequest(
       signal: AbortSignal.timeout(30_000),
     });
     return { status: response.status, text: await response.text() };
-  } catch {
-    return undefined;
+  } catch (error) {
+    const cause = connectionFailure(error);
+    if (cause === undefined) throw error;
+    return { unreachable: true, cause };
   }
 }

@@ -3,10 +3,10 @@
 export const pl = {
   title: 'OŁCyŚ: demonstracja na danych syntetycznych',
   refuseNonLoopback: (what: string) => `Odmowa: ${what} musi wskazywać adres lokalny (127.0.0.1, localhost lub [::1]).`,
-  apiDown: (url: string) =>
-    `API nie odpowiada pod ${url}. Uruchom usługi i aplikację: \`pnpm dev:deps\`, a potem \`pnpm dev\` (albo ustaw API_URL).`,
-  fixtureDown: (url: string) =>
-    `Strona testowa nie odpowiada pod ${url}. Uruchom \`pnpm dev:deps\` (albo \`pnpm dev:fixture\`, albo ustaw FIXTURE_SITE_URL).`,
+  apiDown: (url: string, cause?: string) =>
+    `API nie odpowiada pod ${url}${cause ? ` (${cause})` : ''}. Uruchom usługi i aplikację: \`pnpm dev:deps\`, a potem \`pnpm dev\` (albo ustaw API_URL).`,
+  fixtureDown: (url: string, cause?: string) =>
+    `Strona testowa nie odpowiada pod ${url}${cause ? ` (${cause})` : ''}. Uruchom \`pnpm dev:deps\` (albo \`pnpm dev:fixture\`, albo ustaw FIXTURE_SITE_URL).`,
   variantSwitchOff: () =>
     'Strona testowa odrzuciła przełączenie wariantu. Ustaw FIXTURE_ALLOW_VARIANT_SWITCH=1 w .env (dane są syntetyczne, tylko pętla zwrotna) i uruchom ponownie `pnpm dev:deps`.',
   health: (api: string, fixture: string) => `Sprawdzam usługi: API ${api}, strona testowa ${fixture}`,
@@ -19,8 +19,8 @@ export const pl = {
     failed: (n: number, status: string, error?: string) =>
       `Uruchomienie ${n} nie powiodło się (${status})${error ? `: ${error}` : ''}`,
     timeout: (n: number) => `Przekroczono czas oczekiwania na uruchomienie ${n}.`,
-    http: (what: string, status: number | undefined, body: string) =>
-      `Żądanie ${what} nie powiodło się (${status ?? 'brak odpowiedzi'}): ${body.slice(0, 300)}`,
+    http: (what: string, status: number | string, body: string) =>
+      `Żądanie ${what} nie powiodło się (${status}): ${body.slice(0, 300)}`,
   },
   summary: {
     case: 'Sprawa',

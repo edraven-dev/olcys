@@ -3,8 +3,8 @@ import type { AddressInfo } from 'node:net';
 import { afterAll, describe, expect, it } from 'vitest';
 import { compareRuns, formatMismatches, type RunResults } from './compare.ts';
 import { loadExpectations, type Expectations } from './expectations.ts';
-import { assertLoopbackUrl, NotLoopbackError } from './local-http.ts';
-import { runDemo } from './run.ts';
+import { assertLoopbackUrl, connectionFailure, isUnreachable, localRequest, NotLoopbackError } from './local-http.ts';
+import { runDemo, urlsFromEnv } from './run.ts';
 import { summarise } from './summary.ts';
 
 const ref = (address: string) => ({ chain: 'x', address });
@@ -162,5 +162,55 @@ describe('loopback guard and health hints', () => {
     const dead = `http://127.0.0.1:${(closed.address() as AddressInfo).port}`;
     await new Promise((r) => closed.close(r));
     await expect(runDemo({ apiUrl: dead, fixtureUrl: url, log() {} })).rejects.toThrow('pnpm dev:deps');
+  });
+});
+
+describe('connection failures and configured ports', () => {
+  it('classifies only real connection failures', () => {
+    const refused = Object.assign(new TypeError('fetch failed'), { cause: { code: 'ECONNREFUSED' } });
+    expect(connectionFailure(refused)).toBe('ECONNREFUSED');
+    expect(connectionFailure(new DOMException('t', 'TimeoutError'))).toBe('TimeoutError');
+    expect(
+      connectionFailure(Object.assign(new TypeError('fetch failed'), { cause: { code: 'EPROTO' } })),
+    ).toBeUndefined();
+    expect(connectionFailure(new TypeError('Invalid URL'))).toBeUndefined();
+    expect(connectionFailure(new RangeError('boom'))).toBeUndefined();
+  });
+
+  it('returns the cause for a refused connection and rethrows unexpected errors', async () => {
+    const closed = createServer();
+    await new Promise<void>((r) => closed.listen(0, '127.0.0.1', r));
+    const port = (closed.address() as AddressInfo).port;
+    await new Promise((r) => closed.close(r));
+    const result = await localRequest(`http://127.0.0.1:${port}/`);
+    expect(isUnreachable(result) && result.cause).toBe('ECONNREFUSED');
+    // A server that answers with a redirect hits `redirect: 'error'`: not a connection failure, so it is thrown.
+    const redirecting = createServer((_req, res) => {
+      res.statusCode = 302;
+      res.setHeader('location', '/x');
+      res.end();
+    });
+    await new Promise<void>((r) => redirecting.listen(0, '127.0.0.1', r));
+    try {
+      await expect(localRequest(`http://127.0.0.1:${(redirecting.address() as AddressInfo).port}/`)).rejects.toThrow(
+        /fetch failed/,
+      );
+    } finally {
+      await new Promise((r) => redirecting.close(r));
+    }
+  });
+
+  it('builds default URLs from API_PORT, FIXTURE_PORT and WEB_PORT, keeping explicit overrides', () => {
+    expect(urlsFromEnv({})).toEqual({
+      apiUrl: 'http://127.0.0.1:4000',
+      fixtureUrl: 'http://127.0.0.1:4100',
+      webUrl: 'http://127.0.0.1:5173',
+    });
+    expect(urlsFromEnv({ API_PORT: '4010', FIXTURE_PORT: '4110', WEB_PORT: '5180' })).toEqual({
+      apiUrl: 'http://127.0.0.1:4010',
+      fixtureUrl: 'http://127.0.0.1:4110',
+      webUrl: 'http://127.0.0.1:5180',
+    });
+    expect(urlsFromEnv({ API_PORT: '4010', API_URL: 'http://localhost:9' }).apiUrl).toBe('http://localhost:9');
   });
 });
