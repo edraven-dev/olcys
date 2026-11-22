@@ -31,6 +31,12 @@ Schemat PostgreSQL, migracje SQL i typowane repozytoria dla magazynu dowodów dz
   implementacja ERC-1967, typ skryptu UTXO, nieudana sonda (`jsonb`) oraz `fetch_ids uuid[]` — zapytania w kolejności
   wykonania. `add(runId, klasyfikacje)` odrzuca adres sklasyfikowany już w tym przebiegu, `list(runId)` zwraca wiersze
   według łańcucha i adresu. Tabela tylko do dopisywania (`olcys_app`: SELECT i INSERT).
+- `clusters` (migracja `0007_address_clusters.sql`) — klastry Bitcoin z heurystyki wspólnego wydatkowania w tabeli
+  `address_cluster` (`PRIMARY KEY (run_id, id)`; `id` = `c_` + skrót posortowanej listy adresów): ziarna i adresy
+  (`text[]`), rozmiar i poprzedni rozmiar, dowody połączeń, pominięte transakcje, usługi i flagi (`jsonb`).
+  `add(runId, klastry)` odrzuca powtórzony identyfikator, `list(runId)` zwraca wiersze według identyfikatora,
+  `previousSizes(caseId, ziarna, beforeRunId)` — rozmiary klastrów ziaren z najnowszego wcześniejszego przebiegu sprawy
+  (współczynnik wzrostu reguły A7). Tabela tylko do dopisywania (`olcys_app`: SELECT i INSERT).
 - `migrate(ownerUrl)` / `pnpm db:migrate` — migracje SQL z `migrations/` (z kontrolą skrótów SHA-256). Historię
   migracji (`schema_migrations`) może zapisywać wyłącznie właściciel schematu — `migrate()` odbiera prawa zapisu
   pozostałym rolom. Równoczesne uruchomienia (np. równoległe pliki testów) czekają na blokadę doradczą, więc każda
