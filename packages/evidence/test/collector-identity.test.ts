@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { resolveCollectorIdentity } from '../src/index.ts';
+import { readDefaultRouteInterface, resolveCollectorIdentity } from '../src/index.ts';
 
 const os = (interfaces: Record<string, { address: string; family: string; internal: boolean }[]>) => ({
   hostname: () => 'stanowisko-1',
@@ -35,5 +35,33 @@ describe('collector identity', () => {
       ipSource: 'unknown',
     });
     expect(() => resolveCollectorIdentity({ OLCYS_COLLECTOR_IP: 'nie-ip' }, os({}))).toThrow(/OLCYS_COLLECTOR_IP/);
+  });
+
+  it('skips virtual interfaces and prefers the default-route interface', () => {
+    const interfaces = {
+      docker0: [{ address: '172.17.0.1', family: 'IPv4', internal: false }],
+      eth0: [{ address: '10.0.0.5', family: 'IPv4', internal: false }],
+      wlan0: [{ address: '10.0.0.9', family: 'IPv4', internal: false }],
+    };
+    expect(resolveCollectorIdentity({}, os(interfaces))).toMatchObject({ ip: '10.0.0.5' });
+    expect(resolveCollectorIdentity({}, os(interfaces), 'wlan0')).toMatchObject({ ip: '10.0.0.9' });
+    // A default route on a missing or address-less interface falls back to the filtered scan.
+    expect(resolveCollectorIdentity({}, os(interfaces), 'gone')).toMatchObject({ ip: '10.0.0.5' });
+  });
+
+  it('reads the default-route interface with the lowest metric from the route table', () => {
+    const table = [
+      'Iface\tDestination\tGateway\tFlags\tRefCnt\tUse\tMetric\tMask',
+      'docker0\t000011AC\t00000000\t0001\t0\t0\t0\t0000FFFF',
+      'wlan0\t00000000\t0100000A\t0003\t0\t0\t600\t00000000',
+      'eth0\t00000000\t0100000A\t0003\t0\t0\t100\t00000000',
+    ].join('\n');
+    expect(readDefaultRouteInterface(() => table)).toBe('eth0');
+    expect(readDefaultRouteInterface(() => '')).toBeUndefined();
+    expect(
+      readDefaultRouteInterface(() => {
+        throw new Error('no /proc');
+      }),
+    ).toBeUndefined();
   });
 });

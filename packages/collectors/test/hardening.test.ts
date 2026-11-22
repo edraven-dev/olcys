@@ -280,8 +280,8 @@ describe('malformed links are skipped, not fatal', () => {
     const egress = fakeEgress(() => ({ status: 200, body: page }));
     const logger = memoryLogger();
     const ctx: RunContext = {
-      runId: 'r',
-      caseId: 'c',
+      runId: '00000000-0000-7000-8000-000000000903',
+      caseId: '00000000-0000-7000-8000-000000000904',
       mode: 'offline',
       http: egress,
       blobs: new MemoryBlobs(),

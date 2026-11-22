@@ -12,9 +12,11 @@ import type {
   Sha256Hex,
 } from '@olcys/core';
 import { CAPTURE_MANIFEST_SCHEMA_ID, canonicalJson, CaptureManifestSchema, newId, parse } from '@olcys/core';
-import { sha256Hex } from './blob-store.ts';
 import type { ClockSyncCheck } from './clock-sync.ts';
 import type { CollectorIdentity } from './collector-identity.ts';
+import { readChecked } from './verify-capture.ts';
+
+const MAX_REMEMBERED_RUNS = 8;
 
 export const CAPTURE_MANIFEST_MEDIA_TYPE = 'application/vnd.olcys.capture-manifest+json';
 
@@ -75,8 +77,9 @@ export function createCaptureRecorder(options: {
   newId?: () => Id;
 }): CaptureRecorder {
   const generateId = options.newId ?? (() => newId());
-  // Missing-artifact warnings are logged once per run and kind set, not per capture.
-  const warned = new Set<string>();
+  // Missing-artifact warnings are logged once per run and kind set, not per capture. The recorder lives as long as the
+  // process, so only the most recent runs are remembered.
+  const warned = new Map<string, Set<string>>();
 
   return {
     async record(draft: CaptureDraft, ctx: RunContext): Promise<Capture> {
@@ -85,11 +88,8 @@ export function createCaptureRecorder(options: {
         if ('blob' in artifact) {
           // Sequential on purpose: one artifact in memory at a time.
           // oxlint-disable-next-line no-await-in-loop
-          const bytes = await ctx.blobs.get(artifact.blob.sha256).catch(() => undefined);
-          if (!bytes) throw new ArtifactIntegrityError(artifact.blob.sha256, 'missing');
-          if (sha256Hex(bytes) !== artifact.blob.sha256) {
-            throw new ArtifactIntegrityError(artifact.blob.sha256, 'digest_mismatch');
-          }
+          const check = await readChecked(ctx.blobs, artifact.blob.sha256);
+          if (check.result !== 'ok') throw new ArtifactIntegrityError(artifact.blob.sha256, check.result);
           stored.push({ kind: artifact.kind, description: artifact.description, ref: artifact.blob });
         } else {
           // oxlint-disable-next-line no-await-in-loop
@@ -102,9 +102,13 @@ export function createCaptureRecorder(options: {
       const required = requiredArtifacts(draft.profile);
       const missing = missingKinds(draft.profile, new Set(stored.map((a) => a.kind)));
       if (missing.length > 0) {
-        const key = `${ctx.runId}:${draft.profile}:${missing.join(',')}`;
-        if (!warned.has(key)) {
-          warned.add(key);
+        const key = `${draft.profile}:${missing.join(',')}`;
+        const seen = warned.get(ctx.runId) ?? new Set<string>();
+        warned.delete(ctx.runId);
+        warned.set(ctx.runId, seen);
+        if (warned.size > MAX_REMEMBERED_RUNS) warned.delete(warned.keys().next().value!);
+        if (!seen.has(key)) {
+          seen.add(key);
           ctx.logger.warn('captures are missing required artifacts; kept as incomplete', {
             runId: ctx.runId,
             profile: draft.profile,

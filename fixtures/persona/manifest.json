@@ -1348,6 +1348,8 @@
     "shared/telegram/s/olcys_test_ostrzezenia/index.html": "32d0b2e0d6c2f5e8e03f3d953c51e886c8350d6111c596a0bbe33e3a4bde5c6a",
     "shared/wykop/ludzie/fikcyjny_kacper/index.html": "4633d3a7ab3befaa8d967e6d330fc6194db27974e7d2d2ae597e9984b5531653",
     "v1/bitcointalk/profile-900001.html": "55b87a5f5c6f68630e8035e8d8a9083b9764cb5f797976f4a65a4d02b2a838ac",
-    "v2/bitcointalk/profile-900001.html": "5c69a47bc800ebb3b0e43e41520627b3183c698baba72351ea93b8cb8ea14b87"
+    "v1/sitemap.xml": "3c727770142859b341f9d26b142537b32ea930a00ef465cbcc39fa3a4aac69d7",
+    "v2/bitcointalk/profile-900001.html": "5c69a47bc800ebb3b0e43e41520627b3183c698baba72351ea93b8cb8ea14b87",
+    "v2/sitemap.xml": "e8af26ab627684973359ded76eaf5c2e49b32ac10e4afb7e964a2b6ba731054a"
   }
 }

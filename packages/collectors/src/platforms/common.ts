@@ -26,8 +26,15 @@ export interface HandleTarget {
 
 /**
  * The account a handle-addressed collector should read: a recognised profile URL, a nick to probe, an account of
- * the platform or an identifier given for the platform (`normalise` returns undefined for invalid handles).
+ * the platform or an identifier given for the platform (`normalise` returns undefined for invalid handles). A task
+ * that names pages (URL values) is about those pages only: when none of them is an account of the platform there is
+ * no target — the identifiers it carries are for matching, never a fallback.
  */
+/** True when the task names pages to read (URL values): then those pages alone are its subject. */
+export function namesPages(input: CollectorInput): boolean {
+  return (input.values ?? []).some((value) => value.kind === 'url');
+}
+
 export function handleTarget(
   input: CollectorInput,
   platform: string,
@@ -49,6 +56,7 @@ export function handleTarget(
       if (handle) return { handle, method: value.method ?? 'enumeration' };
     }
   }
+  if (namesPages(input)) return undefined;
   for (const account of input.accounts) {
     const handle = account.platform === platform ? normalise(account.handle) : undefined;
     if (handle) return { handle, method: account.discoveredVia.method };

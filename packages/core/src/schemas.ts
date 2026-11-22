@@ -248,14 +248,15 @@ const NameVersion = z.strictObject({ name: z.string().min(1), version: z.string(
 /** Validates a stored capture manifest (`olcys.capture-manifest/1`). */
 export const CaptureManifestSchema = z.strictObject({
   schema: z.literal(CAPTURE_MANIFEST_SCHEMA_ID),
-  captureId: z.string().min(1),
-  caseId: z.string().min(1),
-  runId: z.string().min(1),
+  // UUIDs only: the capture id becomes a path segment of collection packages.
+  captureId: z.uuid(),
+  caseId: z.uuid(),
+  runId: z.uuid(),
   sourceId: z.string().min(1),
   profile: z.enum(CAPTURE_PROFILES),
   mode: z.enum(FETCH_MODES),
   userAgent: z.string(),
-  fetchIds: z.array(z.string()),
+  fetchIds: z.array(z.uuid()),
   collector: z.strictObject({
     name: z.string().min(1),
     host: z.string(),

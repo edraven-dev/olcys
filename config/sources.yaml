@@ -189,19 +189,20 @@ sources:
     name: Mock search provider (fixtures)
     kind: search
     compliance: GREEN
-    complianceNote: Returns fixture-site results; used in demos so no identifier leaves the machine.
+    complianceNote: Searches the fixture site's sitemap pages (fixture modes only; robots.txt respected). Queries are matched locally, so no identifier leaves the machine. Demo default (OLCYS_SEARCH_MODE=mock).
     enabledByDefault: true
     requiresApiKey: false
     sendsIdentifiersExternally: false
     reliability: C
     rateLimit: { requests: 10, perSeconds: 1 }
-    allowedHosts: []
+    allowedHosts: [127.0.0.1, localhost, fixture-site]
 
   brave_search:
     name: Brave Search API
     kind: search
     compliance: AMBER
-    complianceNote: Paid per query; the query (identifier) goes to Brave; check result-storage terms before keeping results as evidence.
+    complianceNote: Paid per query (5 USD per 1,000 requests, 5 USD monthly credit; no free tier since Feb 2026); the query (identifier) goes to Brave; zero data retention only on Enterprise. Storing results needs a custom plan (FAQ "Yes, with a custom plan"; the API terms reportedly forbid it otherwise). Raw responses are never stored (hash only); titles and snippets are kept (redacted) only with BRAVE_SEARCH_STORAGE_RIGHTS=true, otherwise only rank and URL. Used only with OLCYS_SEARCH_MODE=external in live or replay runs.
+    tosUrl: https://brave.com/search/api/
     enabledByDefault: false
     requiresApiKey: true
     sendsIdentifiersExternally: true
@@ -213,7 +214,8 @@ sources:
     name: Mojeek Search API
     kind: search
     compliance: AMBER
-    complianceNote: Paid per query; DPA with no sub-processors and zero retention available on request (preferred for production).
+    complianceNote: Paid per query (Startup 2 GBP / Business 3 GBP per 1,000); DPA with no sub-processors, 90-day retention with zero retention on request (preferred for production). Startup may cache results for one hour only. Raw responses are never stored (hash only); on Startup (MOJEEK_PLAN, default) only rank and URL are kept, Business and Enterprise keep titles and snippets (redacted). Used only with OLCYS_SEARCH_MODE=external in live or replay runs.
+    tosUrl: https://www.mojeek.com/services/search/web-search-api/
     enabledByDefault: false
     requiresApiKey: true
     sendsIdentifiersExternally: true

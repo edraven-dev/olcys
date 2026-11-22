@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { canonicalJson } from '@olcys/core';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { ArtifactIntegrityError, FileBlobStore, InMemoryBlobStore, writeCollectionPackage } from '../src/index.ts';
 import { fullDraft, makeContext, makeRecorder } from './helpers.ts';
@@ -52,5 +53,31 @@ describe('writeCollectionPackage', () => {
     await expect(writeCollectionPackage([capture.manifestSha256], join(dir, 'x'), partial)).rejects.toBeInstanceOf(
       ArtifactIntegrityError,
     );
+  });
+
+  it('refuses a crafted manifest whose capture id would escape the package directory', async () => {
+    const source = makeContext();
+    const capture = await makeRecorder().record(fullDraft(), source.ctx);
+    const manifest = JSON.parse(new TextDecoder().decode(await source.blobs.get(capture.manifestSha256)));
+    manifest.captureId = '../../escaped';
+    const crafted = await source.blobs.put(new TextEncoder().encode(canonicalJson(manifest)), 'application/json');
+    const out = join(dir, 'a', 'b', 'paczka');
+    await expect(writeCollectionPackage([crafted.sha256], out, source.blobs)).rejects.toThrow();
+    await expect(readFile(join(dir, 'escaped.json'))).rejects.toThrow();
+    await expect(readFile(join(dir, 'a', 'escaped.json'))).rejects.toThrow();
+  });
+
+  it('does not treat a storage error as a missing artifact', async () => {
+    const source = makeContext();
+    const capture = await makeRecorder().record(fullDraft(), source.ctx);
+    const failing = {
+      put: source.blobs.put.bind(source.blobs),
+      has: async () => true,
+      get: async (sha: string) => {
+        if (sha === capture.manifestSha256) return source.blobs.get(sha);
+        throw new Error('EACCES: permission denied');
+      },
+    };
+    await expect(writeCollectionPackage([capture.manifestSha256], join(dir, 'x'), failing)).rejects.toThrow(/EACCES/);
   });
 });

@@ -167,8 +167,8 @@ describe('source HTTP guards', () => {
     const egress = fakeEgress();
     const logger = memoryLogger();
     const ctx: RunContext = {
-      runId: 'r',
-      caseId: 'c',
+      runId: '00000000-0000-7000-8000-000000000903',
+      caseId: '00000000-0000-7000-8000-000000000904',
       mode,
       http: egress,
       blobs: new MemoryBlobs(),
@@ -201,7 +201,11 @@ describe('source HTTP guards', () => {
       purpose: 'test',
       containsIdentifier: false,
     });
-    expect(egress.requests[0]).toMatchObject({ containsIdentifier: true, sourceId: 'bitcointalk', runId: 'r' });
+    expect(egress.requests[0]).toMatchObject({
+      containsIdentifier: true,
+      sourceId: 'bitcointalk',
+      runId: '00000000-0000-7000-8000-000000000903',
+    });
     expect(logger.lines.some((l) => l.level === 'warn')).toBe(true);
   });
 

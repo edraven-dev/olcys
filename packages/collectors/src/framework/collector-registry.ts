@@ -22,6 +22,8 @@ export interface CollectorFactory {
   readonly watchesPages?: boolean;
   /** False when discovered accounts are publishers about the subject, not the subject (e.g. warning channels). */
   readonly pivotOnAccounts?: boolean;
+  /** True for web search: one query per input identifier (I5), and the result URLs it finds are followed (E3). */
+  readonly webSearch?: boolean;
   create(descriptor: SourceDescriptor, deps: CollectorDeps): SourceCollector;
 }
 

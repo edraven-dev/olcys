@@ -135,12 +135,20 @@ export interface TestRunOptions {
   wrap?: (client: EgressClient) => EgressClient;
 }
 
+/** Run ids in tests are readable labels; manifests need UUIDs, so a label maps to a stable one. */
+export function testRunId(label: string): string {
+  return /^[0-9a-f]{8}-/.test(label)
+    ? label
+    : `00000000-0000-7000-8000-${createHash('sha256').update(label).digest('hex').slice(0, 12)}`;
+}
+
 export function createTestRun(
   scope: ResolvedScope,
   mode: FetchMode = 'offline',
-  runId = 'run-1',
+  runLabel = '00000000-0000-7000-8000-000000000901',
   options: TestRunOptions = {},
 ): TestRun {
+  const runId = testRunId(runLabel);
   const logs: EgressLogEntry[] = [];
   const envelopes: ProvenanceEnvelope[] = [];
   const blobs = new MemoryBlobs();
@@ -165,7 +173,7 @@ export function createTestRun(
   const logger = memoryLogger();
   const ctx: RunContext = {
     runId,
-    caseId: 'case-1',
+    caseId: '00000000-0000-7000-8000-000000000902',
     mode,
     http,
     blobs,
@@ -216,7 +224,7 @@ export function fakeEgress(
         text: () => answer.body ?? '',
         json: <T>() => JSON.parse(answer.body ?? 'null') as T,
         provenance: {
-          fetchId: `fetch-${requests.length}`,
+          fetchId: `00000000-0000-7000-8000-${String(requests.length).padStart(12, '0')}`,
           sourceId: request.sourceId,
           provider: 'fake',
           method: 'GET',

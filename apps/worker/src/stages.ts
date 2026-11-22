@@ -51,11 +51,19 @@ import {
 } from '@olcys/labels';
 import { parse as parseYaml } from 'yaml';
 import { createSecretRedactor, extractCapture, parseDenyList, type CaptureContent } from '@olcys/address-extractor';
-import { collectCase, loadCollectorConfig, loadSourceRegistry, type SourceRegistry } from '@olcys/collectors';
+import {
+  collectCase,
+  createDefaultCollectorRegistry,
+  isSearchResultCapture,
+  loadCollectorConfig,
+  loadSourceRegistry,
+  type SourceRegistry,
+} from '@olcys/collectors';
 import {
   createCaptureRecorder,
   createClockSyncCheck,
   custodyCollected,
+  readDefaultRouteInterface,
   resolveCollectorIdentity,
 } from '@olcys/evidence';
 import { createEgressClient, RobotsCache } from '@olcys/http';
@@ -95,7 +103,7 @@ export function createCollectStage(options: StageOptions): Stage {
   const env = options.env ?? process.env;
   // One clock check (cached 60 s) and one recorder per process; the collector identity is resolved from local state.
   const maxOffsetMs = Number(env['OLCYS_CLOCK_MAX_OFFSET_MS']);
-  const collector = resolveCollectorIdentity({ ...env }, { hostname, networkInterfaces });
+  const collector = resolveCollectorIdentity({ ...env }, { hostname, networkInterfaces }, readDefaultRouteInterface());
   const recorder = createCaptureRecorder({
     clockSync: createClockSyncCheck({
       clock: systemClock,
@@ -103,7 +111,11 @@ export function createCollectStage(options: StageOptions): Stage {
     }),
     collector,
     toolVersion: TOOL_VERSION,
+    ...(env['OLCYS_GIT_COMMIT'] ? { gitCommit: env['OLCYS_GIT_COMMIT'] } : {}),
   });
+  // Platform collectors plus the web search collectors of OLCYS_SEARCH_MODE (keys from the environment only); built
+  // once, so a misconfigured search mode stops the start-up instead of failing every run.
+  const collectors = createDefaultCollectorRegistry({ mode: options.mode, env });
   return {
     step: 'collect.source',
     async run(ctx: StageContext) {
@@ -147,6 +159,7 @@ export function createCollectStage(options: StageOptions): Stage {
         config,
         robots: new RobotsCache(http, USER_AGENT),
         redactor,
+        collectors,
         maxPivotDepth: ctx.case.scope.maxPivotDepth,
         onTask: (event) => ctx.progress({ tasksDone: event.done, tasksPlanned: event.planned }),
       });
@@ -178,7 +191,11 @@ export function createExtractStage(): Stage {
     step: 'extract.capture',
     async run(ctx: StageContext) {
       const list = await denyList();
-      const captures = (await ctx.repos.evidence.listCaptures(ctx.evidenceRunId)).filter((c) => c.status === 'ok');
+      // A search result list only points at pages; the pages themselves are collected and extracted, so a snippet
+      // never becomes a second copy of an address found on a page.
+      const captures = (await ctx.repos.evidence.listCaptures(ctx.evidenceRunId)).filter(
+        (c) => c.status === 'ok' && !isSearchResultCapture(c),
+      );
       let candidates = 0;
       for (const capture of captures) {
         const artifacts: CaptureContent['artifacts'] = [];

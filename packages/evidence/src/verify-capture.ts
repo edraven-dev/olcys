@@ -8,9 +8,10 @@ export interface CaptureVerification {
   artifacts: { kind: ArtifactKind; sha256: Sha256Hex; result: 'ok' | 'missing' | 'digest_mismatch' }[];
 }
 
-type BlobCheck = { result: 'ok'; bytes: Uint8Array } | { result: 'missing' | 'digest_mismatch' };
+export type BlobCheck = { result: 'ok'; bytes: Uint8Array } | { result: 'missing' | 'digest_mismatch' };
 
-async function readChecked(blobs: BlobStore, sha256: Sha256Hex): Promise<BlobCheck> {
+/** Reads a blob and checks its digest; only "not found" and "integrity" failures are results, any other error is thrown. */
+export async function readChecked(blobs: BlobStore, sha256: Sha256Hex): Promise<BlobCheck> {
   try {
     const bytes = await blobs.get(sha256);
     return sha256Hex(bytes) === sha256 ? { result: 'ok', bytes } : { result: 'digest_mismatch' };

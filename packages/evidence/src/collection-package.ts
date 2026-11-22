@@ -1,9 +1,9 @@
 import { mkdir, writeFile } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve, sep } from 'node:path';
 import type { ArtifactKind, BlobStore, Sha256Hex } from '@olcys/core';
 import { ArtifactIntegrityError } from './capture-manifest.ts';
 import { sha256Hex } from './blob-store.ts';
-import { readManifest } from './verify-capture.ts';
+import { readChecked, readManifest } from './verify-capture.ts';
 
 const EXTENSIONS: Record<string, string> = {
   'text/html': 'html',
@@ -54,9 +54,12 @@ export async function writeCollectionPackage(
   outDir: string,
   blobs: BlobStore,
 ): Promise<{ files: string[] }> {
+  const root = resolve(outDir);
   const sums = new Map<string, Sha256Hex>();
   const put = async (relative: string, bytes: Uint8Array): Promise<void> => {
-    const target = join(outDir, relative);
+    const target = resolve(outDir, relative);
+    // Names come from stored manifests: never write outside the package directory.
+    if (!target.startsWith(root + sep)) throw new Error(`refusing to write outside the package directory: ${relative}`);
     await mkdir(dirname(target), { recursive: true });
     await writeFile(target, bytes);
     sums.set(relative, sha256Hex(bytes));
@@ -74,11 +77,10 @@ export async function writeCollectionPackage(
       const relative = `artifacts/${manifest.captureId}/${artifact.kind}-${artifact.sha256.slice(0, 12)}.${extensionFor(artifact.kind, artifact.mediaType)}`;
       if (sums.has(relative)) continue;
       // oxlint-disable-next-line no-await-in-loop
-      const bytes = await blobs.get(artifact.sha256).catch(() => undefined);
-      if (!bytes) throw new ArtifactIntegrityError(artifact.sha256, 'missing');
-      if (sha256Hex(bytes) !== artifact.sha256) throw new ArtifactIntegrityError(artifact.sha256, 'digest_mismatch');
+      const check = await readChecked(blobs, artifact.sha256);
+      if (check.result !== 'ok') throw new ArtifactIntegrityError(artifact.sha256, check.result);
       // oxlint-disable-next-line no-await-in-loop
-      await put(relative, bytes);
+      await put(relative, check.bytes);
     }
   }
 

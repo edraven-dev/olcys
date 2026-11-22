@@ -142,6 +142,7 @@ export {
   accountAliasKeys,
   planExpansion,
   planInitial,
+  searchSubject,
   taskKey,
   type PivotPlan,
   type PivotProvenance,
@@ -151,3 +152,64 @@ export {
   type SkipReason,
   type SkippedTask,
 } from './pivot/planner.ts';
+export {
+  BRAVE_ENDPOINT,
+  BRAVE_MAX_COUNT,
+  BRAVE_SEARCH_ID,
+  braveSearchUrl,
+  createBraveSearchProvider,
+  parseBraveResults,
+  type BraveSearchOptions,
+} from './search/brave.ts';
+export {
+  SEARCH_COLLECTOR_VERSION,
+  SEARCH_PLATFORM,
+  SEARCH_RESULTS_SCHEMA,
+  SEARCH_SOFTWARE_PREFIX,
+  createBraveSearchCollector,
+  createMockSearchCollector,
+  createMojeekSearchCollector,
+  createSearchCollector,
+  isSearchResultCapture,
+  searchSubjectKey,
+  type SearchCollectorOptions,
+} from './search/collector.ts';
+export {
+  DEFAULT_SITEMAP_PATH,
+  MOCK_SEARCH_ID,
+  createMockSearchProvider,
+  parseSitemap,
+  type MockSearchOptions,
+} from './search/mock.ts';
+export {
+  SEARCH_MODES,
+  braveStorageRightsFromEnv,
+  mojeekPlanFromEnv,
+  searchCollectorFactories,
+  searchModeFromEnv,
+  type SearchMode,
+} from './search/mode.ts';
+export {
+  MOJEEK_ENDPOINT,
+  MOJEEK_PLANS,
+  MOJEEK_SEARCH_ID,
+  createMojeekSearchProvider,
+  mojeekSearchUrl,
+  mojeekStoresResults,
+  parseMojeekResults,
+  type MojeekPlan,
+  type MojeekSearchOptions,
+} from './search/mojeek.ts';
+export { SearchFailedError, type SearchAdapter, type SearchRun, type SearchStatus } from './search/provider.ts';
+export {
+  DEFAULT_MAX_RESULTS,
+  MAX_PHRASE_CHARS,
+  MAX_PHRASE_WORDS,
+  SEARCH_IDENTIFIER_KINDS,
+  SEARCH_SUBJECTS,
+  buildSearchQuery,
+  exactPhrase,
+  normaliseQueryText,
+  type SearchSubject,
+  type SubjectSearchQuery,
+} from './search/query.ts';
