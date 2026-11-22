@@ -13,10 +13,6 @@ import { idOf } from './ids.ts';
 
 /** CSP of JSON API responses: nothing may load or frame them. */
 export const API_CSP = "default-src 'none'; frame-ancestors 'none'";
-/** Strict CSP of the web app (also set by `apps/web` for the production build): same-origin only, no inline script. */
-export const SPA_CSP =
-  "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; font-src 'self'; " +
-  "connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'";
 export const PERMISSIONS_POLICY = 'camera=(), microphone=(), geolocation=(), payment=(), usb=()';
 const HSTS = 'max-age=31536000; includeSubDomains';
 
