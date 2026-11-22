@@ -47,6 +47,35 @@ dozwolonych hostów, limit zapytań, dziennik wyjścia, koperta pochodzenia) i z
 działa lokalny OpenVINO Model Server (`http://localhost:2140/v3`, model `qwen3.6-35b-ov`). Zdalny punkt końcowy
 wymaga osobnego wpisu AMBER w rejestrze.
 
+## Zamiana modelu
+
+Model jest wskazywany wyłącznie przez środowisko; kod się nie zmienia. Wystarczy `LLM_BASE_URL` i `LLM_MODEL` (oraz,
+jeśli serwer tego wymaga, `LLM_CHAT_TEMPLATE_KWARGS`, np. `{"enable_thinking":false}` dla Qwen):
+
+| Serwer                                    | `LLM_BASE_URL`              | `LLM_MODEL`                  |
+| ----------------------------------------- | --------------------------- | ---------------------------- |
+| OpenVINO Model Server (domyślnie)         | `http://localhost:2140/v3`  | `qwen3.6-35b-ov`             |
+| Ollama (profil compose `llm`)             | `http://127.0.0.1:11434/v1` | nazwa z `ollama list`        |
+| llama.cpp (profil compose `llm-llamacpp`) | `http://127.0.0.1:8081/v1`  | `LLAMACPP_ALIAS`             |
+| vLLM (host z GPU, poza compose)           | `http://127.0.0.1:8000/v1`  | identyfikator z `vllm serve` |
+
+Po zmianie `.env` uruchom `pnpm llm:check`: polecenie czyta te same zmienne co worker, wypisuje host punktu
+końcowego, model, listę modeli serwera (`GET {base}/models`), skrót modelu (`LLM_MODEL_DIGEST` albo „brak skrótu
+modelu”), wynik jednej próby ze ścisłym schematem JSON na syntetycznym wejściu oraz opóźnienie. Próba przechodzi przez
+ten sam klient i ten sam klient wyjścia co analizy (źródło `local_llm`, lista dozwolonych hostów, dziennik wyjścia).
+Przy błędzie (serwer niedostępny, modelu nie ma na liście, odpowiedź niezgodna ze schematem) kod wyjścia jest różny od
+zera. Test `apps/worker/test/llm-swap.test.ts` dowodzi zamiany na dwóch atrapach serwerów na `127.0.0.1`.
+
+Każdy uruchomiony przebieg zapisuje tożsamość modelu w migawce konfiguracji (`config.llm`): adres bazowy bez danych
+logowania i zapytania, identyfikator modelu, `LLM_MODEL_DIGEST` albo `none` i znacznik włączenia. Każdy dozwolony punkt
+końcowy to źródło GREEN z pętli zwrotnej; inny host wymaga osobnego wpisu w `config/sources.yaml`.
+
+Model o dobrej znajomości polskiego na licencji Apache-2.0 (np. Bielik 11B v3 Instruct, SpeakLeash) pobiera się
+ręcznie, jednorazowo i poza analizą (pobranie nie niesie danych sprawy; OŁCyŚ niczego nie pobiera sam): w Ollamie
+`ollama pull` z biblioteki modeli, w llama.cpp przez plik GGUF umieszczony w `data/models/` (`LLAMACPP_MODEL_FILE`,
+`LLAMACPP_ALIAS`) i `LLM_MODEL_DIGEST=sha256:<suma kontrolna pliku>`. Profile compose `llm` i `llm-llamacpp` mają wyłączone
+funkcje chmurowe i telemetrię, porty wiązane do `127.0.0.1` oraz testy zdrowia.
+
 Test dymny z działającym modelem jest wyłączony domyślnie: `OLCYS_LLM_LIVE=1 pnpm vitest run --project @olcys/worker llm-live`
 (tylko pętla zwrotna, krótki syntetyczny prompt).
 

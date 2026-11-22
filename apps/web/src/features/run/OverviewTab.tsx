@@ -334,7 +334,13 @@ function Reproducibility({ scope }: { scope: RunScope }) {
           <Verbatim>{Object.values(config.rulesVersions ?? {}).join(' · ')}</Verbatim>
         </dd>
         <dt>{pl.overview.repro.llm}</dt>
-        <dd>{config.llm ? <Verbatim>{config.llm.model}</Verbatim> : pl.overview.repro.llmNone}</dd>
+        <dd>
+          {config.llm && config.llm.enabled !== false ? (
+            <Verbatim>{config.llm.model}</Verbatim>
+          ) : (
+            pl.overview.repro.llmNone
+          )}
+        </dd>
       </dl>
     </section>
   );
