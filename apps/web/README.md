@@ -38,6 +38,12 @@ pnpm vitest run --project @olcys/web
   ich nie osadza ani nie wyświetla.
 - **Fakty, obliczenia, wnioski.** Każdy blok ma etykietę tekstową „Fakt źródłowy”, „Wynik obliczeń” albo „Wniosek do
   weryfikacji” i własny styl krawędzi — kolor nie jest jedynym nośnikiem znaczenia.
+- **Ocena i korekty analityka.** Gdy `GET /api/meta` zwraca `features.judgements`, karta powiązania ma formularz oceny
+  (potwierdzone / odrzucone / niepewne, uzasadnienie ≥ 10 znaków) i listę ocen z analitykiem i czasem — z informacją, że
+  ocena nie zmienia obliczonego Wskaźnika Pewności; rozwijane uzasadnienie ma formularz korekty (ocena wiarygodności
+  obserwacji, wykrytego adresu lub źródła, decyzja o dopasowaniu wymagającym przeglądu, przesłanka z zamkniętej listy),
+  a nad listą powiązań są korekty sprawy ze stanem („uwzględniona w tym przebiegu” / „oczekuje na ponowną ocenę”)
+  i przycisk ponownej oceny (rescore). Zakładka „Raport” pozwala wygenerować nową wersję raportu z zapisanymi ocenami.
 - **Teksty po polsku w jednym miejscu.** Wszystkie napisy są w `src/i18n/pl.ts` (`t()` i `plural()` z
   `src/i18n/t.ts`, polska odmiana liczebników). Test sprawdza, że komponenty nie zawierają literałów tekstowych.
 - **Kwoty i daty.** Kwoty `DecimalString` są formatowane dokładnie (bez liczb zmiennoprzecinkowych), daty w strefie

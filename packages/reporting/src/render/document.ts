@@ -15,7 +15,7 @@ export const REPORT_CSP = "default-src 'none'; style-src 'unsafe-inline'; img-sr
 
 // Local fonts only; borders differ by statement class in style (solid / double / dashed) so print in greyscale works.
 const CSS = `@page{size:A4;margin:18mm 16mm 20mm}
-:root{--ink:#1b1f24;--muted:#5b6470;--line:#d0d5dc;--facts:#1f5fbf;--computed:#2e7d32;--inferences:#b45309;--alert:#b42318}
+:root{--ink:#1b1f24;--muted:#5b6470;--line:#d0d5dc;--facts:#1f5fbf;--computed:#2e7d32;--inferences:#b45309;--analyst:#6b3fa0;--alert:#b42318}
 *{box-sizing:border-box}
 html{-webkit-print-color-adjust:exact;print-color-adjust:exact}
 body{margin:0 auto;max-width:200mm;padding:10mm 8mm;font-family:"DejaVu Sans","Liberation Sans","Noto Sans",Arial,sans-serif;font-size:10pt;line-height:1.45;color:var(--ink);background:#fff}
@@ -35,10 +35,12 @@ code,.hash,.addr,.url{font-family:"DejaVu Sans Mono","Liberation Mono","Noto San
 .blk-fakty{border-left:4px solid var(--facts)}
 .blk-obliczenia{border-left:6px double var(--computed)}
 .blk-wnioski{border-left:4px dashed var(--inferences);background:#fffaf3}
+.blk-ocena-analityka{border-left:4px dotted var(--analyst);background:#f8f5fc}
 .blk-label,.st-label{margin:0 0 3pt;font-size:7.5pt;font-weight:bold;text-transform:uppercase;letter-spacing:.05em}
 .blk-fakty>.blk-label,.st-fakty>.st-label{color:var(--facts)}
 .blk-obliczenia>.blk-label,.st-obliczenia>.st-label{color:var(--computed)}
 .blk-wnioski>.blk-label,.st-wnioski>.st-label{color:var(--inferences)}
+.blk-ocena-analityka>.blk-label{color:var(--analyst)}
 .st{margin:2pt 0;padding-left:6pt}
 .st-fakty{border-left:3px solid var(--facts)}
 .st-obliczenia{border-left:4px double var(--computed)}

@@ -245,6 +245,8 @@ export function methodologySection(view: View): SafeHtml {
       para(m.formula, 'formula'),
       para(m.dedupe),
       para(m.gates),
+      markup`<h3>${m.analystTitle}</h3>`,
+      para(m.analyst),
       para(
         t(m.weights, {
           version: data.run.config.weightsVersion,

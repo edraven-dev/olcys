@@ -5,6 +5,7 @@
  */
 import type {
   AddressRef,
+  AnalystJudgement,
   CashOutEvent,
   ChangeEvent,
   ComplianceStatus,
@@ -47,6 +48,8 @@ export type LinkView = Omit<LinkAssessment, 'paths'> & {
   band?: string;
   ungated?: { probability: number; score: number; icd203: string };
   synergy?: TraceSynergyView;
+  /** Analyst judgements recorded next to the link (oldest first); they never change the computed fields. */
+  judgements?: AnalystJudgement[];
 };
 
 export type ExclusionView = Omit<ExclusionDecision, 'evidence'> & {

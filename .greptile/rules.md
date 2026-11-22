@@ -31,6 +31,11 @@
   panel with a reason; LLM suggestions weigh 0 until an analyst confirms them.
 - Weights are versioned in `config/scoring/weights.v1.yaml`; every assessment records `algorithmVersion`,
   `weightsVersion`, `weightsSha256` and the full list of contributions.
+- Analyst judgements (`same` / `not_same` / `unsure`) are stored next to an assessment and never change it (no score,
+  gate, band or diff change, no rescoring). Analyst overrides (A-E grade, decision on a review-required candidate, one
+  of `ADD_EVIDENCE_FEATURES`) take effect only in a rescore run, which records them in `rulesVersions.overrides`.
+  `link_assessments`, `analyst_judgements` and `analyst_overrides` are append-only; the analyst comes from server
+  configuration, never from the request.
 - Cash-out indicators B1-B7 (`config/rules/cashout.v1.yaml`) form a separate indicator. PLN values use the NBP Table A
   average rate of the last business day before the transaction; amounts are decimal strings, never floats.
 

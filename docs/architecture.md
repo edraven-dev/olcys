@@ -91,13 +91,18 @@ run.finish        status succeeded | partial | failed
 
 Przebieg **ponownej oceny** (`trigger: 'rescore'`) przetwarza zapisane zabezpieczenia wcześniejszego przebiegu nowymi
 wersjami algorytmu lub reguł bez ponownego pobierania danych — pozwala to odróżnić zmianę danych od zmiany algorytmu.
+Tylko ponowna ocena stosuje też korekty analityka zapisane do chwili jej zlecenia (zbiór ustalony przy zleceniu,
+zapisany w migawce konfiguracji jako `analystOverrides` i `rulesVersions.overrides`); oceny analityka są zapisywane
+obok wyników i nigdy ich nie zmieniają — zob. [metodyka Wskaźnika Pewności](methodology/wskaznik-pewnosci.md).
 
 ## Analizy okresowe (harmonogram)
 
 Sprawa może mieć harmonogram ponownych analiz: wyrażenie cron (pięć pól: minuta, godzina, dzień miesiąca, miesiąc,
 dzień tygodnia) liczone w UTC oraz flagę włączenia. Każdy przebieg z harmonogramu (`trigger: 'schedule'`) jest
 porównywany z ostatnim zakończonym przebiegiem sprawy (`succeeded` lub `partial`, dowolnego rodzaju — także z ponowną
-oceną), więc krok `diff.previous` pokazuje, co się zmieniło (np. podmianę adresu portfela).
+oceną), więc krok `diff.previous` pokazuje, co się zmieniło (np. podmianę adresu portfela). Przebieg z harmonogramu
+zbiera dane od nowa i — jak każdy przebieg zbierający — nie stosuje korekt analityka; stosuje je tylko ponowna ocena
+(zob. wyżej).
 
 - **Planista w procesie API (MVP).** `createScheduler()` z `apps/worker` co `OLCYS_SCHEDULER_INTERVAL_SECONDS`
   (domyślnie 30 s) sprawdza otwarte sprawy z włączonym harmonogramem i obsługuje termin należny: najpóźniejszy termin
@@ -122,8 +127,9 @@ oceną), więc krok `diff.previous` pokazuje, co się zmieniło (np. podmianę a
   podlegają tym samym ograniczeniom co ręczne (lista dozwolonych hostów, limity zapytań, zakres sprawy); harmonogram
   nigdy sam nie włącza źródeł.
 - **Ewidencja.** `cases.schedule` to jedyna nowa wartość zmienna (prawo UPDATE wyłącznie do tej kolumny); każda zmiana
-  trafia w tej samej transakcji do dopisywanego dziennika `case_schedule_change`: kto (z konfiguracji serwera,
-  `OLCYS_ANALYST_NAME`, nigdy z żądania), dlaczego, wartość przed i po. Dla roli `olcys_app` tabele
+  trafia w tej samej transakcji do dopisywanego dziennika `case_schedule_change`: kto (z konfiguracji serwera:
+  `OLCYS_ANALYST_NAME`, w razie braku `OLCYS_COLLECTOR_NAME`, domyślnie `analyst`; nigdy z żądania), dlaczego, wartość
+  przed i po. Dla roli `olcys_app` tabele
   `case_schedule_change` i `schedule_tick` są tylko do dopisywania.
 - **Odrzucane wyrażenia:** makra (`@daily`, `@reboot`), pole sekund, `H` (Jenkins), RRULE oraz jednoczesne ograniczenie
   dnia miesiąca i dnia tygodnia.
