@@ -127,6 +127,14 @@ function npmMatches(pattern: string, name: string): boolean {
   return pattern.endsWith('/*') ? name.startsWith(pattern.slice(0, -1)) : pattern === name;
 }
 
+/** Package named by an `npm:` alias spec (`npm:turbo@2.0.0`, `npm:@scope/pkg`), else undefined. */
+export function npmAliasTarget(spec: string): string | undefined {
+  if (!spec.startsWith('npm:')) return undefined;
+  const target = spec.slice(4);
+  const at = target.indexOf('@', target.startsWith('@') ? 1 : 0);
+  return (at === -1 ? target : target.slice(0, at)) || undefined;
+}
+
 /** Python requirement names in a pyproject.toml, requirements*.txt or uv.lock (no TOML parser: quoted/plain lines). */
 function pythonNames(file: string, text: string): string[] {
   const names: string[] = [];
@@ -206,16 +214,26 @@ export async function scanForbiddenDependencies(
       let manifest: unknown;
       try {
         manifest = JSON.parse(await readFile(file, 'utf8'));
-      } catch {
-        return hits;
+      } catch (error) {
+        throw new Error(
+          `cannot scan ${relative(root, file)}: ${error instanceof Error ? error.message : String(error)}`,
+          {
+            cause: error,
+          },
+        );
       }
-      if (!isRecord(manifest)) return hits;
+      if (!isRecord(manifest)) throw new Error(`cannot scan ${relative(root, file)}: not a JSON object`);
       for (const section of NPM_SECTIONS) {
         const deps = manifest[section];
         if (!isRecord(deps)) continue;
-        for (const dep of Object.keys(deps)) {
-          for (const tool of tools.tools) {
-            if (tool.packages.npm.some((p) => npmMatches(p, dep))) add(tool, 'npm', dep);
+        for (const [key, spec] of Object.entries(deps)) {
+          // An alias ("task-runner": "npm:turbo@2.0.0") installs the package named in the value.
+          const aliased = typeof spec === 'string' ? npmAliasTarget(spec) : undefined;
+          for (const dep of aliased && aliased !== key ? [key, aliased] : [key]) {
+            for (const tool of tools.tools) {
+              if (tool.packages.npm.some((p) => npmMatches(p, dep)))
+                add(tool, 'npm', dep === key ? dep : `${key} (${dep})`);
+            }
           }
         }
       }

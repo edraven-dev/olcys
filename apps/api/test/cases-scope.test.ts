@@ -77,6 +77,15 @@ describe('POST /api/cases: source register scope', () => {
     ]);
   });
 
+  it('reports an unknown chain as unknown_chain, not invalid_input', async () => {
+    const response = await post({ chains: ['bitcoin', 'dogecoin?'] });
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      error: 'unknown_chain',
+      details: [{ code: 'unknown_chain', chain: 'dogecoin?' }],
+    });
+  });
+
   it('accepts a justified AMBER source', async () => {
     const response = await post({
       enabledSources: ['bitcointalk'],

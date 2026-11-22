@@ -82,7 +82,12 @@ export const CaseScopeInputSchema = z.strictObject({
   enabledSources: z.array(z.string().min(1).max(64)).max(64).default([]),
   // Length rules live in validateCaseScope (code `justification_too_short`), so the API answers with that code.
   amberJustifications: z.record(z.string(), z.string().trim().max(1000)).default({}),
-  chains: z.array(ChainIdSchema).max(32).default([]),
+  // Chain ids are checked by validateCaseScope (code `unknown_chain`) before a case is stored, so the parsed type is
+  // ChainId although the schema only bounds the strings.
+  chains: z
+    .array(z.string().max(64) as unknown as z.ZodType<ChainId>)
+    .max(32)
+    .default([]),
   // The range (0-3) is checked by validateCaseScope (code `pivot_depth_out_of_range`).
   maxPivotDepth: z.int().default(2),
 });

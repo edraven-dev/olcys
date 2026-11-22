@@ -60,6 +60,22 @@ describe('forbidden dependency scan', () => {
     expect(describeForbiddenDependency(hits[0]!)).toMatch(/react-cytoscapejs.*forbidden.*Stale wrapper/s);
   });
 
+  it('finds a forbidden package installed under an npm: alias', async () => {
+    const hits = await scanTemp({
+      'package.json': JSON.stringify({
+        dependencies: { 'task-runner': 'npm:turbo@2.0.0', ui: 'npm:@neo4j-nvl/base@1.0.0', fine: 'npm:left-pad@1.0.0' },
+      }),
+    });
+    expect(hits.map((h) => [h.toolId, h.dependency])).toEqual([
+      ['turbo', 'task-runner (turbo)'],
+      ['neo4j_nvl', 'ui (@neo4j-nvl/base)'],
+    ]);
+  });
+
+  it('fails loudly on a package.json that cannot be parsed', async () => {
+    await expect(scanTemp({ 'apps/x/package.json': '{ not json' })).rejects.toThrow(/apps\/x\/package.json/);
+  });
+
   it('matches scoped patterns such as @neo4j-nvl/*', async () => {
     const hits = await scanTemp({
       'package.json': JSON.stringify({ devDependencies: { '@neo4j-nvl/base': '1.0.0' } }),
