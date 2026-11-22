@@ -71,3 +71,11 @@ export interface SourceDescriptor {
   /** Hostnames this source may contact; the egress allow-list is the union over enabled sources. */
   allowedHosts: string[];
 }
+
+/**
+ * True when the source's content may enter an LLM prompt: a known source whose register entry does not say
+ * `llmAllowed: false` (e.g. Telegram). An unknown source is not allowed.
+ */
+export function isLlmAllowed(source: Pick<SourceDescriptor, 'llmAllowed'> | undefined): boolean {
+  return source !== undefined && source.llmAllowed !== false;
+}

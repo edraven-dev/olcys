@@ -15,18 +15,25 @@ import type {
   ChangeEvent,
   EgressLogEntry,
   ExclusionDecision,
+  FlowEdge,
+  FundFlowView,
   ExtractionResult,
   LinkAssessment,
+  LlmSuggestion,
   NormalizedTransfer,
   OnlineAccount,
   ProvenanceEnvelope,
   ActivityIndicators,
   AddressCandidate,
   AnalystOverrideKind,
+  BlobRef,
   CustodyAction,
   CustodyEvent,
+  LlmOutcome,
   AnalystOverrideTarget,
   ScheduleTickOutcome,
+  TimestampRequestOutcome,
+  TimestampSubjectType,
 } from '@olcys/core';
 import type { ColumnType, Generated } from 'kysely';
 
@@ -177,6 +184,8 @@ export interface ChainTransfersTable {
   address: string;
   tx_hash: string;
   record: Json<NormalizedTransfer>;
+  /** 0: history of an analysed address; n: transfers of a counterparty fetched by hop n of the flow expansion (0008). */
+  expansion_hop: ColumnType<number, number | undefined, never>;
 }
 
 export interface AddressLabelsTable {
@@ -235,6 +244,33 @@ export interface AddressClusterTable {
   created_at: GeneratedTimestamp;
 }
 
+/** Append-only: one fund-flow edge per run, transfer and hop (migration 0008). */
+export interface FlowEdgeTable {
+  run_id: string;
+  chain: string;
+  tx_hash: string;
+  idx: number;
+  from_address: string;
+  to_address: string;
+  asset: string;
+  amount: string;
+  at: Timestamp;
+  hop: number;
+  is_cycle: boolean;
+  record: Json<FlowEdge>;
+  created_at: GeneratedTimestamp;
+}
+
+/** Append-only: timeline and Sankey of one analysed address per run (migration 0008). */
+export interface FundFlowViewTable {
+  run_id: string;
+  chain: string;
+  address: string;
+  record: Json<FundFlowView>;
+  truncated: boolean;
+  computed_at: Timestamp;
+}
+
 export interface ActivityTable {
   id: Generated<string>;
   run_id: string;
@@ -278,6 +314,104 @@ export interface CustodyEventTable {
   run_id: string | null;
   detail: Json<CustodyEvent['detail']>;
   created_at: GeneratedTimestamp;
+}
+
+/** migrations/0009_timestamps.sql (append-only: a retry is a new request row) */
+export interface TimestampRequestTable {
+  id: string;
+  subject_type: TimestampSubjectType;
+  subject_id: string;
+  digest_sha256: string;
+  run_id: string | null;
+  reference_time: Timestamp | null;
+  tsa_source_id: string;
+  tsa_url: string;
+  policy_oid: string | null;
+  /** numeric(20): returned by the driver as a decimal string. */
+  nonce: string | null;
+  outcome: TimestampRequestOutcome;
+  reason: string | null;
+  http_status: number | null;
+  fetch_id: string | null;
+  at: Timestamp;
+  created_at: GeneratedTimestamp;
+}
+
+/** migrations/0009_timestamps.sql (unique per subject type, subject id and digest) */
+export interface TimestampTokenTable {
+  id: string;
+  subject_type: TimestampSubjectType;
+  subject_id: string;
+  digest_sha256: string;
+  tsa_url: string;
+  gen_time: Timestamp;
+  serial_number: string | null;
+  policy_oid: string | null;
+  tsa_name: string | null;
+  qualified: boolean;
+  skew_seconds: number | null;
+  skew_suspected: boolean;
+  response_blob: string;
+  response_bytes: number;
+  verification: Json<unknown>;
+  request_id: string;
+  created_at: GeneratedTimestamp;
+}
+
+/** migrations/0010_llm.sql */
+export interface LlmCallTable {
+  id: string;
+  case_id: string | null;
+  run_id: string | null;
+  task: string;
+  prompt_version: string;
+  prompt_sha256: string;
+  base_url: string;
+  model_requested: string;
+  model_reported: string | null;
+  model_digest: string | null;
+  params: Json<Record<string, unknown>>;
+  request_sha256: string | null;
+  request_blob: Json<BlobRef> | null;
+  input_sha256: string;
+  input_capture_ids: string[];
+  input_source_ids: string[];
+  response_blob: Json<BlobRef> | null;
+  output_json: Json<unknown> | null;
+  outcome: LlmOutcome;
+  error: string | null;
+  http_status: number | null;
+  latency_ms: number | null;
+  usage: Json<Record<string, unknown>> | null;
+  fetch_id: string | null;
+  started_at: Timestamp;
+  finished_at: Timestamp;
+  created_at: GeneratedTimestamp;
+}
+
+export interface LlmSuggestionTable {
+  id: string;
+  run_id: string;
+  task: string;
+  target: Json<LlmSuggestion['target']>;
+  label: string;
+  rationale: string | null;
+  output: Json<unknown> | null;
+  model: string;
+  model_digest: string | null;
+  prompt_version: string;
+  call_id: string;
+  created_at: Timestamp;
+}
+
+export interface LlmSuggestionDecisionTable {
+  id: string;
+  suggestion_id: string;
+  decision: 'confirmed' | 'rejected';
+  justification: string;
+  edited_text: string | null;
+  decided_by: string;
+  decided_at: Timestamp;
 }
 
 /** migrations/0003_analyst_overrides.sql */
@@ -332,12 +466,19 @@ export interface Database {
   exclusion_decisions: ExclusionDecisionsTable;
   address_type_classification: AddressTypeClassificationTable;
   address_cluster: AddressClusterTable;
+  flow_edge: FlowEdgeTable;
+  fund_flow_view: FundFlowViewTable;
   activity: ActivityTable;
   cash_out_events: CashOutEventsTable;
   link_assessments: LinkAssessmentsTable;
   analyst_judgements: AnalystJudgementsTable;
   analyst_overrides: AnalystOverridesTable;
   custody_event: CustodyEventTable;
+  timestamp_request: TimestampRequestTable;
+  timestamp_token: TimestampTokenTable;
+  llm_call: LlmCallTable;
+  llm_suggestion: LlmSuggestionTable;
+  llm_suggestion_decision: LlmSuggestionDecisionTable;
   change_events: ChangeEventsTable;
   reports: ReportsTable;
   schema_migrations: SchemaMigrationsTable;

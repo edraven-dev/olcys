@@ -3,12 +3,14 @@
  * The API process uses it to run analyses in-process (MVP); stages are registered by the caller.
  */
 import { join } from 'node:path';
-import type { FetchMode, Logger, Repositories, RunWithProgress, SourceDescriptor } from '@olcys/core';
+import type { FetchMode, LlmClient, Logger, Repositories, RunWithProgress, SourceDescriptor } from '@olcys/core';
 import { createDb, createMemoryRepositories, createSqlRepositories } from '@olcys/db';
 import { FileBlobStore, InMemoryBlobStore } from '@olcys/evidence';
 import type { BlobStore } from '@olcys/core';
 import { loadConfig, REPO_ROOT, type LoadedConfig } from './config.ts';
+import { createLlmRuntime, llmSnapshot } from './llm.ts';
 import { createRun, runPipeline, type Stage } from './pipeline.ts';
+import { createTrustedTimestamper, tsaSettings, type WorkerTimestamper } from './timestamper.ts';
 
 export interface Runtime {
   repos: Repositories;
@@ -17,6 +19,10 @@ export interface Runtime {
   config: LoadedConfig;
   mode: FetchMode;
   logger: Logger;
+  /** RFC 3161 timestamping of capture manifests (live: stamps; offline/replay: queues; see `TSA_ENABLED`). */
+  timestamper: WorkerTimestamper;
+  /** The AI model (suggestions only); `enabled` is false unless `LLM_ENABLED=true`. */
+  llm: LlmClient;
   startRun(
     caseId: string,
     input: { trigger?: 'manual' | 'rescore'; rescoreOfRunId?: string },
@@ -33,7 +39,9 @@ export interface Runtime {
 
 export interface RuntimeOptions {
   env?: NodeJS.ProcessEnv;
-  stages?: (runtime: Pick<Runtime, 'repos' | 'blobs' | 'sources' | 'config' | 'mode' | 'logger'>) => Stage[];
+  stages?: (
+    runtime: Pick<Runtime, 'repos' | 'blobs' | 'sources' | 'config' | 'mode' | 'logger' | 'timestamper' | 'llm'>,
+  ) => Stage[];
   repos?: Repositories;
   blobs?: BlobStore;
   logger?: Logger;
@@ -60,7 +68,7 @@ function modeFrom(value: string | undefined): FetchMode {
 export async function createRuntime(options: RuntimeOptions = {}): Promise<Runtime> {
   const env = options.env ?? process.env;
   const logger = options.logger ?? consoleLogger('olcys');
-  const config = await loadConfig();
+  const loaded = await loadConfig();
   const mode = modeFrom(env['OLCYS_MODE']);
 
   let closeDb: () => Promise<void> = noop;
@@ -81,7 +89,26 @@ export async function createRuntime(options: RuntimeOptions = {}): Promise<Runti
     options.blobs ??
     (env['OLCYS_BLOBS'] === 'memory' ? new InMemoryBlobStore() : new FileBlobStore(join(dataDir, 'blobs')));
 
-  const base = { repos, blobs, sources: config.sources, config, mode, logger };
+  // Fails the start-up when the TSA host is not allow-listed (`tsa_host_not_allow_listed`) or the anchors are unreadable.
+  let timestamper: WorkerTimestamper;
+  try {
+    timestamper = await createTrustedTimestamper({
+      repos,
+      blobs,
+      settings: tsaSettings(env),
+      sources: loaded.sources,
+      mode,
+      logger,
+    });
+  } catch (error) {
+    await closeDb();
+    throw error;
+  }
+  const llmRuntime = createLlmRuntime({ env, repos, blobs, sources: loaded.sources, mode });
+  const llm = llmRuntime.client;
+  // The model identity is part of every run's snapshot, so a result can be tied to the exact model that suggested.
+  const config: LoadedConfig = { ...loaded, snapshot: { ...loaded.snapshot, llm: llmSnapshot(llmRuntime.config) } };
+  const base = { repos, blobs, sources: config.sources, config, mode, logger, timestamper, llm };
   const stages = options.stages?.(base) ?? [];
   const running = new Set<Promise<unknown>>();
   const launchRun = (runId: string): void => {

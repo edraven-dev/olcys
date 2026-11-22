@@ -8,20 +8,27 @@ import type {
   AnalystJudgement,
   AnalystOverride,
   CustodyEvent,
+  LlmCallRecord,
+  LlmSuggestion,
+  LlmSuggestionDecision,
+  NewLlmSuggestion,
   CashOutEvent,
   ChangeEvent,
   CaseWithIdentifiers,
   ExclusionDecision,
+  FlowEdge,
+  FundFlowView,
   Id,
   LinkAssessment,
   NormalizedTransfer,
   Repositories,
   RunWithProgress,
 } from '@olcys/core';
-import { addressKey, newId, nowIso, uniqueTransfers } from '@olcys/core';
+import { addressKey, newId, nowIso, traceFlows, uniqueTransfers } from '@olcys/core';
 import { memoryClusterRepository } from './memory-clusters.ts';
 import { memoryAddressTypeRepository } from './memory-address-types.ts';
 import { memoryScheduleRepository } from './memory-schedules.ts';
+import { memoryTimestamps } from './memory-timestamps.ts';
 import { labelContentSha256 } from './sql/analysis.ts';
 
 const copy = <T>(value: T): T => structuredClone(value);
@@ -42,7 +49,9 @@ export function createMemoryRepositories(): Repositories {
     accounts: [] as Parameters<Repositories['evidence']['addAccounts']>[0],
     observations: [] as Parameters<Repositories['evidence']['addObservations']>[0],
     extractions: [] as { runId: Id; result: Parameters<Repositories['evidence']['addExtraction']>[1] }[],
-    transfers: [] as { runId: Id; transfer: NormalizedTransfer }[],
+    transfers: [] as { runId: Id; transfer: NormalizedTransfer; expansionHop: number }[],
+    flows: [] as { runId: Id; key: string; edge: FlowEdge }[],
+    flowViews: [] as FundFlowView[],
     exclusions: [] as ExclusionDecision[],
     activity: [] as { runId: Id; indicators: ActivityIndicators }[],
     cashOuts: [] as CashOutEvent[],
@@ -54,7 +63,25 @@ export function createMemoryRepositories(): Repositories {
     judgements: [] as AnalystJudgement[],
     overrides: [] as AnalystOverride[],
     custody: [] as CustodyEvent[],
+    llmCalls: [] as LlmCallRecord[],
+    suggestions: [] as NewLlmSuggestion[],
+    decisions: [] as LlmSuggestionDecision[],
   };
+
+  const withDecision = (s: NewLlmSuggestion): LlmSuggestion => {
+    const d = store.decisions.find((x) => x.suggestionId === s.id);
+    if (!d) return copy({ ...s, status: 'pending' as const });
+    return copy({
+      ...s,
+      status: d.decision,
+      decidedBy: d.decidedBy,
+      decidedAt: d.decidedAt,
+      justification: d.justification,
+      ...(d.editedText ? { editedText: d.editedText } : {}),
+    });
+  };
+
+  const timestamps = memoryTimestamps(store.custody);
 
   return {
     cases: {
@@ -153,11 +180,11 @@ export function createMemoryRepositories(): Repositories {
         return byRun(store.egress, runId);
       },
       async listCaptures(runId) {
-        return byRun(store.captures, runId);
+        return timestamps.attach(byRun(store.captures, runId));
       },
       async getCapture(id) {
         const found = store.captures.find((c) => c.id === id);
-        return found ? copy(found) : undefined;
+        return found ? timestamps.attach([copy(found)])[0] : undefined;
       },
       async listAccounts(runId) {
         return byRun(store.accounts, runId);
@@ -173,12 +200,25 @@ export function createMemoryRepositories(): Repositories {
       },
     },
     chain: {
-      async addTransfers(runId, _address, transfers) {
-        store.transfers.push(...transfers.map((transfer) => ({ runId, transfer: copy(transfer) })));
+      async addTransfers(runId, _address, transfers, options) {
+        const expansionHop = options?.expansionHop ?? 0;
+        store.transfers.push(...transfers.map((transfer) => ({ runId, transfer: copy(transfer), expansionHop })));
       },
       async listTransfers(runId) {
         // A transfer between two analysed addresses is stored under both; the run has it once.
-        return copy(uniqueTransfers(store.transfers.filter((t) => t.runId === runId).map((t) => t.transfer)));
+        return copy(
+          uniqueTransfers(
+            store.transfers.filter((t) => t.runId === runId && t.expansionHop === 0).map((t) => t.transfer),
+          ),
+        );
+      },
+      async queryFlowEdges(runId, query) {
+        return copy(
+          await traceFlows(
+            store.transfers.filter((t) => t.runId === runId).map((t) => t.transfer),
+            query,
+          ),
+        );
       },
     },
     analysis: {
@@ -218,6 +258,54 @@ export function createMemoryRepositories(): Repositories {
       },
       async listChanges(runId) {
         return byRun(store.changes, runId);
+      },
+      async addFlows(runId, edges) {
+        for (const edge of edges) {
+          const key = [
+            edge.from.chain,
+            edge.txHash,
+            edge.index ?? -1,
+            edge.from.address,
+            edge.to.address,
+            edge.asset,
+            edge.hop,
+          ].join('|');
+          // The same transfer at the same hop is one edge of the run, as the primary key of the SQL table.
+          if (store.flows.some((f) => f.runId === runId && f.key === key)) continue;
+          store.flows.push({ runId, key, edge: copy(edge) });
+        }
+      },
+      async listFlows(runId) {
+        return copy(
+          store.flows
+            .filter((f) => f.runId === runId)
+            .map((f) => f.edge)
+            .toSorted(
+              (a, b) =>
+                Math.abs(a.hop) - Math.abs(b.hop) ||
+                Date.parse(a.at) - Date.parse(b.at) ||
+                text(a.txHash, b.txHash) ||
+                (a.index ?? -1) - (b.index ?? -1) ||
+                a.hop - b.hop,
+            ),
+        );
+      },
+      async addFlowViews(views) {
+        for (const view of views) {
+          if (
+            store.flowViews.some((v) => v.runId === view.runId && addressKey(v.address) === addressKey(view.address))
+          ) {
+            continue;
+          }
+          store.flowViews.push(copy(view));
+        }
+      },
+      async listFlowViews(runId) {
+        return copy(
+          store.flowViews
+            .filter((v) => v.runId === runId)
+            .toSorted((a, b) => text(addressKey(a.address), addressKey(b.address))),
+        );
       },
       async latestReport(runId, kind) {
         const found = store.reports.findLast((r) => r.runId === runId && r.kind === kind);
@@ -277,6 +365,30 @@ export function createMemoryRepositories(): Repositories {
       async listBySubjects(subjectIds) {
         const wanted = new Set(subjectIds);
         return chronological(store.custody.filter((e) => wanted.has(e.subject.id)));
+      },
+    },
+    timestamps: timestamps.repository,
+    llm: {
+      async addCall(record) {
+        store.llmCalls.push(copy(record));
+      },
+      async addSuggestions(suggestions) {
+        store.suggestions.push(...suggestions.map((s) => copy(s)));
+      },
+      async getSuggestion(id) {
+        const found = store.suggestions.find((s) => s.id === id);
+        return found ? withDecision(found) : undefined;
+      },
+      async listSuggestionsByRun(runId) {
+        return store.suggestions
+          .filter((s) => s.runId === runId)
+          .toSorted((a, b) => text(a.createdAt, b.createdAt) || text(a.id, b.id))
+          .map(withDecision);
+      },
+      async decide(decision) {
+        if (store.decisions.some((d) => d.suggestionId === decision.suggestionId)) return false;
+        store.decisions.push(copy(decision));
+        return true;
       },
     },
   };

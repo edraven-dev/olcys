@@ -3,17 +3,27 @@
  * `@olcys/db` (`createSqlRepositories`) and are wired in the composition root. Evidence repositories are
  * append-only: they add and read, never update or delete.
  */
-import type { ActivityIndicators, CashOutEvent } from './analytics.ts';
+import type { ActivityIndicators, CashOutEvent, FlowEdge } from './analytics.ts';
 import type { AnalysisRun, Case, CaseSchedule, Identifier } from './case.ts';
 import type { ChangeEvent } from './changes.ts';
 import type { NormalizedTransfer } from './chain-data.ts';
 import type { AddressRef } from './chains.ts';
 import type { AddressCluster } from './clusters.ts';
 import type { Id, IsoDateTime } from './common.ts';
-import type { Capture, CustodyEvent, Observation, OnlineAccount } from './evidence.ts';
+import type {
+  Capture,
+  CustodyEvent,
+  Observation,
+  OnlineAccount,
+  TimestampSubject,
+  TimestampToken,
+} from './evidence.ts';
+import type { LlmCallRecord, LlmSuggestion, LlmSuggestionDecision, NewLlmSuggestion } from './llm.ts';
 import type { AddressCandidate, ExtractionResult } from './extraction.ts';
+import type { FlowQuery, FlowQueryResult, FundFlowView } from './flows.ts';
 import type { AddressLabel, AddressTypeClassification, ExclusionDecision } from './labels.ts';
 import type { EgressLogEntry, ProvenanceEnvelope } from './provenance.ts';
+import type { SourceId } from './sources.ts';
 import type { CaseScheduleChange, ScheduleTick, ScheduleTickOutcome } from './schedule.ts';
 import type { CreateCaseInput } from './schemas.ts';
 import type { AnalystJudgement, AnalystOverride, LinkAssessment } from './scoring.ts';
@@ -144,8 +154,23 @@ export interface EvidenceRepository {
 }
 
 export interface ChainDataRepository {
-  addTransfers(runId: Id, address: AddressRef, transfers: NormalizedTransfer[]): Promise<void>;
+  /**
+   * Stores the transfers fetched for an address. `expansionHop` marks transfers of counterparties fetched by the
+   * fund-flow expansion (hop 1…N): they only serve flow queries and are not part of `listTransfers`.
+   */
+  addTransfers(
+    runId: Id,
+    address: AddressRef,
+    transfers: NormalizedTransfer[],
+    options?: { expansionHop?: number },
+  ): Promise<void>;
+  /** The transfers of the analysed addresses (expansion transfers excluded), once per run. */
   listTransfers(runId: Id): Promise<NormalizedTransfer[]>;
+  /**
+   * Fund flows over every stored transfer of the run (analysed and expansion): time-monotonic, bounded paths with cycle
+   * detection (`traceFlows`; PostgreSQL: recursive CTE). Both `@olcys/db` implementations provide it.
+   */
+  queryFlowEdges?(runId: Id, query: FlowQuery): Promise<FlowQueryResult>;
 }
 
 /** Address types the chain analysis determined (append-only; one classification per run and address). */
@@ -188,6 +213,16 @@ export interface AnalysisRepository {
     runId: Id,
     kind: string,
   ): Promise<{ blobSha256: string; mediaType: string; createdAt: string } | undefined>;
+  /**
+   * Fund-flow edges of the run (append-only; an edge already stored for the run — same transfer and hop — is kept once).
+   * Both `@olcys/db` implementations provide the flow methods.
+   */
+  addFlows?(runId: Id, edges: FlowEdge[]): Promise<void>;
+  /** Ordered by |hop|, time, transaction hash. */
+  listFlows?(runId: Id): Promise<FlowEdge[]>;
+  /** Fund-flow views (timeline and Sankey per analysed address); a view already stored for the run and address is kept. */
+  addFlowViews?(views: FundFlowView[]): Promise<void>;
+  listFlowViews?(runId: Id): Promise<FundFlowView[]>;
 }
 
 /** Reference data (labels are not run-scoped); re-importing the same dataset row is a no-op. */
@@ -225,6 +260,72 @@ export interface CustodyRepository {
   listBySubjects(subjectIds: Id[]): Promise<CustodyEvent[]>;
 }
 
+export const TIMESTAMP_REQUEST_OUTCOMES = ['queued', 'granted', 'failed', 'rejected'] as const;
+export type TimestampRequestOutcome = (typeof TIMESTAMP_REQUEST_OUTCOMES)[number];
+
+/** One attempt to obtain a time-stamp token (an immutable record: a retry is a new request). */
+export interface TimestampRequestRecord {
+  id: Id;
+  subject: TimestampSubject;
+  tsaSourceId: SourceId;
+  tsaUrl: string;
+  policyOid?: string;
+  /** Absent for a request that was queued without contacting the TSA. */
+  nonce?: string;
+  outcome: TimestampRequestOutcome;
+  reason?: string;
+  httpStatus?: number;
+  fetchId?: Id;
+  at: IsoDateTime;
+}
+
+/** A verified token of a subject digest; at most one per (subject type, subject id, digest). */
+export interface TimestampTokenRecord {
+  id: Id;
+  subject: TimestampSubject;
+  requestId: Id;
+  token: TimestampToken;
+  /** The result of every verification check, as stored with the token. */
+  verification: unknown;
+  createdAt: IsoDateTime;
+}
+
+/**
+ * Time-stamp requests and tokens (append-only). A subject is pending when its latest request is `queued` or `failed`
+ * and it has no token.
+ */
+export interface TimestampRepository {
+  /**
+   * Stores one attempt in one transaction: the request, its token (when granted) and the custody events. When the
+   * subject already has a token the new token is not stored (and no custody event is written): `tokenStored` is false.
+   */
+  record(attempt: {
+    request: TimestampRequestRecord;
+    token?: TimestampTokenRecord;
+    custody?: CustodyEvent[];
+  }): Promise<{ tokenStored: boolean }>;
+  getToken(subject: Pick<TimestampSubject, 'type' | 'id' | 'digest'>): Promise<TimestampTokenRecord | undefined>;
+  /**
+   * Latest requests of subjects without a token whose latest request is `queued` or `failed`, oldest first.
+   * `subjectIds` restricts the subjects first; `limit` (default 100) then applies to the restricted list.
+   */
+  listPending(options?: { limit?: number; subjectIds?: Id[] }): Promise<TimestampRequestRecord[]>;
+  listRequests(subjectId: Id): Promise<TimestampRequestRecord[]>;
+}
+
+/**
+ * Model calls and suggestions (append-only). A suggestion's status is derived from its one decision; a decision is
+ * recorded at most once and never changes a stored score. Lists are ordered oldest first by (`createdAt`, `id`).
+ */
+export interface LlmRepository {
+  addCall(record: LlmCallRecord): Promise<void>;
+  addSuggestions(suggestions: NewLlmSuggestion[]): Promise<void>;
+  getSuggestion(id: Id): Promise<LlmSuggestion | undefined>;
+  listSuggestionsByRun(runId: Id): Promise<LlmSuggestion[]>;
+  /** Records the decision; false when the suggestion already has one (nothing is written). */
+  decide(decision: LlmSuggestionDecision): Promise<boolean>;
+}
+
 export interface Repositories {
   cases: CaseRepository;
   runs: RunRepository;
@@ -244,4 +345,8 @@ export interface Repositories {
   overrides?: OverrideRepository;
   /** Present when the store keeps chain-of-custody events. */
   custody?: CustodyRepository;
+  /** Present when the store keeps RFC 3161 requests and tokens (`Capture.timestamp` is filled from it). */
+  timestamps?: TimestampRepository;
+  /** Present when the store keeps model calls and suggestions (`ApiMeta.features.suggestions` also needs the model). */
+  llm?: LlmRepository;
 }

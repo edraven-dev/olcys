@@ -1,7 +1,9 @@
 import { createHash } from 'node:crypto';
+import { sql } from 'kysely';
 import type { AddressLabel, AnalysisRepository, ChainDataRepository, LabelRepository } from '@olcys/core';
 import { canonicalJson, uniqueTransfers } from '@olcys/core';
 import { json, type Db } from '../client.ts';
+import { queryFlowEdges } from '../flow-query.ts';
 
 /** Content identity of a label: everything except the import-specific id and retrieval time. */
 export function labelContentSha256(label: AddressLabel): string {
@@ -19,7 +21,7 @@ export function labelContentSha256(label: AddressLabel): string {
 
 export function sqlChainDataRepository(db: Db): ChainDataRepository {
   return {
-    async addTransfers(runId, address, transfers) {
+    async addTransfers(runId, address, transfers, options) {
       if (!transfers.length) return;
       await db
         .insertInto('chain_transfers')
@@ -30,16 +32,24 @@ export function sqlChainDataRepository(db: Db): ChainDataRepository {
             address: address.address,
             tx_hash: t.txHash,
             record: json(t),
+            expansion_hop: options?.expansionHop ?? 0,
           })),
         )
         .execute();
     },
 
     async listTransfers(runId) {
-      const rows = await db.selectFrom('chain_transfers').select('record').where('run_id', '=', runId).execute();
+      const rows = await db
+        .selectFrom('chain_transfers')
+        .select('record')
+        .where('run_id', '=', runId)
+        .where('expansion_hop', '=', 0)
+        .execute();
       // A transfer between two analysed addresses is stored under both; the run has it once.
       return uniqueTransfers(rows.map((r) => r.record));
     },
+
+    queryFlowEdges: (runId, query) => queryFlowEdges(db, { ...query, runId }),
   };
 }
 
@@ -181,6 +191,74 @@ export function sqlAnalysisRepository(db: Db): AnalysisRepository {
       return (await db.selectFrom('change_events').select('record').where('run_id', '=', runId).execute()).map(
         (r) => r.record,
       );
+    },
+
+    async addFlows(runId, edges) {
+      if (!edges.length) return;
+      await db
+        .insertInto('flow_edge')
+        .values(
+          edges.map((e) => ({
+            run_id: runId,
+            chain: e.from.chain,
+            tx_hash: e.txHash,
+            idx: e.index ?? -1,
+            from_address: e.from.address,
+            to_address: e.to.address,
+            asset: e.asset,
+            amount: e.amount,
+            at: e.at,
+            hop: e.hop,
+            is_cycle: e.isCycle ?? false,
+            record: json(e),
+          })),
+        )
+        // The same transfer at the same hop is one edge of the run (re-computations insert nothing new).
+        .onConflict((oc) => oc.doNothing())
+        .execute();
+    },
+
+    async listFlows(runId) {
+      const rows = await db
+        .selectFrom('flow_edge')
+        .select('record')
+        .where('run_id', '=', runId)
+        .orderBy(sql`abs(hop)`)
+        .orderBy('at')
+        .orderBy(sql`tx_hash COLLATE "C"`)
+        .orderBy('idx')
+        .orderBy('hop')
+        .execute();
+      return rows.map((r) => r.record);
+    },
+
+    async addFlowViews(views) {
+      if (!views.length) return;
+      await db
+        .insertInto('fund_flow_view')
+        .values(
+          views.map((v) => ({
+            run_id: v.runId,
+            chain: v.address.chain,
+            address: v.address.address,
+            record: json(v),
+            truncated: v.truncated,
+            computed_at: v.computedAt,
+          })),
+        )
+        .onConflict((oc) => oc.doNothing())
+        .execute();
+    },
+
+    async listFlowViews(runId) {
+      const rows = await db
+        .selectFrom('fund_flow_view')
+        .select('record')
+        .where('run_id', '=', runId)
+        .orderBy('chain')
+        .orderBy('address')
+        .execute();
+      return rows.map((r) => r.record);
     },
 
     async latestReport(runId, kind) {

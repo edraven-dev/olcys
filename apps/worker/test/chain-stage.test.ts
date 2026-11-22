@@ -37,9 +37,9 @@ beforeAll(async () => {
   });
   const repos = createMemoryRepositories();
   const addTransfers = repos.chain.addTransfers.bind(repos.chain);
-  repos.chain.addTransfers = async (runId, address, transfers) => {
+  repos.chain.addTransfers = async (runId, address, transfers, options) => {
     stored.push(transfers);
-    await addTransfers(runId, address, transfers);
+    await addTransfers(runId, address, transfers, options);
   };
   const updateRun = repos.runs.update.bind(repos.runs);
   repos.runs.update = async (id, patch) => {
