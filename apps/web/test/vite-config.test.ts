@@ -10,12 +10,24 @@ afterAll(() => rmSync(dir, { recursive: true, force: true }));
 
 describe('dev server settings', () => {
   it('default to 5173 and API 4000 without any setting', () => {
-    expect(serverSettings('test', dir, {})).toEqual({ port: 5173, apiTarget: 'http://127.0.0.1:4000' });
+    expect(serverSettings('test', dir, {})).toEqual({
+      host: '127.0.0.1',
+      port: 5173,
+      apiTarget: 'http://127.0.0.1:4000',
+    });
   });
 
   it('read WEB_PORT and API_PORT from a .env file in the env directory', () => {
     writeFileSync(join(dir, '.env'), 'WEB_PORT=5200\nAPI_PORT=4010\n');
-    expect(serverSettings('test', dir, {})).toEqual({ port: 5200, apiTarget: 'http://127.0.0.1:4010' });
+    expect(serverSettings('test', dir, {})).toEqual({
+      host: '127.0.0.1',
+      port: 5200,
+      apiTarget: 'http://127.0.0.1:4010',
+    });
+  });
+
+  it('bind WEB_HOST when the container stack sets it', () => {
+    expect(serverSettings('test', dir, { WEB_HOST: '0.0.0.0' }).host).toBe('0.0.0.0');
   });
 
   it('let the process environment win over the file', () => {

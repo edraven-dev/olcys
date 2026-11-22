@@ -144,6 +144,24 @@ zostaje do porównań). Reguły odrzucania i wyjścia do fiat: [`config/rules/`]
 
 ## Szybki start
 
+### W kontenerach (zalecane dla jury)
+
+Wymagania: tylko Docker z `docker compose` (≥ 2.24) albo Podman (`podman compose`). Node.js na hoście nie jest
+potrzebny. [`compose.app.yml`](compose.app.yml) uruchamia całą aplikację: PostgreSQL, Gotenberg, stronę testową, API,
+worker i konsolę. Przy starcie wykonuje migracje bazy. Pierwsze uruchomienie buduje obraz aplikacji (kilka minut).
+
+```bash
+cp .env.example .env                                   # wartości domyślne, bez edycji
+docker compose -f compose.app.yml up -d --build --wait  # cała aplikacja; polecenie kończy się, gdy wszystko działa
+docker compose -f compose.app.yml exec app pnpm demo    # opcjonalnie: cały scenariusz demo z podsumowaniem po polsku
+```
+
+**Konsola (GUI): <http://127.0.0.1:5173>** — jedyny port udostępniony na hoście (tylko 127.0.0.1). API, baza,
+Gotenberg i strona testowa działają we wspólnej sieci kontenerów i nie są dostępne z zewnątrz; konsola przekazuje
+zapytania `/api` do API. Zatrzymanie: `docker compose -f compose.app.yml down` (dane zostają w wolumenach).
+
+### Na hoście (praca nad kodem)
+
 Wymagania: Node.js ≥ 26.13.1, pnpm 12, Docker (z `docker compose`) albo Podman (`podman compose`, zob.
 [`docs/development.md`](docs/development.md)).
 
@@ -168,7 +186,7 @@ docker compose --profile osint up -d --build --wait   # serwis Python (Maigret, 
 pnpm signing:init        # jednorazowo: klucz demonstracyjny do podpisu PDF
 ```
 
-Konsola: <http://127.0.0.1:5173>. Środowisko, Podman i rozwiązywanie problemów:
+**Konsola (GUI): <http://127.0.0.1:5173>**. Środowisko, Podman i rozwiązywanie problemów:
 [`docs/development.md`](docs/development.md).
 
 ## Demo i testy

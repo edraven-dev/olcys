@@ -1,0 +1,153 @@
+# OŁCyŚ — the whole application in containers, with only the web console reachable from the host.
+#
+#   cp .env.example .env
+#   docker compose -f compose.app.yml up -d --build --wait     # console: http://127.0.0.1:5173
+#   docker compose -f compose.app.yml exec app pnpm demo       # optional: the demo scenario
+#   docker compose -f compose.app.yml down                     # stop (data stays in the volumes)
+#
+# All services share one network namespace (the `postgres` service's), so the app reaches PostgreSQL, Gotenberg and
+# the fixture site on 127.0.0.1 with the same ports as `pnpm dev` on the host — offline mode treats only loopback hosts
+# as local services. Nothing but the console port is published, and only on the host's 127.0.0.1; the API (:4000) is
+# reached through the console's proxy. The development dependencies with published ports stay in compose.yml.
+
+name: olcys-app
+
+# Telemetry opt-outs, as in compose.yml and .env.example.
+x-telemetry-off: &telemetry-off
+  DO_NOT_TRACK: '1'
+  HF_HUB_OFFLINE: '1'
+  HF_HUB_DISABLE_TELEMETRY: '1'
+  VLLM_NO_USAGE_STATS: '1'
+  OLLAMA_NO_CLOUD: '1'
+  NEXT_TELEMETRY_DISABLED: '1'
+  TURBO_TELEMETRY_DISABLED: '1'
+  DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+  NPM_CONFIG_UPDATE_NOTIFIER: 'false'
+
+x-hardened: &hardened
+  security_opt: ['no-new-privileges:true']
+  cap_drop: [ALL]
+
+services:
+  # Owns the shared network namespace, hence the one published port (the console).
+  postgres:
+    image: postgres:19.0-alpine3.24
+    restart: unless-stopped
+    <<: *hardened
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETGID, SETUID]
+    environment:
+      <<: *telemetry-off
+      POSTGRES_DB: ${POSTGRES_DB:-olcys}
+      POSTGRES_USER: ${POSTGRES_USER:-olcys_owner}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-olcys_owner_dev}
+      OLCYS_APP_PASSWORD: ${OLCYS_APP_PASSWORD:-olcys_app_dev}
+      TZ: UTC
+      PGTZ: UTC
+    ports:
+      - '127.0.0.1:${WEB_PORT:-5173}:5173'
+    volumes:
+      - postgres-data:/var/lib/postgresql
+      - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  gotenberg:
+    image: gotenberg/gotenberg:9.9.1
+    restart: unless-stopped
+    <<: *hardened
+    network_mode: service:postgres
+    environment:
+      <<: *telemetry-off
+      # The port compose.yml publishes, so GOTENBERG_URL from .env.example works unchanged.
+      API_PORT: 3100
+      CHROMIUM_ALLOW_LIST: '^file:///tmp/.*'
+      CHROMIUM_DENY_PUBLIC_IPS: 'true'
+      CHROMIUM_DENY_PRIVATE_IPS: 'true'
+      CHROMIUM_DISABLE_JAVASCRIPT: 'true'
+      API_DISABLE_DOWNLOAD_FROM: 'true'
+      WEBHOOK_DISABLE: 'true'
+      PDF_DENY_PUBLIC_IPS: 'true'
+      PDF_DENY_PRIVATE_IPS: 'true'
+      API_TIMEOUT: 60s
+    depends_on:
+      postgres:
+        condition: service_started
+    healthcheck:
+      test: ['CMD-SHELL', 'curl --silent --fail http://127.0.0.1:3100/health || exit 1']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+
+  fixture-site:
+    image: node:26.13.1-alpine
+    restart: unless-stopped
+    working_dir: /srv/fixture-site
+    command: ['node', 'src/server.ts']
+    <<: *hardened
+    network_mode: service:postgres
+    user: node
+    read_only: true
+    tmpfs: [/tmp]
+    environment:
+      <<: *telemetry-off
+      FIXTURE_HOST: 127.0.0.1
+      FIXTURE_PORT: 4100
+      FIXTURE_VARIANT: ${FIXTURE_VARIANT:-v1}
+      FIXTURE_ALLOW_VARIANT_SWITCH: ${FIXTURE_ALLOW_VARIANT_SWITCH:-0}
+    volumes:
+      - ./apps/fixture-site:/srv/fixture-site:ro
+    depends_on:
+      postgres:
+        condition: service_started
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1:4100/healthz']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # Migrations, then API (127.0.0.1:4000), worker and console (`pnpm dev`; image from infra/app/Dockerfile).
+  app:
+    build:
+      context: .
+      dockerfile: infra/app/Dockerfile
+    restart: unless-stopped
+    <<: *hardened
+    init: true
+    network_mode: service:postgres
+    env_file:
+      - path: .env.example
+      - path: .env
+        required: false
+    environment:
+      <<: *telemetry-off
+      # The console listens on the namespace's interfaces so the published port reaches it; the API stays on loopback.
+      WEB_HOST: 0.0.0.0
+      WEB_PORT: 5173
+      OLCYS_DATA_DIR: /app/data
+    volumes:
+      - app-data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      gotenberg:
+        condition: service_healthy
+      fixture-site:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'wget -q -O /dev/null http://127.0.0.1:4000/api/health && wget -q -O /dev/null http://127.0.0.1:5173/ || exit 1',
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 60
+      start_period: 30s
+
+volumes:
+  postgres-data:
+  app-data:

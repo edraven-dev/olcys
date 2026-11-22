@@ -124,7 +124,7 @@ describe('summary', () => {
     expect(text).toContain('adres portfela w profilu zmienił się: BTC-1');
     expect(text).toContain('→ BTC-2');
     expect(text).toContain('http://127.0.0.1:5173/sprawy/case-1');
-    expect(text).toContain('http://127.0.0.1:4000/api/runs/run-1/report');
+    expect(text).toContain('http://127.0.0.1:5173/api/runs/run-1/report');
     expect(text).toContain('Samokontrola:');
   });
 });

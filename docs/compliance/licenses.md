@@ -64,7 +64,7 @@ Poniższe tabele są generowane z `pnpm-lock.yaml`, `services/osint-py/pyproject
 
 ### Status bramki licencyjnej
 
-- Sprawdzone komponenty: 438 (npm: 374, Python: 55, obrazy: 9).
+- Sprawdzone komponenty: 442 (npm: 374, Python: 55, obrazy: 13).
 - Wynik: wszystkie komponenty zgodne z polityką licencyjną (`config/licenses.json`).
 - Wyjątki licencyjne (`config/compliance/license-exceptions.yaml`): 0.
 - SBOM (CycloneDX 1.6) powstają na żądanie poleceniem `pnpm compliance:sbom` (katalog `data/sbom/`, poza repozytorium); opisują je pliki `olcys-npm.cdx.json` i `olcys-osint-py.cdx.json`.
@@ -178,6 +178,9 @@ Każdy `image:` z `compose.yml` i każde `FROM` z Dockerfile musi mieć wpis w `
 
 | Obraz | Tag | Licencja (SPDX) | Zastosowanie | Gdzie | Osobna usługa |
 | --- | --- | --- | --- | --- | --- |
+| postgres | 19.0-alpine3.24 | PostgreSQL | baza danych | compose.app.yml (postgres) | nie |
+| gotenberg/gotenberg | 9.9.1 | MIT | HTML → PDF/A (raporty) | compose.app.yml (gotenberg) | nie |
+| node | 26.13.1-alpine | MIT | runtime serwisu strony testowej (fixture-site) | compose.app.yml (fixture-site) | nie |
 | postgres | 19.0-alpine3.24 | PostgreSQL | baza danych | compose.yml (postgres) | nie |
 | gotenberg/gotenberg | 9.9.1 | MIT | HTML → PDF/A (raporty) | compose.yml (gotenberg) | nie |
 | node | 26.13.1-alpine | MIT | runtime serwisu strony testowej (fixture-site) | compose.yml (fixture-site) | nie |
@@ -185,6 +188,7 @@ Każdy `image:` z `compose.yml` i każde `FROM` z Dockerfile musi mieć wpis w `
 | ghcr.io/ggml-org/llama.cpp | server-b12602 | MIT | lokalny serwer modeli llama.cpp z API zgodnym z OpenAI (opcjonalny, profil llm-llamacpp) | compose.yml (llamacpp) | nie |
 | blockstream/esplora | v3.0.1 | MIT | lokalny węzeł Bitcoin regtest z API Esplora (profil sandbox, dane demonstracyjne) | compose.yml (esplora-regtest) | nie |
 | ghcr.io/foundry-rs/foundry | v1.10.0 | MIT OR Apache-2.0 | lokalna sieć EVM (anvil; profil sandbox, dane demonstracyjne) | compose.yml (anvil) | nie |
+| node | 26.13.1-alpine | MIT | runtime serwisu strony testowej (fixture-site) | infra/app/Dockerfile (FROM) | nie |
 | ghcr.io/astral-sh/uv | 0.13.9 | MIT OR Apache-2.0 | zarządzanie zależnościami Pythona (etap budowania obrazu osint-py) | services/osint-py/Dockerfile (FROM) | nie |
 | python | 3.15.2-slim-trixie | PSF-2.0 | środowisko serwisu OSINT (osint-py) | services/osint-py/Dockerfile (FROM) | nie |
 

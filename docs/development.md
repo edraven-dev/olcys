@@ -25,14 +25,15 @@ Domyślnie `OLCYS_MODE=offline`: poza serwisem fixture nic nie wychodzi do sieci
 
 ## Skrypty
 
-| Polecenie             | Działanie                                                                                                             |
-| --------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `pnpm dev:deps`       | `docker compose up -d --wait`: uruchamia usługi i czeka, aż przejdą healthchecki.                                     |
-| `pnpm dev:deps:down`  | Zatrzymuje usługi; dane (wolumeny) zostają.                                                                           |
-| `pnpm db:migrate`     | Stosuje migracje z `packages/db/migrations` (`DATABASE_URL_OWNER`). `pnpm db:status` pokazuje stan.                   |
-| `pnpm db:reset --yes` | Usuwa kontener i wolumen PostgreSQL, tworzy czystą bazę (role i schematy z `infra/postgres/init`) i stosuje migracje. |
-| `pnpm seed`           | Tworzy sprawę demonstracyjną; ponowne uruchomienie wypisuje „already seeded” i niczego nie tworzy.                    |
-| `pnpm dev:doctor`     | Sprawdza środowisko (patrz niżej). Kod wyjścia różny od zera, gdy któraś kontrola zakończy się wynikiem FAIL.         |
+| Polecenie                                                | Działanie                                                                                                             |
+| -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `pnpm dev:deps`                                          | `docker compose up -d --wait`: uruchamia usługi i czeka, aż przejdą healthchecki.                                     |
+| `pnpm dev:deps:down`                                     | Zatrzymuje usługi; dane (wolumeny) zostają.                                                                           |
+| `docker compose -f compose.app.yml up -d --build --wait` | Cała aplikacja w kontenerach; na hoście tylko konsola <http://127.0.0.1:5173>.                                        |
+| `pnpm db:migrate`                                        | Stosuje migracje z `packages/db/migrations` (`DATABASE_URL_OWNER`). `pnpm db:status` pokazuje stan.                   |
+| `pnpm db:reset --yes`                                    | Usuwa kontener i wolumen PostgreSQL, tworzy czystą bazę (role i schematy z `infra/postgres/init`) i stosuje migracje. |
+| `pnpm seed`                                              | Tworzy sprawę demonstracyjną; ponowne uruchomienie wypisuje „already seeded” i niczego nie tworzy.                    |
+| `pnpm dev:doctor`                                        | Sprawdza środowisko (patrz niżej). Kod wyjścia różny od zera, gdy któraś kontrola zakończy się wynikiem FAIL.         |
 
 ### `pnpm db:reset`
 

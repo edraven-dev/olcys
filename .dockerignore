@@ -1,0 +1,16 @@
+# Build context of the application image (infra/app/Dockerfile). An allow-list: only what the app needs to install
+# and run reaches the image; local files (.env, data, worktrees, media) never do.
+*
+!package.json
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!tsconfig.json
+!tsconfig.base.json
+!apps
+!packages
+!config
+!fixtures
+!scripts
+**/node_modules
+**/dist
+**/test-results
