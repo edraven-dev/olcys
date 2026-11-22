@@ -439,6 +439,9 @@ importers:
       '@olcys/core':
         specifier: workspace:*
         version: link:../core
+      zod:
+        specifier: 4.6.7
+        version: 4.6.7
 
   packages/reporting:
     dependencies:
