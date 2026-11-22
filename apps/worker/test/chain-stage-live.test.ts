@@ -135,4 +135,25 @@ describe('missing valuations', () => {
     expect(tracked.unpricedTransfers([one, two, one])).toBe(2);
     expect(tracked.unpricedTransfers([])).toBe(0);
   });
+
+  it('counts a Bitcoin net amount that could not be valued, once per transaction (a self-send costs the fee)', async () => {
+    const address = { chain: 'bitcoin', address: 'bc1qself' } as const;
+    // A self-send: 0.0010 BTC in, 0.0009 BTC back to the same address; no transfer, but a net fee of 0.0001 BTC.
+    const tx = {
+      chain: 'bitcoin' as const,
+      txid: 'tx-self',
+      blockTime: '2026-11-01T10:00:00.000Z',
+      inputs: [{ address: address.address, value: '0.0010', prevTxid: 'p', vout: 0 }],
+      outputs: [{ address: address.address, value: '0.0009', n: 0 }],
+      fetchId: 'f',
+    };
+    const tracked = trackUnpriced({ value: async () => ({ status: 'unpriced', reason: 'no_candle' }) as const });
+    await tracked.valuator.value(
+      { asset: { chain: 'bitcoin', symbol: 'BTC', decimals: 8 }, amount: '0.0001', at: tx.blockTime },
+      {} as never,
+    );
+    expect(tracked.unpricedTransfers([])).toBe(0);
+    expect(tracked.unpricedNetTxs(address, [tx, tx])).toEqual(['bitcoin|tx-self', 'bitcoin|tx-self']);
+    expect(new Set(tracked.unpricedNetTxs(address, [tx, tx])).size).toBe(1);
+  });
 });

@@ -1,33 +1,24 @@
-/** The dev server takes WEB_PORT and API_PORT from the same settings the API reads (process env over the root .env). */
-import { afterEach, describe, expect, it } from 'vitest';
-import config from '../vite.config.ts';
+/** The dev server takes WEB_PORT and API_PORT from the same settings the API reads; tests use a temp dir, not the root. */
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterAll, describe, expect, it } from 'vitest';
+import { serverSettings } from '../vite.settings.ts';
 
-const settings = (): { port: number; proxy: Record<string, string> } => {
-  const resolved = (config as (env: { mode: string; command: string }) => { server: never })({
-    mode: 'test',
-    command: 'serve',
-  });
-  return resolved.server;
-};
+const dir = mkdtempSync(join(tmpdir(), 'olcys-vite-'));
+afterAll(() => rmSync(dir, { recursive: true, force: true }));
 
-describe('vite config', () => {
-  const before = { web: process.env.WEB_PORT, api: process.env.API_PORT };
-  afterEach(() => {
-    for (const [key, value] of [
-      ['WEB_PORT', before.web],
-      ['API_PORT', before.api],
-    ] as const) {
-      if (value === undefined) delete process.env[key];
-      else process.env[key] = value;
-    }
+describe('dev server settings', () => {
+  it('default to 5173 and API 4000 without any setting', () => {
+    expect(serverSettings('test', dir, {})).toEqual({ port: 5173, apiTarget: 'http://127.0.0.1:4000' });
   });
 
-  it('defaults to 5173 and API 4000 and follows WEB_PORT and API_PORT', () => {
-    delete process.env.WEB_PORT;
-    delete process.env.API_PORT;
-    expect(settings()).toMatchObject({ port: 5173, proxy: { '/api': 'http://127.0.0.1:4000' } });
-    process.env.WEB_PORT = '5200';
-    process.env.API_PORT = '4010';
-    expect(settings()).toMatchObject({ port: 5200, proxy: { '/api': 'http://127.0.0.1:4010' } });
+  it('read WEB_PORT and API_PORT from a .env file in the env directory', () => {
+    writeFileSync(join(dir, '.env'), 'WEB_PORT=5200\nAPI_PORT=4010\n');
+    expect(serverSettings('test', dir, {})).toEqual({ port: 5200, apiTarget: 'http://127.0.0.1:4010' });
+  });
+
+  it('let the process environment win over the file', () => {
+    expect(serverSettings('test', dir, { WEB_PORT: '5300' }).port).toBe(5300);
   });
 });

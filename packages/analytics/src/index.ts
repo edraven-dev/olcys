@@ -10,6 +10,7 @@ export {
   createCounterpartyResolver,
   detectSwaps,
   legsOf,
+  utxoVolumes,
   GENERAL_PURPOSE_METHODS,
   SWAP_METHODS,
   type AddressAnalysisInput,

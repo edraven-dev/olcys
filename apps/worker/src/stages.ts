@@ -19,8 +19,9 @@ import type {
   RunContext,
   SourceDescriptor,
   SourceKind,
+  UtxoTransaction,
 } from '@olcys/core';
-import { addressKey, chainFamily, newId, transferKey, uniqueTransfers } from '@olcys/core';
+import { addressKey, chainFamily, dCmp, dSub, newId, transferKey, uniqueTransfers } from '@olcys/core';
 import {
   analyseAddress,
   createAssetRegistry,
@@ -33,6 +34,7 @@ import {
   loadCashOutScoreConfig,
   loadPriceDataset,
   planCounterpartyExpansion,
+  utxoVolumes,
 } from '@olcys/analytics';
 import {
   createChainProviderRegistry,
@@ -309,6 +311,8 @@ const calculationKey = (t: NormalizedTransfer): string =>
 export function trackUnpriced(inner: Valuator): {
   valuator: Valuator;
   unpricedTransfers(transfers: readonly NormalizedTransfer[]): number;
+  /** Bitcoin transactions whose net amount (valued per transaction, e.g. a self-send's fee) could not be valued. */
+  unpricedNetTxs(address: AddressRef, txs: readonly UtxoTransaction[]): string[];
 } {
   const failed = new Set<string>();
   return {
@@ -322,6 +326,14 @@ export function trackUnpriced(inner: Valuator): {
       },
     },
     unpricedTransfers: (transfers) => uniqueTransfers(transfers).filter((t) => failed.has(calculationKey(t))).length,
+    unpricedNetTxs: (address, txs) =>
+      utxoVolumes({ address, transfers: [], decisions: [], utxoTxs: txs })
+        .map(({ tx, net }) => ({ tx, amount: dCmp(net, '0') < 0 ? dSub('0', net) : net }))
+        .filter(
+          ({ tx, amount }) =>
+            dCmp(amount, '0') !== 0 && failed.has(`${address.chain}|BTC|${amount}|${tx.blockTime ?? ''}`),
+        )
+        .map(({ tx }) => `${tx.chain}|${tx.txid}`),
   };
 }
 
@@ -645,7 +657,12 @@ export function createChainStage(options: StageOptions): Stage {
         );
       }
       // A leg without a price or NBP rate leaves its PLN value missing: say so instead of staying silent.
-      const unpriced = counted.unpricedTransfers(analysed.flatMap(ownTransfers));
+      // Every distinct failed valuation counts once: a transfer by `transferKey`, a Bitcoin net amount by chain and txid.
+      const unpriced =
+        counted.unpricedTransfers(analysed.flatMap(ownTransfers)) +
+        new Set(
+          analysed.flatMap((a) => (chainFamily(a.chain) === 'bitcoin' ? counted.unpricedNetTxs(a, utxoOf(a)) : [])),
+        ).size;
       if (unpriced) {
         ctx.markPartial(`PLN valuation unavailable for ${unpriced} transfer(s): no price or NBP rate`, {
           code: 'valuation_unavailable',
