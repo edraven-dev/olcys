@@ -235,6 +235,38 @@ describe('LlmClient response', () => {
     const refused = setup(() => Promise.reject(new TypeError('fetch failed')));
     expect(await refused.client.complete(request())).toMatchObject({ ok: false, code: 'http_error' });
   });
+
+  it('lets bugs and storage failures propagate instead of reporting an unavailable model', async () => {
+    const bug = setup(() => Promise.reject(new Error('sink write failed: disk full')));
+    await expect(bug.client.complete(request())).rejects.toThrow(/disk full/);
+    expect(bug.rows).toHaveLength(0);
+
+    const blobFailure = createLlmClient({
+      http: { fetch: async () => reply(200, completion('{"role":"own","reason":"r"}')) },
+      blobs: {
+        put: async () => Promise.reject(new Error('blob store unavailable')),
+        get: async () => new Uint8Array(),
+        has: async () => false,
+      },
+      log: { append: async () => {} },
+      clock: { now: () => new Date('2026-11-22T10:00:00.000Z') },
+      config,
+    });
+    await expect(blobFailure.complete(request())).rejects.toThrow(/blob store unavailable/);
+
+    const logFailure = createLlmClient({
+      http: { fetch: async () => reply(200, completion('{"role":"own","reason":"r"}')) },
+      blobs: {
+        put: async (b, m) => ({ sha256: sha('1'), bytes: b.byteLength, mediaType: m }),
+        get: async () => new Uint8Array(),
+        has: async () => true,
+      },
+      log: { append: async () => Promise.reject(new Error('call log unavailable')) },
+      clock: { now: () => new Date('2026-11-22T10:00:00.000Z') },
+      config,
+    });
+    await expect(logFailure.complete(request())).rejects.toThrow(/call log unavailable/);
+  });
 });
 
 describe('llmConfigFromEnv', () => {

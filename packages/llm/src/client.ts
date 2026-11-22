@@ -57,6 +57,13 @@ function errorNamed(error: unknown, ...names: string[]): boolean {
   return false;
 }
 
+/** `fetch failed` (undici TypeError, the cause names the socket error), too many redirects, oversized body. */
+function isTransportFailure(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  if (error instanceof TypeError && error.message === 'fetch failed') return true;
+  return /^(too many redirects|response body exceeds)/.test(error.message);
+}
+
 const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 
 export function createLlmClient(deps: LlmClientDeps): LlmClient {
@@ -164,7 +171,10 @@ export function createLlmClient(deps: LlmClientDeps): LlmClient {
         if (errorNamed(error, 'TimeoutError', 'AbortError')) {
           return fail('timeout', `no answer within ${config.timeoutMs} ms`);
         }
-        return fail('http_error', messageOf(error));
+        // Transport failures `@olcys/http` raises for a server that cannot be used: undici's `fetch failed` and the
+        // client's own refusals of a runaway answer. Anything else (storage, sink or code errors) is a bug: it throws.
+        if (isTransportFailure(error)) return fail('http_error', messageOf(error));
+        throw error;
       }
 
       record.fetchId = response.provenance.fetchId;

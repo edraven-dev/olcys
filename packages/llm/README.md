@@ -13,7 +13,8 @@ Klient modelu zgodny z API OpenAI, wersjonowany rejestr promptów, odpowiedzi zg
   (`json_schema`, `strict: true`); nigdy `tools`, `tool_choice`, `functions` ani `logprobs`. Bez automatycznych
   ponowień. `complete()` zwraca `LlmResult`: `{ ok: true, output, callId, model }` albo
   `{ ok: false, code, message, callId }` z kodem `disabled`, `input_rejected`, `egress_denied`, `timeout`,
-  `http_error`, `invalid_json` lub `schema_violation`. Każda próba (także odrzucona przed siecią) trafia do
+  `http_error`, `invalid_json` lub `schema_violation`. Znane błędy (odmowa wyjścia, brak nagrania, przekroczenie czasu, błąd transportu) są wynikami typowanymi; każdy inny
+  błąd (zapis blobu, dziennik wywołań, błąd w kodzie) jest rzucany dalej. Każda próba (także odrzucona przed siecią) trafia do
   `LlmCallLog` (`llm_call`).
 - Zabezpieczenia przed wywołaniem sieci: `LLM_ENABLED=false` → `disabled`; wejście ze źródła z `llmAllowed: false` albo
   dłuższe niż `maxInputChars` → `input_rejected`.
@@ -29,7 +30,8 @@ Klient modelu zgodny z API OpenAI, wersjonowany rejestr promptów, odpowiedzi zg
 - `llmConfigFromEnv(env)` — `LLM_ENABLED`, `LLM_BASE_URL`, `LLM_MODEL`, `LLM_API_KEY`, `LLM_MODEL_DIGEST`,
   `LLM_SOURCE_ID` (domyślnie `local_llm`), `LLM_TIMEOUT_MS` (60000), `LLM_CHAT_TEMPLATE_KWARGS` (obiekt JSON dołączany
   jako `chat_template_kwargs`, np. `{"enable_thinking":false}` dla Qwen na OVMS; domyślnie pusty, więc ciało zawiera
-  tylko pola z listy wyżej).
+  tylko pola z listy wyżej). `LLM_MODEL_DIGEST` zostaje pusty dla OVMS, bo serwer nie zgłasza skrótu modelu; wpis w
+  dzienniku pomija wtedy skrót.
 - `z` — ponowny eksport `zod`, żeby prompty w innych pakietach nie potrzebowały własnej zależności.
 
 ## Konfiguracja i zgodność
