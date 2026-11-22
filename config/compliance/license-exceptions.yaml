@@ -1,0 +1,12 @@
+# Licence exceptions: a component whose licence the gate cannot classify (`review`: missing licence, NOASSERTION,
+# "SEE LICENSE IN ...", unknown id) passes only with an entry here, after a human read the actual licence text.
+# Denied licences (config/licenses.json `deny`) and forbidden tools can never be waived.
+#
+# Entry shape (all fields required, decision is always "allow"):
+#   - package: name@version
+#     licence: SPDX id found after reading the licence text
+#     decision: allow
+#     reason: why it is acceptable under AGENTS.md rule 6
+#     approvedBy: who reviewed it
+#     date: 'YYYY-MM-DD'
+exceptions: []

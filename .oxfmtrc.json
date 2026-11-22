@@ -8,6 +8,7 @@
   "trailingComma": "all",
   "ignorePatterns": [
     "data/**",
+    "docs/compliance/sbom/**",
     "pnpm-lock.yaml",
     "apps/fixture-site/templates/**",
     "apps/fixture-site/public/**",

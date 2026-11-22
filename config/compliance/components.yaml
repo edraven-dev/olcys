@@ -1,0 +1,72 @@
+# Reviewed facts about the direct components (Polish purposes are rendered into docs/compliance/licenses.md by
+# `pnpm licenses:docs`). A direct npm dependency without a purpose, a Python package without a licence, or a container
+# image missing here makes the compliance checks fail. Licences of npm packages come from the installed packages.
+
+# Direct npm dependencies: package name -> purpose (pl).
+npm:
+  '@noble/curves': 'podpisy secp256k1 i weryfikacja BIP-137; generator danych syntetycznych'
+  '@noble/hashes': 'SHA-256, RIPEMD-160 i Keccak-256 (sumy kontrolne adresów, BIP-137, skrót wag); generator danych'
+  '@safe-global/safe-deployments': 'adresy singletonów Safe (klasyfikacja typu adresu)'
+  '@scure/base': 'bech32/bech32m, base58check i base64 (adresy, BIP-137); generator danych'
+  '@scure/bip39': 'listy słów BIP-39 do wykrywania i maskowania fraz seed'
+  '@types/big.js': 'typy biblioteki big.js'
+  '@types/node': 'typy Node.js'
+  '@types/pg': 'typy sterownika PostgreSQL'
+  '@types/react': 'typy interfejsu (React)'
+  '@types/react-dom': 'typy interfejsu (React DOM)'
+  '@vitejs/plugin-react': 'wtyczka Vite do budowania interfejsu'
+  big.js: 'dokładna arytmetyka dziesiętna (kwoty, PLN)'
+  cron-parser: 'wyrażenia cron harmonogramu analiz (UTC)'
+  entities: 'dekodowanie encji HTML przy normalizacji'
+  fastify: 'API HTTP'
+  kysely: 'typowany konstruktor zapytań SQL'
+  license-checker-rseidelsohn: 'kontrola licencji zależności npm'
+  linkedom: 'parsowanie HTML zebranych stron (DOM bez przeglądarki)'
+  oxfmt: 'formatowanie kodu'
+  oxlint: 'lint'
+  parse5: 'parser HTML z pozycjami w źródle (widoki tekstu)'
+  pg: 'sterownik PostgreSQL (node-postgres)'
+  react: 'interfejs użytkownika'
+  react-dom: 'interfejs użytkownika (renderowanie w przeglądarce)'
+  typescript: 'kontrola typów (tsc, tylko noEmit)'
+  vite: 'budowanie i serwer deweloperski interfejsu'
+  vitest: 'testy'
+  yaml: 'odczyt plików konfiguracyjnych YAML (rejestr źródeł, reguły, wagi, dostawcy danych łańcuchowych)'
+  zod: 'walidacja danych wejściowych i konfiguracji'
+
+# Python packages of services/osint-py: normalised name -> reviewed SPDX licence + purpose (pl).
+python:
+  fastapi:
+    licence: MIT
+    purpose: 'API serwisu osint-py'
+  uvicorn:
+    licence: BSD-3-Clause
+    purpose: 'serwer ASGI serwisu osint-py'
+
+# Container images (compose.yml `image:` and Dockerfile `FROM`): repository path without tag -> licence, purpose (pl).
+# `separateService: true` is required for copyleft (separateServiceOnly) licences: only unmodified, standalone services.
+images:
+  postgres:
+    licence: PostgreSQL
+    purpose: 'baza danych'
+  gotenberg/gotenberg:
+    licence: MIT
+    purpose: 'HTML → PDF/A (raporty)'
+  node:
+    licence: MIT
+    purpose: 'środowisko uruchomieniowe serwisu strony testowej (fixture-site)'
+  ollama/ollama:
+    licence: MIT
+    purpose: 'lokalne środowisko modeli z API zgodnym z OpenAI (opcjonalne, profil llm)'
+  blockstream/esplora:
+    licence: MIT
+    purpose: 'lokalny węzeł Bitcoin regtest z API Esplora (profil sandbox, dane demonstracyjne)'
+  ghcr.io/foundry-rs/foundry:
+    licence: MIT OR Apache-2.0
+    purpose: 'lokalna sieć EVM (anvil; profil sandbox, dane demonstracyjne)'
+  python:
+    licence: PSF-2.0
+    purpose: 'środowisko serwisu OSINT (osint-py)'
+  ghcr.io/astral-sh/uv:
+    licence: MIT OR Apache-2.0
+    purpose: 'zarządzanie zależnościami Pythona (etap budowania obrazu osint-py)'

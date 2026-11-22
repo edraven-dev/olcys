@@ -1,0 +1,94 @@
+---
+lockfileVersion: '9.0'
+
+importers:
+
+  .:
+    configDependencies: {}
+    packageManagerDependencies:
+      pnpm:
+        specifier: 1.0.0
+        version: 1.0.0
+
+packages:
+
+  pnpm-env-only@1.0.0:
+    resolution: {integrity: sha512-AAAA}
+
+snapshots:
+
+  pnpm-env-only@1.0.0: {}
+
+---
+lockfileVersion: '9.0'
+
+importers:
+
+  .:
+    devDependencies:
+      dev-tool:
+        specifier: 3.0.0
+        version: 3.0.0
+
+  packages/app:
+    dependencies:
+      '@scope/lib':
+        specifier: 1.2.3
+        version: 1.2.3
+      core:
+        specifier: workspace:*
+        version: link:../core
+    devDependencies:
+      peer-user:
+        specifier: 4.0.0
+        version: 4.0.0(peer-dep@2.0.0)
+
+packages:
+
+  '@scope/lib@1.2.3':
+    resolution: {integrity: sha512-n0kwk3uOtWGaSMJWUuxG8fLefRonw8jR27dhGzMcDz79Um37QKPLEGZAZF37iASbb2yBBQFl4hue6/SfQnmIdA==}
+
+  dev-tool@3.0.0:
+    resolution: {integrity: sha512-AAAA}
+
+  helper@0.1.0:
+    resolution: {integrity: sha512-AAAA}
+
+  native-linux@1.0.0:
+    resolution: {integrity: sha512-AAAA}
+    os: [linux]
+
+  native-win32@1.0.0:
+    resolution: {integrity: sha512-AAAA}
+    os: [win32]
+
+  peer-dep@2.0.0:
+    resolution: {integrity: sha512-AAAA}
+
+  peer-user@4.0.0:
+    resolution: {integrity: sha512-AAAA}
+
+snapshots:
+
+  '@scope/lib@1.2.3':
+    dependencies:
+      helper: 0.1.0
+    optionalDependencies:
+      native-linux: 1.0.0
+      native-win32: 1.0.0
+
+  dev-tool@3.0.0:
+    dependencies:
+      helper: 0.1.0
+
+  helper@0.1.0: {}
+
+  native-linux@1.0.0: {}
+
+  native-win32@1.0.0: {}
+
+  peer-dep@2.0.0: {}
+
+  peer-user@4.0.0(peer-dep@2.0.0):
+    dependencies:
+      peer-dep: 2.0.0
