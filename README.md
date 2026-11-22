@@ -24,7 +24,7 @@ Obowiązkowy scenariusz i odpowiadające mu funkcje:
 2. **Wyszukiwanie śladów OSINT** wyłącznie w źródłach włączonych dla sprawy. Kolektory: forum Bitcointalk (strony dla
    gości), konta społecznościowe (Wykop), GitHub (profil, repozytoria, `FUNDING.json`), publiczny podgląd kanałów
    Telegrama, ogłoszenia P2P, wyszukiwarki (lokalna atrapa, opcjonalnie Brave i Mojeek), enumeracja nicków (Maigret),
-   rejestry publiczne (CEIDG, wykaz podatników VAT, KRS), protokoły tożsamości (Keybase — podpisane adresy, ENS — nazwy zweryfikowane w obie strony, archiwum BitList) oraz archiwum Wayback Machine (tylko odczyt). Planer rozwija
+   rejestry publiczne (CEIDG, wykaz podatników VAT, KRS), protokoły tożsamości (Keybase — podpisane adresy, ENS — nazwy zweryfikowane w obie strony, Farcaster — zweryfikowane adresy, Nostr — NIP-05, archiwum BitList) oraz archiwum Wayback Machine (tylko odczyt). Planer rozwija
    wyszukiwanie z nowych kont i adresów do głębokości `maxPivotDepth`. Każda pobrana strona jest zabezpieczana jako dowód:
    adres, czas, skrót SHA-256 i manifest zgodny z Protokołem Berkeley.
 3. **Wykrywanie i weryfikacja adresów.** Ekstraktor wyszukuje adresy w zapisanym HTML (m.in. Bitcoin, EVM, TRON) i
@@ -191,7 +191,7 @@ flowchart LR
     s5 --> s6[Wskaźnik Pewności] --> s7[porównanie z poprzednim przebiegiem] --> s8[raport]
   end
   pipeline --> collectors[Kolektory OSINT<br/>forum, profile, rejestry, Wayback]
-  pipeline --> chains[Adaptery danych łańcuchowych<br/>Esplora, Etherscan V2, TronGrid]
+  pipeline --> chains[Adaptery danych łańcuchowych<br/>Esplora, Etherscan V2, TronGrid, Solana RPC]
   collectors --> egress{{EgressClient<br/>lista hostów, limity, dziennik}}
   chains --> egress
   egress -->|tylko włączone źródła| net[(Publiczne źródła)]
@@ -265,7 +265,7 @@ Szczegóły: [`docs/security.md`](docs/security.md), [`docs/compliance/`](docs/c
   syntetycznych (zob. metodykę).
 - **Przechwytywanie w przeglądarce nie jest włączone**: strony WWW są zapisywane bez zrzutu ekranu (informacja w aneksie
   raportu).
-- **Rodzina Zcash** (adresy osłonięte) nie jest analizowana, a dane łańcuchowe są dostępne dla Bitcoina, sieci EVM i TRON.
+- **Rodzina Zcash** (adresy osłonięte) nie jest analizowana, a dane łańcuchowe są dostępne dla Bitcoina, sieci EVM, TRON i Solany (bez historii kont tokenowych SPL).
 - Przebieg przerwany restartem API pozostaje w stanie `running`, a kolejne terminy harmonogramu są wtedy pomijane.
 
 ## Zrzuty ekranu
