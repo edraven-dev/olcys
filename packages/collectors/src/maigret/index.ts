@@ -9,6 +9,7 @@ export {
   redactResponse,
   rollupUsernameSearch,
   searchRequestBody,
+  type BodyRedaction,
   type MaigretCollectorOptions,
 } from './collector.ts';
 export {

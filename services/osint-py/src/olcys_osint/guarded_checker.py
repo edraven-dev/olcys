@@ -270,7 +270,7 @@ class GuardedChecker:
                 continue
             if record["bodyTruncated"]:
                 # A page cut at the size limit must not be judged: found or not found on a prefix is a guess.
-                return None, 0, CheckError("Body truncated", f"more than {ctx.max_body_bytes} bytes")
+                return None, 0, CheckError("Body truncated", "size limit reached")
             return body.decode(charset, "ignore"), status, None
         return None, 0, CheckError("Redirect", f"more than {ctx.max_redirects} redirects")
 
@@ -330,8 +330,10 @@ class GuardedChecker:
         chunks: list[bytes] = []
         size = 0
         truncated = False
+        # The total kept in one search is capped so that the base64-encoded answer stays under the receiver's limit.
+        limit = min(ctx.max_body_bytes, max(ctx.max_response_bytes - ctx.received_bytes, 0))
         async for chunk in response.content.iter_chunked(65536):
-            room = ctx.max_body_bytes - size
+            room = limit - size
             if len(chunk) > room:
                 chunks.append(chunk[: max(room, 0)])
                 truncated = True

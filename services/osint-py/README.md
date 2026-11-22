@@ -100,7 +100,7 @@ barier. Węzeł Node scala ten dziennik z dziennikiem ruchu wychodzącego (`reco
   serwisów, bez adresów IP), ręczne przekierowania (najwyżej 5, każdy krok sprawdzany i logowany), `trust_env=False`
   (zmienne proxy są ignorowane), brak ciasteczek i proxy, uczciwy `User-Agent` (`OLCYS_USER_AGENT`, domyślnie
   `OLCYS/0.1.0 (OSINT research prototype)`), HEAD wysyłany jako GET, 4 zapytania/s i co najmniej 1 s między zapytaniami do
-  tego samego hosta, 4 połączenia, bez ponowień, treść do 1 MiB na odpowiedź i 20 MiB na wyszukiwanie, weryfikacja TLS.
+  tego samego hosta, 4 połączenia, bez ponowień, treść do 1 MiB na odpowiedź i 16 MiB na wyszukiwanie (po zakodowaniu base64 odpowiedź mieści się w limicie 25 MiB klienta; strona ucięta limitem to `unknown` z powodem `body_truncated`, dziennik żądań zostaje pełny), weryfikacja TLS.
   Jedno wyszukiwanie naraz. Maigret loguje adresy z nickiem, więc jego logger jest wyciszony: na stdout nie trafia
   żaden adres.
 - **robots.txt (RFC 9309).** Dla każdego hosta (także po przekierowaniu) `GuardedChecker` raz na wyszukiwanie pobiera

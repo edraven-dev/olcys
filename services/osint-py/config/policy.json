@@ -49,7 +49,7 @@
     "connections": 4,
     "maxRedirects": 5,
     "maxBodyBytes": 1048576,
-    "maxResponseBytes": 20971520
+    "maxResponseBytes": 16777216
   },
   "upstreamDatabase": {
     "id": "maigret-0.6.6",

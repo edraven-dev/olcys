@@ -313,6 +313,64 @@ describe('secrets and request details', () => {
     expect(test.blobs.data.has(answer?.body.sha256 as string)).toBe(false);
   });
 
+  it('decodes a legacy charset before redacting, re-encodes as UTF-8 and records the redaction (Windows-1250)', async () => {
+    // "Zażółć gęślą jaźń" in Windows-1250 plus an ASCII synthetic key.
+    const polish = Buffer.from([0x5a, 0x61, 0xbf, 0xf3, 0xb3, 0xe6, 0x20, 0x67, 0xea, 0x9c, 0x6c, 0xb9]);
+    const body = Buffer.concat([
+      Buffer.from('<html><body><p>'),
+      polish,
+      Buffer.from(` klucz: ${wif}</p></body></html>`),
+    ]);
+    const requests = structuredClone(sample['requests'] as Record<string, unknown>[]);
+    const wykop = requests.find((r) => r['site'] === 'Wykop') as Record<string, unknown>;
+    wykop['bodyBase64'] = body.toString('base64');
+    wykop['responseHeaders'] = {
+      ...(wykop['responseHeaders'] as object),
+      'content-type': 'text/html; charset=windows-1250',
+    };
+    const answer = JSON.stringify({ ...sample, requests });
+    const { run, test } = setup(() => new Response(answer, { status: 200 }), createSecretRedactor());
+    const result = await run();
+    const capture = result.captures.find((c) => c.url.includes('/wykop/'));
+    const html = capture?.artifacts.find((a) => a.kind === 'html');
+    const stored = new TextDecoder().decode(await test.blobs.get(html?.blob.sha256 as string));
+    expect(stored).toContain('Zażółć gęślą');
+    expect(stored).toContain('[REDACTED:');
+    expect(stored).not.toContain(wif);
+    expect(html?.blob.mediaType).toContain('charset=utf-8');
+    const manifestJson = JSON.stringify(result.captures);
+    expect(manifestJson).not.toContain(wif);
+    const envelope = test.envelopes.find(
+      (e) => e.delegatedVia && e.responseHeaders['content-type']?.includes('charset'),
+    );
+    expect(envelope?.responseHeaders['content-type']).toBe('text/html; charset=utf-8');
+    // technical.redaction: count, kinds and the digest of the body as received; stored bytes described as redacted.
+    const manifest = JSON.parse(new TextDecoder().decode(await test.blobs.get(capture?.manifestSha256 as string))) as {
+      technical?: { redaction?: { secrets: number; kinds: string[]; originalSha256: string } };
+      artifacts: { description: string }[];
+      transformations: string[];
+    };
+    expect(manifest.technical?.redaction).toEqual({
+      secrets: 1,
+      kinds: ['wif'],
+      originalSha256: wykop['bodySha256'],
+    });
+    expect(manifest.artifacts.some((a) => /redacted/.test(a.description))).toBe(true);
+    expect(manifest.transformations.join(' ')).toMatch(/redacted in memory/);
+  });
+
+  it('records no redaction for a clean page and describes its bytes as received', async () => {
+    const { run, test } = setup();
+    const result = await run();
+    const capture = result.captures.find((c) => c.url.includes('/wykop/'));
+    const manifest = JSON.parse(new TextDecoder().decode(await test.blobs.get(capture?.manifestSha256 as string))) as {
+      technical?: { redaction?: unknown };
+      transformations: string[];
+    };
+    expect(manifest.technical?.redaction).toBeUndefined();
+    expect(manifest.transformations.join(' ')).toContain('body stored as received');
+  });
+
   it('does not start a page capture at robots.txt', async () => {
     const { run } = setup();
     const result = await run();

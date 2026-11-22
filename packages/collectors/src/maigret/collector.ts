@@ -24,10 +24,12 @@ import type {
   SourceDescriptor,
 } from '@olcys/core';
 import { canonicalJson, nowIso } from '@olcys/core';
+import { createHash } from 'node:crypto';
 import { artifactKindFor } from '../framework/capture.ts';
 import type { CollectorFactory } from '../framework/collector-registry.ts';
 import { COLLECTORS_VERSION, type Env } from '../framework/config.ts';
 import { SyntheticIdentifierError } from '../framework/errors.ts';
+import { decodeBody } from '../html/dom.ts';
 import { createSourceHttp, findToken, type CollectorDeps, type SourceHttp } from '../framework/http.ts';
 import { ResultBuilder } from '../framework/result.ts';
 import { note, type CollectorStatus } from '../framework/status.ts';
@@ -129,27 +131,55 @@ export function rollupUsernameSearch(statuses: readonly UsernameStatus[]): Colle
   return 'partial';
 }
 
+/** What redaction changed in one page body (never the values): shown in the capture's technical report. */
+export interface BodyRedaction {
+  secrets: number;
+  kinds: string[];
+  /** SHA-256 of the body as the service received it. */
+  originalSha256: string;
+}
+
 /**
  * Private keys and seed phrases never reach storage: every page body and every extracted field of the service's answer
  * goes through the project's redactor before captures, blobs, delegated log rows or provenance are built from it.
- * A body without findings keeps its original bytes.
+ * A body is decoded with its declared charset (as `fetchPage` does); a body without findings keeps its original bytes,
+ * one with findings is stored as redacted UTF-8 and its content type says so.
  */
-export function redactResponse(response: UsernameSearchResponse, redactor: SecretRedactor): UsernameSearchResponse {
+export function redactResponse(
+  response: UsernameSearchResponse,
+  redactor: SecretRedactor,
+): { response: UsernameSearchResponse; redactions: Map<string, BodyRedaction> } {
   const text = (value: string): string => redactor.redact(value).text;
-  return {
-    ...response,
-    results: response.results.map((r) => ({
+  const redactions = new Map<string, BodyRedaction>();
+  const requests = response.requests.map((r) => {
+    if (!r.bodyBase64) return r;
+    const bytes = decodeBase64(r.bodyBase64);
+    const contentType = r.responseHeaders['content-type'] ?? '';
+    const result = redactor.redact(decodeBody(bytes, contentType).text);
+    if (!result.findings.length) return r;
+    redactions.set(r.id, {
+      secrets: result.findings.length,
+      kinds: [...new Set(result.findings.map((f) => f.kind))].toSorted(),
+      originalSha256: r.bodySha256 ?? createHash('sha256').update(bytes).digest('hex'),
+    });
+    const mediaType = contentType.split(';')[0]?.trim() || 'text/plain';
+    return {
       ...r,
-      ids: Object.fromEntries(Object.entries(r.ids).map(([k, v]) => [k, text(v)])),
-      idsLinks: r.idsLinks.map(text),
-    })),
-    requests: response.requests.map((r) => {
-      if (!r.bodyBase64) return r;
-      const decoded = new TextDecoder().decode(decodeBase64(r.bodyBase64));
-      const result = redactor.redact(decoded);
-      if (!result.findings.length) return r;
-      return { ...r, bodyBase64: Buffer.from(result.text, 'utf8').toString('base64') };
-    }),
+      bodyBase64: Buffer.from(result.text, 'utf8').toString('base64'),
+      responseHeaders: { ...r.responseHeaders, 'content-type': `${mediaType}; charset=utf-8` },
+    };
+  });
+  return {
+    response: {
+      ...response,
+      results: response.results.map((r) => ({
+        ...r,
+        ids: Object.fromEntries(Object.entries(r.ids).map(([k, v]) => [k, text(v)])),
+        idsLinks: r.idsLinks.map(text),
+      })),
+      requests,
+    },
+    redactions,
   };
 }
 
@@ -194,6 +224,7 @@ interface Search {
   parsed: UsernameSearchResponse;
   baseUrl: string;
   logged: Map<string, Delegated>;
+  redactions: Map<string, BodyRedaction>;
   software: { name: string; version: string }[];
 }
 
@@ -248,7 +279,7 @@ async function recordReport(search: Search, response: EgressResponse): Promise<C
 
 /** One capture per found profile or barrier page: the last response of the site's request chain. */
 async function recordSite(search: Search, result: UsernameSiteResult): Promise<Capture | undefined> {
-  const { ctx, descriptor, parsed, logged, software } = search;
+  const { ctx, descriptor, parsed, logged, software, redactions } = search;
   const status = CAPTURE_STATUS[result.status];
   if (!status) return undefined;
   if (!ctx.evidence) throw new Error('RunContext.evidence (the capture recorder) is not configured');
@@ -264,15 +295,20 @@ async function recordSite(search: Search, result: UsernameSiteResult): Promise<C
   const bodyKind = artifactKindFor(headers['content-type'] ?? '');
   const redirects = chain.slice(0, -1).map((r) => ({ url: r.url, status: r.httpStatus ?? 0 }));
   const barrier = status === 'ok' ? undefined : { status, signals: [result.reason ?? `HTTP ${last.httpStatus ?? 0}`] };
+  const redaction = redactions.get(last.id);
   const technical: CaptureTechnicalReport = {
     method: 'http',
     startedAt: chain[0]?.requestedAt ?? last.requestedAt,
     ...(last.logicalUrl !== last.url ? { logicalUrl: last.logicalUrl } : {}),
     redirects,
     ...(barrier ? { barrier } : {}),
+    ...(redaction ? { redaction } : {}),
     software,
     transformations: [
-      'request made by osint-py (Maigret) under its own allow-list; body stored as received, no robots.txt fetch',
+      'request made by osint-py (Maigret) under its own allow-list',
+      redaction
+        ? `${redaction.secrets} secret(s) redacted in memory (${redaction.kinds.join(', ')}); body re-encoded as UTF-8, not the bytes received`
+        : 'body stored as received',
       ...(last.bodyTruncated ? ['body truncated by osint-py at its size limit'] : []),
       'headers artifact: canonical JSON of the HTTP status and the kept response headers',
     ],
@@ -294,7 +330,13 @@ async function recordSite(search: Search, result: UsernameSiteResult): Promise<C
     status,
     responseHeaders: headers,
     artifacts: [
-      { kind: bodyKind, blob: provenance.body, description: 'HTTP response body as received by osint-py' },
+      {
+        kind: bodyKind,
+        blob: provenance.body,
+        description: redaction
+          ? 'HTTP response body as received by osint-py, with secrets redacted (UTF-8)'
+          : 'HTTP response body as received by osint-py',
+      },
       {
         kind: 'headers',
         bytes: new TextEncoder().encode(canonicalJson({ status: last.httpStatus, headers })),
@@ -435,7 +477,8 @@ export function maigretCollectorFactory(options: MaigretCollectorOptions): Colle
             return rb.build();
           }
 
-          parsed = redactResponse(parsed, deps.redactor);
+          const redacted = redactResponse(parsed, deps.redactor);
+          parsed = redacted.response;
           const software = [
             { name: '@olcys/collectors', version: COLLECTORS_VERSION },
             { name: 'osint-py', version: parsed.service.version },
@@ -451,7 +494,18 @@ export function maigretCollectorFactory(options: MaigretCollectorOptions): Colle
             records: parsed.requests.map(delegatedRecord),
           });
           const logged = new Map<string, Delegated>(parsed.requests.map((r, i) => [r.id, records[i] as Delegated]));
-          const search: Search = { rb, http, ctx, descriptor, username, parsed, baseUrl, logged, software };
+          const search: Search = {
+            rb,
+            http,
+            ctx,
+            descriptor,
+            username,
+            parsed,
+            baseUrl,
+            logged,
+            redactions: redacted.redactions,
+            software,
+          };
 
           const report = await recordReport(search, response);
           const captures = new Map<string, Capture>();

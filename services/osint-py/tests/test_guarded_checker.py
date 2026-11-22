@@ -88,3 +88,15 @@ async def test_truncated_page_is_unknown_not_a_verdict(loopback, make_settings):
     # The prefix is not kept as evidence either.
     big = next(r for r in response.requests if r.site == "Big" and r.purpose != "robots.txt")
     assert big.bodyBase64 is None and big.bodyTruncated is True
+
+
+async def test_total_size_budget_truncates_pages_but_keeps_the_log(loopback, make_settings):
+    names = ["A", "B", "C", "D"]
+    settings = make_settings({n: loopback.site("ok") | {"url": f"{loopback.base}/ok/{{username}}x{n}"} for n in names})
+    settings.policy["limits"]["maxResponseBytes"] = 70
+    response = await run_search(search(), settings)
+    assert len(response.results) == 4  # no result is dropped
+    truncated = [r for r in response.results if r.reason == "body_truncated"]
+    assert truncated and all(r.status == "unknown" for r in truncated)
+    assert sum(len(__import__("base64").b64decode(r.bodyBase64 or "")) for r in response.requests) <= 70
+    assert len(response.requests) >= 4  # the request log stays complete
