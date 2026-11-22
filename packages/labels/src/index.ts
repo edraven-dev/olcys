@@ -14,6 +14,17 @@ export {
   SELECTORS,
   type ClassifierDeps,
 } from './classifier.ts';
+export { coSpendGuard, detectCoinJoin, isCollaborativeEscrow, type CoinJoinKind } from './coinjoin.ts';
+export {
+  buildCoSpendClusters,
+  clusterId,
+  COSPEND_ALGORITHM_VERSION,
+  evaluateClusterCollapse,
+  planClusterExpansion,
+  toClusterSummary,
+  type ClusterSummary,
+  type CoSpendDeps,
+} from './cospend.ts';
 export {
   DENY_KINDS,
   loadDenyList,
@@ -34,6 +45,7 @@ export {
 export {
   effectiveOutcome,
   evaluateExclusions,
+  isDecidingService,
   isExcluded,
   prescreenExclusions,
   type AddressFacts,
