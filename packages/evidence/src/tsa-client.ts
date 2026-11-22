@@ -36,6 +36,19 @@ export interface Rfc3161Client {
   request(subject: TimestampSubject, ctx: Pick<RunContext, 'http' | 'blobs' | 'clock' | 'mode'>): Promise<TsaAttempt>;
 }
 
+const TRANSPORT_ERROR_NAMES = new Set(['TimeoutError', 'AbortError']);
+
+/**
+ * Network, timeout and abort failures of the underlying fetch (`@olcys/http` lets them through unchanged): a
+ * `TimeoutError` or `AbortError` (the request timeout), or undici's `TypeError: fetch failed` (DNS, refused or reset
+ * connection, TLS), which always carries the system error as `cause`.
+ */
+function isTransportFailure(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  if (TRANSPORT_ERROR_NAMES.has(error.name)) return true;
+  return error instanceof TypeError && error.message === 'fetch failed' && error.cause instanceof Error;
+}
+
 export function createRfc3161Client(config: Rfc3161Config, random: () => bigint = randomNonce): Rfc3161Client {
   return {
     async request(subject, ctx) {
@@ -64,15 +77,16 @@ export function createRfc3161Client(config: Rfc3161Config, random: () => bigint 
           ...(subject.runId ? { runId: subject.runId } : {}),
         });
       } catch (error) {
-        // A denied host or a replay miss is a configuration problem (classes of @olcys/http, matched by name so that
-        // this package depends on the core contracts only), not a transient failure.
-        if (error instanceof Error && (error.name === 'EgressDeniedError' || error.name === 'ReplayMissError')) {
-          throw error;
-        }
+        // Only transport failures are an outage. Everything else (a denied host, a replay miss, a failing blob store or
+        // log sink, a bug) escapes: a local write error must not look like a TSA outage.
+        if (!isTransportFailure(error)) throw error;
         return {
           outcome: { status: 'queued', reason: 'transient_failure' },
           nonce,
-          error: error instanceof Error ? error.message : String(error),
+          error:
+            error instanceof Error && error.cause instanceof Error
+              ? `${error.message}: ${error.cause.message}`
+              : (error as Error).message,
         };
       }
       const base = { nonce, httpStatus: response.status, fetchId: response.provenance.fetchId };

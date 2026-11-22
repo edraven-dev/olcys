@@ -269,11 +269,14 @@ export async function verifyTimeStampResp(
 
   const eku = signer.extensions?.find((e) => e.extnID === OID_EXT_KEY_USAGE);
   const purposes = (eku?.parsedValue as pkijs.ExtKeyUsage | undefined)?.keyPurposes ?? [];
-  const ekuOk = eku?.critical === true && purposes.includes(ID_KP_TIME_STAMPING);
+  // RFC 3161 section 2.3: the extension is critical and holds exactly one purpose, id-kp-timeStamping.
+  const ekuOk = eku?.critical === true && purposes.length === 1 && purposes[0] === ID_KP_TIME_STAMPING;
   record(
     'eku',
     ekuOk,
-    ekuOk ? undefined : 'the signer certificate lacks a critical id-kp-timeStamping extended key usage',
+    ekuOk
+      ? undefined
+      : 'the signer certificate does not have a critical extended key usage of exactly id-kp-timeStamping',
   );
 
   const ess = checkEssCertId(signerInfo, signer);

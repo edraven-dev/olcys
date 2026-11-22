@@ -49,7 +49,7 @@ interface CertOptions {
   /** Signing key and the issuer's name; undefined for a self-signed certificate. */
   issuer?: TestAuthority;
   /** `critical` EKU timeStamping, `none`, or a non-critical one. */
-  eku?: 'critical' | 'none' | 'non_critical';
+  eku?: 'critical' | 'none' | 'non_critical' | 'multi_purpose';
 }
 
 async function makeCertificate(options: CertOptions): Promise<TestAuthority> {
@@ -71,7 +71,9 @@ async function makeCertificate(options: CertOptions): Promise<TestAuthority> {
     extension('2.5.29.15', true, options.ca ? bits(0x04, 2) : bits(0x80, 7)),
   ];
   if (!options.ca && options.eku !== 'none') {
-    const eku = new pkijs.ExtKeyUsage({ keyPurposes: [ID_KP_TIME_STAMPING] });
+    const eku = new pkijs.ExtKeyUsage({
+      keyPurposes: options.eku === 'multi_purpose' ? [ID_KP_TIME_STAMPING, '1.3.6.1.5.5.7.3.1'] : [ID_KP_TIME_STAMPING],
+    });
     cert.extensions.push(extension('2.5.29.37', options.eku !== 'non_critical', eku.toSchema(), eku));
   }
   await cert.subjectPublicKeyInfo.importKey(keys.publicKey);
@@ -88,7 +90,7 @@ export interface TsaKnobs {
   /** Echoes a different nonce. */
   wrongNonce?: boolean;
   /** The TSA certificate lacks the EKU / has a non-critical one. */
-  eku?: 'critical' | 'none' | 'non_critical';
+  eku?: 'critical' | 'none' | 'non_critical' | 'multi_purpose';
   /** Signs with a certificate of a CA that is not the trusted one. */
   unknownCa?: boolean;
   /** The TSA certificate expires before `genTime`. */
@@ -123,6 +125,15 @@ export async function createFakeTsa(): Promise<FakeTsa> {
       ca: false,
       issuer: ca,
       eku: 'non_critical',
+    }),
+    multi_purpose: await makeCertificate({
+      cn: 'Test TSA',
+      serial: 7,
+      notBefore,
+      notAfter,
+      ca: false,
+      issuer: ca,
+      eku: 'multi_purpose',
     }),
     unknown: await makeCertificate({ cn: 'Test TSA', serial: 5, notBefore, notAfter, ca: false, issuer: otherCa }),
     expired: await makeCertificate({

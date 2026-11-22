@@ -48,6 +48,7 @@ describe('verifyTimeStampResp', () => {
     ['wrong nonce', { wrongNonce: true }, ['nonce']],
     ['PKIStatus rejection', { status: 2 }, ['status_granted']],
     ['signer without the EKU', { eku: 'none' }, ['eku']],
+    ['signer with an extra extended key usage', { eku: 'multi_purpose' }, ['eku']],
     ['signer with a non-critical EKU', { eku: 'non_critical' }, ['eku']],
     ['unknown CA', { unknownCa: true }, ['chain']],
     ['certificate expired at genTime', { expiredAtGenTime: true }, ['chain', 'validity']],

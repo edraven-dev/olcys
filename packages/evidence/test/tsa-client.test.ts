@@ -100,20 +100,56 @@ describe('Rfc3161Client', () => {
     });
   });
 
-  it('treats a network error as transient and a denied host as a bug', async () => {
-    const down = createFakeTsaEgress(tsa, [
+  it('treats network, timeout and abort failures as transient', async () => {
+    const failures = [
+      new TypeError('fetch failed', { cause: new Error('connect ECONNREFUSED') }),
+      new DOMException('The operation was aborted due to timeout', 'TimeoutError'),
+      new DOMException('This operation was aborted', 'AbortError'),
+    ];
+    for (const failure of failures) {
+      const down = createFakeTsaEgress(tsa, [
+        () => {
+          throw failure;
+        },
+      ]);
+      // oxlint-disable-next-line no-await-in-loop
+      const attempt = await createRfc3161Client(config()).request(subject, ctx(down.client));
+      expect(attempt.outcome).toEqual({ status: 'queued', reason: 'transient_failure' });
+    }
+    const refused = createFakeTsaEgress(tsa, [
       () => {
-        throw new Error('connect ECONNREFUSED');
+        throw failures[0]!;
       },
     ]);
-    const attempt = await createRfc3161Client(config()).request(subject, ctx(down.client));
-    expect(attempt).toMatchObject({ outcome: { reason: 'transient_failure' }, error: 'connect ECONNREFUSED' });
-    const denied = createFakeTsaEgress(tsa, [
+    expect((await createRfc3161Client(config()).request(subject, ctx(refused.client))).error).toBe(
+      'fetch failed: connect ECONNREFUSED',
+    );
+  });
+
+  it.each([
+    ['a denied host', Object.assign(new Error('egress denied'), { name: 'EgressDeniedError' })],
+    ['a replay miss', Object.assign(new Error('no recorded response'), { name: 'ReplayMissError' })],
+    ['a failing log or blob sink inside the egress client', new Error('ENOSPC: no space left on device')],
+  ])('lets %s escape instead of queueing a retry', async (_name, failure) => {
+    const egress = createFakeTsaEgress(tsa, [
       () => {
-        throw Object.assign(new Error('egress denied'), { name: 'EgressDeniedError' });
+        throw failure;
       },
     ]);
-    await expect(createRfc3161Client(config()).request(subject, ctx(denied.client))).rejects.toThrow('egress denied');
+    await expect(createRfc3161Client(config()).request(subject, ctx(egress.client))).rejects.toThrow(failure.message);
+  });
+
+  it('lets a failing blob store escape after a valid reply', async () => {
+    const egress = createFakeTsaEgress(tsa);
+    const context = {
+      ...ctx(egress.client),
+      blobs: {
+        put: () => Promise.reject(new Error('disk full')),
+        get: () => Promise.reject(new Error('unused')),
+        has: () => Promise.resolve(false),
+      },
+    };
+    await expect(createRfc3161Client(config()).request(subject, context)).rejects.toThrow('disk full');
   });
 
   it('AC3: a tampered reply is rejected naming the failed check and stores no blob', async () => {
