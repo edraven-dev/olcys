@@ -50,7 +50,13 @@ import {
 } from '@olcys/labels';
 import { parse as parseYaml } from 'yaml';
 import { createSecretRedactor, extractCapture, parseDenyList, type CaptureContent } from '@olcys/address-extractor';
-import { collectCase, loadCollectorConfig, loadSourceRegistry, type SourceRegistry } from '@olcys/collectors';
+import {
+  collectCase,
+  createDefaultCollectorRegistry,
+  loadCollectorConfig,
+  loadSourceRegistry,
+  type SourceRegistry,
+} from '@olcys/collectors';
 import { createEgressClient, RobotsCache } from '@olcys/http';
 import { createReportStage } from '@olcys/reporting';
 import { loadWeights, scoreRun } from '@olcys/scoring';
@@ -128,6 +134,8 @@ export function createCollectStage(options: StageOptions): Stage {
         config,
         robots: new RobotsCache(http, USER_AGENT),
         redactor,
+        // Platform collectors plus the web search collectors of OLCYS_SEARCH_MODE (keys from the environment only).
+        collectors: createDefaultCollectorRegistry({ mode: options.mode, env }),
         maxPivotDepth: ctx.case.scope.maxPivotDepth,
         onTask: (event) => ctx.progress({ tasksDone: event.done, tasksPlanned: event.planned }),
       });
@@ -148,15 +156,20 @@ export function createCollectStage(options: StageOptions): Stage {
   };
 }
 
-export function createExtractStage(): Stage {
+export function createExtractStage(options: Partial<Pick<StageOptions, 'sources'>> = {}): Stage {
   const denyList = lazy(async () =>
     parseDenyList(await readFile(join(REPO_ROOT, 'config', 'rules', 'deny-list.v1.yaml'), 'utf8')),
   );
+  // A search result list only points at pages; the pages themselves are collected and extracted, so a snippet never
+  // becomes a second copy of an address found on a page.
+  const searchSources = new Set((options.sources ?? []).filter((s) => s.kind === 'search').map((s) => s.id));
   return {
     step: 'extract.capture',
     async run(ctx: StageContext) {
       const list = await denyList();
-      const captures = (await ctx.repos.evidence.listCaptures(ctx.evidenceRunId)).filter((c) => c.status === 'ok');
+      const captures = (await ctx.repos.evidence.listCaptures(ctx.evidenceRunId)).filter(
+        (c) => c.status === 'ok' && !searchSources.has(c.sourceId),
+      );
       let candidates = 0;
       for (const capture of captures) {
         const artifacts: CaptureContent['artifacts'] = [];
@@ -464,7 +477,7 @@ export function createChainStage(options: StageOptions): Stage {
 export function defaultStages(options: StageOptions): Stage[] {
   return [
     createCollectStage(options),
-    createExtractStage(),
+    createExtractStage(options),
     createChainStage(options),
     createScoreStage(options),
     // Runs after the built-in comparison with the previous run, so the report includes the changes.
