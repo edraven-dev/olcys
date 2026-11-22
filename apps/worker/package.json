@@ -9,7 +9,8 @@
   },
   "scripts": {
     "dev": "node --watch --env-file-if-exists=../../.env src/main.ts",
-    "start": "node src/main.ts"
+    "start": "node src/main.ts",
+    "tsa:flush": "node --env-file-if-exists=../../.env src/tsa-flush.ts"
   },
   "dependencies": {
     "@olcys/address-extractor": "workspace:*",

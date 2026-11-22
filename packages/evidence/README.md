@@ -9,6 +9,16 @@ Magazyn plików adresowany treścią (SHA-256), manifesty, rekordy zabezpieczeń
 
 - `FileBlobStore(root)` — niezmienny magazyn plików adresowany SHA-256 (zapis atomowy, weryfikacja przy odczycie).
 - `InMemoryBlobStore` — implementacja do testów; `sha256Hex()`; `canonicalJson()` (RFC 8785, z `@olcys/core`).
+- `buildPropertyTimelines(wejście, filtr?)` — oś czasu wartości strony (`page.address`: adresy wyodrębnione ze strony)
+  i pól profilu: punkty z kopii archiwalnych (Wayback Machine, czas migawki podany przez archiwum, nigdy czas naszego
+  pobrania) i z przebiegów na żywo, okresy o tym samym zbiorze wartości oraz zmiany z przedziałem czasu (ostatni punkt
+  przed zmianą — pierwszy po). Wartości pochodzą z wyników wyodrębnienia (`extractions`; `latestExtractions()` wybiera dla przechwycenia wynik najnowszej analizy, więc ponowna ocena z odrzuconym adresem usuwa go z osi); przechwycenie bez wyniku wyodrębnienia to luka `extraction_pending`, a nie usunięcie adresu. Przechwycenie, które odczytało profil konta (`profileCaptureId`), reprezentuje kanoniczną stronę
+  profilu tego konta (np. profil pobrany po nicku to strona `…;u=<id>` z wykazu archiwum), niezależnie od adresu żądania. Niepobrana kopia z tym samym skrótem CDX dziedziczy wartości (`inferredFromDigest`,
+  data przybliżona); niepobrana kopia z nowym skrótem, skrót niezgodny, strona zablokowana, za logowaniem, z CAPTCHA,
+  z błędem lub 404 to luka — nigdy nie kończy okresu i nie tworzy zmiany. Funkcja jest czysta (bez sieci i bez dostępu
+  do bazy); pomocnicze: `normalisePageUrl()` (http/https jednakowo, mała litera hosta, bez portu domyślnego, fragmentu
+  i końcowego ukośnika) oraz `snapshotTimestampToIso()` (14-cyfrowy znacznik Wayback → UTC ISO; nieprawidłowy →
+  `undefined`, wiersz jest pomijany z ostrzeżeniem).
 - `diffRuns(before, after)` — porównanie dwóch przebiegów: fakty porównywane według `(platforma, lokalizator,
   właściwość)` dają zdarzenia `ADDED`, `REMOVED` i `VALUE_CHANGED`; zmiana właściwości z adresem portfela ma znacznik
   `wallet` (alert podmiany portfela). Fakt nieobecny na stronie zablokowanej, za logowaniem, za CAPTCHA, z błędem lub
@@ -37,6 +47,34 @@ Magazyn plików adresowany treścią (SHA-256), manifesty, rekordy zabezpieczeń
   `artifacts/<id>/<rodzaj>-<12 znaków skrótu>.<rozszerzenie>`, posortowany `SHA256SUMS` i `CZYTAJ_MNIE.txt`. Katalog docelowy musi być pusty albo nieistniejący
   (`OutputDirectoryNotEmptyError`; CLI kończy się kodem 1), aby paczki nie mieszały się ze sobą.
 - `custodyCollected(capture, actor)` — zdarzenie łańcucha dowodowego `collected` (zapis w `custody_event`).
+
+## Znaczniki czasu RFC 3161
+
+Skrót potwierdza spójność z manifestem, ale nie to, kiedy treść istniała. Dla skrótu każdego manifestu zbioru pobierany jest
+niezależny znacznik czasu (RFC 3161). Poza system wychodzą wyłącznie 32 bajty skrótu SHA-256 i losowy nonce.
+
+- `buildTimeStampReq(skrót, { nonce, policyOid? })` — żądanie `TimeStampReq` (DER): wersja 1, SHA-256 bez parametrów
+  (RFC 5754), dodatni 63-bitowy nonce, `certReq true`, bez rozszerzeń; `reqPolicy` tylko gdy skonfigurowano politykę.
+- `verifyTimeStampResp(der, { digest, nonce?, policyOid?, contentType? }, { anchorsPem })` — weryfikacja odpowiedzi.
+  Zapisuje wynik każdej kontroli (`status_granted`, `content_type`, `imprint`, `nonce`, `policy`, `signature`, `eku`,
+  `ess_cert_id`, `chain`, `validity`): status PKI, skrót w odcisku, nonce, podpis CMS, krytyczne rozszerzenie
+  `id-kp-timeStamping` certyfikatu podpisującego, `ESSCertIDv2` (lub `ESSCertID`), łańcuch do skonfigurowanej kotwicy
+  i ważność certyfikatu w chwili `genTime`. Unieważnienia (CRL/OCSP) nie są sprawdzane — raport nie twierdzi inaczej.
+  Podpis CMS sprawdzany jest własnym kodem (a nie `SignedData.verify` z `pkijs`), bo `pkijs` wymaga oryginalnych danych,
+  a system przechowuje wyłącznie skrót.
+- `createRfc3161Client(config, losowy?)` — klient nad `EgressClient`: `POST` na `TSA_URL`, nagłówek
+  `content-type: application/timestamp-query`, `sourceId` źródła z rejestru, `containsIdentifier: false`. Wynik to
+  `granted` (z tokenem), `queued` (`offline`, albo `transient_failure` przy błędzie sieci, 429 i 5xx) lub `rejected`
+  (nazwy niezaliczonych kontroli, np. `verification_failed: imprint`). Tylko tryb `live` łączy się z TSA; `offline` i
+  `replay` zwracają `queued: offline` bez żadnego zapytania. Pełna odpowiedź `TimeStampResp` trafia do magazynu
+  blobów jako `application/timestamp-reply` i jest `TimestampToken.token`.
+- `loadTrustAnchors(ścieżki)` — kotwice zaufania z plików PEM (lokalnie; `config/tsa/freetsa/`).
+
+Biblioteki: `pkijs` i `asn1js` (BSD-3-Clause, zob. `docs/compliance/licenses.md`). Testy używają sztucznego TSA
+(`test/support/fake-tsa.ts`): para kluczy i urząd certyfikacji powstają w pamięci w trakcie testu, nic nie jest zapisywane
+na dysk ani zatwierdzane w repozytorium. Test z `openssl ts -verify` jest pomijany, gdy `openssl` nie jest w `PATH`.
+
+Orkiestracja (kto, kiedy i co zapisuje) jest w `apps/worker/src/timestamper.ts`; zob. `docs/architecture.md`.
 
 ### Procedura weryfikacji
 

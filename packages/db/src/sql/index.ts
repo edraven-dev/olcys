@@ -1,5 +1,6 @@
 import type { Repositories } from '@olcys/core';
 import type { Db } from '../client.ts';
+import { sqlAccessLogRepository } from './access-log.ts';
 import { sqlAddressTypeRepository } from './address-types.ts';
 import { sqlAnalysisRepository, sqlChainDataRepository, sqlLabelRepository } from './analysis.ts';
 import { sqlJudgementRepository, sqlOverrideRepository } from './analyst.ts';
@@ -10,6 +11,7 @@ import { sqlEvidenceRepository } from './evidence.ts';
 import { sqlLlmRepository } from './llm.ts';
 import { sqlRunRepository } from './runs.ts';
 import { sqlScheduleRepository } from './schedules.ts';
+import { sqlTimestampRepository } from './timestamps.ts';
 
 /** PostgreSQL (Kysely) implementations of every repository port. */
 export function createSqlRepositories(db: Db): Repositories {
@@ -26,10 +28,13 @@ export function createSqlRepositories(db: Db): Repositories {
     judgements: sqlJudgementRepository(db),
     overrides: sqlOverrideRepository(db),
     custody: sqlCustodyRepository(db),
+    accessLog: sqlAccessLogRepository(db),
+    timestamps: sqlTimestampRepository(db),
     llm: sqlLlmRepository(db),
   };
 }
 
+export { sqlAccessLogRepository } from './access-log.ts';
 export { sqlAddressTypeRepository } from './address-types.ts';
 export { sqlAnalysisRepository, sqlChainDataRepository, sqlLabelRepository } from './analysis.ts';
 export { sqlJudgementRepository, sqlOverrideRepository } from './analyst.ts';
@@ -40,3 +45,4 @@ export { sqlEvidenceRepository } from './evidence.ts';
 export { sqlLlmRepository } from './llm.ts';
 export { sqlRunRepository } from './runs.ts';
 export { sqlScheduleRepository } from './schedules.ts';
+export { attachTimestamps, sqlTimestampRepository } from './timestamps.ts';

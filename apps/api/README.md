@@ -5,32 +5,33 @@ serwer deweloperski Vite (`/api`). W MVP uruchamia też potok analizy w tym samy
 
 ## Trasy
 
-| Metoda i ścieżka                                                    | Opis                                                                                        |
-| ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| `GET /api/health`                                                   | stan usługi i wersja kontraktów                                                             |
-| `GET /api/meta`                                                     | wersja, tryb, włączone funkcje (`features`), wersje wag i reguł                             |
-| `GET /api/sources`                                                  | rejestr źródeł ze statusem zgodności (GREEN/AMBER/RED)                                      |
-| `GET /api/cases`, `POST /api/cases`, `GET /api/cases/:id`           | sprawy i ich identyfikatory (walidacja schematem `CreateCaseSchema`)                        |
-| `GET /api/cases/:id/runs`, `POST /api/cases/:id/runs`               | przebiegi sprawy; `POST` tworzy przebieg i uruchamia potok (odpowiedź 202)                  |
-| `GET /api/cases/:id/schedule`, `PUT /api/cases/:id/schedule`        | harmonogram analiz okresowych: cron (UTC), najbliższe terminy, wyzwolenia, zmiany           |
-| `GET /api/runs/:id`                                                 | status i postęp przebiegu                                                                   |
-| `GET /api/runs/:id/{captures,observations,accounts,candidates}`     | dowody: przechwycenia stron, fakty, konta, kandydaci adresów                                |
-| `GET /api/runs/:id/extractions`                                     | wyniki ekstrakcji z dopasowaniami odrzuconymi przy weryfikacji (np. homoglify)              |
-| `GET /api/runs/:id/{links,exclusions,activity,cash-outs,transfers}` | wyniki: powiązania ze Wskaźnikiem Pewności, odrzucenia, aktywność, wyjścia do fiat          |
-| `GET /api/runs/:id/flows`                                           | krawędzie przepływów środków (obliczenia; `hop` > 0 w dół, < 0 w górę), z wyceną w PLN      |
-| `GET /api/runs/:id/fund-flows`                                      | oś czasu i agregat Sankey każdego analizowanego adresu (`truncated` — graf przycięty)       |
-| `GET /api/runs/:id/address-types`                                   | typy adresów z analizy łańcuchowej (EOA, EIP-7702, Safe, ERC-4337, kontrakt…)               |
-| `GET /api/runs/:id/clusters`                                        | klastry Bitcoin (heurystyka wspólnego wydatkowania): dowody połączeń, pominięcia            |
-| `GET /api/links/:linkId/judgements`, `POST …/judgements`            | oceny analityka przy powiązaniu (od najstarszej); nie zmieniają wyniku                      |
-| `GET /api/cases/:id/overrides`, `POST /api/cases/:id/overrides`     | korekty analityka w sprawie; działają dopiero w ponownej ocenie (`rescore`)                 |
-| `POST /api/runs/:id/report`                                         | nowa wersja raportu zakończonego przebiegu (z ocenami zapisanymi do tej chwili)             |
-| `GET /api/runs/:id/changes`                                         | zmiany względem poprzedniego przebiegu (m.in. podmiana portfela)                            |
-| `GET /api/runs/:id/egress`                                          | dziennik ruchu wychodzącego przebiegu                                                       |
-| `GET /api/runs/:id/report`                                          | raport HTML przebiegu                                                                       |
-| `GET /api/runs/:id/exports`                                         | lista eksportów bieżącej wersji raportu (pusta dla starszych raportów)                      |
-| `GET /api/runs/:id/exports/:format`                                 | eksport raportu: `stix`, `misp`, `csv_links`, `csv_evidence`, `csv_cash_out`, `csv_changes` |
-| `GET /api/labels`                                                   | etykiety adresów z pochodzeniem (zbiór danych, URL, licencja, data zmiany)                  |
-| `GET /api/captures/:id`, `GET /api/blobs/:sha256`                   | metadane przechwycenia; surowa treść dowodu wyłącznie jako plik do pobrania                 |
+| Metoda i ścieżka                                                    | Opis                                                                                                        |
+| ------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `GET /api/health`                                                   | stan usługi i wersja kontraktów                                                                             |
+| `GET /api/meta`                                                     | wersja, tryb, włączone funkcje (`features`), wersje wag i reguł                                             |
+| `GET /api/sources`                                                  | rejestr źródeł ze statusem zgodności (GREEN/AMBER/RED)                                                      |
+| `GET /api/cases`, `POST /api/cases`, `GET /api/cases/:id`           | sprawy i ich identyfikatory (walidacja schematem `CreateCaseSchema`)                                        |
+| `GET /api/cases/:id/runs`, `POST /api/cases/:id/runs`               | przebiegi sprawy; `POST` tworzy przebieg i uruchamia potok (odpowiedź 202)                                  |
+| `GET /api/cases/:id/schedule`, `PUT /api/cases/:id/schedule`        | harmonogram analiz okresowych: cron (UTC), najbliższe terminy, wyzwolenia, zmiany                           |
+| `GET /api/cases/:id/timeline`                                       | historia wartości stron i pól profilu: kopie archiwalne i przebiegi; filtry `url`, `property`, `walletOnly` |
+| `GET /api/runs/:id`                                                 | status i postęp przebiegu                                                                                   |
+| `GET /api/runs/:id/{captures,observations,accounts,candidates}`     | dowody: przechwycenia stron, fakty, konta, kandydaci adresów                                                |
+| `GET /api/runs/:id/extractions`                                     | wyniki ekstrakcji z dopasowaniami odrzuconymi przy weryfikacji (np. homoglify)                              |
+| `GET /api/runs/:id/{links,exclusions,activity,cash-outs,transfers}` | wyniki: powiązania ze Wskaźnikiem Pewności, odrzucenia, aktywność, wyjścia do fiat                          |
+| `GET /api/runs/:id/flows`                                           | krawędzie przepływów środków (obliczenia; `hop` > 0 w dół, < 0 w górę), z wyceną w PLN                      |
+| `GET /api/runs/:id/fund-flows`                                      | oś czasu i agregat Sankey każdego analizowanego adresu (`truncated` — graf przycięty)                       |
+| `GET /api/runs/:id/address-types`                                   | typy adresów z analizy łańcuchowej (EOA, EIP-7702, Safe, ERC-4337, kontrakt…)                               |
+| `GET /api/runs/:id/clusters`                                        | klastry Bitcoin (heurystyka wspólnego wydatkowania): dowody połączeń, pominięcia                            |
+| `GET /api/links/:linkId/judgements`, `POST …/judgements`            | oceny analityka przy powiązaniu (od najstarszej); nie zmieniają wyniku                                      |
+| `GET /api/cases/:id/overrides`, `POST /api/cases/:id/overrides`     | korekty analityka w sprawie; działają dopiero w ponownej ocenie (`rescore`)                                 |
+| `POST /api/runs/:id/report`                                         | nowa wersja raportu zakończonego przebiegu (z ocenami zapisanymi do tej chwili)                             |
+| `GET /api/runs/:id/changes`                                         | zmiany względem poprzedniego przebiegu (m.in. podmiana portfela)                                            |
+| `GET /api/runs/:id/egress`                                          | dziennik ruchu wychodzącego przebiegu                                                                       |
+| `GET /api/runs/:id/report`                                          | raport HTML przebiegu                                                                                       |
+| `GET /api/runs/:id/exports`                                         | lista eksportów bieżącej wersji raportu (pusta dla starszych raportów)                                      |
+| `GET /api/runs/:id/exports/:format`                                 | eksport raportu: `stix`, `misp`, `csv_links`, `csv_evidence`, `csv_cash_out`, `csv_changes`                 |
+| `GET /api/labels`                                                   | etykiety adresów z pochodzeniem (zbiór danych, URL, licencja, data zmiany)                                  |
+| `GET /api/captures/:id`, `GET /api/blobs/:sha256`                   | metadane przechwycenia; surowa treść dowodu wyłącznie jako plik do pobrania                                 |
 
 Treść pobrana ze stron jest niezaufana: `/api/blobs` zwraca ją jako załącznik `application/octet-stream` z nagłówkami
 `nosniff` i `Content-Security-Policy: sandbox`, nigdy jako stronę w domenie konsoli.
@@ -60,6 +61,19 @@ harmonogramu (`CaseScheduleState`). Autor zmiany pochodzi z konfiguracji serwera
 pole sekund, `H`, RRULE), 400 `schedule_too_frequent` (w trybie `live` terminy bliżej niż
 `OLCYS_SCHEDULE_MIN_INTERVAL_MINUTES`, domyślnie 60 min; w trybach `offline` i `replay` minimum to 1 min), 400
 `invalid_input`, 404 `case_not_found`, 409 `case_closed`.
+
+## Oś czasu strony
+
+`GET /api/cases/:id/timeline?url=&property=&walletOnly=true` zwraca `PropertyTimeline[]` zbudowane z przechwyceń,
+kandydatów i faktów wszystkich przebiegów sprawy oraz wykazu migawek Wayback (`buildWaybackHistory`). Wszystkie filtry
+są opcjonalne; `walletOnly` przyjmuje wyłącznie `true` lub `false`, a nieprawidłowy filtr (lub nieznany parametr)
+daje 400 `invalid_input` ze ścieżką błędnego pola w `issues`. Trasa tylko czyta zapisane dane. Osie stron powstają dla
+stron, które mają kopie archiwalne; osie pól profilu (np. `profile.bitcoin_address`) — z faktów przebiegów na żywo.
+Punkty kopii archiwalnych mają `provenance: "archive"` i czas migawki z archiwum; luki (`values: null`) nigdy nie
+oznaczają usunięcia adresu. Dla każdego przechwycenia liczy się wynik wyodrębnienia z najnowszej analizy (ponowna
+ocena zastępuje wcześniejszy wynik); przechwycenie, którego wyodrębnienie jeszcze się nie zakończyło, jest luką
+(`extraction_pending`). Wiele pobrań tej samej migawki łączy się tak: użyteczne (status `ok`, skrót zgodny) wygrywa z
+niepobranym lub błędnym, a spośród równych — najnowsze.
 
 ## Oceny i korekty analityka
 
@@ -102,3 +116,15 @@ zob. `packages/reporting/README.md`) jako załącznik z nagłówkami `x-content-
 przebiegu; szczegóły: format, skrót SHA-256 pliku i cel sprawy), z analitykiem z konfiguracji serwera. Nieznany format to
 400, nieznany przebieg lub brak eksportu — 404. Znacznik TLP i nazwa producenta STIX pochodzą ze zmiennych
 `OLCYS_EXPORT_TLP` (domyślnie `amber`) i `OLCYS_STIX_PRODUCER_NAME`.
+
+## Nagłówki bezpieczeństwa i dziennik dostępu
+
+Hak `onSend` (`src/security.ts`) dodaje do każdej odpowiedzi ścisłe CSP (`default-src 'none'; frame-ancestors 'none'`),
+`nosniff`, `Referrer-Policy: no-referrer`, `Permissions-Policy` i `Cache-Control: no-store`; HSTS tylko przy
+`OLCYS_HSTS=1`. Raport HTML dopuszcza swoje arkusze stylów po skrócie SHA-256. Odczyty spraw, uruchomień, dowodów,
+raportów i eksportów trafiają w tle do dziennika dostępu (`GET /api/access-log`): podmiotem jest etykieta analityka
+(`OLCYS_ANALYST_NAME`, inaczej `local`), cel tylko wtedy, gdy klient prześle nagłówek `X-Olcys-Purpose`
+(zakodowany `encodeURIComponent`, bo wartości nagłówków to Latin-1; API dekoduje go, przy błędnej sekwencji zachowuje
+wartość surową, przycina i ogranicza do 500 znaków). Powtórzone identyczne odczyty (odpytywanie postępu) są w oknie
+60 s zapisywane raz; pobrania plików, raportów i eksporty zawsze. Konta i logowanie
+są planowane w kolejnej wersji (poza zakresem MVP). Szczegóły: `docs/security.md`.

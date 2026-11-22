@@ -1,0 +1,112 @@
+{
+  "page": "https://forum.example.org/profile/900001",
+  "captures": [
+    {
+      "id": "a1",
+      "runId": "run-1",
+      "url": "https://web.archive.org/web/20250301120000id_/https://forum.example.org/profile/900001",
+      "status": "ok",
+      "collectedAt": "2026-03-01T09:00:00.000Z",
+      "archive": {
+        "provider": "wayback",
+        "snapshotTimestamp": "20250301120000",
+        "originalUrl": "https://forum.example.org/profile/900001"
+      }
+    },
+    {
+      "id": "a3",
+      "runId": "run-1",
+      "url": "https://web.archive.org/web/20260210101500id_/https://forum.example.org/profile/900001",
+      "status": "ok",
+      "collectedAt": "2026-03-01T09:00:02.000Z",
+      "archive": {
+        "provider": "wayback",
+        "snapshotTimestamp": "20260210101500",
+        "originalUrl": "https://forum.example.org/profile/900001"
+      }
+    },
+    {
+      "id": "l1",
+      "runId": "run-1",
+      "url": "https://forum.example.org/profile/900001",
+      "status": "ok",
+      "collectedAt": "2026-03-01T09:00:10.000Z"
+    },
+    {
+      "id": "l2",
+      "runId": "run-2",
+      "url": "https://forum.example.org/profile/900001",
+      "status": "ok",
+      "collectedAt": "2026-03-08T09:00:10.000Z"
+    }
+  ],
+  "candidates": [
+    { "captureId": "a1", "address": { "chain": "bitcoin", "address": "BTC-0" } },
+    { "captureId": "a3", "address": { "chain": "bitcoin", "address": "BTC-1" } },
+    { "captureId": "l1", "address": { "chain": "bitcoin", "address": "BTC-1" } },
+    { "captureId": "l2", "address": { "chain": "bitcoin", "address": "BTC-2" } }
+  ],
+  "archive": [
+    {
+      "originalUrl": "https://forum.example.org/profile/900001",
+      "snapshotTimestamp": "20250301120000",
+      "at": "2025-03-01T12:00:00.000Z",
+      "digest": "DIGEST-A",
+      "fetched": true,
+      "captureId": "a1",
+      "digestCheck": "match"
+    },
+    {
+      "originalUrl": "https://forum.example.org/profile/900001",
+      "snapshotTimestamp": "20250915083000",
+      "at": "2025-09-15T08:30:00.000Z",
+      "digest": "DIGEST-A",
+      "fetched": false,
+      "digestCheck": "not_checked"
+    },
+    {
+      "originalUrl": "https://forum.example.org/profile/900001",
+      "snapshotTimestamp": "20260210101500",
+      "at": "2026-02-10T10:15:00.000Z",
+      "digest": "DIGEST-B",
+      "fetched": true,
+      "captureId": "a3",
+      "digestCheck": "match"
+    }
+  ],
+  "observations": [
+    {
+      "id": "o1",
+      "runId": "run-1",
+      "captureId": "l1",
+      "sourceId": "forum_example",
+      "subject": { "type": "account", "key": "forum_example:900001" },
+      "property": "profile.bitcoin_address",
+      "value": "BTC-1",
+      "locator": "forum_example:u=900001#profile.bitcoin_address",
+      "observedAt": "2026-03-01T09:00:10.000Z"
+    },
+    {
+      "id": "o2",
+      "runId": "run-2",
+      "captureId": "l2",
+      "sourceId": "forum_example",
+      "subject": { "type": "account", "key": "forum_example:900001" },
+      "property": "profile.bitcoin_address",
+      "value": "BTC-2",
+      "locator": "forum_example:u=900001#profile.bitcoin_address",
+      "observedAt": "2026-03-08T09:00:10.000Z"
+    },
+    {
+      "id": "o3",
+      "runId": "run-1",
+      "captureId": "l1",
+      "sourceId": "forum_example",
+      "subject": { "type": "account", "key": "forum_example:900001" },
+      "property": "profile.display_name",
+      "value": "fikcyjny_kacper",
+      "locator": "forum_example:u=900001#profile.display_name",
+      "observedAt": "2026-03-01T09:00:10.000Z"
+    }
+  ]
+}

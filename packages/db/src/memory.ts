@@ -24,10 +24,12 @@ import type {
   Repositories,
   RunWithProgress,
 } from '@olcys/core';
+import { memoryAccessLogRepository } from './memory-access-log.ts';
 import { addressKey, newId, nowIso, traceFlows, uniqueTransfers } from '@olcys/core';
 import { memoryClusterRepository } from './memory-clusters.ts';
 import { memoryAddressTypeRepository } from './memory-address-types.ts';
 import { memoryScheduleRepository } from './memory-schedules.ts';
+import { memoryTimestamps } from './memory-timestamps.ts';
 import { labelContentSha256, labelPeriodKey } from './sql/analysis.ts';
 
 const copy = <T>(value: T): T => structuredClone(value);
@@ -79,6 +81,8 @@ export function createMemoryRepositories(): Repositories {
       ...(d.editedText ? { editedText: d.editedText } : {}),
     });
   };
+
+  const timestamps = memoryTimestamps(store.custody);
 
   return {
     cases: {
@@ -148,6 +152,7 @@ export function createMemoryRepositories(): Repositories {
     schedules: memoryScheduleRepository(cases, runs),
     addressTypes: memoryAddressTypeRepository(runs),
     clusters: memoryClusterRepository(runs),
+    accessLog: memoryAccessLogRepository(),
     evidence: {
       async addEgressLog(entries) {
         store.egress.push(...copy(entries));
@@ -177,11 +182,11 @@ export function createMemoryRepositories(): Repositories {
         return byRun(store.egress, runId);
       },
       async listCaptures(runId) {
-        return byRun(store.captures, runId);
+        return timestamps.attach(byRun(store.captures, runId));
       },
       async getCapture(id) {
         const found = store.captures.find((c) => c.id === id);
-        return found ? copy(found) : undefined;
+        return found ? timestamps.attach([copy(found)])[0] : undefined;
       },
       async listAccounts(runId) {
         return byRun(store.accounts, runId);
@@ -364,6 +369,7 @@ export function createMemoryRepositories(): Repositories {
         return chronological(store.custody.filter((e) => wanted.has(e.subject.id)));
       },
     },
+    timestamps: timestamps.repository,
     llm: {
       async addCall(record) {
         store.llmCalls.push(copy(record));

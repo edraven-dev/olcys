@@ -9,6 +9,7 @@ import { join } from 'node:path';
 import type {
   ActivityIndicators,
   AddressRef,
+  Capture,
   CashOutEvent,
   ChainId,
   Clock,
@@ -19,6 +20,7 @@ import type {
   RunContext,
   SourceDescriptor,
   SourceKind,
+  TrustedTimestamper,
   UtxoTransaction,
 } from '@olcys/core';
 import { addressKey, chainFamily, dCmp, dSub, newId, transferKey, uniqueTransfers } from '@olcys/core';
@@ -105,6 +107,8 @@ export interface StageOptions {
   /** Environment for collector configuration (fixture base URL, watch pages) and cassettes. */
   env?: Readonly<Record<string, string | undefined>>;
   sources: readonly SourceDescriptor[];
+  /** Stamps every persisted capture manifest (RFC 3161); without it captures are not timestamped. */
+  timestamper?: TrustedTimestamper;
 }
 
 /** Loads once per process; a rejected load is retried by the next run. */
@@ -196,6 +200,7 @@ export function createCollectStage(options: StageOptions): Stage {
       );
       await ctx.repos.evidence.addAccounts(result.accounts);
       await ctx.repos.evidence.addObservations(result.observations);
+      await stampCaptures(options.timestamper, result.captures);
       if (result.partial) {
         const unavailable = result.sources.filter((s) => s.status !== 'ok' && s.status !== 'not_found');
         const ids = unavailable.map((s) => s.sourceId).join(', ');
@@ -212,6 +217,26 @@ export function createCollectStage(options: StageOptions): Stage {
       });
     },
   };
+}
+
+/**
+ * Stamps the manifest digest of every persisted capture. A TSA outage is a typed outcome of the timestamper (the request
+ * is stored as failed or queued and retried by the flush); anything thrown here is a bug or an infrastructure error and
+ * fails the stage.
+ */
+async function stampCaptures(timestamper: TrustedTimestamper | undefined, captures: readonly Capture[]): Promise<void> {
+  if (!timestamper) return;
+  for (const capture of captures) {
+    // Sequential on purpose: the TSA is rate limited.
+    // oxlint-disable-next-line no-await-in-loop
+    await timestamper.stamp({
+      type: 'capture_manifest',
+      id: capture.id,
+      digest: capture.manifestSha256,
+      runId: capture.runId,
+      referenceTime: capture.collectedAt,
+    });
+  }
 }
 
 export function createExtractStage(): Stage {

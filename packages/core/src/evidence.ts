@@ -28,6 +28,39 @@ export interface TimestampToken {
   genTime: IsoDateTime;
   hashAlgorithm: 'sha256';
   messageImprint: Sha256Hex;
+  serialNumber?: string;
+  policyOid?: string;
+  /** Subject of the TSA's signing certificate. */
+  tsaName?: string;
+  /** True only for a qualified TSA from the EU Trusted List (configured, never assumed). */
+  qualified?: boolean;
+  /** `genTime` minus the subject's reference time (capture `collectedAt`), in whole seconds. */
+  skewSeconds?: number;
+  /** True when `|skewSeconds|` exceeds the configured threshold (`TSA_MAX_CLOCK_SKEW_SECONDS`), decided once at stamping. */
+  skewSuspected?: boolean;
+}
+
+export const TIMESTAMP_SUBJECT_TYPES = ['capture_manifest', 'report_pdf', 'report_signature'] as const;
+export type TimestampSubjectType = (typeof TIMESTAMP_SUBJECT_TYPES)[number];
+
+/** What a time-stamp token is requested for: only its SHA-256 digest ever leaves the system. */
+export interface TimestampSubject {
+  type: TimestampSubjectType;
+  id: Id;
+  digest: Sha256Hex;
+  runId?: Id;
+  /** The time the subject claims to exist since (capture `collectedAt`); used for the clock cross-check. */
+  referenceTime?: IsoDateTime;
+}
+
+export type TimestampOutcome =
+  | { status: 'granted'; token: TimestampToken; tokenDer: Uint8Array }
+  | { status: 'queued'; reason: 'offline' | 'disabled' | 'transient_failure' }
+  | { status: 'rejected'; reason: string };
+
+/** Obtains an RFC 3161 token for a subject digest (and queues the request when the TSA cannot be reached). */
+export interface TrustedTimestamper {
+  stamp(subject: TimestampSubject): Promise<TimestampOutcome>;
 }
 
 /**
@@ -133,6 +166,8 @@ export interface OnlineAccount {
   /** Stable platform id when available (numeric Bitcointalk uid, Farcaster FID, GitHub user id). */
   platformUserId?: string;
   profileUrl: string;
+  /** The capture that actually read the account's profile page (`discoveredVia.captureId` may name a page that linked to it). */
+  profileCaptureId?: Id;
   displayName?: string;
   discoveredVia: { sourceId: SourceId; method: AccountDiscoveryMethod; captureId?: Id; fromAccountId?: Id };
 }

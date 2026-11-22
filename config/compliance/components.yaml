@@ -15,6 +15,7 @@ npm:
   '@types/react': 'typy interfejsu (React)'
   '@types/react-dom': 'typy interfejsu (React DOM)'
   '@vitejs/plugin-react': 'wtyczka Vite do budowania interfejsu'
+  asn1js: 'kodowanie i dekodowanie ASN.1/DER (żądania i odpowiedzi znacznika czasu RFC 3161)'
   big.js: 'dokładna arytmetyka dziesiętna (kwoty, PLN)'
   cron-parser: 'wyrażenia cron harmonogramu analiz (UTC)'
   cytoscape: 'graf powiązań (używany bezpośrednio, bez nakładki React; układy wbudowane)'
@@ -26,6 +27,7 @@ npm:
   linkedom: 'parsowanie HTML zebranych stron (DOM bez przeglądarki)'
   oxfmt: 'formatowanie kodu'
   oxlint: 'lint'
+  pkijs: 'struktury PKI/CMS: budowa i weryfikacja znaczników czasu RFC 3161 (podpis, łańcuch certyfikatów)'
   parse5: 'parser HTML z pozycjami w źródle (widoki tekstu)'
   pg: 'sterownik PostgreSQL (node-postgres)'
   react: 'interfejs użytkownika'
@@ -60,6 +62,9 @@ images:
   ollama/ollama:
     licence: MIT
     purpose: 'lokalne środowisko modeli z API zgodnym z OpenAI (opcjonalne, profil llm)'
+  ghcr.io/ggml-org/llama.cpp:
+    licence: MIT
+    purpose: 'lokalny serwer modeli llama.cpp z API zgodnym z OpenAI (opcjonalny, profil llm-llamacpp)'
   blockstream/esplora:
     licence: MIT
     purpose: 'lokalny węzeł Bitcoin regtest z API Esplora (profil sandbox, dane demonstracyjne)'
