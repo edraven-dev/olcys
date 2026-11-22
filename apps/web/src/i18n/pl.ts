@@ -1220,8 +1220,8 @@ export const pl = {
     subtitle: 'kopie archiwalne (Wayback Machine) i przebiegi',
     intro:
       'Wartości portfeli na stronach i w polach profilu w czasie: kopie archiwalne (Wayback Machine) i kolejne przebiegi. Kopia archiwalna to materiał strony trzeciej; brak odczytu kopii nie oznacza usunięcia adresu.',
-    loadError: 'Nie udało się wczytać historii archiwalnej.',
-    none: 'Brak historii archiwalnej portfeli dla tej sprawy.',
+    loadError: 'Nie udało się wczytać osi czasu strony.',
+    none: 'Brak osi czasu portfeli dla tej sprawy.',
     timelineOf: 'Strona lub pole',
     intervals: 'Okresy',
     changes: 'Zmiany',
