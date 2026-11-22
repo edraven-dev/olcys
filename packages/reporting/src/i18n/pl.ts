@@ -250,7 +250,7 @@ export const pl = {
   modes: {
     live: 'na żywo — sieć ograniczona do listy dozwolonych źródeł',
     offline: 'offline — bez dostępu do Internetu: witryna testowa z danymi syntetycznymi i nagrane odpowiedzi',
-    replay: 'odtwarzanie — wyłącznie nagrane odpowiedzi (kasety), bez sieci',
+    replay: 'odtwarzanie — wyłącznie nagrane odpowiedzi (cassettes), bez sieci',
   } satisfies Record<FetchMode, string>,
   weightsStatus: {
     uncalibrated: 'nieskalibrowane (wartości początkowe)',
@@ -728,7 +728,7 @@ export const pl = {
     intro:
       'Adresy wydane razem jako wejścia jednej transakcji są traktowane jako należące do jednego podmiotu (heurystyka wielu wejść). To wynik heurystyczny, a nie fakt: nie dowodzi własności i nie podnosi Wskaźnika Pewności. Nie stosowano heurystyki adresu reszty. Pomijane są transakcje wyglądające na CoinJoin lub wspólne (np. depozyty z wieloma uczestnikami); PayJoin nie jest wykrywalny. Klastry mogą się „zapadać” — jeden błędny związek z usługą łączy niepowiązane podmioty — dlatego rozmiar i wzrost klastra są ograniczane i zgłaszane.',
     cardTitle: 'Klaster {id}',
-    sizeLine: 'Rozmiar: {size} · ziarna: {seeds}',
+    sizeLine: 'Rozmiar: {size} · adresy seed: {seeds}',
     previous: 'Rozmiar w poprzednim uruchomieniu: {previous} (wzrost ×{factor})',
     capped: 'Osiągnięto górny limit rozmiaru klastra — dalsze połączenia pominięto.',
     serviceMerge:

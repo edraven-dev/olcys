@@ -61,7 +61,7 @@ describe('settings page', () => {
   const content = text(html);
 
   it('shows mode, versions, model, weights status and the source register', () => {
-    expect(content).toContain('Odtwarzanie — odpowiedzi z nagrań (kaset), bez sieci');
+    expect(content).toContain('Odtwarzanie — odpowiedzi z nagrań (cassettes), bez sieci');
     for (const expected of ['0.1.0', '1.0.0', '0.1.0+patterns.v1', 'exclusion.v1', 'cashout.v1', 'weights.v1']) {
       expect(content).toContain(expected);
     }

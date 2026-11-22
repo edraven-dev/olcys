@@ -310,7 +310,7 @@ export const pl = {
     live: 'na żywo — tylko źródła włączone dla sprawy',
   } satisfies Record<FetchMode, string>,
   steps: {
-    'run.start': 'Start i migawka konfiguracji',
+    'run.start': 'Start i snapshot konfiguracji',
     'pivot.plan': 'Planowanie wyszukiwania',
     'collect.source': 'Zbieranie danych ze źródeł',
     'extract.capture': 'Wykrywanie i weryfikacja adresów',
@@ -1558,7 +1558,7 @@ export const pl = {
     mode: {
       title: 'Tryb pracy',
       offline: 'Offline — tylko strona testowa, bez sieci',
-      replay: 'Odtwarzanie — odpowiedzi z nagrań (kaset), bez sieci',
+      replay: 'Odtwarzanie — odpowiedzi z nagrań (cassettes), bez sieci',
       live: 'Na żywo — sieć ograniczona do źródeł włączonych dla sprawy',
     },
     versions: {
