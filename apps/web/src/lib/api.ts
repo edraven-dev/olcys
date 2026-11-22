@@ -170,6 +170,7 @@ export type RunListName =
   | 'transfers'
   | 'links'
   | 'exclusions'
+  | 'address-types'
   | 'activity'
   | 'cash-outs'
   | 'changes';

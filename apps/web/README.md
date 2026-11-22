@@ -56,6 +56,11 @@ pnpm vitest run --project @olcys/web
 - **Wzmianki bez domysłów.** Przy odrzuconym adresie konsola pokazuje, gdzie i przez kogo adres był wspomniany
   (wzmianki stron trzecich są oznaczone); trop KYC pojawia się tylko wtedy, gdy silnik analizy ustalił, że adres
   opublikowała sama osoba (`evidence.kycLead`).
+- **Typ adresu przy decyzji.** Karta reguły w zakładce „Odrzucone adresy” pokazuje typ adresu z analizy łańcuchowej
+  (`/api/runs/:id/address-types`: konto zewnętrzne (EOA), EOA z delegacją EIP-7702, konto Safe, konto inteligentne
+  ERC-4337, kontrakt tokena, kontrakt, skrypt UTXO, nieznany typ) z delegatem, kontraktem bazowym Safe, EntryPoint lub
+  implementacją proxy; kandydat bez wskazanej sieci EVM jest dopasowywany do sieci, na której pobrano dane. Brak trasy
+  oznacza kartę bez typu.
 - **Dostępność.** Nawigacja klawiaturą, etykiety wszystkich pól, odnośnik „Przejdź do treści”, komunikaty o postępie
   w regionie `aria-live`, tabele z nagłówkami, układ działający na szerokości telefonu, motyw jasny i ciemny.
 - **Tylko typy z `@olcys/core`.** Do przeglądarki nie trafia kod serwera; lokalne listy (sieci, etapy) są

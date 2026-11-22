@@ -1,6 +1,8 @@
 /** Pure helpers for the rejected-addresses panel. */
 import type {
   AddressCandidate,
+  AddressRef,
+  AddressTypeClassification,
   Capture,
   ExtractionResult,
   Observation,
@@ -9,6 +11,21 @@ import type {
   TextSpan,
   TextView,
 } from '@olcys/core';
+
+/**
+ * The address type of a decision's address: on its own chain or — for a candidate whose EVM network was not
+ * attributed (`evm:unknown`) — on the EVM network the chain data was fetched on.
+ */
+export function addressTypeFor(
+  address: AddressRef,
+  types: readonly AddressTypeClassification[],
+): AddressTypeClassification | undefined {
+  const evm = address.chain.startsWith('evm:');
+  const same = (a: string) => (evm ? a.toLowerCase() === address.address.toLowerCase() : a === address.address);
+  const exact = types.find((c) => c.address.chain === address.chain && same(c.address.address));
+  if (exact || address.chain !== 'evm:unknown') return exact;
+  return types.find((c) => c.address.chain.startsWith('evm:') && same(c.address.address));
+}
 
 /** Context cues that mark a mention as someone else's statement (warnings, scam reports, quotes). */
 const THIRD_PARTY_CUES: ReadonlySet<RoleCue> = new Set(['scam_report', 'warning', 'quote']);

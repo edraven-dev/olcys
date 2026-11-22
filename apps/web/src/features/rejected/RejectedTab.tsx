@@ -1,6 +1,7 @@
 import type {
   AddressCandidate,
   AddressLabel,
+  AddressTypeClassification,
   Capture,
   ExclusionRuleId,
   ExtractionResult,
@@ -39,6 +40,7 @@ import { Link, routePath } from '../../lib/router.tsx';
 import { useList, useOptionalList } from '../../lib/use-api.ts';
 import type { RunScope } from '../run/RunPage.tsx';
 import {
+  addressTypeFor,
   describeMentions,
   nonAsciiCodepoints,
   reasonCode,
@@ -65,6 +67,9 @@ export function RejectedTab({ scope }: { scope: RunScope }) {
   const cashOuts = useList<CashOutView>(apiPaths.runList(run.id, 'cash-outs'), { version });
   const extractions = useOptionalList<ExtractionResult>(apiPaths.runList(run.id, 'extractions'), { version });
   const labels = useOptionalList<AddressLabel>(apiPaths.labels);
+  const addressTypes = useOptionalList<AddressTypeClassification>(apiPaths.runList(run.id, 'address-types'), {
+    version,
+  });
 
   const missing = [exclusions, links].find((r) => r.data === undefined && r.error);
   if (missing) return <ErrorState title={pl.rejected.loadError} error={missing.error} onRetry={missing.reload} />;
@@ -87,6 +92,7 @@ export function RejectedTab({ scope }: { scope: RunScope }) {
   const captureById = new Map((captures.data ?? []).map((c) => [c.id, c]));
   const accountById = new Map((accounts.data ?? []).map((a) => [a.id, a]));
   const labelList = labels.data ?? [];
+  const typeOf = (decision: ExclusionView) => addressTypeFor(decision.address, addressTypes.data ?? []);
 
   const subjectHandles = new Set(
     [
@@ -129,7 +135,7 @@ export function RejectedTab({ scope }: { scope: RunScope }) {
         </p>
       </div>
       <ResourceNotices
-        resources={[exclusions, links, captures, candidates, accounts, observations, cashOuts, labels]}
+        resources={[exclusions, links, captures, candidates, accounts, observations, cashOuts, labels, addressTypes]}
       />
 
       <section aria-labelledby="rej-rules" className="stack">
@@ -142,6 +148,7 @@ export function RejectedTab({ scope }: { scope: RunScope }) {
               <DecisionCard
                 key={decision.id}
                 decision={decision}
+                addressType={typeOf(decision)}
                 labels={labelsOf(decision)}
                 mentions={mentionsOf(keyOf(decision.address))}
                 captures={captureById}
@@ -169,6 +176,7 @@ export function RejectedTab({ scope }: { scope: RunScope }) {
               <DecisionCard
                 key={decision.id}
                 decision={decision}
+                addressType={typeOf(decision)}
                 labels={labelsOf(decision)}
                 mentions={[]}
                 captures={captureById}
@@ -363,8 +371,53 @@ export function Mentions({
   );
 }
 
+/** The address type the chain analysis determined, with what it rests on (delegate, Safe singleton, EntryPoint…). */
+function AddressTypeFact({ type, decision }: { type: AddressTypeClassification; decision: ExclusionView }) {
+  const x = pl.addressType;
+  const known = decision.evidence.delegateInfo;
+  const details = [
+    type.delegate
+      ? t(x.delegate, { address: type.delegate }) +
+        (known
+          ? ` — ${t(x.delegateKnown, {
+              kind: lookup(x.delegateKinds, known.kind) ?? known.kind,
+              name: known.name,
+              source: known.source,
+            })}`
+          : '')
+      : '',
+    type.safeMasterCopy ? t(x.safeMasterCopy, { address: type.safeMasterCopy }) : '',
+    type.entryPoint ? t(x.entryPoint, { address: type.entryPoint }) : '',
+    type.implementation ? t(x.implementation, { address: type.implementation }) : '',
+    type.scriptType ? t(x.scriptType, { script: type.scriptType.toUpperCase() }) : '',
+  ].filter((d) => d !== '');
+  return (
+    <>
+      <dt>{x.field}</dt>
+      <dd>
+        <strong>{lookup(pl.addressTypes, type.type) ?? type.type}</strong>{' '}
+        <span className="muted small">({x.asOfTip})</span>
+        {details.map((d) => (
+          <span key={d} className="small break">
+            <br />
+            {d}
+          </span>
+        ))}
+        {type.failedProbe ? (
+          <span className="small">
+            <br />
+            <Icon name="warn" />
+            {t(x.failedProbe, { probe: lookup(x.probes, type.failedProbe.probe) ?? type.failedProbe.probe })}
+          </span>
+        ) : null}
+      </dd>
+    </>
+  );
+}
+
 export function DecisionCard({
   decision,
+  addressType,
   labels,
   mentions,
   captures,
@@ -372,6 +425,8 @@ export function DecisionCard({
   scope,
 }: {
   decision: ExclusionView;
+  /** The address type behind A2/A3, when the chain analysis stored one. */
+  addressType?: AddressTypeClassification | undefined;
   labels: AddressLabel[];
   mentions: MentionView[];
   captures: ReadonlyMap<string, Capture>;
@@ -394,6 +449,7 @@ export function DecisionCard({
       </p>
       <KindBlock kind="computed" title={`${decision.ruleId}: ${ruleTitle}`} headingLevel={4}>
         <dl className="facts compact">
+          {addressType ? <AddressTypeFact type={addressType} decision={decision} /> : null}
           {decision.relation ? (
             <>
               <dt>{pl.rejected.fields.newRelation}</dt>
