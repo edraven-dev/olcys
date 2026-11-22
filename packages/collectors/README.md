@@ -149,6 +149,8 @@ nigdy nie wyglądał na adres kryptowaluty), `.www`, `.email`, `.bank_account` (
 `.start_date`, `.removal_date`, `.vat_request_id`, `.representative`, `.partner` oraz `registry.ceidg.result_count`.
 Etykiety polskie: `apps/web/src/i18n/pl.ts` i katalog pakietu raportu.
 
+**Ograniczenie odtwarzania:** kolektory zapisują tylko treść po redakcji i wysyłają żądania z `persistBody: false`, więc `OLCYS_RECORD` nie nagrywa ich odpowiedzi. Odtwarzanie (`replay`) żądań kolektorów wymaga ręcznie przygotowanych, syntetycznych nagrań, a demonstracja offline obsługuje stronę testową na żywo.
+
 **Kształty odpowiedzi** (`test/fixtures/registries/` i strona testowa, ścieżki `/registries/…`) odpowiadają
 dokumentacji (CEIDG v3: `firmy[]`, `count`; biała lista: `result.subject`, `result.requestId`; KRS:
 `odpis.naglowekA`, `odpis.dane.dzial1/dzial2`). Nazwy pól i parametrów zostały przyjęte ze streszczenia dokumentacji i

@@ -92,6 +92,9 @@ export function createKrsCollector(options: KrsOptions = {}): CollectorFactory {
 
 async function extract(http: SourceHttp, rb: ResultBuilder, baseUrl: string, krs: string): Promise<void> {
   let answer: RegistryAnswer | undefined;
+  // A 404 from the first register is held back: when the second register has the entity, the 404 is only a detour
+  // (its capture is kept, the lookup is complete); otherwise it counts as the answer it is.
+  const detours: RegistryAnswer[] = [];
   for (const register of REGISTERS) {
     // The second register is tried only after a 404 from the first.
     // oxlint-disable-next-line no-await-in-loop
@@ -101,10 +104,15 @@ async function extract(http: SourceHttp, rb: ResultBuilder, baseUrl: string, krs
       software: SOFTWARE,
       notJsonNote: { code: 'fetch_error', detail: 'KRS API maintenance' },
     });
-    rb.addPage({ status: answer.status, ...(answer.capture ? { capture: answer.capture } : {}), notes: answer.notes });
-    if (answer.status !== 'not_found' || http.stopped()) break;
+    if (answer.status !== 'not_found' || http.stopped() || register === REGISTERS.at(-1)) break;
+    detours.push(answer);
   }
   if (!answer) return;
+  const found = answer.status === 'ok';
+  for (const page of [...detours, answer]) {
+    const status = found && page !== answer ? 'ok' : page.status;
+    rb.addPage({ status, ...(page.capture ? { capture: page.capture } : {}), notes: page.notes });
+  }
   if (answer.status === 'not_found') rb.affirmNotFound(`KRS ${krs} is in neither register`);
   if (answer.status !== 'ok' || !answer.capture) return;
   observeExtract(rb, answer.capture, krs, answer.json);

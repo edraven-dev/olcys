@@ -152,7 +152,8 @@ sources:
     name: CEIDG API v3
     kind: registry
     compliance: GREEN
-    complianceNote: Official API; the only one that searches by first and last name (namesakes are possible - a NIP is followed only for a single match). Token required (own application, CEIDG_API_TOKEN, header only, never logged). Published limits 50 requests / 3 min and 1000 / h, kept at 1 request / 4 s; quota errors are never retried.
+    complianceNote: Official API; the only one that searches by first and last name (namesakes are possible - a NIP is followed only for a single match). Token required (own application, CEIDG_API_TOKEN, header only, never logged). Published limits 50 requests / 3 min and 1000 / h, kept at 1 request / 4 s; quota errors are never retried. The terms are those of the official API documentation (tosUrl).
+    tosUrl: https://pliki.biznes.gov.pl/akademia/20250117/HD%20CEIDG%20-%20API%20v3%20HD%20-%20Dokumentacja%20dla%20integrator%C3%B3w%20v1.1.pdf
     enabledByDefault: false
     requiresApiKey: true
     sendsIdentifiersExternally: true
@@ -164,7 +165,8 @@ sources:
     name: KRS Open API
     kind: registry
     compliance: GREEN
-    complianceNote: Official API (open data, CC0); lookup by KRS number only. Sometimes answers a maintenance page (Przerwa techniczna) with status 200 - recorded as an error, not as an empty register. Personal identifiers (PESEL) are never read.
+    complianceNote: Official API (open data, CC0); lookup by KRS number only. Sometimes answers a maintenance page (Przerwa techniczna) with status 200 - recorded as an error, not as an empty register. Personal identifiers (PESEL) are never read. The terms are those of the official API documentation (tosUrl).
+    tosUrl: https://prs.ms.gov.pl/krs/openApi
     enabledByDefault: true
     requiresApiKey: false
     sendsIdentifiersExternally: true
@@ -176,7 +178,8 @@ sources:
     name: Wykaz podatników VAT (biała lista)
     kind: registry
     compliance: GREEN
-    complianceNote: Official API; moved to wykazpodatnikowvat.mf.gov.pl/api (the previous API host stops 2026-12-01 and is never used). Search limit 100 queries a day (at most 10 per run here); a quota answer stops the source. Third parties are recorded as name and role only, PESEL is never read.
+    complianceNote: Official API; moved to wykazpodatnikowvat.mf.gov.pl/api (the previous API host stops 2026-12-01 and is never used). Search limit 100 queries a day (at most 10 per run here); a quota answer stops the source. Third parties are recorded as name and role only, PESEL is never read. The terms are those of the official API documentation (tosUrl).
+    tosUrl: https://www.gov.pl/web/kas/api-wykazu-podatnikow-vat
     enabledByDefault: true
     requiresApiKey: false
     sendsIdentifiersExternally: true

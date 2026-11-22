@@ -284,6 +284,13 @@ describe('VAT white list', () => {
     expect((await unknown.run(createVatWhitelistCollector(), valuesInput('nip', NIP))).status).toBe('not_found');
   });
 
+  it('names the terms of every registry source (config)', async () => {
+    const sources = await loadSourceRegistry();
+    for (const id of ['ceidg', 'krs', 'vat_whitelist']) {
+      expect(sources.require(id).tosUrl).toMatch(/^https:\/\//);
+    }
+  });
+
   it('never contacts the previous API host (config)', async () => {
     const sources = await loadSourceRegistry();
     expect(sources.require('vat_whitelist').allowedHosts).toEqual(['wykazpodatnikowvat.mf.gov.pl']);
@@ -315,7 +322,8 @@ describe('KRS', () => {
     expect(values(result, 'registry.partner')).toEqual(['HOLDING TESTOWY — wspólnik']);
     expect(values(result, 'registry.business_location')).toEqual(['FIKCYJNA 1/2, 00-000 TESTOWO']);
     expect(result.observations.some((o) => o.value.includes('77777777771') || /pesel/i.test(o.locator))).toBe(false);
-    expect(result.status).toBe('partial');
+    expect(result.status).toBe('ok');
+    expect(result.captures.map((c) => c.status)).toEqual(['not_found', 'ok']);
   });
 
   it('reports the maintenance page (HTTP 200, HTML) as an error and does not try the other register', async () => {
@@ -329,6 +337,14 @@ describe('KRS', () => {
     expect(result.notes.join('\n')).toContain('KRS API maintenance');
     expect(result.observations).toEqual([]);
     expect(sent).toHaveLength(1);
+  });
+
+  it('is incomplete when the second register fails after a 404 from the first', async () => {
+    const { run } = setup((url) =>
+      url.includes('rejestr=P') ? { status: 404, body: '{}' } : { status: 500, body: '{}' },
+    );
+    const result = await run(createKrsCollector(), valuesInput('krs', KRS));
+    expect(result.status).toBe('error');
   });
 
   it('says not found when neither register has the number', async () => {
