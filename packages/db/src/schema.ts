@@ -4,6 +4,8 @@
  */
 import type {
   AddressLabel,
+  AddressType,
+  AddressTypeClassification,
   AnalysisRun,
   CaseSchedule,
   CaseScope,
@@ -193,6 +195,25 @@ export interface ExclusionDecisionsTable extends RunRecordTable<ExclusionDecisio
   outcome: string;
 }
 
+/** Append-only: one address-type classification per run and address (migration 0004). */
+export interface AddressTypeClassificationTable {
+  id: Generated<string>;
+  run_id: string;
+  chain: string;
+  address: string;
+  type: AddressType;
+  code_prefix: string | null;
+  code_size: number | null;
+  delegate: string | null;
+  safe_master_copy: string | null;
+  entry_point: string | null;
+  implementation: string | null;
+  script_type: AddressTypeClassification['scriptType'] | null;
+  failed_probe: ColumnType<AddressTypeClassification['failedProbe'] | null, string | null, never>;
+  fetch_ids: string[];
+  created_at: GeneratedTimestamp;
+}
+
 export interface ActivityTable {
   id: Generated<string>;
   run_id: string;
@@ -275,6 +296,7 @@ export interface Database {
   chain_transfers: ChainTransfersTable;
   address_labels: AddressLabelsTable;
   exclusion_decisions: ExclusionDecisionsTable;
+  address_type_classification: AddressTypeClassificationTable;
   activity: ActivityTable;
   cash_out_events: CashOutEventsTable;
   link_assessments: LinkAssessmentsTable;
