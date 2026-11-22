@@ -121,6 +121,26 @@ describe('forbidden dependency scan', () => {
     ]);
   });
 
+  it('reads quoted and dotted TOML names of the dependency fields', async () => {
+    const found = {
+      'a/pyproject.toml': '["project"]\nname = "x"\ndependencies = ["holehe==1.0"]\n',
+      'b/pyproject.toml': '[project]\nname = "x"\n[project.optional-dependencies]\n"scan" = ["holehe==1.0"]\n',
+      'c/pyproject.toml': "[ project . 'optional-dependencies' ]\nscan = ['holehe']\n",
+      'd/pyproject.toml': 'project.dependencies = ["holehe"]\n[tool.other]\nx = 1\n',
+      'e/pyproject.toml': '[project]\n"dependencies" = ["maigret==0.5.0"]\noptional-dependencies.scan = ["holehe"]\n',
+      'f/pyproject.toml': '[dependency-groups]\n"dev" = ["holehe", { "include-group" = "lint" }]\n',
+    };
+    // A quoted group name is not a package, and keys under an array of tables are not dependency fields.
+    const notFound = {
+      'g/pyproject.toml':
+        '[project]\noptional-dependencies = { "holehe" = ["maigret==0.5.0"] }\n[[tool.x]]\ndependencies = ["holehe"]\n',
+    };
+    const hits = await scanTemp({ ...found, ...notFound });
+    expect(hits.map((h) => `${h.dependency} ${h.file}`).toSorted()).toEqual(
+      Object.keys(found).map((file) => `holehe ${file}`),
+    );
+  });
+
   it('finds redis 8 in a compose file but not redis 7 or a similarly named image', async () => {
     expect((await scanTemp({ 'compose.yml': compose('redis:8.2') })).map((h) => h.dependency)).toEqual(['redis:8.2']);
     expect((await scanTemp({ 'compose.yml': compose('docker.io/library/redis:8-alpine') })).length).toBe(1);
