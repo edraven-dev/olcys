@@ -106,7 +106,7 @@ describe('URL mapping and account recognition', () => {
     expect(toFixtureUrl('https://mempool.space/api/address/x', FIXTURE)).toBe(
       'http://127.0.0.1:4100/chain/esplora/api/address/x',
     );
-    expect(() => toFixtureUrl('https://keybase.io/x', FIXTURE)).toThrow(/no fixture mapping/);
+    expect(() => toFixtureUrl('https://unmapped.example/x', FIXTURE)).toThrow(/no fixture mapping/);
     expect(toLogicalUrl('http://127.0.0.1:4100/tablica/ogloszenie/81000001/', FIXTURE)).toBe(
       'http://127.0.0.1:4100/tablica/ogloszenie/81000001/',
     );
