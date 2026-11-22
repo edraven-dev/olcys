@@ -1,0 +1,13 @@
+DANE SYNTETYCZNE — SYNTHETIC TEST DATA. Fikcyjne dane testowe OŁCyŚ.
+Notatki — portfele (2026-11-23)
+
+Mój portfel BTC: bc1prhk3aumv37j0dagxtm8ykadhjyx7letdsclksvufu7m530u8plyq3jv867
+Mój adres BEP20 (BSC): 0x475ad2e09710
+f6fc8E9666728a
+9213540B533465
+
+Podejrzany adres z czatu: hxxps://tronscan[.]org/#/address/TBEBHVDrjrj11SykSqcxYQ9vs7cDg2uFLo
+
+
+
+Stary portfel — klucz prywatny: {{SECRET:hex64_private_key_context:1}}

@@ -1,0 +1,18 @@
+<!--
+title: Prośba o zapłatę z URI płatności w treści (EIP-681 i BIP-21)
+renders: 12
+slots:
+  pay: { pool: evm, role: payment_request }
+  alt: { pool: bitcoin.base58, role: payment_request }
+-->
+<!doctype html>
+<html lang="pl">
+<head><meta charset="utf-8"><title>Faktura {{NUM}} — płatność</title></head>
+<body>
+{{BANNER}}
+<main>
+<p>Do zapłaty za fakturę nr {{NUM}}: {{KWOTA}}. Zapłać, wklejając w portfelu: <code>{{URI:pay:text}}</code></p>
+<p>Możesz też zapłacić w bitcoinach: <code>{{URI:alt:text}}</code></p>
+</main>
+</body>
+</html>

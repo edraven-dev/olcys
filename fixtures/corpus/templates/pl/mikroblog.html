@@ -1,0 +1,20 @@
+<!--
+title: Mikroblog — wpisy z adresami w różnych rolach
+renders: 6
+slots:
+  a: { pool: any, role: first_person_owner }
+  b: { pool: any, role: payment_request }
+  c: { pool: any, role: warning }
+-->
+<!doctype html>
+<html lang="pl">
+<head><meta charset="utf-8"><title>Mikroblog — tag #kryptowaluty</title></head>
+<body>
+{{BANNER}}
+<main>
+{{#ROWS:1-3}}<article id="wpis-{{NUM}}"><p>Przeszedłem na samodzielne przechowywanie. Mój portfel: {{ADDR:a}}</p></article>
+<article id="wpis-{{NUM}}"><p>Sprzedam konsolę, płatność kryptowalutą: {{ADDR:b}} #sprzedam</p></article>
+<article id="wpis-{{NUM}}"><p>Uwaga na ten adres, nie wysyłajcie nic: {{ADDR:c}}</p></article>
+{{/ROWS}}</main>
+</body>
+</html>

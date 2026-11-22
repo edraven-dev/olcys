@@ -1,0 +1,11 @@
+{
+  "_note": "DANE SYNTETYCZNE — SYNTHETIC TEST DATA. Fikcyjne dane testowe OŁCyŚ.",
+  "id": "94f363a8-ffdb-4258-a1ce-371a1d55b521",
+  "login": "fikcyjny_jan_79",
+  "wallets": {
+    "bitcoin": "BC1QE8Q4XZ9GLTPEXFTWXURZ2GAFDAXALGV4SN4X9A",
+    "ethereum": "0x364A1BF13D42DB751E588D3E7B03365479AFCA4B",
+    "tron": "TLgpRn4VdZ5R7zhbqCTQMRYNni1Qiu3bB9"
+  },
+  "updatedAt": "2026-09-10T12:00:00Z"
+}

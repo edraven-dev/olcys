@@ -65,6 +65,14 @@ describe('gap joiner', () => {
     expect(joined[0]?.joinedParts).toBe(groups.length);
   });
 
+  it('joins a 62-character Taproot address split into 4-character groups (16 parts)', () => {
+    const address = gen.p2tr('gap-p2tr');
+    const groups = address.match(/.{1,4}/g) ?? [];
+    expect(groups).toHaveLength(16);
+    const { candidates } = scan(`Wpłać na: ${groups.join(' ')}`);
+    expect(candidates.filter((c) => c.transforms.includes('gap_joined') && c.value === address)).toHaveLength(1);
+  });
+
   it('joins an address split by <br> in inline_joined', () => {
     const address = gen.p2wpkh('gap-br');
     const groups = address.match(/.{1,4}/g) ?? [];

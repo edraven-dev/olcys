@@ -1,0 +1,20 @@
+<!--
+title: Wiadomość e-mail (TXT) z adresami podzielonymi dla czytelności
+renders: 12
+slots:
+  pay: { pool: bitcoin.bech32, role: payment_request, obf: [spaces4, newline] }
+  alt: { pool: tron, role: payment_request, obf: [spaces4, newline, zero_width] }
+  ref: { neg: [txid_hex64, sha256] }
+-->
+{{BANNER}}
+Od: {{NICK}}
+Temat: Faktura {{NUM}} — płatność
+
+Dzień dobry,
+proszę o przelew {{KWOTA}} BTC na adres (podzielony dla czytelności):
+{{ADDR:pay}}
+albo USDT (TRC20):
+{{ADDR:alt}}
+
+Poprzednia płatność: {{NEG:ref}}
+Pozdrawiam

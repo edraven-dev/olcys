@@ -1,0 +1,29 @@
+<!--
+title: Wątek na forum — autorzy podają swoje portfele, ktoś cytuje cudzy adres, ktoś inny wkleja skrót transakcji
+renders: 8
+slots:
+  own: { pool: evm, role: first_person_owner, chain: net }
+  quoted: { pool: evm, role: quote, chain: net }
+  tx: { neg: [tx_hash] }
+-->
+<!doctype html>
+<html lang="pl">
+<head><meta charset="utf-8"><title>Forum Krypto Testowe — wątek {{NUM}}</title></head>
+<body>
+{{BANNER}}
+{{#ROWS:1-2}}<div class="post" id="post-{{NUM}}">
+<div class="autor">{{NICK}}, {{DATE}}</div>
+<p>Cześć wszystkim, to mój portfel {{NET:own}}: {{ADDR:own}}</p>
+<p>Używam go od dwóch lat, jak dotąd bez problemów.</p>
+</div>
+<div class="post" id="post-{{NUM}}">
+<div class="autor">{{NICK}}, {{DATE}}</div>
+<blockquote><div class="quoteheader">Cytat: {{NICK}} napisał:</div>trzymam wszystko na {{NET:quoted}} pod {{ADDR:quoted}}</blockquote>
+<p>Też tak robiłem, ale przeniosłem środki na portfel sprzętowy.</p>
+</div>
+<div class="post" id="post-{{NUM}}">
+<div class="autor">{{NICK}}, {{DATE}}</div>
+<p>Moja transakcja w końcu przeszła: {{NEG:tx}}</p>
+</div>
+{{/ROWS}}</body>
+</html>

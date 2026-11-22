@@ -1,0 +1,20 @@
+<!--
+title: Wpisy z odnośnikiem do eksploratora bloków zamiast adresu w treści
+renders: 8
+slots:
+  x: { pool: any, role: first_person_owner }
+  y: { pool: any, role: scam_report }
+-->
+<!doctype html>
+<html lang="pl">
+<head><meta charset="utf-8"><title>Blog o oszczędzaniu — wpisy</title></head>
+<body>
+{{BANNER}}
+{{#ROWS:1-3}}<article>
+<p>Prowadzę ten blog jawnie: moje saldo możecie sprawdzić tutaj — <a href="{{EXPLORER:x}}">podgląd mojego portfela w eksploratorze</a>.</p>
+</article>
+<article>
+<p>Podejrzany portfel z ostatniej afery: {{EXPLORER:y}}</p>
+</article>
+{{/ROWS}}</body>
+</html>

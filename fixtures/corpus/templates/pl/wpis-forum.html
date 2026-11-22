@@ -1,0 +1,18 @@
+<!--
+title: Wątek powitalny na forum z adresami autorów (szablon uzupełniający)
+renders: 200
+fallback: true
+slots:
+  own: { pool: any, role: first_person_owner }
+-->
+<!doctype html>
+<html lang="pl">
+<head><meta charset="utf-8"><title>Forum — przedstaw się</title></head>
+<body>
+{{BANNER}}
+{{#ROWS:1-6}}<div class="post">
+<div class="autor">{{NICK}}, {{DATE}}</div>
+<p>Witam, jestem tu nowy. Mój portfel: {{ADDR:own}}</p>
+</div>
+{{/ROWS}}</body>
+</html>

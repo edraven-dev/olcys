@@ -1,0 +1,19 @@
+<!--
+title: Odpowiedzi na forum z cytatem zawierającym cudzy adres i własnym adresem autora
+renders: 8
+slots:
+  q: { pool: bitcoin, role: quote, chain: net }
+  own: { pool: tron, role: first_person_owner }
+-->
+<!doctype html>
+<html lang="pl">
+<head><meta charset="utf-8"><title>Re: Gdzie bezpiecznie kupić USDT?</title></head>
+<body>
+{{BANNER}}
+{{#ROWS:1-2}}<div class="post">
+<blockquote><div class="quoteheader">Cytat: {{NICK}} napisał(a):</div>Wysyłajcie {{NET:q}} na {{ADDR:q}}, odpiszę w ciągu godziny.</blockquote>
+<p>Nie róbcie tego, to nie jest zaufany sprzedawca.</p>
+<p>Ja przyjmuję wyłącznie na mój adres USDT: {{ADDR:own}}</p>
+</div>
+{{/ROWS}}</body>
+</html>

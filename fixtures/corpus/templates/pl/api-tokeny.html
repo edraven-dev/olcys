@@ -1,0 +1,21 @@
+<!--
+title: Dokumentacja API z przykładowymi identyfikatorami sesji i żądań
+renders: 10
+slots:
+  pay: { pool: tron, role: payment_request }
+  tok: { neg: [jwt_like, token_generic, uuid, base64url_48] }
+-->
+<!doctype html>
+<html lang="pl">
+<head><meta charset="utf-8"><title>API — dostęp i rozliczenia</title></head>
+<body>
+{{BANNER}}
+<main>
+<h1>Dostęp do API</h1>
+<p>Płatność za abonament: USDT TRC20 na adres {{ADDR:pay}}</p>
+<table class="przyklady">
+{{#ROWS:1-5}}<tr><td>Identyfikator nr {{N}}</td><td><code>{{NEG:tok}}</code></td></tr>
+{{/ROWS}}</table>
+</main>
+</body>
+</html>

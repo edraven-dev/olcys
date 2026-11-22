@@ -1,0 +1,20 @@
+<!--
+title: Odpowiedź API profilu (JSON) z polami portfeli
+renders: 12
+slots:
+  btc: { pool: bitcoin, role: first_person_owner }
+  eth: { pool: evm, role: first_person_owner, chain: evm:1 }
+  trx: { pool: tron, role: first_person_owner }
+  id: { neg: [uuid] }
+-->
+{
+  "_note": "{{BANNER}}",
+  "id": "{{NEG:id}}",
+  "login": "{{NICK}}",
+  "wallets": {
+    "bitcoin": "{{ADDR:btc}}",
+    "ethereum": "{{ADDR:eth}}",
+    "tron": "{{ADDR:trx}}"
+  },
+  "updatedAt": "{{DATE}}T12:00:00Z"
+}

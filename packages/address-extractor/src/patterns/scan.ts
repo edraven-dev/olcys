@@ -13,7 +13,8 @@ const TOKEN = /[0-9A-Za-z]+/g;
 const GAP = /^[ \t\r\n\-_\u{00B7}\u{2022}|/]{1,3}$/u;
 const MIN_CHUNK = 2;
 const MAX_CHUNK = 20;
-const MAX_JOIN_PARTS = 12;
+/** Enough 4-character groups for the longest bech32 address (90 characters, BIP-173). */
+const MAX_JOIN_PARTS = 23;
 const MAX_JOIN_LENGTH = 120;
 
 function overlapsAny(ranges: readonly Range[], nStart: number, nEnd: number): boolean {

@@ -1,0 +1,21 @@
+<!--
+title: English forum post with a quote, the author's own wallet and a signature line
+renders: 10
+slots:
+  q: { pool: evm, role: quote, chain: net }
+  eth: { pool: evm, role: first_person_owner, chain: net }
+  sig: { pool: bitcoin.bech32, role: donation }
+-->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Re: Which wallet do you use?</title></head>
+<body>
+{{BANNER}}
+<div class="post">
+<div class="quoteheader">Quote from: {{NICK}} on {{DATE}}</div>
+<div class="quote">I keep everything on {{NET:q}} under {{ADDR:q}}</div>
+<p>Same here. Here is my {{NET:eth}} wallet: {{ADDR:eth}}</p>
+<div class="signature">Tips welcome: {{ADDR:sig}}</div>
+</div>
+</body>
+</html>

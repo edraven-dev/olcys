@@ -1,0 +1,16 @@
+<!--
+title: Rozmowy z oszustem podszywającym się pod wsparcie techniczne (ujawnione klucze rozszerzone)
+renders: 15
+slots:
+  scam: { pool: evm, role: scam_report, chain: net }
+-->
+<!doctype html>
+<html lang="pl">
+<head><meta charset="utf-8"><title>Czat — wsparcie portfela</title></head>
+<body>
+{{BANNER}}
+{{#ROWS:1-3}}<div class="message"><b>wsparcie_olcys_test:</b> Aby odblokować środki, prześlij nam klucz rozszerzony z aplikacji.</div>
+<div class="message"><b>{{NICK}}:</b> Proszę, tu jest: {{SECRET:xprv:1}}</div>
+<div class="message"><b>moderator:</b> To oszust! Wyprowadził środki na adres {{NET:scam}}: {{ADDR:scam}}</div>
+{{/ROWS}}</body>
+</html>

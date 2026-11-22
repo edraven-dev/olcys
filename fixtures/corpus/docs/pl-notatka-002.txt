@@ -1,0 +1,13 @@
+DANE SYNTETYCZNE — SYNTHETIC TEST DATA. Fikcyjne dane testowe OŁCyŚ.
+Notatki — portfele (2026-10-10)
+
+Mój portfel LTC: 3BYGX5vBsbuswHbq2JDf36cjr3HSsk7bJ9
+Mój adres Linea: 0x1bC15C78383F
+680614E564ed22
+07B435B0450F0e
+
+Podejrzany adres z czatu: hxxps://tronscan[.]org/#/address/TXSjrbysoH2Lsmqn5fpLio5q1NHFWQRHGX
+
+
+
+Stary portfel — klucz prywatny: {{SECRET:hex64_private_key_context:1}}

@@ -1,0 +1,29 @@
+<!--
+title: English developer documentation with code samples, a test vector and a mnemonic in a config block
+renders: 15
+slots:
+  ex: { pool: bitcoin.bech32, role: listing }
+  h: { neg: [tx_hash, txid_hex64] }
+  vec: { neg: [example] }
+-->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Payments SDK — quick start</title></head>
+<body>
+{{BANNER}}
+<main>
+<section>
+<h2>Example</h2>
+<pre><code>const payTo = "{{ADDR:ex}}"; // sample recipient
+const lastTransfer = "{{NEG:h}}";
+</code></pre>
+<p>Test vector from the specification: <code>{{NEG:vec}}</code></p>
+</section>
+<section>
+<h2>Signing setup</h2>
+<pre><code>WALLET_WORDS="{{SECRET:seed_phrase:1}}"
+</code></pre>
+</section>
+</main>
+</body>
+</html>

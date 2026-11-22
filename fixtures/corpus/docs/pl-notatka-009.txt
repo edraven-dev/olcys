@@ -1,0 +1,11 @@
+DANE SYNTETYCZNE — SYNTHETIC TEST DATA. Fikcyjne dane testowe OŁCyŚ.
+Notatki — portfele (2026-01-18)
+
+Mój portfel BTC: BC1Q56JN2RT3A8FFXHSK4LDFTASXLZCC7N80YVMF7MCAAHF6MAQ3CHVQGM08HU
+Mój adres Arbitrum: 0xA1B831EFF7821B38812D7FD9FF5303AECDE8866C
+
+Podejrzany adres z czatu: https://blockchair.com/bitcoin/address/bc1pytl0a6cafvrrwmxztrpeq73ne78fz7vmvztf4r5vp558cv7xu2dqkzd4k9
+
+
+
+Stary portfel — klucz prywatny: {{SECRET:hex64_private_key_context:1}}

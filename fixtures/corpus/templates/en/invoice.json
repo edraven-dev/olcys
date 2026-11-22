@@ -1,0 +1,16 @@
+<!--
+title: English invoice (JSON) with payment URIs
+renders: 10
+slots:
+  pay: { pool: bitcoin, role: payment_request }
+  evm: { pool: evm, role: payment_request }
+-->
+{
+  "note": "{{BANNER}}",
+  "invoice": "INV-{{NUM}}",
+  "payment": {
+    "uri": "{{URI:pay}}",
+    "evmUri": "{{URI:evm}}"
+  },
+  "status": "unpaid"
+}

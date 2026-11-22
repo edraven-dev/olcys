@@ -1,0 +1,21 @@
+<!--
+title: Ściąga z formatów identyfikatorów, które nie są adresami (szablon uzupełniający)
+renders: 200
+fallback: true
+slots:
+  id: { neg: [v1_in_bech32, v0_in_bech32m, testnet_bech32, testnet_base58, tx_hash, txid_hex64, md5, sha1, sha256, git_sha, uuid, ipfs_cid_v0, ipfs_cid_v1, jwt_like, token_generic, base58_random, base64url_48, email, eth_filename, example, split_unchecksummed, hex40_prefixed] }
+-->
+<!doctype html>
+<html lang="pl">
+<head><meta charset="utf-8"><title>Ściąga: formaty identyfikatorów</title></head>
+<body>
+{{BANNER}}
+<main>
+<h1>To nie są adresy portfeli</h1>
+<p>Ciągi, które w notatkach z analiz łatwo pomylić z adresem portfela.</p>
+<table class="sciaga">
+{{#ROWS:1-20}}<tr><td>Pozycja {{N}}</td><td>{{NEG:id}}</td></tr>
+{{/ROWS}}</table>
+</main>
+</body>
+</html>

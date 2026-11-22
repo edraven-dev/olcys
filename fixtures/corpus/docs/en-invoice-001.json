@@ -1,0 +1,9 @@
+{
+  "note": "DANE SYNTETYCZNE — SYNTHETIC TEST DATA. Fikcyjne dane testowe OŁCyŚ.",
+  "invoice": "INV-418127",
+  "payment": {
+    "uri": "litecoin:33PPYGSRFVbGYnuTSzN633WNCzf3caVoPL?label=Fundacja%20Testowa&message=Platnosc",
+    "evmUri": "ethereum:0xAee63F34BDF32571f08B5D1FD005488a975924db@1?value=987e15"
+  },
+  "status": "unpaid"
+}
