@@ -176,7 +176,7 @@ function splitImage(ref: string): { path: string; tag: string | undefined } {
     : { path: noDigest.slice(0, colon), tag: noDigest.slice(colon + 1) };
 }
 
-function imageMatches(pattern: string, ref: string): boolean {
+export function imageMatches(pattern: string, ref: string): boolean {
   const m = /^(.+?)(?:>=(\d+))?$/.exec(pattern);
   const wanted = (m?.[1] ?? pattern).toLowerCase();
   const minMajor = m?.[2] ? Number(m[2]) : undefined;

@@ -28,14 +28,42 @@ export interface PythonInput {
 /** `dependencies = ["fastapi==0.165.0", ...]` of [project] → name → pinned version. */
 export function parsePyprojectDeps(pyproject: string): Map<string, string> {
   const section = /^\[project\]\s*$([\s\S]*?)(?=^\[|(?![\s\S]))/m.exec(pyproject)?.[1] ?? '';
-  const list = /^dependencies\s*=\s*\[([\s\S]*?)\]/m.exec(section)?.[1] ?? '';
   const deps = new Map<string, string>();
-  for (const m of list.matchAll(/["']([^"'\n]+)["']/g)) {
-    const spec = /^([A-Za-z0-9][A-Za-z0-9._-]*)\s*(?:\[[^\]]*\])?\s*==\s*([^\s;,]+)/.exec((m[1] ?? '').trim());
-    if (!spec) throw new Error(`pyproject.toml: dependency "${m[1]}" is not pinned with == (exact pins required)`);
+  for (const entry of quotedList(section, 'dependencies')) {
+    const spec = /^([A-Za-z0-9][A-Za-z0-9._-]*)\s*(?:\[[^\]]*\])?\s*==\s*([^\s;,]+)/.exec(entry.trim());
+    if (!spec) throw new Error(`pyproject.toml: dependency "${entry}" is not pinned with == (exact pins required)`);
     deps.set(norm(spec[1] ?? ''), spec[2] ?? '');
   }
   return deps;
+}
+
+/**
+ * Quoted strings of `key = [ "a", 'b' ]` in a TOML section. Brackets inside strings (extras such as
+ * `uvicorn[standard]==1`) are part of the string; anything this scanner does not understand is an error, never a
+ * partial list.
+ */
+function quotedList(section: string, key: string): string[] {
+  const start = new RegExp(`^${key}\\s*=\\s*\\[`, 'm').exec(section);
+  if (!start) return [];
+  const out: string[] = [];
+  let i = start.index + start[0].length;
+  for (;;) {
+    while (i < section.length && /[\s,]/.test(section[i] ?? '')) i++;
+    if (section[i] === '#') {
+      while (i < section.length && section[i] !== '\n') i++;
+      continue;
+    }
+    const ch = section[i];
+    if (ch === ']') return out;
+    if (ch !== '"' && ch !== "'") throw new Error(`pyproject.toml: cannot parse the "${key}" list near offset ${i}`);
+    const end = section.indexOf(ch, i + 1);
+    if (end === -1 || section.slice(i + 1, end).includes('\n'))
+      throw new Error(`pyproject.toml: unterminated string in "${key}"`);
+    const value = section.slice(i + 1, end);
+    if (ch === '"' && value.includes('\\')) throw new Error(`pyproject.toml: escapes in "${key}" are not supported`);
+    out.push(value);
+    i = end + 1;
+  }
 }
 
 interface LockPackage {

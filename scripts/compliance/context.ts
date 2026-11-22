@@ -5,7 +5,14 @@ import { join } from 'node:path';
 import { parse } from 'yaml';
 import { collectNpm, type NpmComponent } from './npm.ts';
 import { buildPythonComponents, type PythonComponent } from './python.ts';
-import { loadExceptions, loadPolicy, REPO_ROOT, type LicenceException, type LicencePolicy } from './policy.ts';
+import {
+  applyExceptions,
+  loadExceptions,
+  loadPolicy,
+  REPO_ROOT,
+  type LicenceException,
+  type LicencePolicy,
+} from './policy.ts';
 
 export const SBOM_DIR = 'data/sbom';
 export const NPM_SBOM = 'olcys-npm.cdx.json';
@@ -46,14 +53,16 @@ export async function loadContext(root: string = REPO_ROOT): Promise<Context> {
     ...(existsSync(lockPath) ? { uvLock: await readFile(lockPath, 'utf8') } : {}),
     licences: Object.fromEntries(Object.entries(components.python).map(([n, v]) => [n, v.licence])),
   };
+  const policy = await loadPolicy(root);
+  const exceptions = await loadExceptions(root);
   return {
     root,
-    policy: await loadPolicy(root),
-    exceptions: await loadExceptions(root),
+    policy,
+    exceptions,
     components,
-    npm: npm.components,
+    npm: applyExceptions(npm.components, policy, exceptions),
     lockfileSha256: npm.lockfileSha256,
-    python: buildPythonComponents(pythonInput),
+    python: applyExceptions(buildPythonComponents(pythonInput), policy, exceptions),
     pythonInput,
   };
 }

@@ -16,6 +16,16 @@ describe('Python SBOM', () => {
     expect(() => parsePyprojectDeps('[project]\ndependencies = ["alpha>=1"]\n')).toThrow(/pinned/);
   });
 
+  it('never returns a partial list for extras or unsupported syntax', () => {
+    const toml = '[project]\ndependencies = [\n  "uvicorn[standard]==0.54.0",\n  "fastapi==0.165.0", # api\n]\n';
+    expect([...parsePyprojectDeps(toml)]).toEqual([
+      ['uvicorn', '0.54.0'],
+      ['fastapi', '0.165.0'],
+    ]);
+    expect(() => parsePyprojectDeps('[project]\ndependencies = [\n  "a==1", {x=1}\n]\n')).toThrow(/cannot parse/);
+    expect(() => parsePyprojectDeps('[project]\ndependencies = [\n  "a==1"\n')).toThrow(/cannot parse/);
+  });
+
   it('lists direct packages only without uv.lock and states the coverage', () => {
     const input = { pyproject: read('pyproject.toml'), licences };
     expect(buildPythonComponents(input).map((c) => c.name)).toEqual(['alpha', 'beta-pkg']);

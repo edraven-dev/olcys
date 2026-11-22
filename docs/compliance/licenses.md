@@ -13,13 +13,12 @@ Wymóg wyzwania: należy wskazać wszystkie wykorzystane komponenty i ich licenc
 
 **Kontrole (wszystkie offline, część `pnpm check`):**
 
-- `pnpm licenses:check`: licencje zainstalowanych pakietów npm względem listy `allowed` w `config/licenses.json`
-  (license-checker-rseidelsohn);
-- `pnpm compliance:licences`: każdy pakiet z lockfile (także opcjonalne pakiety natywne innych platform) i każdy pakiet
+- `pnpm compliance:licences` (jedyna bramka licencji npm w `pnpm check`): każdy pakiet z lockfile (także opcjonalne pakiety natywne innych platform) i każdy pakiet
   Pythona względem pełnej polityki (`allowed`, `separateServiceOnly`, `deny`, narzędzia z
   `config/forbidden-tools.yaml`); wyrażenia SPDX są rozstrzygane tak, że `OR` wystarczy spełnić jedną gałęzią, a `AND`
   wymaga wszystkich. Brak licencji, `NOASSERTION`, `SEE LICENSE IN …` i nieznany identyfikator wymagają decyzji
-  człowieka: wpisu w `config/compliance/license-exceptions.yaml` (licencji z listy `deny` nie można obejść);
+  człowieka: wpisu w `config/compliance/license-exceptions.yaml` (licencji z listy `deny` nie można obejść). Wyjątek zapisuje licencję ustaloną po lekturze tekstu; podlega ona tej samej
+  polityce (np. zatwierdzone GPL-3.0-only nadal jest dozwolone tylko jako osobna usługa), a SBOM używa wartości z wyjątku;
 - `pnpm compliance:images`: każdy `image:` z `compose.yml` i każde `FROM` z Dockerfile musi być opisane w
   `config/compliance/components.yaml`; licencje GPL/AGPL/LGPL są dopuszczone tylko dla osobnych, niemodyfikowanych usług
   (`separateService: true`);
@@ -28,9 +27,9 @@ Wymóg wyzwania: należy wskazać wszystkie wykorzystane komponenty i ich licenc
   repozytorium, aby równoległe zmiany zależności nie powodowały konfliktów); generowanie jest deterministyczne (bez
   znacznika czasu i `serialNumber`, posortowane, z sumą SHA-256 lockfile).
 
-`pnpm licenses:check` i `pnpm compliance:licences` częściowo się pokrywają: pierwsze sprawdza tylko zainstalowane pakiety npm
-względem listy `allowed`, drugie cały lockfile (także pakiety natywne innych platform) i pakiety Pythona względem pełnej
-polityki.
+`pnpm licenses:check` (license-checker-rseidelsohn, tylko lista `allowed`, tylko zainstalowane pakiety npm) pozostaje jako
+ręczne, niezależne sprawdzenie i nie należy do `pnpm check`, ponieważ nie zna wyjątków licencyjnych; `pnpm
+compliance:licences` obejmuje ten sam zakres i dodatkowo cały lockfile, pakiety Pythona oraz wyjątki.
 
 **Zakres SBOM.** SBOM npm obejmuje każdy pakiet z `pnpm-lock.yaml` (zależności przechodnie, wersje, skróty
 integralności, licencje; pakiety wyłącznie deweloperskie mają `scope: excluded`). Licencje czyta się z zainstalowanych
