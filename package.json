@@ -1,6 +1,6 @@
 {
   "name": "olcys",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "description": "OŁCyŚ (Osintowy łapacz cyfrowych śladów): OSINT tool that links public web traces to crypto addresses and analyses their on-chain activity. HackNation 2026, KAS challenge.",
   "type": "module",
