@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve, sep } from 'node:path';
 import type { ArtifactKind, BlobStore, Sha256Hex } from '@olcys/core';
 import { ArtifactIntegrityError } from './capture-manifest.ts';
@@ -17,6 +17,14 @@ const EXTENSIONS: Record<string, string> = {
 function extensionFor(kind: ArtifactKind, mediaType: string): string {
   const base = mediaType.split(';')[0]?.trim().toLowerCase() ?? '';
   return EXTENSIONS[base] ?? (kind === 'json' || kind === 'headers' ? 'json' : 'bin');
+}
+
+/** The output directory already holds files: a package must not be mixed with an earlier one. */
+export class OutputDirectoryNotEmptyError extends Error {
+  constructor() {
+    super('output directory is not empty');
+    this.name = 'OutputDirectoryNotEmptyError';
+  }
 }
 
 export const READ_ME_FILE = 'CZYTAJ_MNIE.txt';
@@ -55,6 +63,11 @@ export async function writeCollectionPackage(
   blobs: BlobStore,
 ): Promise<{ files: string[] }> {
   const root = resolve(outDir);
+  const existing = await readdir(root).catch((error: NodeJS.ErrnoException) => {
+    if (error.code === 'ENOENT') return [];
+    throw error;
+  });
+  if (existing.length > 0) throw new OutputDirectoryNotEmptyError();
   const sums = new Map<string, Sha256Hex>();
   const put = async (relative: string, bytes: Uint8Array): Promise<void> => {
     const target = resolve(outDir, relative);

@@ -5,7 +5,7 @@
  */
 import { join } from 'node:path';
 import { FileBlobStore } from './blob-store.ts';
-import { writeCollectionPackage } from './collection-package.ts';
+import { OutputDirectoryNotEmptyError, writeCollectionPackage } from './collection-package.ts';
 import { verifyCapture } from './verify-capture.ts';
 
 const USAGE = 'Użycie: cli.ts verify <sha256> | export <katalog> <sha256…>';
@@ -22,9 +22,15 @@ async function main(argv: string[]): Promise<number> {
     return result.ok ? 0 : 1;
   }
   if (command === 'export' && rest.length >= 2 && rest.slice(1).every((d) => SHA256.test(d))) {
-    const { files } = await writeCollectionPackage(rest.slice(1), rest[0]!, blobs);
-    console.log(`Zapisano ${files.length} plików w ${rest[0]}`);
-    return 0;
+    try {
+      const { files } = await writeCollectionPackage(rest.slice(1), rest[0]!, blobs);
+      console.log(`Zapisano ${files.length} plików w ${rest[0]}`);
+      return 0;
+    } catch (error) {
+      if (!(error instanceof OutputDirectoryNotEmptyError)) throw error;
+      console.error(`Katalog ${rest[0]} nie jest pusty: wskaż nowy lub pusty katalog, aby nie mieszać paczek.`);
+      return 1;
+    }
   }
   console.error(USAGE);
   return 2;

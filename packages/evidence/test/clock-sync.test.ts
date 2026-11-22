@@ -34,6 +34,7 @@ describe('clock sync check (local probes only)', () => {
     let now = FIXED.getTime();
     const check = createClockSyncCheck({
       clock: { now: () => new Date(now) },
+      monotonicMs: () => now - FIXED.getTime(),
       exec: async () => {
         calls += 1;
         return csv('chrony-synced.csv');
@@ -46,5 +47,31 @@ describe('clock sync check (local probes only)', () => {
     now += 31_000;
     await check.status();
     expect(calls).toBe(2);
+  });
+
+  it('ages the cache on the monotonic clock and expires it when the wall clock steps back', async () => {
+    let calls = 0;
+    let wall = FIXED.getTime();
+    let mono = 0;
+    const check = createClockSyncCheck({
+      clock: { now: () => new Date(wall) },
+      monotonicMs: () => mono,
+      exec: async () => {
+        calls += 1;
+        return csv('chrony-synced.csv');
+      },
+    });
+    await check.status();
+    // The wall clock jumps back an hour: the cached result is not trusted any longer.
+    wall -= 3_600_000;
+    await check.status();
+    expect(calls).toBe(2);
+    // The wall clock stays put while monotonic time passes: the cache expires after 60 s.
+    mono += 61_000;
+    await check.status();
+    expect(calls).toBe(3);
+    mono += 1_000;
+    await check.status();
+    expect(calls).toBe(3);
   });
 });

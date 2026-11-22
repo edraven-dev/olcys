@@ -192,6 +192,12 @@ function egressSummary(view: View): SafeHtml {
   ]);
 }
 
+/** A captured web page (an HTML artifact, not an archive copy) that has no full-page screenshot. */
+function isPageWithoutScreenshot(capture: Capture): boolean {
+  const kinds = new Set((capture.artifacts ?? []).map((a) => a.kind));
+  return (kinds.has('html') || kinds.has('rendered_html')) && !kinds.has('screenshot') && !capture.archive;
+}
+
 export function evidenceSection(view: View): SafeHtml {
   const own = new Set(view.data.captures.map((c) => c.id));
   const c = pl.evidence.columns;
@@ -203,9 +209,7 @@ export function evidenceSection(view: View): SafeHtml {
     pl.sections.evidence,
     join([
       para(pl.evidence.intro),
-      view.captures.some((capture) => !(capture.artifacts ?? []).some((a) => a.kind === 'screenshot'))
-        ? para(pl.evidence.noScreenshot)
-        : '',
+      view.captures.some(isPageWithoutScreenshot) ? para(pl.evidence.noScreenshot) : '',
       block('facts', register),
       markup`<h3>${pl.evidence.egressTitle}</h3>`,
       block('facts', egressSummary(view)),

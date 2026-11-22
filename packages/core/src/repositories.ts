@@ -122,7 +122,11 @@ export interface ScheduleRepository {
 export interface EvidenceRepository {
   addEgressLog(entries: EgressLogEntry[]): Promise<void>;
   addRawFetches(envelopes: ProvenanceEnvelope[]): Promise<void>;
-  addCaptures(captures: Capture[]): Promise<void>;
+  /**
+   * Stores captures and, when given, their custody events in ONE transaction (both or neither), so a capture never
+   * exists without its `collected` event. Needs a store that keeps custody events (`Repositories.custody`).
+   */
+  addCaptures(captures: Capture[], custodyEvents?: CustodyEvent[]): Promise<void>;
   addAccounts(accounts: OnlineAccount[]): Promise<void>;
   addObservations(observations: Observation[]): Promise<void>;
   /** Stores the result, its candidates and secret positions (never secret values). */

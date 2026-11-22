@@ -1,10 +1,16 @@
 import { createHash } from 'node:crypto';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { canonicalJson } from '@olcys/core';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { ArtifactIntegrityError, FileBlobStore, InMemoryBlobStore, writeCollectionPackage } from '../src/index.ts';
+import {
+  ArtifactIntegrityError,
+  FileBlobStore,
+  InMemoryBlobStore,
+  OutputDirectoryNotEmptyError,
+  writeCollectionPackage,
+} from '../src/index.ts';
 import { fullDraft, makeContext, makeRecorder } from './helpers.ts';
 
 let dir: string;
@@ -81,5 +87,21 @@ describe('writeCollectionPackage', () => {
       },
     };
     await expect(writeCollectionPackage([capture.manifestSha256], join(dir, 'x'), failing)).rejects.toThrow(/EACCES/);
+  });
+
+  it('refuses a non-empty output directory before writing anything', async () => {
+    const source = makeContext();
+    const capture = await makeRecorder().record(fullDraft(), source.ctx);
+    const out = join(dir, 'zajety');
+    await mkdir(out);
+    await writeFile(join(out, 'stary.txt'), 'plik z innej paczki');
+    await expect(writeCollectionPackage([capture.manifestSha256], out, source.blobs)).rejects.toBeInstanceOf(
+      OutputDirectoryNotEmptyError,
+    );
+    expect(await readdir(out)).toEqual(['stary.txt']);
+    // An existing empty directory is fine.
+    const empty = join(dir, 'pusty');
+    await mkdir(empty);
+    await expect(writeCollectionPackage([capture.manifestSha256], empty, source.blobs)).resolves.toBeDefined();
   });
 });

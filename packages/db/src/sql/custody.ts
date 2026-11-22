@@ -1,26 +1,33 @@
 /** Chain-of-custody events (append-only: the application role may only insert and read), oldest first by (`at`, `id`). */
 import type { CustodyEvent, CustodyRepository } from '@olcys/core';
+import type { Kysely } from 'kysely';
 import { json, type Db } from '../client.ts';
+import type { Database } from '../schema.ts';
+
+/** Inserts custody events through a database or an open transaction. */
+export async function insertCustodyEvents(db: Kysely<Database>, events: CustodyEvent[]): Promise<void> {
+  if (events.length === 0) return;
+  await db
+    .insertInto('custody_event')
+    .values(
+      events.map((e) => ({
+        id: e.id,
+        at: e.at,
+        actor: e.actor,
+        action: e.action,
+        subject_type: e.subject.type,
+        subject_id: e.subject.id,
+        run_id: e.runId ?? null,
+        detail: json(e.detail),
+      })),
+    )
+    .execute();
+}
 
 export function sqlCustodyRepository(db: Db): CustodyRepository {
   return {
     async add(events) {
-      if (events.length === 0) return;
-      await db
-        .insertInto('custody_event')
-        .values(
-          events.map((e) => ({
-            id: e.id,
-            at: e.at,
-            actor: e.actor,
-            action: e.action,
-            subject_type: e.subject.type,
-            subject_id: e.subject.id,
-            run_id: e.runId ?? null,
-            detail: json(e.detail),
-          })),
-        )
-        .execute();
+      await insertCustodyEvents(db, events);
     },
 
     async listBySubjects(subjectIds) {

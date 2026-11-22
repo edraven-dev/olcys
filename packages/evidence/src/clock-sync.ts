@@ -38,12 +38,15 @@ export function createClockSyncCheck(options: {
   exists?: (path: string) => Promise<boolean>;
   maxOffsetMs?: number;
   cacheMs?: number;
+  /** Monotonic milliseconds for the cache (default `performance.now()`); immune to wall-clock steps. */
+  monotonicMs?: () => number;
 }): ClockSyncCheck {
   const exec = options.exec ?? defaultExec;
   const exists = options.exists ?? defaultExists;
   const maxOffsetMs = options.maxOffsetMs ?? 1000;
   const cacheMs = options.cacheMs ?? 60_000;
-  let cached: { at: number; value: Promise<ClockSyncStatus> } | undefined;
+  const monotonicMs = options.monotonicMs ?? (() => performance.now());
+  let cached: { mono: number; wall: number; value: Promise<ClockSyncStatus> } | undefined;
 
   const result = (
     synced: boolean,
@@ -88,8 +91,13 @@ export function createClockSyncCheck(options: {
 
   return {
     status() {
-      const now = options.clock.now().getTime();
-      if (!cached || now - cached.at >= cacheMs) cached = { at: now, value: probe() };
+      const mono = monotonicMs();
+      const wall = options.clock.now().getTime();
+      // The cache ages on the monotonic clock; a wall clock that moved backwards (the very thing being checked) also
+      // expires it.
+      if (!cached || mono - cached.mono >= cacheMs || wall < cached.wall) {
+        cached = { mono, wall, value: probe() };
+      }
       return cached.value;
     },
   };

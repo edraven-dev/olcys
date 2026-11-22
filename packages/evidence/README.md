@@ -34,7 +34,8 @@ Magazyn plików adresowany treścią (SHA-256), manifesty, rekordy zabezpieczeń
 - `verifyCapture(skrótManifestu, magazyn)` — sprawdza, czy manifest ma poprawny skrót i schemat oraz czy każdy wymieniony
   artefakt istnieje i ma zapisany skrót (`ok` / `missing` / `digest_mismatch`).
 - `writeCollectionPackage(skróty, katalog, magazyn)` — paczka zabezpieczonego materiału: `manifests/<id>.json`,
-  `artifacts/<id>/<rodzaj>-<12 znaków skrótu>.<rozszerzenie>`, posortowany `SHA256SUMS` i `CZYTAJ_MNIE.txt`.
+  `artifacts/<id>/<rodzaj>-<12 znaków skrótu>.<rozszerzenie>`, posortowany `SHA256SUMS` i `CZYTAJ_MNIE.txt`. Katalog docelowy musi być pusty albo nieistniejący
+  (`OutputDirectoryNotEmptyError`; CLI kończy się kodem 1), aby paczki nie mieszały się ze sobą.
 - `custodyCollected(capture, actor)` — zdarzenie łańcucha dowodowego `collected` (zapis w `custody_event`).
 
 ### Procedura weryfikacji

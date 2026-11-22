@@ -163,9 +163,12 @@ export function createCollectStage(options: StageOptions): Stage {
         maxPivotDepth: ctx.case.scope.maxPivotDepth,
         onTask: (event) => ctx.progress({ tasksDone: event.done, tasksPlanned: event.planned }),
       });
-      await ctx.repos.evidence.addCaptures(result.captures);
-      await ctx.repos.custody?.add(
-        result.captures.map((c) => ({ id: newId(), ...custodyCollected(c, collector.name) })),
+      // One transaction: a capture never exists without its `collected` custody event.
+      await ctx.repos.evidence.addCaptures(
+        result.captures,
+        ctx.repos.custody
+          ? result.captures.map((c) => ({ id: newId(), ...custodyCollected(c, collector.name) }))
+          : undefined,
       );
       await ctx.repos.evidence.addAccounts(result.accounts);
       await ctx.repos.evidence.addObservations(result.observations);

@@ -127,8 +127,9 @@ export function createMemoryRepositories(): Repositories {
       async addRawFetches(envelopes) {
         store.fetches.push(...copy(envelopes));
       },
-      async addCaptures(captures) {
+      async addCaptures(captures, custodyEvents) {
         store.captures.push(...copy(captures));
+        if (custodyEvents) store.custody.push(...copy(custodyEvents));
       },
       async addAccounts(accounts) {
         store.accounts.push(...copy(accounts));
