@@ -1,5 +1,7 @@
 /** Security headers, the report CSP, the access log and log redaction. Fastify's inject, in-memory store. */
 import { createHash } from 'node:crypto';
+import type { Capture } from '@olcys/core';
+import { newId } from '@olcys/core';
 import { createMemoryRepositories } from '@olcys/db';
 import { InMemoryBlobStore } from '@olcys/evidence';
 import { buildReportData, storeReport } from '@olcys/reporting';
@@ -180,5 +182,74 @@ describe('access log dedupe window', () => {
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(await rows('export.download')).toBe(2);
     await polled.close();
+  });
+});
+
+describe('access log evidence identity, failures and purpose', () => {
+  const captureOf = (): Capture => ({
+    id: newId(),
+    runId,
+    sourceId: 'fixture_site',
+    url: 'https://forum.example.test/profile/fikcyjny_kacper',
+    finalUrl: 'https://forum.example.test/profile/fikcyjny_kacper',
+    collectedAt: '2026-11-21T10:00:00.000Z',
+    collector: 'test',
+    clockSynced: true,
+    toolVersion: '0.0.0',
+    userAgent: 'test',
+    httpStatus: 200,
+    status: 'ok',
+    artifacts: [],
+    manifestSha256: '0'.repeat(64),
+    fetchIds: [],
+  });
+  const tick = () => new Promise((resolve) => setTimeout(resolve, 20));
+
+  it('tells captures apart within the dedupe window and resolves their run and case', async () => {
+    const [a, b] = [captureOf(), captureOf()] as [Capture, Capture];
+    await runtime.repos.evidence.addCaptures([a, b]);
+    const reader = buildApp({ ...runtime, analyst: 'capture-reader' });
+    for (const c of [a, b, a]) await reader.inject(`/api/captures/${c.id}`);
+    await tick();
+    const rows = await runtime.repos.accessLog!.list({ actor: 'capture-reader', limit: 50 });
+    expect(rows).toHaveLength(2);
+    expect(rows.map((r) => r.resource).toSorted()).toEqual(
+      [`/api/captures/:captureId#${a.id}`, `/api/captures/:captureId#${b.id}`].toSorted(),
+    );
+    expect(rows[0]).toMatchObject({ runId, caseId, action: 'evidence.view' });
+    await reader.close();
+  });
+
+  it('records the next read after a failed write', async () => {
+    const real = runtime.repos.accessLog!;
+    let failures = 1;
+    const flaky = {
+      ...real,
+      async add(entry: Parameters<typeof real.add>[0]) {
+        if (failures-- > 0) throw new Error('store down');
+        return real.add(entry);
+      },
+    };
+    const a = buildApp({ ...runtime, repos: { ...runtime.repos, accessLog: flaky }, analyst: 'flaky-reader' });
+    await a.inject(`/api/runs/${runId}`);
+    await tick();
+    expect(await real.list({ actor: 'flaky-reader' })).toHaveLength(0);
+    await a.inject(`/api/runs/${runId}`);
+    await tick();
+    expect(await real.list({ actor: 'flaky-reader' })).toHaveLength(1);
+    await a.close();
+  });
+
+  it('decodes a percent-encoded purpose, keeps a malformed one raw and caps its length', async () => {
+    const reader = buildApp({ ...runtime, analyst: 'purpose-reader', accessLog: { dedupeWindowMs: 0 } });
+    const read = async (value: string) => {
+      await reader.inject({ url: `/api/runs/${runId}/exports/csv`, headers: { 'x-olcys-purpose': value } });
+      await tick();
+      return (await runtime.repos.accessLog!.list({ actor: 'purpose-reader', limit: 1 }))[0]?.purpose;
+    };
+    expect(await read(encodeURIComponent('Kontrola podatkowa – ł'))).toBe('Kontrola podatkowa – ł');
+    expect(await read('100%zle')).toBe('100%zle');
+    expect((await read('x'.repeat(900)))?.length).toBe(500);
+    await reader.close();
   });
 });

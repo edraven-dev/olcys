@@ -74,11 +74,21 @@ const AUDITED: Readonly<Record<string, Audited>> = {
 const outcomeOf = (status: number): AccessLogEntry['outcome'] =>
   status === 401 || status === 403 ? 'denied' : status >= 400 ? 'failed' : 'ok';
 
-/** Stated purpose: the `X-Olcys-Purpose` header (trimmed, at most 500 characters). */
-function statedPurpose(request: FastifyRequest): string | undefined {
+/**
+ * Stated purpose: the `X-Olcys-Purpose` header, percent-encoded by the client (`encodeURIComponent`, since header
+ * values are Latin-1). Decoded; a malformed sequence keeps the raw value. Trimmed, at most 500 characters.
+ */
+export function statedPurpose(request: FastifyRequest): string | undefined {
   const raw = request.headers['x-olcys-purpose'];
-  const value = (Array.isArray(raw) ? raw[0] : raw)?.trim().slice(0, 500);
-  return value || undefined;
+  const header = Array.isArray(raw) ? raw[0] : raw;
+  if (header === undefined) return undefined;
+  let decoded = header;
+  try {
+    decoded = decodeURIComponent(header);
+  } catch {
+    // Not percent-encoded text: keep what was sent.
+  }
+  return decoded.trim().slice(0, 500) || undefined;
 }
 
 export interface AccessLogOptions {
@@ -112,7 +122,13 @@ export function registerAccessLog(app: FastifyInstance, options: AccessLogOption
     const audited = pattern ? AUDITED[pattern] : undefined;
     if (!audited) return;
     try {
-      const params = request.params as { caseId?: string; runId?: string; format?: string };
+      const params = request.params as {
+        caseId?: string;
+        runId?: string;
+        format?: string;
+        captureId?: string;
+        sha256?: string;
+      };
       let caseId: Id | undefined;
       let runId: Id | undefined;
       if (audited.scope === 'case') caseId = idOf(params.caseId ?? '');
@@ -120,20 +136,27 @@ export function registerAccessLog(app: FastifyInstance, options: AccessLogOption
         runId = idOf(params.runId ?? '');
         caseId = runId ? (await repos.runs.get(runId))?.caseId : undefined;
       }
+      // Evidence reads keep their identity: the capture (with its run and case) or the blob digest.
+      const subject = params.format ?? params.captureId ?? params.sha256;
+      if (params.captureId) {
+        const capture = await repos.evidence.getCapture(idOf(params.captureId) ?? '');
+        runId = capture?.runId;
+        caseId = runId ? (await repos.runs.get(runId))?.caseId : undefined;
+      }
       const purpose = statedPurpose(request);
-      const resource = params.format ? `${pattern}#${params.format}` : (pattern ?? '');
+      const resource = subject ? `${pattern}#${subject}` : (pattern ?? '');
       const outcome = outcomeOf(reply.statusCode);
       // Polling (run progress) must not flood the log; files and exports are never deduplicated.
       const downloads =
         ALWAYS_LOGGED.has(audited.action) || pattern === '/api/blobs/:sha256' || pattern === '/api/runs/:runId/report';
-      if (!downloads && windowMs > 0) {
-        const key = [options.analyst, audited.action, caseId ?? '', runId ?? '', resource, outcome].join('\u0000');
-        const t = now();
+      const key =
+        !downloads && windowMs > 0
+          ? [options.analyst, audited.action, caseId ?? '', runId ?? '', resource, outcome].join('\u0000')
+          : undefined;
+      const t = now();
+      if (key !== undefined) {
         const last = recent.get(key);
         if (last !== undefined && t - last < windowMs) return;
-        recent.delete(key);
-        recent.set(key, t);
-        while (recent.size > maxKeys) recent.delete(recent.keys().next().value as string);
       }
       await log.add({
         id: newId(),
@@ -147,6 +170,12 @@ export function registerAccessLog(app: FastifyInstance, options: AccessLogOption
         outcome,
         ip: request.ip,
       });
+      // Remembered only once the row is stored: a failed write must not suppress the next read's record.
+      if (key !== undefined) {
+        recent.delete(key);
+        recent.set(key, t);
+        while (recent.size > maxKeys) recent.delete(recent.keys().next().value as string);
+      }
     } catch (error) {
       options.onError(error);
     }
