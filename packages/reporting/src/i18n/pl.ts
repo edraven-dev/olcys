@@ -344,6 +344,15 @@ export const pl = {
       listing: 'lista adresów',
       unclear: 'niejasne',
     } as Record<string, string>,
+    aiDraft: {
+      confirmed: 'Wspomagane AI, zatwierdzone przez analityka: {analyst} ({date}).',
+      edited:
+        'Wspomagane AI, zatwierdzone przez analityka: {analyst} ({date}) — tekst zredagowany przez analityka na podstawie sugestii AI.',
+      basedOn: 'Oparte na',
+      alternatives: 'Wyjaśnienia alternatywne',
+      verification: 'Kroki weryfikacji',
+      model: 'Model: {model}, prompt {prompt}. Wniosek nie ma wpływu na Wskaźnik Pewności.',
+    },
     noInferences: 'Brak wniosków wymagających weryfikacji.',
     tableColumns: {
       identity: 'Identyfikator',

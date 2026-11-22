@@ -33,6 +33,7 @@ export {
   type StixOptions,
   type TlpLevel,
 } from './export/index.ts';
+export { draftOutput, inferencesFromDrafts, isReportableDraft } from './drafts.ts';
 export { buildReportModel } from './model.ts';
 export { escapeHtml, markup, SafeHtml, t, type Html } from './html.ts';
 export { pl, type Catalogue } from './i18n/pl.ts';
