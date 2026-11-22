@@ -12,7 +12,7 @@ import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { renderReportMarkdown } from '../bench/report.ts';
 import { runBenchmark } from '../bench/run.ts';
-import { countLeaks } from '../bench/secrets.ts';
+import { countLeaks, countLeaksIn } from '../bench/secrets.ts';
 import { parseDenyList } from '../src/deny-list.ts';
 
 const REPO = resolve(import.meta.dirname, '..', '..', '..');
@@ -27,7 +27,7 @@ async function main(): Promise<void> {
   });
   const json = `${JSON.stringify(report, null, 2)}\n`;
   const markdown = renderReportMarkdown(report);
-  if (countLeaks(json, secretFragments) + countLeaks(markdown, secretFragments) > 0) {
+  if (countLeaksIn(report, secretFragments) + countLeaks(markdown, secretFragments) > 0) {
     throw new Error('secret fragment in the benchmark report — nothing was written');
   }
   const dir = values.out ? resolve(values.out) : join(REPO, 'data', 'bench', report.extractorVersion);

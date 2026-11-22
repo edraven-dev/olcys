@@ -8,7 +8,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { renderReportMarkdown } from '../bench/report.ts';
 import { runBenchmark } from '../bench/run.ts';
-import { countLeaks } from '../bench/secrets.ts';
+import { countLeaks, countLeaksIn } from '../bench/secrets.ts';
 import { VARIANT_KINDS, ZERO_CANDIDATE_KINDS } from '../bench/thresholds.ts';
 import { parseDenyList } from '../src/deny-list.ts';
 
@@ -30,7 +30,7 @@ describe('extraction benchmark on the synthetic corpus', () => {
     expect(report.secrets.recall).toBe(1);
     expect(report.secrets.leaks).toBe(0);
     const markdown = renderReportMarkdown(report);
-    expect(countLeaks(`${JSON.stringify(report)}\n${markdown}`, secretFragments)).toBe(0);
+    expect(countLeaksIn(report, secretFragments) + countLeaks(markdown, secretFragments)).toBe(0);
 
     // Hard negatives: no candidate from hashes, CIDs or token strings; BIP-350 wrong-variant vectors rejected.
     expect(ZERO_CANDIDATE_KINDS.filter((kind) => report.negatives[kind]?.accepted !== 0)).toEqual([]);

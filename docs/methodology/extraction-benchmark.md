@@ -31,13 +31,16 @@ Lightning, `xpub`) są w raporcie oznaczone „nieobsługiwane — nie mierzono�
   wzorcowej z tolerancją ±2 znaki. Na tym poziomie liczymy wyniki według zaciemnienia i kanału, przypisanie sieci
   i role.
 - **Przypisanie sieci:** trafność wybranej sieci względem sieci oczekiwanej z treści (URI płatności, eksplorator,
-  słowo kluczowe, domyślna dla formatu), osobno dla identyfikatora sieci EVM i adresów `1…`/`3…`.
+  słowo kluczowe, domyślna dla formatu), osobno dla identyfikatora sieci EVM i adresów `1…`/`3…`. Adres z siecią spoza
+  `chainSet` liczy się jako pominięcie i fałszywy alarm, a także jako błąd przypisania.
 - **Role:** pierwsza wskazówka roli z wyniku porównana z etykietą slotu szablonu; macro-F1 po rolach obecnych
   w prawdzie wzorcowej.
-- **Sekrety:** sekret jest zamaskowany, gdy wynik zawiera `SecretFinding` pokrywający jego zakres. Kontrola wycieków
-  serializuje każdy `ExtractionResult`, przechwycone logi i gotowy raport, a następnie szuka każdego 12-znakowego
-  fragmentu każdego sekretu.
-- **Przedziały ufności:** bootstrap po dokumentach, 1 000 prób, stałe ziarno (raport jest powtarzalny).
+- **Sekrety:** sekret jest zamaskowany, gdy wyniki (`SecretFinding`) pokrywają każdy znak klucza — we frazie seed
+  każdą literę słów (separatory i numery listy mogą zostać poza zakresem). Kontrola wycieków przegląda każde pole
+  każdego `ExtractionResult`, przechwycone logi i gotowy raport i szuka każdego 12-znakowego fragmentu każdego sekretu,
+  także we frazie zapisanej innymi separatorami (nowe wiersze, numeracja, przecinki, sekwencje ucieczki JSON).
+- **Przedziały ufności:** bootstrap po dokumentach, 1 000 prób, stałe ziarno (raport jest powtarzalny); próby,
+  w których wskaźnik jest nieokreślony (brak przewidywań lub pozytywów w próbie), są dla niego pomijane.
 - **SpiderFoot:** wyrażenia regularne modułów `sfp_bitcoin` i `sfp_ethereum` przepisane w TypeScript (licencja MIT,
   © Steve Micallef; tekst licencji w nagłówku `packages/address-extractor/bench/baselines/spiderfoot.ts`), uruchomione
   na surowym tekście dokumentu, tak jak SpiderFoot przetwarza pobraną treść strony: base58check tylko dla `1…`/`3…`

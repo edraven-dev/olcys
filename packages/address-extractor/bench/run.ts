@@ -5,13 +5,26 @@
  */
 import { chainFamily, type ChainAttributionMethod, type ChainId, type TextSpan, type TextView } from '@olcys/core';
 import type { DenyList } from '../src/deny-list.ts';
-import { EXTRACTOR_VERSION, extractCapture, SecretLeakError, type ExtractCaptureResult } from '../src/extract.ts';
+import {
+  EXTRACTOR_VERSION,
+  extractCapture,
+  SecretLeakError,
+  type ExtractCaptureResult,
+  type ExtractOptions,
+} from '../src/extract.ts';
 import type { CaptureContent, ViewText } from '../src/pipeline-types.ts';
 import { buildViews } from '../src/views/build.ts';
 import { SPIDERFOOT_VERSION, spiderfootScan } from './baselines/spiderfoot.ts';
 import { loadCorpus, type CorpusDocument, type LoadedCorpus } from './corpus.ts';
 import { Bootstrap, macroF1, ratio, Tally } from './metrics.ts';
-import { countLeaks, fillSecrets, secretFragments } from './secrets.ts';
+import {
+  countLeaks,
+  countLeaksIn,
+  fillSecrets,
+  mergeFragments,
+  secretFragments,
+  type LeakFragments,
+} from './secrets.ts';
 import { evaluateGates } from './thresholds.ts';
 import {
   CHANNELS,
@@ -29,6 +42,8 @@ import {
 
 export interface BenchOptions {
   denyList: DenyList;
+  /** Extraction under test (default `extractCapture`; tests inject faulty extractors to check the scoring). */
+  extract?: (content: CaptureContent, options: ExtractOptions) => Promise<ExtractCaptureResult>;
   corpusDir?: string;
   /** Already loaded corpus (tests). */
   corpus?: LoadedCorpus;
@@ -42,7 +57,7 @@ export interface BenchOptions {
 export interface BenchRun {
   report: BenchReport;
   /** Fragments of every secret filled in this run (for leak checks of derived artefacts); never persist them. */
-  secretFragments: ReadonlySet<string>;
+  secretFragments: LeakFragments;
 }
 
 interface Range {
@@ -112,11 +127,16 @@ function sourceOf(views: ReadonlyMap<TextView, ViewText>, view: TextView, span: 
   return max >= 0 ? { start: min, end: max + 1 } : undefined;
 }
 
+/**
+ * Span-level classification of one tool's predictions against the labelled rows of a document. `wrongChain` holds
+ * predictions that found a positive's span and address but with a chain the bytes are not valid on (not a TP).
+ */
 function classify(
   predictions: readonly Prediction[],
   rows: readonly TruthRow[],
-): { list: Classified[]; matched: Map<number, Prediction> } {
+): { list: Classified[]; matched: Map<number, Prediction>; wrongChain: Map<number, Prediction> } {
   const matched = new Map<number, Prediction>();
+  const wrongChain = new Map<number, Prediction>();
   const labelled = rows.filter((r) => !r.isSecret && r.source);
   const positiveKeys = new Set(
     rows.filter((r) => r.expected === 'positive' && r.canonical).map((r) => canonicalKey(r.canonical ?? '')),
@@ -144,11 +164,13 @@ function classify(
       list.push({ p, cls: 'unverifiable', row: unverifiable });
       continue;
     }
-    const row = over.find((r) => r.expected !== 'positive') ?? over[0];
+    const misattributed = over.find((r) => r.expected === 'positive' && same(r));
+    if (misattributed && !wrongChain.has(misattributed.occurrence)) wrongChain.set(misattributed.occurrence, p);
+    const row = misattributed ?? over.find((r) => r.expected !== 'positive') ?? over[0];
     if (row) list.push({ p, cls: 'fp', row });
     else list.push({ p, cls: positiveKeys.has(p.key) ? 'unlabelled' : 'fp' });
   }
-  return { list, matched };
+  return { list, matched, wrongChain };
 }
 
 function viewChannel(view: TextView | undefined): Channel {
@@ -162,10 +184,12 @@ interface DocEval {
   rows: TruthRow[];
   ours: Classified[];
   oursMatched: Map<number, Prediction>;
+  oursWrongChain: Map<number, Prediction>;
   spiderfoot: Classified[];
   spiderfootMatched: Map<number, Prediction>;
   rejected: { reason: string; source?: Range }[];
-  secretRanges: Range[];
+  /** Start offsets (filled text) of secrets whose every character of key material is inside a finding. */
+  redactedSecrets: Set<number>;
   bytes: number;
   error?: string;
 }
@@ -207,18 +231,27 @@ function evaluateDocument(
   const a = classify(ours, rows);
   const b = classify(sf, rows);
   const rejected = (result?.rejected ?? []).map((r) => ({ reason: r.reason, source: sourceOf(views, r.view, r.span) }));
-  const secretRanges = (result?.secrets ?? [])
+  const findings = (result?.secrets ?? [])
     .map((s) => sourceOf(views, s.view, s.span))
     .filter((s): s is Range => s !== undefined);
+  const redactedSecrets = new Set<number>();
+  for (const secret of filled.secrets) {
+    // Key material: every character, except the separators and list numbers between the words of a seed phrase.
+    const material = [...secret.value].flatMap((c, i) =>
+      secret.kind !== 'seed_phrase' || /\p{L}/u.test(c) ? [secret.start + i] : [],
+    );
+    if (material.every((at) => findings.some((f) => f.start <= at && at < f.end))) redactedSecrets.add(secret.start);
+  }
   return {
     doc,
     rows,
     ours: a.list,
     oursMatched: a.matched,
+    oursWrongChain: a.wrongChain,
     spiderfoot: b.list,
     spiderfootMatched: b.matched,
     rejected,
-    secretRanges,
+    redactedSecrets,
     bytes: content.artifacts[0]?.bytes.length ?? 0,
     ...(error ? { error } : {}),
   };
@@ -266,16 +299,23 @@ function addressLevel(
     if (families && !families.has(family)) continue;
     if (!truth.has(canonicalKey(r.canonical))) truth.set(canonicalKey(r.canonical), r);
   }
-  const predicted = new Map<string, Prediction>();
+  const predicted = new Map<string, Prediction[]>();
   for (const c of list) {
     if (c.cls === 'example' || c.cls === 'unverifiable') continue;
     if (families && !families.has(c.p.family)) continue;
-    if (!predicted.has(c.p.key)) predicted.set(c.p.key, c.p);
+    predicted.set(c.p.key, [...(predicted.get(c.p.key) ?? []), c.p]);
   }
+  // A TP needs the address with a chain its bytes are valid on; the same address on an impossible chain is FN + FP.
+  const valid = (row: TruthRow | undefined, preds: readonly Prediction[]): boolean =>
+    row !== undefined && preds.some((p) => row.chainSet.includes(p.chain));
   for (const [key, row] of truth) {
-    sink(predicted.has(key) ? 'tp' : 'fn', formatFamily(row.subtype ?? '', row.chain ?? 'bitcoin'), row.subtype ?? '');
+    const ok = valid(row, predicted.get(key) ?? []);
+    sink(ok ? 'tp' : 'fn', formatFamily(row.subtype ?? '', row.chain ?? 'bitcoin'), row.subtype ?? '');
   }
-  for (const [key, p] of predicted) if (!truth.has(key)) sink('fp', p.family, p.format);
+  for (const [key, preds] of predicted) {
+    const first = preds[0];
+    if (first && !valid(truth.get(key), preds)) sink('fp', first.family, first.format);
+  }
 }
 
 function accuracy(pairs: readonly boolean[]): Accuracy {
@@ -292,7 +332,7 @@ export async function runBenchmark(options: BenchOptions): Promise<BenchRun> {
     options.log?.(line);
   };
   const evals: DocEval[] = [];
-  const fragments = new Set<string>();
+  const fragments = { raw: new Set<string>(), words: new Set<string>() };
   let extractionMs = 0;
   let bytes = 0;
   let leaks = 0;
@@ -307,7 +347,7 @@ export async function runBenchmark(options: BenchOptions): Promise<BenchRun> {
   for (const [index, doc] of corpus.documents.entries()) {
     const filled = fillSecrets(doc.text, doc.docId, doc.type, seed);
     const docFragments = secretFragments(filled.secrets.map((s) => s.value));
-    for (const f of docFragments) fragments.add(f);
+    mergeFragments(fragments, docFragments);
     const content = captureOf(doc, filled.text, index);
     let result: ExtractCaptureResult | undefined;
     let error: string | undefined;
@@ -316,7 +356,7 @@ export async function runBenchmark(options: BenchOptions): Promise<BenchRun> {
     Object.assign(console, { log: capture, info: capture, warn: capture, error: capture, debug: capture });
     try {
       // oxlint-disable-next-line no-await-in-loop
-      result = await extractCapture(content, {
+      result = await (options.extract ?? extractCapture)(content, {
         denyList: options.denyList,
         newId: () => `00000000-0000-7000-8000-${String((n += 1)).padStart(12, '0')}`,
       });
@@ -329,7 +369,7 @@ export async function runBenchmark(options: BenchOptions): Promise<BenchRun> {
     }
     extractionMs += performance.now() - started;
     bytes += content.artifacts[0]?.bytes.length ?? 0;
-    if (result) leaks += countLeaks(JSON.stringify(result), docFragments);
+    if (result) leaks += countLeaksIn(result, docFragments);
     evals.push(evaluateDocument(doc, result, content, filled, error));
     if ((index + 1) % 100 === 0) log(`bench: ${index + 1}/${corpus.documents.length} documents`);
   }
@@ -420,6 +460,17 @@ function assemble(
       if (r.obfuscation.length === 0 && r.hasChecksum) clean.get(family).add(d, kind);
       if (r.obfuscation.length > 0) obfuscated.add(d, kind);
       if (!hit) {
+        const wrong = e.oursWrongChain.get(r.occurrence);
+        if (wrong) {
+          pushAttribution('all', false);
+          failures.attributionErrors.push({
+            docId: e.doc.docId,
+            occurrence: r.occurrence,
+            expected: r.chain ?? r.chainSet.join('|'),
+            actual: wrong.chain,
+            method: wrong.method ?? '',
+          });
+        }
         failures.falseNegatives.push({
           docId: e.doc.docId,
           occurrence: r.occurrence,
@@ -497,8 +548,7 @@ function assemble(
       if (!r.isSecret || !r.secretKind || !r.source) continue;
       const entry = (secretsByKind[r.secretKind] ??= { total: 0, redacted: 0 });
       entry.total += 1;
-      const source = r.source;
-      if (!e.error && e.secretRanges.some((s) => overlaps(s, source))) entry.redacted += 1;
+      if (!e.error && e.redactedSecrets.has(r.source.start)) entry.redacted += 1;
     }
   }
 

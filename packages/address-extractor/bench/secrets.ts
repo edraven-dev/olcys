@@ -127,20 +127,64 @@ export function fillSecrets(text: string, docId: string, docType: string, seed: 
   return { text: out, secrets, mapOffset };
 }
 
-/** Every `LEAK_WINDOW`-character fragment of the secrets (and the secrets themselves when shorter). */
-export function secretFragments(values: readonly string[]): Set<string> {
-  const out = new Set<string>();
-  for (const value of values) {
-    if (value.length < LEAK_WINDOW) out.add(value);
-    for (let i = 0; i + LEAK_WINDOW <= value.length; i += 1) out.add(value.slice(i, i + LEAK_WINDOW));
-  }
-  return out;
+/**
+ * Fragments searched by the leak check: every `LEAK_WINDOW`-character window of each secret as written, and — for
+ * seed phrases — of its words joined by single spaces, so a phrase still matches after its separators changed
+ * (newlines, numbering, commas, JSON escapes).
+ */
+export interface LeakFragments {
+  raw: ReadonlySet<string>;
+  words: ReadonlySet<string>;
 }
 
-/** Number of positions in `text` where a secret fragment starts. */
-export function countLeaks(text: string, fragments: ReadonlySet<string>): number {
+/** Letter runs joined by single spaces (`1. abandon\nability` → `abandon ability`). */
+export function wordsOf(text: string): string {
+  return (text.match(/\p{L}+/gu) ?? []).join(' ');
+}
+
+function windows(value: string, into: Set<string>): void {
+  if (value.length < LEAK_WINDOW) into.add(value);
+  for (let i = 0; i + LEAK_WINDOW <= value.length; i += 1) into.add(value.slice(i, i + LEAK_WINDOW));
+}
+
+export function secretFragments(values: readonly string[]): LeakFragments {
+  const raw = new Set<string>();
+  const words = new Set<string>();
+  for (const value of values) {
+    windows(value, raw);
+    if (/[\s,]/.test(value)) windows(wordsOf(value), words);
+  }
+  return { raw, words };
+}
+
+/** Merges fragment sets (e.g. of every document of a run). */
+export function mergeFragments(into: { raw: Set<string>; words: Set<string> }, add: LeakFragments): void {
+  for (const f of add.raw) into.raw.add(f);
+  for (const f of add.words) into.words.add(f);
+}
+
+function countWindows(text: string, fragments: ReadonlySet<string>): number {
   if (fragments.size === 0) return 0;
   let leaks = 0;
   for (let i = 0; i + LEAK_WINDOW <= text.length; i += 1) if (fragments.has(text.slice(i, i + LEAK_WINDOW))) leaks += 1;
   return leaks;
+}
+
+/** Positions in `text` where a secret fragment starts (as written, or as a word sequence). */
+export function countLeaks(text: string, fragments: LeakFragments): number {
+  return (
+    countWindows(text, fragments.raw) + (fragments.words.size > 0 ? countWindows(wordsOf(text), fragments.words) : 0)
+  );
+}
+
+/** Leak count over every string inside a value (checked one by one, never through an escaping serialisation). */
+export function countLeaksIn(value: unknown, fragments: LeakFragments): number {
+  if (typeof value === 'string') return countLeaks(value, fragments);
+  if (Array.isArray(value)) return value.reduce((n: number, v: unknown) => n + countLeaksIn(v, fragments), 0);
+  if (value !== null && typeof value === 'object') {
+    let n = 0;
+    for (const [k, v] of Object.entries(value)) n += countLeaks(k, fragments) + countLeaksIn(v, fragments);
+    return n;
+  }
+  return 0;
 }

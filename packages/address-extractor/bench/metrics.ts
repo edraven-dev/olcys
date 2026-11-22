@@ -77,7 +77,10 @@ export class Bootstrap {
     });
   }
 
-  /** 95 % percentile intervals of precision and recall. */
+  /**
+   * 95 % percentile intervals of precision and recall. Resamples in which a ratio is undefined (no prediction or no
+   * positive drawn) are skipped for that ratio, so intervals of very small slices rest on fewer draws.
+   */
   intervals(tally: Tally): { precision: [number, number]; recall: [number, number] } {
     const entries = tally.entries();
     const precisions: number[] = [];

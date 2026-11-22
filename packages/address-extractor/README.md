@@ -140,11 +140,13 @@ pnpm --filter @olcys/address-extractor bench             # raport → data/bench
 
 - `bench/` — runner (`runBenchmark`), dopasowanie do prawdy wzorcowej (poziom adresów i wystąpień), metryki
   z przedziałami ufności (bootstrap po dokumentach, stałe ziarno), progi (`bench/thresholds.ts`), raport po polsku
-  (`bench/report.ts`) i linia bazowa SpiderFoot (`bench/baselines/spiderfoot.ts`, MIT). Sekrety (`bench/secrets.ts`)
-  powstają z ziarna korpusu tylko w pamięci; raport jest sprawdzany pod kątem ich fragmentów przed zapisem.
+  (`bench/report.ts`, teksty w katalogu `bench/pl.ts`) i linia bazowa SpiderFoot (`bench/baselines/spiderfoot.ts`,
+  MIT). Sekrety (`bench/secrets.ts`) powstają z ziarna korpusu tylko w pamięci; wyniki, logi i raport są sprawdzane
+  pod kątem ich fragmentów, a raport nie zostanie zapisany, jeśli któryś się w nim znajdzie.
 - `scripts/corpus/` — generator korpusu (adresy z losowych bajtów, trudne negatywy, renderowanie szablonów,
   zaciemnienia, manifest z SHA-256 plików).
 - Bramka CI: `test/corpus.thresholds.test.ts` (cały korpus, poniżej sekundy) — czyste formaty z sumą kontrolną:
-  czułość i precyzja ≥ 99 % dla każdej sieci; zaciemnienia: czułość ≥ 90 %; formaty bez sumy kontrolnej z potwierdzeniem:
-  precyzja ≥ 90 %; sekrety: czułość 100 %, 0 wycieków. `test/corpus.generator.test.ts` sprawdza determinizm generatora,
-  zgodność plików z manifestem, liczebność i brak sekretów na dysku.
+  czułość i precyzja ≥ 99 % dla każdej sieci; zaciemnienia: czułość ≥ 90 %; formaty bez sumy kontrolnej
+  z potwierdzeniem: precyzja ≥ 90 %; sekrety: czułość 100 %, 0 wycieków. `test/corpus.generator.test.ts` sprawdza
+  determinizm generatora, zgodność plików z manifestem, liczebność i brak sekretów na dysku, a
+  `test/bench-scoring.test.ts` — reguły punktacji na celowo wadliwych ekstraktorach.

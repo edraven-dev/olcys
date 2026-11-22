@@ -29,7 +29,7 @@ export interface LoadedCorpus {
   documents: CorpusDocument[];
 }
 
-const DOC_PATH = /^docs\/((pl|en)-([a-z0-9-]+)-\d{3})\.(html|txt|json)$/;
+const DOC_PATH = /^docs\/((pl|en)-([a-z0-9-]+)-\d{3,})\.(html|txt|json)$/;
 
 export async function loadCorpus(dir = DEFAULT_CORPUS_DIR): Promise<LoadedCorpus> {
   const manifest = JSON.parse(await readFile(join(dir, 'manifest.json'), 'utf8')) as CorpusManifest;
@@ -41,8 +41,9 @@ export async function loadCorpus(dir = DEFAULT_CORPUS_DIR): Promise<LoadedCorpus
   for (const row of truth) byDoc.set(row.docId, [...(byDoc.get(row.docId) ?? []), row]);
   const documents: CorpusDocument[] = [];
   for (const path of Object.keys(manifest.files).toSorted()) {
+    if (!path.startsWith('docs/')) continue;
     const match = DOC_PATH.exec(path);
-    if (!match) continue;
+    if (!match) throw new Error(`corpus manifest lists an unexpected document path: ${path}`);
     const [, docId = '', lang = '', template = '', type] = match;
     // oxlint-disable-next-line no-await-in-loop
     const text = await readFile(join(dir, path), 'utf8');

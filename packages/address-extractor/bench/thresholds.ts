@@ -1,8 +1,9 @@
 /**
- * Acceptance thresholds of the extraction benchmark (CI gate). Labels are Polish: they appear in `report.md`.
+ * Acceptance thresholds of the extraction benchmark (CI gate); labels come from the Polish catalogue (`pl.ts`).
  * Changing a threshold is a decision to record in the methodology note, never a way to make a failing run pass.
  */
-import type { BenchReport, GateResult, Metrics } from './types.ts';
+import { GATE_PL } from './pl.ts';
+import { CORPUS_FAMILIES, type BenchReport, type GateResult, type Metrics } from './types.ts';
 
 export const THRESHOLDS = {
   cleanChecksummedRecall: 0.99,
@@ -14,8 +15,6 @@ export const THRESHOLDS = {
   minSecrets: 200,
   secretKinds: 4,
 } as const;
-
-const FAMILY_PL: Record<string, string> = { bitcoin: 'Bitcoin', evm: 'EVM', tron: 'TRON' };
 
 /** Hard negatives that must never become a candidate at all. */
 export const ZERO_CANDIDATE_KINDS = [
@@ -56,27 +55,28 @@ function gate(
 
 export function evaluateGates(report: BenchReport, inputs: GateInputs): GateResult[] {
   const gates: GateResult[] = [];
-  for (const [family, m] of Object.entries(inputs.cleanMetrics)) {
-    const name = FAMILY_PL[family] ?? family;
-    const counts = `TP ${m.tp}, FP ${m.fp}, FN ${m.fn}`;
+  // One pair of gates per supported family, even when the corpus holds no clean occurrence of it (then it fails).
+  for (const family of CORPUS_FAMILIES) {
+    const m = inputs.cleanMetrics[family];
+    const detail = m ? `TP ${m.tp}, FP ${m.fp}, FN ${m.fn}` : GATE_PL.missing(family);
     gates.push(
       gate(
         `clean_recall:${family}`,
-        `${name}: czułość, czyste formaty z sumą kontrolną`,
+        GATE_PL.cleanRecall(family),
         'recall',
-        m.recall,
+        m?.recall ?? Number.NaN,
         '>=',
         THRESHOLDS.cleanChecksummedRecall,
-        counts,
+        detail,
       ),
       gate(
         `clean_precision:${family}`,
-        `${name}: precyzja, czyste formaty z sumą kontrolną`,
+        GATE_PL.cleanPrecision(family),
         'precision',
-        m.precision,
+        m?.precision ?? Number.NaN,
         '>=',
         THRESHOLDS.cleanChecksummedPrecision,
-        counts,
+        detail,
       ),
     );
   }
@@ -84,7 +84,7 @@ export function evaluateGates(report: BenchReport, inputs: GateInputs): GateResu
   gates.push(
     gate(
       'obfuscated_recall',
-      'Czułość na zaciemnionych wystąpieniach',
+      GATE_PL.obfuscatedRecall,
       'recall',
       o.recall,
       '>=',
@@ -96,7 +96,7 @@ export function evaluateGates(report: BenchReport, inputs: GateInputs): GateResu
   gates.push(
     gate(
       'unchecksummed_corroborated_precision',
-      'Precyzja formatów bez sumy kontrolnej potwierdzonych URI, eksploratorem lub słowem kluczowym',
+      GATE_PL.corroboratedPrecision,
       'precision',
       c.precision,
       '>=',
@@ -108,33 +108,29 @@ export function evaluateGates(report: BenchReport, inputs: GateInputs): GateResu
   gates.push(
     gate(
       'secret_recall',
-      'Czułość maskowania sekretów',
+      GATE_PL.secretRecall,
       'recall',
       s.recall,
       '==',
       THRESHOLDS.secretRecall,
       `${s.redacted}/${s.total}`,
     ),
-    gate('secret_leaks', 'Wycieki fragmentów sekretów (wyniki i logi)', 'value', s.leaks, '==', THRESHOLDS.secretLeaks),
-    gate('secret_total', 'Liczba sekretów w korpusie', 'value', s.total, '>=', THRESHOLDS.minSecrets),
-    gate(
-      'secret_kinds',
-      'Liczba rodzajów sekretów',
-      'value',
-      Object.keys(s.byKind).length,
-      '>=',
-      THRESHOLDS.secretKinds,
-    ),
+    gate('secret_leaks', GATE_PL.secretLeaks, 'value', s.leaks, '==', THRESHOLDS.secretLeaks),
+    gate('secret_total', GATE_PL.secretTotal, 'value', s.total, '>=', THRESHOLDS.minSecrets),
+    gate('secret_kinds', GATE_PL.secretKinds, 'value', Object.keys(s.byKind).length, '>=', THRESHOLDS.secretKinds),
   );
+  // Every hash-like kind must be present in the corpus; a missing kind fails instead of counting as 0 accepted.
+  const missing = ZERO_CANDIDATE_KINDS.filter((k) => (report.negatives[k]?.total ?? 0) === 0);
   const accepted = ZERO_CANDIDATE_KINDS.reduce((n, k) => n + (report.negatives[k]?.accepted ?? 0), 0);
   gates.push(
     gate(
       'hash_like_candidates',
-      'Kandydaci ze skrótów transakcji, CID IPFS, skrótów MD5/SHA/git, ciągów JWT i tokenów',
+      GATE_PL.hashLike,
       'value',
-      accepted,
+      missing.length > 0 ? Number.NaN : accepted,
       '==',
       0,
+      missing.length > 0 ? GATE_PL.missing(missing.join(', ')) : undefined,
     ),
   );
   const variants = VARIANT_KINDS.map((k) => report.negatives[k]);
@@ -143,24 +139,22 @@ export function evaluateGates(report: BenchReport, inputs: GateInputs): GateResu
   gates.push(
     gate(
       'bech32_variant_mismatch',
-      'Wektory v1 w bech32 i v0 w bech32m odrzucone jako bech32_variant_mismatch',
+      GATE_PL.variantMismatch,
       'recall',
-      total === 0 ? Number.NaN : rejected / total,
+      variants.some((v) => !v || v.total === 0) ? Number.NaN : rejected / total,
       '==',
       1,
       `${rejected}/${total}`,
     ),
   );
-  const ours = report.hardNegativeDocuments.ours.precision;
-  const sf = report.hardNegativeDocuments.spiderfoot.precision;
   gates.push(
     gate(
       'spiderfoot_hard_negative_precision',
-      'SpiderFoot: precyzja na dokumentach z trudnymi negatywami niższa niż OŁCyŚ',
+      GATE_PL.spiderfoot,
       'precision',
-      sf,
+      report.hardNegativeDocuments.spiderfoot.precision,
       '<',
-      ours,
+      report.hardNegativeDocuments.ours.precision,
     ),
   );
   return gates;
