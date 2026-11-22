@@ -38,11 +38,13 @@ Szczegółowe uzasadnienie statusu każdego źródła znajduje się w polach `co
   zapytanie ujawnia dostawcy identyfikator i jest odnotowane w dzienniku ruchu (`containsIdentifier: true`). Do produkcji
   zalecany Mojeek z umową DPA (bez podprzetwarzających) i zerową retencją danych na żądanie; Brave oferuje zerową
   retencję tylko w planie Enterprise.
-- **Przechowywanie wyników zgodnie z warunkami dostawców:** Brave — tylko w planie niestandardowym
-  (`BRAVE_SEARCH_STORAGE_RIGHTS=true`), Mojeek — w planach Business i Enterprise (`MOJEEK_PLAN`; Startup pozwala buforować
-  wyniki najwyżej godzinę). W pozostałych przypadkach odpowiedź dostawcy nie jest zapisywana ani nagrywana (tylko jej
-  skrót SHA-256 i rozmiar), a w przechwyceniu zostają tylko pozycje i adresy wyników. Czy taka lista adresów jako ślad
-  audytowy mieści się w warunkach dostawców, wymaga potwierdzenia prawnego przed wdrożeniem.
+- **Przechowywanie wyników zgodnie z warunkami dostawców:** surowa odpowiedź wyszukiwarki nigdy nie jest zapisywana ani
+  nagrywana (tylko jej skrót SHA-256 i rozmiar) — fragmenty wyników to tekst ze stron, który może zawierać sekrety.
+  Tytuły i fragmenty wyników (po redakcji sekretów) zostają w przechwyceniu tylko z prawem do przechowywania: Brave — w
+  planie niestandardowym (`BRAVE_SEARCH_STORAGE_RIGHTS=true`), Mojeek — w planach Business i Enterprise (`MOJEEK_PLAN`;
+  Startup pozwala buforować wyniki najwyżej godzinę). W pozostałych przypadkach w przechwyceniu zostają tylko pozycje i
+  adresy wyników. Czy taka lista adresów jako ślad audytowy mieści się w warunkach dostawców, wymaga potwierdzenia
+  prawnego przed wdrożeniem.
 - **Nie używamy:** Google Custom Search JSON API (zamknięte dla nowych klientów, koniec działania 2027-01-01), Bing Web
   Search API (wycofane 2025-08-11), scraperów wyników Google (SerpApi, Serper), scrapowania DuckDuckGo (ddgs), silników
   scrapujących SearXNG ani wyszukiwarek zwracających wyniki przez model językowy (Exa, Tavily).
