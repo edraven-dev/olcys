@@ -204,8 +204,8 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
 
   /**
    * Run-scoped lists. Collected evidence (captures, observations, accounts, egress log) and the chain analysis derived
-   * from it (transfers, exclusions, activity, cash-outs) are read from the run that collected it — for a rescore, the
-   * rescored run — while candidates, extraction results, links and changes stay per run.
+   * from it (transfers, address types, exclusions, activity, cash-outs) are read from the run that collected it — for a
+   * rescore, the rescored run — while candidates, extraction results, links and changes stay per run.
    */
   const runList = <T>(path: string, load: (runId: string) => Promise<T[]>, scope: 'evidence' | 'run' = 'run') =>
     app.get<{ Params: { runId: string } }>(`/api/runs/:runId/${path}`, async (request, reply) => {
@@ -231,6 +231,8 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
   // Each link carries the analyst judgements recorded next to it (the assessment itself is never changed).
   runList('links', async (id) => withJudgements(repos, id, await repos.analysis.listLinks(id)));
   runList('exclusions', (id) => repos.analysis.listExclusions(id), 'evidence');
+  // Address types behind A2/A3 (EOA, EIP-7702 delegation, Safe, ERC-4337 account, contract…); none without the port.
+  runList('address-types', (id) => repos.addressTypes?.list(id) ?? Promise.resolve([]), 'evidence');
   runList('activity', (id) => repos.analysis.listActivity(id), 'evidence');
   runList('cash-outs', (id) => repos.analysis.listCashOuts(id), 'evidence');
   runList('changes', (id) => repos.analysis.listChanges(id));

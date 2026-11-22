@@ -2,8 +2,9 @@
  * Misattribution rules of `config/rules/exclusion.v1.yaml`. Rules RECLASSIFY instead of discarding: a labelled hot
  * wallet is excluded with its label provenance; an address forwarding deposits to a labelled exchange hot wallet
  * becomes `CUSTODIAL_EXCHANGE` and emits a B1 cash-out seed. An exchange address is never attributed to the person,
- * but the interaction stays recorded. Implemented: A1 (labelled service), A2 (deployed contract code), A3
- * (EIP-7702 delegated account, kept), A4 (exchange deposit address), A8 (deny list).
+ * but the interaction stays recorded. Implemented: A1 (labelled service), A2 (deployed contract code; personal smart
+ * accounts kept), A3 (EIP-7702 delegated account: kept, a known sweeper delegate flagged), A4 (exchange deposit
+ * address), A8 (deny list). A2/A3 read the address type from the classifier (`classifyAddress`).
  */
 import type {
   AddressLabel,
@@ -20,6 +21,7 @@ import type {
 import { chainFamily, findForwardingPairs, forwardingParamsFor, newId } from '@olcys/core';
 import type { DenyList, ExclusionRulesConfig } from './config.ts';
 import { canonicalAddress } from './lookup.ts';
+import { findDelegate, type DelegateInfo } from './registries.ts';
 
 /** Categories that never decide A1: they describe a person's own account or a risk, not a service. */
 const NOT_A_SERVICE: ReadonlySet<EntityCategory> = new Set<EntityCategory>([
@@ -27,28 +29,10 @@ const NOT_A_SERVICE: ReadonlySet<EntityCategory> = new Set<EntityCategory>([
   'scam',
   'sanctioned_entity',
 ]);
-/** EIP-7702 delegation designator: `0xef0100` followed by the 20-byte delegate (23 bytes). */
-const DELEGATION = /^0xef0100([0-9a-f]{40})$/;
-
-/** Address type from `eth_getCode`: `0x` → EOA, EIP-7702 designator → delegated EOA, anything else → contract. */
-export function classifyAddressType(
-  address: AddressRef,
-  code?: string,
-  fetchIds: Id[] = [],
-): AddressTypeClassification {
-  if (chainFamily(address.chain) === 'bitcoin') return { address, type: 'utxo_script', fetchIds };
-  if (code === undefined) return { address, type: 'unknown', fetchIds };
-  const hex = code.toLowerCase();
-  if (hex === '0x' || hex === '') return { address, type: 'eoa', codePrefix: '0x', fetchIds };
-  const delegation = DELEGATION.exec(hex);
-  if (delegation)
-    return { address, type: 'delegated_eoa', codePrefix: '0xef0100', delegate: `0x${delegation[1]}`, fetchIds };
-  return { address, type: 'contract', codePrefix: hex.slice(0, 10), fetchIds };
-}
-
 export interface AddressFacts {
   /** The candidate as extracted (may be `evm:unknown`). */
   address: AddressRef;
+  /** The address type (`classifyAddress`) of the address the chain data was fetched on. */
   classification?: AddressTypeClassification;
   /**
    * The concrete address the chain data was fetched on, for an `evm:unknown` candidate (the chain fetch's explicit
@@ -67,6 +51,8 @@ export interface ExclusionDeps {
   rules: ExclusionRulesConfig;
   denyList: DenyList;
   runId: Id;
+  /** EIP-7702 delegate registry (`loadDelegateRegistry`): A3 names known delegates and flags known sweepers. */
+  delegates?: ReadonlyMap<string, DelegateInfo>;
 }
 
 const sameAddress = (chain: string, a: string, b: string): boolean =>
@@ -79,6 +65,13 @@ function decision(
   fields: Pick<ExclusionDecision, 'outcome' | 'reason' | 'evidence'> & Partial<ExclusionDecision>,
 ): ExclusionDecision {
   return { id: newId(), runId: deps.runId, address, ruleId, rulesVersion: deps.rules.version, ...fields };
+}
+
+/** The fetched network of an `evm:unknown` candidate, recorded with the decisions that rest on its chain data. */
+function resolvedOf(facts: AddressFacts): Pick<ExclusionDecision, 'resolved'> {
+  const resolved = facts.resolved;
+  if (facts.address.chain !== 'evm:unknown' || !resolved || resolved.chain === 'evm:unknown') return {};
+  return { resolved: canonicalAddress(resolved) };
 }
 
 function isDecidingService(label: AddressLabel, trustOrder: readonly string[]): boolean {
@@ -177,6 +170,7 @@ async function a4(facts: AddressFacts, deps: ExclusionDeps): Promise<ExclusionDe
   if (!target) return undefined;
   const distinctSenders = new Set(pairs.map((p) => senders.get(p.receive))).size;
   return decision(deps, facts.address, 'A4', {
+    ...resolvedOf(facts),
     outcome: 'reclassified',
     relation: 'CUSTODIAL_EXCHANGE',
     emitsCashOut: 'B1',
@@ -233,29 +227,66 @@ async function a4(facts: AddressFacts, deps: ExclusionDeps): Promise<ExclusionDe
   });
 }
 
+/** Code evidence of A2/A3: the first bytes and the length of the deployed code. */
+function codeEvidence(c: AddressTypeClassification): Pick<ExclusionDecision['evidence'], 'codePrefix' | 'codeBytes'> {
+  return {
+    ...(c.codePrefix ? { codePrefix: c.codePrefix } : {}),
+    ...(c.codeSize !== undefined ? { codeBytes: c.codeSize } : {}),
+  };
+}
+
+/**
+ * A3: an EIP-7702 delegated account stays a person's account; a delegate the registry lists as a sweeper flags it.
+ * With `recordDelegate: false` the decision names neither the delegate nor its registry entry (the stored address type
+ * still holds the delegate).
+ */
+function a3(facts: AddressFacts, c: AddressTypeClassification, deps: ExclusionDeps): ExclusionDecision {
+  const known = c.delegate && deps.delegates ? findDelegate(deps.delegates, c.address.chain, c.delegate) : undefined;
+  const sweeper = known?.kind === 'sweeper' && deps.rules.a3.flagKnownSweepers;
+  const record = deps.rules.a3.recordDelegate;
+  const named = known
+    ? ` (${known.kind === 'sweeper' ? 'known sweeper' : 'wallet implementation'} "${known.name}")`
+    : '';
+  const delegate = record ? `the delegate ${c.delegate ?? 'unknown'}${named}` : 'the delegate';
+  return decision(deps, facts.address, 'A3', {
+    ...resolvedOf(facts),
+    outcome: sweeper ? 'flagged' : 'kept',
+    reason: sweeper
+      ? `A3: EIP-7702 delegated account; ${delegate} is listed as a sweeper that forwards incoming funds to a third party — the account's key is likely compromised`
+      : `A3: EIP-7702 delegated account (${delegate}); still a person's account`,
+    evidence: {
+      fetchIds: c.fetchIds,
+      ...codeEvidence(c),
+      ...(record && c.delegate ? { delegate: c.delegate } : {}),
+      ...(record && known ? { delegateInfo: { kind: known.kind, name: known.name, source: known.source } } : {}),
+    },
+  });
+}
+
 function a2a3(facts: AddressFacts, deps: ExclusionDeps): ExclusionDecision | undefined {
   const c = facts.classification;
   if (!c) return undefined;
-  const fetchIds = c.fetchIds;
-  if (c.type === 'delegated_eoa') {
-    return decision(deps, facts.address, 'A3', {
-      outcome: 'kept',
-      reason: `A3: EIP-7702 delegated account (delegate ${c.delegate ?? 'unknown'}); still a person's account`,
-      evidence: { fetchIds, codePrefix: '0xef0100', ...(c.delegate ? { delegate: c.delegate } : {}) },
-    });
-  }
+  if (c.type === 'delegated_eoa') return a3(facts, c, deps);
   if (deps.rules.a2.keepAttributable.includes(c.type)) {
+    const detail =
+      c.type === 'safe'
+        ? `Safe singleton ${c.safeMasterCopy ?? 'unknown'}`
+        : c.type === 'erc4337_account'
+          ? `ERC-4337 EntryPoint ${c.entryPoint ?? 'unknown'}`
+          : 'contract code';
     return decision(deps, facts.address, 'A2', {
+      ...resolvedOf(facts),
       outcome: 'kept',
-      reason: `A2: ${c.type} is a personal smart account`,
-      evidence: { fetchIds },
+      reason: `A2: ${c.type} is a personal smart account (${detail}); still attributable`,
+      evidence: { fetchIds: c.fetchIds, ...codeEvidence(c) },
     });
   }
   if (c.type === 'contract' || c.type === 'token_contract') {
     return decision(deps, facts.address, 'A2', {
+      ...resolvedOf(facts),
       outcome: 'excluded',
-      reason: 'A2: eth_getCode returned contract bytecode; a smart contract is not a personal holding',
-      evidence: { fetchIds, ...(c.codePrefix ? { codePrefix: c.codePrefix } : {}) },
+      reason: `A2: the address holds ${c.type === 'token_contract' ? 'token contract' : 'contract'} bytecode (no Safe, ERC-4337 account or EIP-7702 delegation); a smart contract is not a personal holding`,
+      evidence: { fetchIds: c.fetchIds, ...codeEvidence(c) },
     });
   }
   return undefined;

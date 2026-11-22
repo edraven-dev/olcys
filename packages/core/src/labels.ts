@@ -83,13 +83,42 @@ export const ADDRESS_TYPES = [
 ] as const;
 export type AddressType = (typeof ADDRESS_TYPES)[number];
 
+/** Output script type of a UTXO address, derived locally from its encoding. */
+export const UTXO_SCRIPT_TYPES = ['p2pkh', 'p2sh', 'p2wpkh', 'p2wsh', 'p2tr', 'unknown'] as const;
+export type UtxoScriptType = (typeof UTXO_SCRIPT_TYPES)[number];
+
+/** On-chain checks of the address-type classifier, in the order they run. */
+export const ADDRESS_TYPE_PROBES = ['code', 'safe', 'erc4337', 'token', 'implementation'] as const;
+export type AddressTypeProbe = (typeof ADDRESS_TYPE_PROBES)[number];
+
+/**
+ * Address type "as of the recorded chain tip" (state reads use `latest`; a later run may differ). Deployed code alone
+ * does not make an address a service: an EIP-7702 delegated EOA has code yet stays key-controlled, and Safes and
+ * ERC-4337 accounts are often personal wallets.
+ */
 export interface AddressTypeClassification {
   address: AddressRef;
   type: AddressType;
-  /** First bytes of the deployed code, e.g. `0xef0100` for an EIP-7702 delegation. */
+  /** First bytes of the deployed code: `0xef0100` for an EIP-7702 delegation, else the first 4 bytes. */
   codePrefix?: string;
+  /** Length of the deployed code in bytes (`0` for an account without code). */
+  codeSize?: number;
+  /** EIP-7702: the delegate the account's code designates (lower-case). */
   delegate?: string;
+  /** Safe: the singleton (master copy) the proxy keeps in storage slot 0 (lower-case). */
   safeMasterCopy?: string;
+  /** ERC-4337: the EntryPoint the account's `entryPoint()` returns (lower-case). */
+  entryPoint?: string;
+  /** ERC-1967 implementation of a proxy contract (informational, lower-case). */
+  implementation?: string;
+  /** UTXO chains: the script type of the address encoding. */
+  scriptType?: UtxoScriptType;
+  /**
+   * A probe that failed (e.g. rate limited): the type is then the most specific one the completed probes support —
+   * `unknown` when a personal smart account could not be ruled out.
+   */
+  failedProbe?: { probe: AddressTypeProbe; message: string };
+  /** Requests the classification made (contract code first, then every probe), in call order. */
   fetchIds: Id[];
 }
 
@@ -109,6 +138,11 @@ export interface ExclusionDecision {
   id: Id;
   runId: Id;
   address: AddressRef;
+  /**
+   * For a candidate whose EVM network was not attributed (`evm:unknown`): the address on the network its chain data
+   * was fetched on — the address type and transfers behind the decision belong to it.
+   */
+  resolved?: AddressRef;
   ruleId: ExclusionRuleId;
   outcome: 'excluded' | 'reclassified' | 'kept' | 'flagged';
   relation?: Relation;
@@ -145,6 +179,8 @@ export interface ExclusionDecision {
     kycLead?: boolean;
     /** A3: delegate of an EIP-7702 delegated account. */
     delegate?: string;
+    /** A3: the delegate's entry in the delegate registry (a wallet implementation or a known sweeper). */
+    delegateInfo?: { kind: 'wallet_implementation' | 'sweeper'; name: string; source: string };
     /** A2/A3: first bytes and length of the deployed code. */
     codePrefix?: string;
     codeBytes?: number;

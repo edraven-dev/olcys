@@ -39,13 +39,15 @@ import {
 } from '@olcys/chain-adapters';
 import {
   canonicalAddress,
-  classifyAddressType,
   DEMO_CURATED_DATASET,
   effectiveOutcome,
   evaluateExclusions,
+  loadDelegateRegistry,
   loadDenyList,
+  loadEntryPoints,
   loadExclusionRules,
   loadLabelDataset,
+  loadSafeSingletons,
   MemoryLabelLookup,
   prescreenExclusions,
 } from '@olcys/labels';
@@ -69,6 +71,7 @@ import {
 import { createEgressClient, RobotsCache } from '@olcys/http';
 import { createReportStage } from '@olcys/reporting';
 import { loadWeights, scoreRun } from '@olcys/scoring';
+import { classifyFetched } from './address-types.ts';
 import { withAnalystOverrides } from './analyst.ts';
 import { incompleteHistories, isOwnStatement, transfersOf } from './chain-data.ts';
 import { REPO_ROOT, TOOL_VERSION } from './config.ts';
@@ -271,7 +274,8 @@ const CHAIN_STAGE_KINDS: ReadonlySet<SourceKind> = new Set<SourceKind>(['chain_d
 
 /**
  * Chain analysis: pre-screen (deny list, labels), chain data through the egress client (fixture site offline),
- * exclusions A1/A2/A4/A8, one-hop expansion of recipients, activity, cash-out indicators valued in PLN (NBP).
+ * address types (code and probes through the same providers), exclusions A1–A4/A8, one-hop expansion of recipients,
+ * activity, cash-out indicators valued in PLN (NBP).
  * Only the providers the case enables receive its addresses (AMBER ones with the analyst's justification).
  * Exchange addresses are never attributed to the person, but their interactions are recorded.
  */
@@ -279,17 +283,29 @@ export function createChainStage(options: StageOptions): Stage {
   const env = options.env ?? process.env;
   const sourceRegistry = lazy<SourceRegistry>(() => loadSourceRegistry());
   const setup = lazy(async () => {
-    const [sourcesText, providersText, labelsText, exclusionText, denyText, cashOutText, scoreText, pricesText] =
-      await Promise.all([
-        read('config/sources.yaml'),
-        read('config/chain-providers.yaml'),
-        read('fixtures/labels/demo-curated.json'),
-        read('config/rules/exclusion.v1.yaml'),
-        read('config/rules/deny-list.v1.yaml'),
-        read('config/rules/cashout.v1.yaml'),
-        read('config/rules/cashout-score.v1.yaml'),
-        read('fixtures/prices/demo-prices.v1.json'),
-      ]);
+    const [
+      sourcesText,
+      providersText,
+      labelsText,
+      exclusionText,
+      denyText,
+      cashOutText,
+      scoreText,
+      pricesText,
+      delegatesText,
+      entryPointsText,
+    ] = await Promise.all([
+      read('config/sources.yaml'),
+      read('config/chain-providers.yaml'),
+      read('fixtures/labels/demo-curated.json'),
+      read('config/rules/exclusion.v1.yaml'),
+      read('config/rules/deny-list.v1.yaml'),
+      read('config/rules/cashout.v1.yaml'),
+      read('config/rules/cashout-score.v1.yaml'),
+      read('fixtures/prices/demo-prices.v1.json'),
+      read('config/labels/eip7702-delegates.v1.yaml'),
+      read('config/labels/erc4337-entrypoints.v1.yaml'),
+    ]);
     let providers = loadChainProviderConfig(providersText, parseYaml(sourcesText));
     const fixture = env['OLCYS_FIXTURE_BASE_URL'] ?? env['FIXTURE_SITE_URL'];
     if (options.mode !== 'live' && fixture) {
@@ -306,6 +322,9 @@ export function createChainStage(options: StageOptions): Stage {
       cashOutRules: loadCashOutRules(cashOutText),
       score: loadCashOutScoreConfig(scoreText),
       prices: createSeriesPriceSource(loadPriceDataset(pricesText)),
+      delegates: loadDelegateRegistry(delegatesText),
+      entryPoints: loadEntryPoints(entryPointsText),
+      safeSingletons: loadSafeSingletons(),
     };
   });
 
@@ -366,7 +385,7 @@ export function createChainStage(options: StageOptions): Stage {
         }
       }
       const candidates = [...byKey.values()];
-      const exclusionDeps = { labels, rules: c.rules, denyList: c.denyList, runId };
+      const exclusionDeps = { labels, rules: c.rules, denyList: c.denyList, runId, delegates: c.delegates };
 
       // 1. Pre-screen: deny list and labels decide without chain data.
       const toFetch: AddressRef[] = [];
@@ -391,6 +410,17 @@ export function createChainStage(options: StageOptions): Stage {
         const canonical = canonicalAddress(a);
         return fetched.resolved.find((r) => addressKey(r.requested) === addressKey(canonical))?.resolved ?? canonical;
       };
+      // Address types (A2/A3) of the fetched addresses, "as of the recorded chain tip"; stored with the run.
+      const assets = createAssetRegistry();
+      const types = await classifyFetched(
+        toFetch.map(resolvedOf),
+        fetched,
+        { providers, labels, assets, safeSingletons: c.safeSingletons, entryPoints: c.entryPoints },
+        runCtx,
+      );
+      await ctx.repos.addressTypes?.add(runId, [...types.values()]);
+      const unprobed = [...types.values()].filter((t) => t.failedProbe).length;
+      if (unprobed) ctx.markPartial(`address type probes failed for ${unprobed} address(es)`);
       /** One key per on-chain account: the chain (as fetched for `evm:unknown`) and the canonical address. */
       const targetOf = (a: AddressRef): string => addressKey(resolvedOf(a));
       const published = new Set(
@@ -399,14 +429,14 @@ export function createChainStage(options: StageOptions): Stage {
       const decisions: ExclusionDecision[] = [];
       for (const candidate of candidates) {
         const resolved = resolvedOf(candidate);
-        const code = fetched.codes.find((x) => addressKey(x.address) === addressKey(resolved));
+        const classification = types.get(addressKey(resolved));
         decisions.push(
           // oxlint-disable-next-line no-await-in-loop
           ...(await evaluateExclusions(
             {
               address: candidate,
               ...(candidate.chain === 'evm:unknown' ? { resolved } : {}),
-              ...(code ? { classification: classifyAddressType(resolved, code.code, [code.fetchId]) } : {}),
+              ...(classification ? { classification } : {}),
               transfers: transfersOf(resolved, fetched.transfers, fetched.utxoTxs),
               published: published.has(targetOf(candidate)),
             },
@@ -430,7 +460,6 @@ export function createChainStage(options: StageOptions): Stage {
         analysed.map((a) => [addressKey(a), transfersOf(a, fetched.transfers, fetched.utxoTxs)]),
       );
       const ownTransfers = (a: AddressRef): NormalizedTransfer[] => transfersByKey.get(addressKey(a)) ?? [];
-      const assets = createAssetRegistry();
       const analysedKeys = new Set(analysed.map(addressKey));
       const expansion = new Map<string, AddressRef>();
       for (const a of analysed) {
@@ -495,6 +524,7 @@ export function createChainStage(options: StageOptions): Stage {
       await ctx.progress({
         chainProviders: chainSources,
         chainAddresses: analysed.length,
+        addressTypes: types.size,
         exclusions: decisions.length,
         cashOutEvents: events.length,
       });

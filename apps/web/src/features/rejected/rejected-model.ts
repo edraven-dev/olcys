@@ -1,7 +1,10 @@
 /** Pure helpers for the rejected-addresses panel. */
 import type {
   AddressCandidate,
+  AddressRef,
+  AddressTypeClassification,
   Capture,
+  ExclusionDecision,
   ExtractionResult,
   Observation,
   OnlineAccount,
@@ -9,6 +12,24 @@ import type {
   TextSpan,
   TextView,
 } from '@olcys/core';
+
+/**
+ * The address type behind a decision: the classification of the address its chain data was fetched on (`resolved` for
+ * a candidate without an attributed EVM network), else the one whose requests the decision cites (A2/A3 record the
+ * classification's fetch ids). Never chosen by list order: without either, no type is shown.
+ */
+export function addressTypeFor(
+  decision: Pick<ExclusionDecision, 'address' | 'resolved'> & { evidence: { fetchIds?: string[] } },
+  types: readonly AddressTypeClassification[],
+): AddressTypeClassification | undefined {
+  const ref: AddressRef = decision.resolved ?? decision.address;
+  const evm = ref.chain.startsWith('evm:');
+  const same = (a: string) => (evm ? a.toLowerCase() === ref.address.toLowerCase() : a === ref.address);
+  const exact = types.find((c) => c.address.chain === ref.chain && same(c.address.address));
+  if (exact) return exact;
+  const cited = new Set(decision.evidence.fetchIds ?? []);
+  return cited.size ? types.find((c) => c.fetchIds.some((id) => cited.has(id))) : undefined;
+}
 
 /** Context cues that mark a mention as someone else's statement (warnings, scam reports, quotes). */
 const THIRD_PARTY_CUES: ReadonlySet<RoleCue> = new Set(['scam_report', 'warning', 'quote']);

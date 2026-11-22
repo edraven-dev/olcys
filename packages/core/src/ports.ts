@@ -160,6 +160,13 @@ export interface TransferPage {
   skipped?: { txHash: string; reason: 'unsupported_decimals' | 'invalid_amount' }[];
 }
 
+/** Result of a read-only contract call (`eth_call` at `latest`). A revert is an answer, not an error. */
+export type ChainCallResult =
+  /** The call returned; `data` is the return data, lower-case hex (`0x` when empty). */
+  | { status: 'ok'; data: string; fetchId: Id }
+  /** The call reverted (e.g. the contract has no such function): a negative probe. */
+  | { status: 'reverted'; fetchId: Id };
+
 /** One blockchain data provider (packages/chain-adapters). Same interface for public APIs and self-hosted nodes. */
 export interface ChainProvider {
   readonly id: string;
@@ -176,7 +183,12 @@ export interface ChainProvider {
     options: { cursor?: string; limit?: number },
     ctx: RunContext,
   ): Promise<{ items: UtxoTransaction[]; nextCursor?: string }>;
+  /** Deployed code at the recorded tip, lower-case hex (`0x` for an account without code). */
   getCode?(address: AddressRef, ctx: RunContext): Promise<{ code: string; fetchId: Id }>;
+  /** EVM: one storage word at `latest` (`slot` as a hex quantity, e.g. `0x0`); the value is a lower-case hex word. */
+  getStorageAt?(address: AddressRef, slot: string, ctx: RunContext): Promise<{ value: string; fetchId: Id }>;
+  /** EVM: read-only call of the address with ABI-encoded `data` (e.g. a 4-byte selector) at `latest`. */
+  call?(address: AddressRef, data: string, ctx: RunContext): Promise<ChainCallResult>;
 }
 
 /** Label lookup valid at a point in time (labels and PoR lists rotate). */

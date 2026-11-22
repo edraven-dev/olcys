@@ -218,7 +218,10 @@ dla etapu:  W = log2(szanse a priori) + Σ log2(BF′),   BF′ = ρ·BF + (1 �
 
 Reguły odrzucania A1–A8 (`config/rules/exclusion.v1.yaml`) przeklasyfikowują zamiast usuwać: adres depozytowy giełdy
 nie jest środkami badanej osoby, ale jej przelew na ten adres jest najsilniejszą dostępną w otwartych danych przesłanką
-wyjścia do walut tradycyjnych (B1), a adres depozytowy, który osoba sama _opublikowała_, to trop KYC. Reguły B1–B7
+wyjścia do walut tradycyjnych (B1), a adres depozytowy, który osoba sama _opublikowała_, to trop KYC. Reguły A2/A3
+opierają się na typie adresu ustalanym deterministycznymi odczytami stanu łańcucha (kod, slot Safe, `entryPoint()`,
+sondy tokena; „stan na zapisany szczyt łańcucha”, zapis przy przebiegu): od EIP-7702 sam kod pod adresem nie oznacza
+kontraktu usługi — konto EOA z delegacją, konto Safe i konto ERC-4337 mogą należeć do osoby. Reguły B1–B7
 (`config/rules/cashout.v1.yaml`) dają osobny wskaźnik wyjścia do fiat; wartości liczone są w PLN według kursu
 średniego NBP (tabela A) z ostatniego dnia roboczego przed transakcją.
 

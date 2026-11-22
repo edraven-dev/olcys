@@ -1,5 +1,6 @@
 import type { Repositories } from '@olcys/core';
 import type { Db } from '../client.ts';
+import { sqlAddressTypeRepository } from './address-types.ts';
 import { sqlAnalysisRepository, sqlChainDataRepository, sqlLabelRepository } from './analysis.ts';
 import { sqlJudgementRepository, sqlOverrideRepository } from './analyst.ts';
 import { sqlCaseRepository } from './cases.ts';
@@ -15,6 +16,7 @@ export function createSqlRepositories(db: Db): Repositories {
     runs: sqlRunRepository(db),
     evidence: sqlEvidenceRepository(db),
     chain: sqlChainDataRepository(db),
+    addressTypes: sqlAddressTypeRepository(db),
     analysis: sqlAnalysisRepository(db),
     labels: sqlLabelRepository(db),
     schedules: sqlScheduleRepository(db),
@@ -24,6 +26,7 @@ export function createSqlRepositories(db: Db): Repositories {
   };
 }
 
+export { sqlAddressTypeRepository } from './address-types.ts';
 export { sqlAnalysisRepository, sqlChainDataRepository, sqlLabelRepository } from './analysis.ts';
 export { sqlJudgementRepository, sqlOverrideRepository } from './analyst.ts';
 export { sqlCaseRepository } from './cases.ts';

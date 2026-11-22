@@ -3,6 +3,7 @@ import type {
   AddressCandidate,
   AddressLabel,
   AddressRef,
+  AddressTypeClassification,
   AnalystOverride,
   ExclusionDecision,
   FeatureContribution,
@@ -530,6 +531,70 @@ function labelFact(l: AddressLabel, other: boolean): SafeHtml {
   });
 }
 
+/**
+ * The address type behind a decision: the classification of the address the decision's chain data was fetched on
+ * (`resolved` for a candidate without an attributed EVM network), else the one whose requests the decision cites
+ * (A2/A3 record the classification's fetch ids). Never chosen by list order: without either, no type is shown.
+ */
+function addressTypeOf(view: View, e: ExclusionDecision): AddressTypeClassification | undefined {
+  const types = view.data.addressTypes ?? [];
+  const ref = e.resolved ?? e.address;
+  const exact = types.find((c) => sameRef(c.address, ref));
+  if (exact) return exact;
+  const cited = new Set(e.evidence?.fetchIds ?? []);
+  return cited.size ? types.find((c) => c.fetchIds.some((id) => cited.has(id))) : undefined;
+}
+
+/** What the address type rests on: code, delegate (with its registry entry), Safe singleton, EntryPoint, proxy. */
+function addressTypeDetails(c: AddressTypeClassification, e: ExclusionDecision): SafeHtml[] {
+  const x = pl.addressType;
+  const known = e.evidence?.delegateInfo;
+  return [
+    c.codeSize === 0 ? t(x.noCode) : undefined,
+    c.codePrefix && c.codeSize ? t(x.code, { prefix: c.codePrefix, bytes: c.codeSize }) : undefined,
+    c.delegate && known
+      ? t(x.delegateKnown, {
+          address: addr(c.delegate),
+          kind: x.delegateKinds[known.kind] ?? known.kind,
+          name: known.name,
+          source: known.source,
+        })
+      : c.delegate
+        ? t(x.delegate, { address: addr(c.delegate) })
+        : undefined,
+    c.safeMasterCopy ? t(x.safeMasterCopy, { address: addr(c.safeMasterCopy) }) : undefined,
+    c.entryPoint ? t(x.entryPoint, { address: addr(c.entryPoint) }) : undefined,
+    c.implementation ? t(x.implementation, { address: addr(c.implementation) }) : undefined,
+    c.scriptType ? t(x.scriptType, { script: c.scriptType.toUpperCase() }) : undefined,
+    c.failedProbe ? t(x.failedProbe, { probe: x.probes[c.failedProbe.probe] ?? c.failedProbe.probe }) : undefined,
+  ].filter((d): d is SafeHtml => d !== undefined);
+}
+
+/** The address type of a rejected address with what it rests on (an entry of the card's computed results). */
+function addressTypeEntries(view: View, e: ExclusionDecision): SafeHtml[] {
+  const c = addressTypeOf(view, e);
+  if (!c) return [];
+  const details = addressTypeDetails(c, e);
+  return [
+    markup`${t(pl.addressType.line, { type: markup`<strong>${pl.addressTypes[c.type] ?? c.type}</strong>` })}${
+      details.length ? markup`<br>${muted(join(details, '; '))}` : ''
+    }`,
+  ];
+}
+
+/**
+ * ` · typ adresu: …` with the same details after a decision in the lists of warnings and checked addresses, so a kept
+ * Safe or ERC-4337 account shows why it stayed attributable.
+ */
+function addressTypeSuffix(view: View, e: ExclusionDecision): SafeHtml {
+  const c = addressTypeOf(view, e);
+  if (!c) return markup``;
+  const details = addressTypeDetails(c, e);
+  return markup` · ${t(pl.addressType.short, { type: pl.addressTypes[c.type] ?? c.type })}${
+    details.length ? markup`<br>${muted(join(details, '; '))}` : ''
+  }`;
+}
+
 function exclusionCard(view: View, e: ExclusionDecision): SafeHtml {
   const address = e.address.address;
   const labelIds = new Set(e.evidence?.labelIds ?? []);
@@ -553,6 +618,7 @@ function exclusionCard(view: View, e: ExclusionDecision): SafeHtml {
       e.relation ? t(pl.rejected.newRelation, { relation: pl.relations[e.relation] ?? e.relation }) : '',
       typeof e.evidence?.kappa === 'number' ? t(pl.rejected.kappa, { kappa: formatProbability(e.evidence.kappa) }) : '',
       txHashes.length ? t(pl.rejected.transactions, { hashes: join(txHashes.map(hash), ', ') }) : '',
+      ...addressTypeEntries(view, e),
       t(pl.rejected.score, { band: bandBadge('excluded') }),
       count > 0
         ? t(pl.rejected.interactions, { count: plural(count, pl.counts.transfers) })
@@ -621,7 +687,7 @@ export function rejectedSection(view: View): SafeHtml {
                   markup`${addr(e.address.address)} (${chainName(e.address.chain)}) — ${t(pl.rejected.rule, {
                     id: e.ruleId,
                     name: pl.exclusionRules[e.ruleId] ?? e.ruleId,
-                  })}: ${pl.outcomes[e.outcome]}${
+                  })}: ${pl.outcomes[e.outcome]}${addressTypeSuffix(view, e)}${
                     view.roleOf(e.address).kind === 'linked' ? markup` · ${pl.rejected.flaggedLinked}` : ''
                   }${technical(t(pl.rejected.reason, { reason: e.reason, version: e.rulesVersion }))}`,
               ),
@@ -635,7 +701,7 @@ export function rejectedSection(view: View): SafeHtml {
                 markup`${addr(e.address.address)} — ${t(pl.rejected.rule, {
                   id: e.ruleId,
                   name: pl.exclusionRules[e.ruleId] ?? e.ruleId,
-                })}: ${pl.outcomes[e.outcome]}`,
+                })}: ${pl.outcomes[e.outcome]}${addressTypeSuffix(view, e)}`,
             ),
           )}`
         : '',

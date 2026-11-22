@@ -335,6 +335,16 @@
       "path": "/chain/etherscan/v2/api",
       "params": {
         "chainid": "1",
+        "module": "proxy",
+        "action": "eth_call",
+        "to": "0x959dc8ea38d76ccdd3765ac138d3167da615fe27"
+      },
+      "file": "chain/etherscan/call-revert.json"
+    },
+    {
+      "path": "/chain/etherscan/v2/api",
+      "params": {
+        "chainid": "1",
         "module": "account",
         "action": "txlist"
       },
@@ -381,9 +391,31 @@
       "params": {
         "chainid": "1",
         "module": "proxy",
+        "action": "eth_getStorageAt"
+      },
+      "file": "chain/etherscan/storage-zero.json"
+    },
+    {
+      "path": "/chain/etherscan/v2/api",
+      "params": {
+        "chainid": "1",
+        "module": "proxy",
+        "action": "eth_call"
+      },
+      "file": "chain/etherscan/call-empty.json"
+    },
+    {
+      "path": "/chain/etherscan/v2/api",
+      "params": {
+        "chainid": "1",
+        "module": "proxy",
         "action": "eth_blockNumber"
       },
       "file": "chain/etherscan/block-number.json"
+    },
+    {
+      "path": "/chain/trongrid/wallet/getcontract",
+      "file": "chain/trongrid/wallet/getcontract-none.json"
     }
   ]
 }

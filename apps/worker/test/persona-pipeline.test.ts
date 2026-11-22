@@ -129,6 +129,15 @@ describe('demo scenario on the synthetic persona', () => {
         cashOuts.filter((e) => e.address.address.toLowerCase() === addressOf(slot)).map((e) => e.ruleId);
       for (const { slot, rule } of manifest.expected.v1.cashOut)
         expect([slot, cashOutOf(slot)]).toEqual([slot, expect.arrayContaining([rule])]);
+      // Address types are stored with the run: CONTRACT-1 stays a plain contract (every probe negative), the persona's
+      // accounts stay EOAs, Bitcoin is classified locally.
+      const types = await runtime.repos.addressTypes!.list(first.id);
+      const typeOf = (slot: string) => types.find((c) => c.address.address.toLowerCase() === addressOf(slot));
+      expect(typeOf('CONTRACT-1')).toMatchObject({ type: 'contract', address: { chain: 'evm:1' } });
+      expect(typeOf('CONTRACT-1')?.fetchIds).toHaveLength(5);
+      for (const slot of ['ETH-1', 'ETH-2', 'TRON-1']) expect([slot, typeOf(slot)?.type]).toEqual([slot, 'eoa']);
+      expect(typeOf('BTC-1')).toMatchObject({ type: 'utxo_script', scriptType: 'p2wpkh', fetchIds: [] });
+      expect(types.filter((c) => c.failedProbe)).toEqual([]);
       // Exchange deposits and contracts are never attributed: score 0.
       expect(score('ETH-1').every((s) => s === 0)).toBe(true);
       expect(score('CONTRACT-1').every((s) => s === 0)).toBe(true);
@@ -141,8 +150,9 @@ describe('demo scenario on the synthetic persona', () => {
       const html = new TextDecoder().decode(await runtime.blobs.get(report!.blobSha256));
       expect(html).toContain('lang="pl"');
       expect(html).toContain(manifest.addresses['BTC-1']!.address);
-      // The exchange label that rejected the deposit address is shown with it.
+      // The exchange label that rejected the deposit address is shown with it, the contract with its address type.
       expect(html).toContain('Giełda Testowa (SYNTHETIC)');
+      expect(html).toContain('Typ adresu: <strong>kontrakt</strong>');
 
       // Every capture has its manifest blob (verifiable down to the artifacts) and exactly one `collected` custody event.
       const captures = await runtime.repos.evidence.listCaptures(first.id);
