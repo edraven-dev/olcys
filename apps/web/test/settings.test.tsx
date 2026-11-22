@@ -72,6 +72,7 @@ describe('settings page', () => {
     expect(content).toContain('x_twitter');
     expect(content).toContain('Regulamin zabrania automatycznego pobierania.');
     expect(content).toContain('czerwone (nigdy nie odpytywane): 1');
+    expect(content).toContain('Zostają w rejestrze celowo');
   });
 
   it('shows the telemetry opt-outs and whether they are set', () => {

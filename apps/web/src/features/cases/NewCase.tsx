@@ -21,7 +21,8 @@ import {
 } from './case-form.ts';
 
 const IDENTIFIER_KINDS = Object.keys(pl.identifierKinds) as IdentifierKind[];
-const COMPLIANCE_ORDER: readonly ComplianceStatus[] = ['GREEN', 'AMBER', 'RED'];
+/** RED sources are not an option: the form shows only their count and links to the register that explains them. */
+const SELECTABLE_STATUSES: readonly ComplianceStatus[] = ['GREEN', 'AMBER'];
 const PLATFORM_SUGGESTIONS = ['bitcointalk', 'wykop', 'github', 'telegram', 'keybase', 'nostr', 'farcaster', 'ens'];
 
 export function NewCasePage() {
@@ -236,7 +237,7 @@ export function CaseForm({ sources }: { sources: SourceItem[] }) {
         <legend>{pl.caseForm.sectionScope}</legend>
         <h2 className="h3">{pl.caseForm.sources}</h2>
         {errors['sources'] ? <p className="field-error">{errors['sources']}</p> : null}
-        {COMPLIANCE_ORDER.map((status) => (
+        {SELECTABLE_STATUSES.map((status) => (
           <SourceGroup
             key={status}
             status={status}
@@ -248,6 +249,7 @@ export function CaseForm({ sources }: { sources: SourceItem[] }) {
             onJustify={(id, text) => update({ justifications: { ...state.justifications, [id]: text } })}
           />
         ))}
+        <RedSourcesNote count={sources.filter((s) => s.compliance === 'RED').length} />
 
         <fieldset className="nested">
           <legend>{pl.caseForm.chains}</legend>
@@ -452,33 +454,29 @@ function SourceGroup({
 }) {
   if (sources.length === 0) return null;
   return (
-    <details className={`source-group source-group-${status.toLowerCase()}`} open={status !== 'RED'}>
+    <details className={`source-group source-group-${status.toLowerCase()}`} open>
       <summary>
         <ComplianceBadge status={status} /> {pl.caseForm.group[status]} ({sources.length})
       </summary>
       <ul className="source-list">
         {sources.map((source) => {
           const id = `${idBase}-${source.id}`;
-          const locked = status === 'RED';
-          const checked = !locked && Boolean(state.enabled[source.id]);
+          const checked = Boolean(state.enabled[source.id]);
           const error = errors[`source.${source.id}`];
           return (
-            <li key={source.id} className={`source-item${locked ? ' locked' : ''}`}>
+            <li key={source.id} className="source-item">
               <label className="check" htmlFor={id}>
                 <input
                   id={id}
                   type="checkbox"
                   checked={checked}
-                  disabled={locked}
                   aria-describedby={`${id}-note`}
                   onChange={(e) => onToggle(source.id, e.target.checked)}
                 />
-                {locked ? <Icon name="lock" /> : null}
                 <span className="source-name">{t(pl.caseForm.enableSource, { name: source.name })}</span>
               </label>
               <p id={`${id}-note`} className="hint">
-                <span className="tag">{pl.sourceKinds[source.kind] ?? source.kind}</span>{' '}
-                {locked ? t(pl.caseForm.redLocked, { note: source.complianceNote }) : source.complianceNote}
+                <span className="tag">{pl.sourceKinds[source.kind] ?? source.kind}</span> {source.complianceNote}
                 {source.sendsIdentifiersExternally ? (
                   <span className="tag tag-warn">
                     <Icon name="warn" />
@@ -517,5 +515,16 @@ function SourceGroup({
         })}
       </ul>
     </details>
+  );
+}
+
+/** Why RED sources are missing from the form: never contacted, hosts blocked, reasons in the source register. */
+function RedSourcesNote({ count }: { count: number }) {
+  if (count === 0) return null;
+  return (
+    <p className="hint red-sources-note">
+      <Icon name="lock" /> {t(pl.caseForm.redExcluded, { count })}{' '}
+      <Link to={routePath({ name: 'settings' })}>{pl.caseForm.redExcludedLink}</Link>
+    </p>
   );
 }

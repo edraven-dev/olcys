@@ -196,7 +196,9 @@ export const pl = {
     enableSource: 'Włącz: {name}',
     amberJustification: 'Uzasadnienie włączenia źródła {name}',
     amberJustificationHint: 'Co najmniej 20 znaków. Uzasadnienie zostanie zapisane w sprawie i w raporcie.',
-    redLocked: 'Zablokowane: {note}',
+    redExcluded:
+      'Źródła RED ({count}) nie są opcją wyboru: nigdy nie są odpytywane, a klient sieciowy blokuje ich hosty dla każdego zapytania. Powody wykluczenia:',
+    redExcludedLink: 'Ustawienia → Rejestr źródeł',
     disclosesIdentifier: 'Zapytanie ujawnia identyfikator podmiotowi zewnętrznemu',
     reliability: 'Wiarygodność źródła: {grade}',
     tos: 'Regulamin: {url}',
@@ -1595,6 +1597,8 @@ export const pl = {
       loadError: 'Nie udało się wczytać rejestru źródeł.',
       summary:
         'Zarejestrowane źródła: {total}; zielone: {green}, bursztynowe: {amber}, czerwone (nigdy nie odpytywane): {red}.',
+      redRole:
+        'Źródła RED zostały ocenione i odrzucone (regulamin, wymagane logowanie, płatny dostęp). Zostają w rejestrze celowo: dokumentują decyzję, a ich hosty są na liście blokad klienta sieciowego, więc żadne zapytanie, przekierowanie ani adapter ich nie odpyta.',
       columns: {
         name: 'Źródło',
         status: 'Status',

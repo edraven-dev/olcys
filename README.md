@@ -102,7 +102,8 @@ Obecnie zawiera 19 źródeł GREEN, 12 AMBER i 10 RED.
 - **AMBER**: domyślnie wyłączone; analityk włącza je w sprawie z uzasadnieniem (np. Bitcointalk, BitList, GitHub,
   Maigret, podgląd Telegrama, Wykop, Brave i Mojeek, Etherscan V2, TronGrid, Farcaster, publiczny RPC Solany).
 - **RED**: nigdy nie są kontaktowane (np. LinkedIn, Facebook/Instagram, X, Reddit, Discord, OLX, Allegro); kod blokuje
-  ich hosty także wtedy, gdy podano je jako dodatkowe.
+  ich hosty także wtedy, gdy podano je jako dodatkowe. Formularz sprawy ich nie oferuje. Wpisy RED zostają w rejestrze
+  celowo: dokumentują ocenione i odrzucone źródła (z powodem), a ich hosty tworzą listę blokad klienta sieciowego.
 
 Pełne tabele (limity zapytań, ujawnianie identyfikatora, ocena wiarygodności, regulamin, uzasadnienie) są w
 [`docs/compliance/sources.md`](docs/compliance/sources.md). Generuje je
@@ -294,7 +295,7 @@ Zrzuty i film `olcys-demo.mp4` (katalog główny repozytorium) pokazują dane sy
 _Lista spraw._
 
 ![Formularz nowej sprawy](docs/assets/screenshots/02-nowa-sprawa.png)
-_Nowa sprawa: identyfikatory, kotwica, zakres źródeł GREEN/AMBER/RED, sieci i głębokość rozwijania._
+_Nowa sprawa: identyfikatory, kotwica, zakres źródeł GREEN/AMBER (RED nie są opcją wyboru), sieci i głębokość rozwijania._
 
 ![Przebieg analizy](docs/assets/screenshots/03-przebieg.png)
 _Przebieg analizy: etapy, liczniki i wynik._
