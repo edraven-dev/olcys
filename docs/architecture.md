@@ -107,7 +107,9 @@ oceną), więc krok `diff.previous` pokazuje, co się zmieniło (np. podmianę a
 - **Idempotencja.** Każdy obsłużony termin to jeden wpis `schedule_tick` z unikalnym identyfikatorem zadania
   `<id sprawy>@<termin ISO>`. Wstawienie wpisu zajmuje termin: termin już obsłużony nigdy nie uruchamia drugiego
   przebiegu — także przy kilku procesach API korzystających z jednej bazy (blokada doradcza sprawy w transakcji, która
-  zapisuje wpis razem z przebiegiem).
+  zapisuje wpis razem z przebiegiem). Decyzja zapada pod tą blokadą na bieżącym stanie sprawy, a zmiana harmonogramu
+  bierze tę samą blokadę: termin, który przestał być należny (harmonogram zmieniono po jego wyborze, termin nie pasuje
+  do bieżącego wyrażenia albo obsłużono już późniejszy termin), nie jest obsługiwany i nie zostawia wpisu.
 - **Bez nakładania się przebiegów.** Gdy przebieg sprawy jest w stanie `queued` lub `running`, termin jest pomijany
   (`skipped_overlap`); przy wyłączonym harmonogramie — `skipped_disabled`; w zamkniętej sprawie — `skipped_case_closed`.
 - **Nadrabianie po przerwie.** Po przestoju uruchamiany jest najwyżej jeden przebieg — dla najpóźniejszego opuszczonego

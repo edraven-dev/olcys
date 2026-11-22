@@ -74,6 +74,9 @@ export function minIntervalFor(mode: FetchMode, liveMinimumMinutes: number): num
   return mode === 'live' ? liveMinimumMinutes : 1;
 }
 
+/** Days per month, February with its leap day. */
+const MONTH_LENGTHS = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31] as const;
+
 /**
  * Whether two consecutive days can both match. Values that are hard to rule out (last day of the month, last weekday)
  * count as possible, which errs on the strict side.
@@ -90,8 +93,16 @@ function consecutiveDaysPossible(fields: CronFieldCollection): boolean {
     return [...weekdays].some((day) => weekdays.has((day + 1) % 7));
   }
   const days = new Set(restricted.values.map(Number));
-  // The next day of the month, or the 1st after the last day of a month.
-  return [...days].some((day) => days.has(day + 1)) || (days.has(1) && [...days].some((day) => day >= 28));
+  const months = new Set(fields.month.values.map(Number));
+  for (const month of months) {
+    const length = MONTH_LENGTHS[month - 1] ?? 31;
+    // Two consecutive days of the same month.
+    if ([...days].some((day) => day < length && days.has(day + 1))) return true;
+    // The month's last day (the 28th or the 29th in February) and the 1st of the next month (December → January).
+    const lastDays = month === 2 ? [28, 29] : [length];
+    if (days.has(1) && months.has((month % 12) + 1) && lastDays.some((day) => days.has(day))) return true;
+  }
+  return false;
 }
 
 /**
@@ -153,6 +164,13 @@ export function validateCron(
 export function nextOccurrences(cron: string, after: Date, count: number): IsoDateTime[] {
   const parsed = parseCron(cron, after);
   return parsed.ok ? (upcoming(parsed.expression, count)?.map((date) => date.toISOString()) ?? []) : [];
+}
+
+/** Whether `at` is an occurrence of the expression. */
+export function isOccurrence(cron: string, at: IsoDateTime): boolean {
+  const date = new Date(at);
+  const latest = latestOccurrence(cron, date);
+  return latest !== undefined && Date.parse(latest) === date.getTime();
 }
 
 /** The latest occurrence at or before `notAfter`. */

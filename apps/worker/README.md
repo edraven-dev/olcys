@@ -22,7 +22,7 @@ zgłoszone przez etapy (`markPartial`) są od razu zapisywane w `progress.partia
   „Analizy okresowe”): `start()` uzgadnia stan z bazą (`reconcile()`), od razu obsługuje termin do nadrobienia, a potem
   sprawdza harmonogramy co `OLCYS_SCHEDULER_INTERVAL_SECONDS`; `stop()` czeka na trwające sprawdzenie. `evaluate()`
   i `fire(caseId, termin)` obsługują terminy (jeden wpis `schedule_tick` na termin, bez nakładania się przebiegów
-  sprawy). Uruchamia go proces API.
+  sprawy; termin, który przestał być należny dla bieżącego harmonogramu, nie jest obsługiwany). Uruchamia go proces API.
 - `validateCron(cron, { mode, minIntervalMinutes, now })` — sprawdza wyrażenie cron (pięć pól, UTC; bez makr, pola
   sekund, `H`, RRULE i jednoczesnego ograniczenia obu pól dnia; w trybie `live` minimalny odstęp terminów) i zwraca trzy
   najbliższe terminy; `latestOccurrence()` i `nextOccurrences()` liczą terminy (cron-parser).

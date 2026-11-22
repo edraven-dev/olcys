@@ -1,6 +1,7 @@
 /**
  * SQL schedules: the case schedule with its change log, ticks claimed once per occurrence (also from two connection
- * pools, as two API processes would), the overlap guard under concurrency, and append-only privileges.
+ * pools, as two API processes would), decisions on the current schedule under the per-case lock that schedule changes
+ * share, the overlap guard under concurrency, and append-only privileges.
  */
 import type {
   AnalysisRun,
@@ -11,6 +12,7 @@ import type {
   ScheduleTickDecision,
 } from '@olcys/core';
 import { newId } from '@olcys/core';
+import { sql } from 'kysely';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createDb, createSqlRepositories, migrate, sqlScheduleRepository, type Db } from '../src/index.ts';
 
@@ -27,12 +29,14 @@ const CONFIG: RunConfigSnapshot = {
 };
 const REASON = 'weryfikacja okresowa';
 
-/** The scheduler's decision, restated: packages never import the worker. */
+/** The scheduler's decision, restated without the cron match: packages never import the worker. */
 const decide =
-  (firedAt: string) =>
+  (scheduledFor: string) =>
   (context: ScheduleTickContext): ScheduleTickDecision => {
     if (context.case.status === 'closed') return { outcome: 'skipped_case_closed' };
     if (!context.case.schedule?.enabled) return { outcome: 'skipped_disabled' };
+    const after = Math.max(Date.parse(context.changedAt), Date.parse(context.lastScheduledFor ?? context.changedAt));
+    if (Date.parse(scheduledFor) <= after) return { outcome: 'not_due' };
     if (context.activeRunIds.length) return { outcome: 'skipped_overlap' };
     const run: AnalysisRun = {
       id: newId(),
@@ -42,7 +46,7 @@ const decide =
       mode: 'offline',
       status: 'queued',
       config: CONFIG,
-      queuedAt: firedAt,
+      queuedAt: scheduledFor,
     };
     return { outcome: 'started', run };
   };
@@ -181,7 +185,7 @@ describe.skipIf(!enabled)('SQL schedules (integration: needs OLCYS_TEST_DATABASE
       fire(sqlScheduleRepository(other), kase.id, '2026-11-22T03:00:00.000Z'),
     ]);
     expect(results.filter((r) => r.claimed)).toHaveLength(1);
-    const tick = results.find((r) => r.claimed)!.tick;
+    const tick = results.find((r) => r.claimed)!.tick!;
     for (const r of results) expect(r.tick).toEqual(tick);
     expect(tick).toMatchObject({ outcome: 'started', scheduledFor: '2026-11-22T03:00:00.000Z' });
     const scheduled = (await createSqlRepositories(db).runs.listByCase(kase.id)).filter(
@@ -197,7 +201,9 @@ describe.skipIf(!enabled)('SQL schedules (integration: needs OLCYS_TEST_DATABASE
       fire(sqlScheduleRepository(db), idle.id, '2026-11-22T03:02:00.000Z'),
       fire(sqlScheduleRepository(other), idle.id, '2026-11-22T03:04:00.000Z'),
     ]);
-    expect(results.map((r) => r.tick.outcome).toSorted()).toEqual(['skipped_overlap', 'started']);
+    // Whichever decides first starts the run; the other one sees it (overlap) or, being older, is no longer due.
+    expect(results.filter((r) => r.tick?.outcome === 'started')).toHaveLength(1);
+    expect(results.every((r) => r.tick === undefined || r.tick.outcome !== 'skipped_disabled')).toBe(true);
     expect(await createSqlRepositories(db).runs.listByCase(idle.id)).toHaveLength(1);
 
     const busy = await newCase('0 3 * * *');
@@ -208,13 +214,68 @@ describe.skipIf(!enabled)('SQL schedules (integration: needs OLCYS_TEST_DATABASE
     expect(await createSqlRepositories(db).runs.listByCase(busy.id)).toHaveLength(1);
   });
 
+  it('decides on the current schedule: the latest change and handled occurrence; a not-due decision stores nothing', async () => {
+    const schedules = sqlScheduleRepository(db);
+    const kase = await newCase('0 3 * * *', '2026-11-21T10:00:00.000Z');
+    expect((await fire(schedules, kase.id, '2026-11-22T03:00:00.000Z')).tick).toMatchObject({ outcome: 'started' });
+    await schedules.setSchedule(
+      kase.id,
+      { cron: '0 15 * * *', enabled: true },
+      { changedBy: 'test', reason: 'zmiana godziny', at: '2026-11-23T03:00:05.000Z' },
+    );
+    const seen: ScheduleTickContext[] = [];
+    const stale = await schedules.fire(claim(kase.id, '2026-11-23T03:00:00.000Z', '2026-11-23T03:00:06.000Z'), (c) => {
+      seen.push(c);
+      return decide('2026-11-23T03:00:00.000Z')(c);
+    });
+    expect(stale).toEqual({ claimed: false });
+    expect(seen).toEqual([
+      expect.objectContaining({
+        changedAt: '2026-11-23T03:00:05.000Z',
+        lastScheduledFor: '2026-11-22T03:00:00.000Z',
+        case: expect.objectContaining({ schedule: { cron: '0 15 * * *', enabled: true } }),
+      }),
+    ]);
+    // An older occurrence after a newer one was handled is not due either.
+    expect(await fire(schedules, kase.id, '2026-11-21T15:00:00.000Z')).toEqual({ claimed: false });
+    expect((await schedules.listTicks(kase.id, 10)).map((t) => t.scheduledFor)).toEqual(['2026-11-22T03:00:00.000Z']);
+    expect(await createSqlRepositories(db).runs.listByCase(kase.id)).toHaveLength(1);
+  });
+
+  it('makes schedule changes wait for a tick decision of the same case', async () => {
+    const kase = await newCase('0 3 * * *');
+    let changed = false;
+    let change: Promise<unknown> = Promise.resolve();
+    await other.transaction().execute(async (trx) => {
+      // The lock a tick decision holds until its transaction ends.
+      await sql`SELECT pg_advisory_xact_lock(hashtext(${`case-schedule:${kase.id}`}))`.execute(trx);
+      change = (async () => {
+        await sqlScheduleRepository(db).setSchedule(
+          kase.id,
+          { cron: '0 4 * * *', enabled: true },
+          { changedBy: 'test', reason: 'zmiana godziny', at: '2026-11-21T11:00:00.000Z' },
+        );
+        changed = true;
+      })();
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      expect(changed).toBe(false);
+    });
+    // The lock is released at commit: the change goes through.
+    await change;
+    expect(changed).toBe(true);
+    expect((await createSqlRepositories(db).cases.get(kase.id))?.schedule).toEqual({
+      cron: '0 4 * * *',
+      enabled: true,
+    });
+  });
+
   it('skips the occurrences of a closed case and refuses to change its schedule', async () => {
     const schedules = sqlScheduleRepository(db);
     const kase = await newCase('0 3 * * *');
     await db.updateTable('cases').set({ status: 'closed' }).where('id', '=', kase.id).execute();
     const { tick } = await fire(schedules, kase.id, '2026-11-22T03:00:00.000Z');
     expect(tick).toMatchObject({ outcome: 'skipped_case_closed' });
-    expect(tick.runId).toBeUndefined();
+    expect(tick?.runId).toBeUndefined();
     expect(
       await schedules.setSchedule(
         kase.id,

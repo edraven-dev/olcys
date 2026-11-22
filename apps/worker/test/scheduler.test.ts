@@ -2,7 +2,7 @@
  * The scheduler on the in-memory store with a fake clock and a fake pipeline launcher: idempotent ticks, the overlap
  * guard, skipped occurrences, catch-up after downtime and start-up reconciliation. Synthetic data only.
  */
-import type { FetchMode, Logger, Repositories, RunConfigSnapshot, ScheduleRepository } from '@olcys/core';
+import type { Case, FetchMode, Logger, Repositories, RunConfigSnapshot, ScheduleRepository } from '@olcys/core';
 import { nowIso } from '@olcys/core';
 import { createMemoryRepositories } from '@olcys/db';
 import { describe, expect, it } from 'vitest';
@@ -134,16 +134,18 @@ describe('scheduled runs', () => {
     at('2026-11-22T03:00:10.000Z');
     expect(await scheduler.evaluate()).toEqual([expect.objectContaining({ outcome: 'skipped_overlap' })]);
     await repos.runs.update(manual.id, { status: 'running' });
-    expect((await scheduler.fire(busy.id, '2026-11-23T03:00:00.000Z')).tick.outcome).toBe('skipped_overlap');
+    at('2026-11-23T03:00:10.000Z');
+    expect((await scheduler.fire(busy.id, '2026-11-23T03:00:00.000Z')).tick?.outcome).toBe('skipped_overlap');
     expect(await repos.runs.listByCase(busy.id)).toHaveLength(1);
 
     // Two different occurrences handled concurrently for an idle case: exactly one run.
     const idle = await scheduledCase(schedules, repos, '*/2 * * * *');
+    at('2026-11-23T03:05:00.000Z');
     const results = await Promise.all([
-      scheduler.fire(idle.id, '2026-11-22T03:02:00.000Z'),
-      scheduler.fire(idle.id, '2026-11-22T03:04:00.000Z'),
+      scheduler.fire(idle.id, '2026-11-23T03:02:00.000Z'),
+      scheduler.fire(idle.id, '2026-11-23T03:04:00.000Z'),
     ]);
-    expect(results.map((r) => r.tick.outcome).toSorted()).toEqual(['skipped_overlap', 'started']);
+    expect(results.map((r) => r.tick?.outcome).toSorted()).toEqual(['skipped_overlap', 'started']);
     expect(await repos.runs.listByCase(idle.id)).toHaveLength(1);
     expect(launched).toHaveLength(1);
   });
@@ -159,7 +161,7 @@ describe('scheduled runs', () => {
     at('2026-11-22T03:00:10.000Z');
     // A disabled schedule is not evaluated; an occurrence already being handled is skipped.
     expect(await scheduler.evaluate()).toEqual([]);
-    expect((await scheduler.fire(kase.id, '2026-11-22T03:00:00.000Z')).tick.outcome).toBe('skipped_disabled');
+    expect((await scheduler.fire(kase.id, '2026-11-22T03:00:00.000Z')).tick?.outcome).toBe('skipped_disabled');
     expect((await schedules.listChanges(kase.id, 10)).map((c) => [c.before?.enabled, c.after.enabled])).toEqual([
       [true, false],
       [undefined, true],
@@ -175,15 +177,67 @@ describe('scheduled runs', () => {
     expect(closing.launched).toEqual([]);
   });
 
-  it('decides closed before disabled before overlap', () => {
+  it('decides closed, then disabled, then whether the occurrence is still due, then overlap', () => {
     const base = { id: 'c', title: 't', purpose: 'p', legalBasis: 'l', createdAt: CREATED, createdBy: 'test' };
     const scope = { enabledSources: [], amberJustifications: {}, chains: [], maxPivotDepth: 1 };
     const closed = { ...base, scope, status: 'closed' as const, schedule: { cron: '0 3 * * *', enabled: false } };
-    expect(decideTick({ case: closed, activeRunIds: ['r'] }, newRun)).toEqual({ outcome: 'skipped_case_closed' });
+    const times = { changedAt: CREATED, lastScheduledFor: '2026-11-21T03:00:00.000Z', activeRunIds: ['r'] };
+    const occurrence = { scheduledFor: '2026-11-22T03:00:00.000Z', firedAt: '2026-11-22T03:00:10.000Z' };
+    const decide = (kase: Case, extra: Partial<typeof times> = {}, at = occurrence) =>
+      decideTick({ case: kase, ...times, ...extra }, at, newRun);
+    expect(decide(closed)).toEqual({ outcome: 'skipped_case_closed' });
     const disabled = { ...closed, status: 'open' as const };
-    expect(decideTick({ case: disabled, activeRunIds: ['r'] }, newRun)).toEqual({ outcome: 'skipped_disabled' });
+    expect(decide(disabled)).toEqual({ outcome: 'skipped_disabled' });
     const enabled = { ...disabled, schedule: { cron: '0 3 * * *', enabled: true } };
-    expect(decideTick({ case: enabled, activeRunIds: ['r'] }, newRun)).toEqual({ outcome: 'skipped_overlap' });
+    expect(decide(enabled)).toEqual({ outcome: 'skipped_overlap' });
+    // No longer due: set after the occurrence, a later one already handled, not of this cron, or still to come.
+    expect(decide(enabled, { changedAt: '2026-11-22T03:00:05.000Z' })).toEqual({ outcome: 'not_due' });
+    expect(decide(enabled, { lastScheduledFor: '2026-11-23T03:00:00.000Z' })).toEqual({ outcome: 'not_due' });
+    expect(decide({ ...enabled, schedule: { cron: '0 15 * * *', enabled: true } })).toEqual({ outcome: 'not_due' });
+    expect(decide(enabled, {}, { ...occurrence, firedAt: '2026-11-22T02:59:59.000Z' })).toEqual({ outcome: 'not_due' });
+  });
+
+  it('never starts an occurrence of a schedule changed after it was picked', async () => {
+    const { repos, schedules } = setup();
+    const kase = await scheduledCase(schedules, repos, '0 3 * * *');
+    // The evaluation lists the schedules, then the analyst moves the run from 03:00 to 15:00 before it fires.
+    const racing: ScheduleRepository = {
+      ...schedules,
+      async listActive() {
+        const snapshot = await schedules.listActive();
+        const change = { changedBy: 'test', reason: 'zmiana godziny', at: '2026-11-22T03:00:05.000Z' };
+        await schedules.setSchedule(kase.id, { cron: '0 15 * * *', enabled: true }, change);
+        return snapshot;
+      },
+    };
+    const raced = setup({ repos: { ...repos, schedules: racing } });
+    raced.at('2026-11-22T03:00:06.000Z');
+    expect(await raced.scheduler.evaluate()).toEqual([]);
+    expect(await schedules.listTicks(kase.id, 10)).toEqual([]);
+    expect(await repos.runs.listByCase(kase.id)).toEqual([]);
+
+    const { scheduler, at, launched } = setup({ repos });
+    at('2026-11-22T15:00:10.000Z');
+    expect(await scheduler.evaluate()).toEqual([
+      expect.objectContaining({ scheduledFor: '2026-11-22T15:00:00.000Z', outcome: 'started' }),
+    ]);
+    expect(launched).toHaveLength(1);
+  });
+
+  it('never handles an older occurrence after a newer one, nor one that is not due', async () => {
+    const { repos, schedules, scheduler, at } = setup();
+    const kase = await scheduledCase(schedules, repos, '0 * * * *');
+    at('2026-11-22T05:00:30.000Z');
+    const five = await scheduler.fire(kase.id, '2026-11-22T05:00:00.000Z');
+    expect(five).toMatchObject({ claimed: true, tick: { outcome: 'started' } });
+    await repos.runs.update(five.tick!.runId!, { status: 'succeeded', finishedAt: nowIso() });
+    // A delayed decision for 04:00 (e.g. from another process) comes after 05:00 was handled.
+    expect(await scheduler.fire(kase.id, '2026-11-22T04:00:00.000Z')).toEqual({ claimed: false });
+    // Not an occurrence of the cron, or still in the future.
+    expect(await scheduler.fire(kase.id, '2026-11-22T05:30:00.000Z')).toEqual({ claimed: false });
+    expect(await scheduler.fire(kase.id, '2026-11-22T06:00:00.000Z')).toEqual({ claimed: false });
+    expect((await schedules.listTicks(kase.id, 10)).map((t) => t.scheduledFor)).toEqual(['2026-11-22T05:00:00.000Z']);
+    expect(await repos.runs.listByCase(kase.id)).toHaveLength(1);
   });
 
   it('catches up at most one missed occurrence after downtime', async () => {

@@ -14,9 +14,10 @@ Schemat PostgreSQL, migracje SQL i typowane repozytoria dla magazynu dowodów dz
   UPDATE/DELETE.
 - `schedules` (migracja `0002_schedules.sql`) — `setSchedule` zastępuje `cases.schedule` (poza statusem jedyna kolumna
   sprawy z prawem UPDATE) i w tej samej transakcji dopisuje zmianę do `case_schedule_change` (kto, dlaczego, przed, po);
-  `fire` zajmuje termin wpisem `schedule_tick` z unikalnym `job_id` pod blokadą doradczą sprawy, więc termin uruchamia
-  najwyżej jeden przebieg także przy kilku procesach, i nie uruchamia go, gdy przebieg sprawy jest w kolejce lub w toku.
-  Obie tabele są tylko do dopisywania.
+  `fire` zajmuje termin wpisem `schedule_tick` z unikalnym `job_id` pod blokadą doradczą sprawy (tę samą blokadę bierze
+  `setSchedule`), więc termin uruchamia najwyżej jeden przebieg także przy kilku procesach, i nie uruchamia go, gdy
+  przebieg sprawy jest w kolejce lub w toku. Decyzja dostaje czas ostatniej zmiany harmonogramu i ostatni obsłużony
+  termin; decyzja `not_due` (termin już nienależny) niczego nie zapisuje. Obie tabele są tylko do dopisywania.
 - `labels.upsert` pomija dokładny ponowny import etykiety; poprawiona wersja rekordu z tego samego zbioru danych jest
   zapisywana jako nowy wiersz, a `labels.list()` zwraca najnowszą wersję (wg `lastmod`) dla każdej kombinacji adresu,
   podmiotu i zbioru.

@@ -74,6 +74,23 @@ describe('validateCron', () => {
     expect(validateCron('0 1,23 1,15 * *', three)).toMatchObject({ ok: true });
   });
 
+  it('knows which days of the allowed months are adjacent, across months and years', () => {
+    const three = { ...live, minIntervalMinutes: 180 };
+    // January 28 is not followed by January 1, and January 30 is not the last day of January.
+    for (const cron of ['0 1,23 1,28 1 *', '0 1,23 30,1 1,2 *', '0 1,23 1,15 1,2 *']) {
+      expect([cron, validateCron(cron, three).ok]).toEqual([cron, true]);
+    }
+    // The last day of a month, then the 1st of the next one: April 30, February 28 (29 in leap years), December 31.
+    for (const cron of ['0 1,23 30,1 4,5 *', '0 1,23 28,1 2,3 *', '0 1,23 29,1 2,3 *', '0 1,23 31,1 12,1 *']) {
+      expect([cron, validateCron(cron, three)]).toEqual([
+        cron,
+        expect.objectContaining({ code: 'schedule_too_frequent' }),
+      ]);
+    }
+    // February 28 and 29 are adjacent in leap years.
+    expect(validateCron('0 1,23 28,29 2 *', three)).toMatchObject({ ok: false, code: 'schedule_too_frequent' });
+  });
+
   it('normalises the spacing of the stored expression', () => {
     expect(validateCron('  0   3 *  * * ', live)).toMatchObject({ ok: true, cron: '0 3 * * *' });
   });

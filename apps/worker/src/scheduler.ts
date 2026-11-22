@@ -20,7 +20,7 @@ import type {
   ScheduleTickDecision,
 } from '@olcys/core';
 import { newId } from '@olcys/core';
-import { latestOccurrence, validateCron } from './cron.ts';
+import { isOccurrence, latestOccurrence, validateCron } from './cron.ts';
 import type { Runtime } from './runtime.ts';
 
 export interface SchedulingSettings {
@@ -54,22 +54,39 @@ export function scheduleJobId(caseId: Id, scheduledFor: IsoDateTime): string {
   return `${caseId}@${scheduledFor}`;
 }
 
-/** A closed case, a disabled schedule or a queued or running run of the case skip the occurrence; else a run starts. */
+/** Occurrences count only after both the latest schedule change and the latest handled occurrence. */
+function countsAfter(times: Pick<ActiveSchedule, 'changedAt' | 'lastScheduledFor'>): number {
+  return Math.max(Date.parse(times.changedAt), Date.parse(times.lastScheduledFor ?? times.changedAt));
+}
+
+/**
+ * The tick decision, on the case's state read under its schedule lock: a closed case or a disabled schedule skip the
+ * occurrence; an occurrence that is no longer due for the current schedule — not an occurrence of its cron, not later
+ * than its latest change and the latest handled occurrence, or still in the future — is not handled (`not_due`, nothing
+ * recorded); a queued or running run of the case skips it; otherwise a run starts.
+ */
 export function decideTick(
   context: ScheduleTickContext,
+  occurrence: { scheduledFor: IsoDateTime; firedAt: IsoDateTime },
   newRun: (previousRunId: Id | undefined) => AnalysisRun,
 ): ScheduleTickDecision {
+  const { schedule } = context.case;
   if (context.case.status === 'closed') return { outcome: 'skipped_case_closed' };
-  if (!context.case.schedule?.enabled) return { outcome: 'skipped_disabled' };
+  if (!schedule?.enabled) return { outcome: 'skipped_disabled' };
+  const at = Date.parse(occurrence.scheduledFor);
+  const due =
+    at <= Date.parse(occurrence.firedAt) &&
+    at > countsAfter(context) &&
+    isOccurrence(schedule.cron, occurrence.scheduledFor);
+  if (!due) return { outcome: 'not_due' };
   if (context.activeRunIds.length > 0) return { outcome: 'skipped_overlap' };
   return { outcome: 'started', run: newRun(context.previousRunId) };
 }
 
 /** The occurrence due now: the latest one up to `now` after both the schedule change and the last handled one. */
 export function dueOccurrence(active: ActiveSchedule, now: Date): IsoDateTime | undefined {
-  const since = Math.max(Date.parse(active.changedAt), Date.parse(active.lastScheduledFor ?? active.changedAt));
   const latest = latestOccurrence(active.schedule.cron, now);
-  return latest && Date.parse(latest) > since ? latest : undefined;
+  return latest && Date.parse(latest) > countsAfter(active) ? latest : undefined;
 }
 
 export interface ScheduleReconcileReport {
@@ -92,8 +109,11 @@ export interface Scheduler {
   reconcile(): Promise<ScheduleReconcileReport>;
   /** Evaluates every active schedule once; returns the ticks recorded by this evaluation. */
   evaluate(): Promise<ScheduleTick[]>;
-  /** Handles one occurrence of a case's schedule; an occurrence already handled returns its tick (`claimed: false`). */
-  fire(caseId: Id, scheduledFor: IsoDateTime): Promise<{ tick: ScheduleTick; claimed: boolean }>;
+  /**
+   * Handles one occurrence of a case's schedule; an occurrence already handled returns its tick (`claimed: false`), one
+   * no longer due for the current schedule returns no tick.
+   */
+  fire(caseId: Id, scheduledFor: IsoDateTime): Promise<{ tick?: ScheduleTick; claimed: boolean }>;
   /** `reconcile()`, a first evaluation (catch-up), then an evaluation every `intervalSeconds`. */
   start(): Promise<ScheduleReconcileReport>;
   /** Stops the timer and waits for an evaluation in progress. */
@@ -131,7 +151,7 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
     const firedAt = clock().toISOString();
     const claim = { caseId, jobId: scheduleJobId(caseId, scheduledFor), scheduledFor, firedAt };
     const result = await schedules.fire(claim, (context) =>
-      decideTick(context, (previousRunId) => ({
+      decideTick(context, claim, (previousRunId) => ({
         id: newId(),
         caseId,
         ...(previousRunId ? { previousRunId } : {}),
@@ -142,7 +162,9 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
         queuedAt: firedAt,
       })),
     );
-    if (result.claimed) {
+    if (!result.tick) {
+      logger.info('schedule occurrence no longer due', { caseId, scheduledFor });
+    } else if (result.claimed) {
       const { outcome, runId } = result.tick;
       logger.info('schedule tick', { caseId, scheduledFor, outcome, ...(runId ? { runId } : {}) });
       if (runId) options.runtime.launchRun(runId);

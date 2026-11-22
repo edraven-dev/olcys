@@ -48,10 +48,19 @@ function toTick(row: TickRow): ScheduleTick {
   };
 }
 
+/**
+ * Serialises schedule changes and tick decisions of one case across connections and processes until the transaction
+ * ends.
+ */
+async function lockCaseSchedule(trx: Db, caseId: string): Promise<void> {
+  await sql`SELECT pg_advisory_xact_lock(hashtext(${`case-schedule:${caseId}`}))`.execute(trx);
+}
+
 export function sqlScheduleRepository(db: Db): ScheduleRepository {
   return {
     async setSchedule(caseId, schedule, change) {
       return db.transaction().execute(async (trx) => {
+        await lockCaseSchedule(trx, caseId);
         // The row lock orders concurrent changes, so every change row's `before` is the value it replaced.
         const current = await trx
           .selectFrom('cases')
@@ -144,8 +153,7 @@ export function sqlScheduleRepository(db: Db): ScheduleRepository {
 
     async fire(claim, decide) {
       const result = await db.transaction().execute(async (trx) => {
-        // Serialises the ticks of one case across connections and processes until this transaction ends.
-        await sql`SELECT pg_advisory_xact_lock(hashtext(${`case-schedule:${claim.caseId}`}))`.execute(trx);
+        await lockCaseSchedule(trx, claim.caseId);
         const existing = await trx
           .selectFrom('schedule_tick')
           .selectAll()
@@ -161,11 +169,27 @@ export function sqlScheduleRepository(db: Db): ScheduleRepository {
           .where('status', 'in', ['queued', 'running'])
           .execute();
         const previous = await sqlRunRepository(trx).latestCompleted(claim.caseId);
+        // The schedule as it is now: an occurrence chosen before a change (or before a later one was handled) is
+        // no longer due.
+        const changed = await trx
+          .selectFrom('case_schedule_change')
+          .select((e) => e.fn.max('at').as('at'))
+          .where('case_id', '=', claim.caseId)
+          .executeTakeFirst();
+        const handled = await trx
+          .selectFrom('schedule_tick')
+          .select((e) => e.fn.max('scheduled_for').as('at'))
+          .where('case_id', '=', claim.caseId)
+          .executeTakeFirst();
+        const lastScheduledFor = iso(handled?.at);
         const decision = decide({
           case: kase,
+          changedAt: iso(changed?.at) ?? kase.createdAt,
+          ...(lastScheduledFor ? { lastScheduledFor } : {}),
           activeRunIds: active.map((r) => r.id),
           ...(previous ? { previousRunId: previous.id } : {}),
         });
+        if (decision.outcome === 'not_due') return { claimed: false };
         const run = decision.outcome === 'started' ? decision.run : undefined;
         if (run && run.caseId !== claim.caseId)
           throw new Error(`a tick of case ${claim.caseId} cannot start ${run.id}`);

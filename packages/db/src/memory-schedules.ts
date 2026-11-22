@@ -1,6 +1,7 @@
 /**
  * In-memory schedules for `createMemoryRepositories()`: the same contract as the SQL implementation. Changes and ticks
- * are append-only; `fire` reads and writes without yielding, so it is atomic within the process.
+ * are append-only; `setSchedule` and `fire` read and write without yielding, so each is atomic within the process (the
+ * SQL implementation serialises them with a per-case lock).
  */
 import type {
   ActiveSchedule,
@@ -83,11 +84,15 @@ export function memoryScheduleRepository(
       if (!kase) throw new Error(`case ${claim.caseId} not found`);
       const ofCase = [...runs.values()].filter((r) => r.caseId === claim.caseId);
       const previous = ofCase.findLast(isCompleted);
+      const lastScheduledFor = ticksOf(claim.caseId)[0]?.scheduledFor;
       const decision = decide({
         case: copy(kase),
+        changedAt: changesOf(claim.caseId)[0]?.at ?? kase.createdAt,
+        ...(lastScheduledFor ? { lastScheduledFor } : {}),
         activeRunIds: ofCase.filter(isActive).map((r) => r.id),
         ...(previous ? { previousRunId: previous.id } : {}),
       });
+      if (decision.outcome === 'not_due') return { claimed: false };
       const run = decision.outcome === 'started' ? decision.run : undefined;
       if (run && run.caseId !== claim.caseId) throw new Error(`a tick of case ${claim.caseId} cannot start ${run.id}`);
       const tick: ScheduleTick = {
