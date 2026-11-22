@@ -51,3 +51,12 @@ export {
   MAX_CONSECUTIVE_FAILURES,
   type SuggestRolesOptions,
 } from './suggest-roles.ts';
+  assertTsaAllowListed,
+  createTrustedTimestamper,
+  tsaSettings,
+  TsaConfigError,
+  type FlushReport,
+  type TimestamperOptions,
+  type TsaSettings,
+  type WorkerTimestamper,
+} from './timestamper.ts';

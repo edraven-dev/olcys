@@ -122,8 +122,10 @@ export interface Scheduler {
 
 export interface SchedulerOptions {
   /** Scheduled runs use the runtime's repositories, mode and configuration snapshot; `launchRun` runs their pipeline. */
-  runtime: Pick<Runtime, 'repos' | 'mode' | 'config' | 'logger' | 'launchRun'>;
+  runtime: Pick<Runtime, 'repos' | 'mode' | 'config' | 'logger' | 'launchRun'> & Partial<Pick<Runtime, 'timestamper'>>;
   settings?: SchedulingSettings;
+  /** How often queued and failed timestamp requests are retried in live mode (default 600 = 10 minutes). */
+  flushIntervalSeconds?: number;
   clock?: () => Date;
 }
 
@@ -145,7 +147,10 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
   // Warn once per refused schedule, not at every evaluation.
   const warned = new Set<string>();
   let timer: ReturnType<typeof setInterval> | undefined;
+  let flushTimer: ReturnType<typeof setInterval> | undefined;
   let evaluating: Promise<unknown> | undefined;
+  let flushing: Promise<unknown> | undefined;
+  const { timestamper } = options.runtime;
 
   async function fire(caseId: Id, scheduledFor: IsoDateTime) {
     const firedAt = clock().toISOString();
@@ -242,6 +247,16 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
     return evaluating;
   }
 
+  /** Retries queued timestamp requests (live mode only); joins a flush in progress instead of starting another. */
+  function flushOnce(): Promise<unknown> {
+    flushing ??= (timestamper?.flush() ?? Promise.resolve())
+      .catch((error: unknown) => logger.error('timestamp flush failed', { error: String(error) }))
+      .finally(() => {
+        flushing = undefined;
+      });
+    return flushing;
+  }
+
   return {
     reconcile,
     evaluate,
@@ -252,12 +267,20 @@ export function createScheduler(options: SchedulerOptions): Scheduler {
       await evaluateOnce();
       timer = setInterval(() => void evaluateOnce(), settings.intervalSeconds * 1000);
       timer.unref();
+      if (timestamper?.canFlush) {
+        void flushOnce();
+        flushTimer = setInterval(() => void flushOnce(), (options.flushIntervalSeconds ?? 600) * 1000);
+        flushTimer.unref();
+      }
       return report;
     },
     async stop() {
       if (timer) clearInterval(timer);
+      if (flushTimer) clearInterval(flushTimer);
       timer = undefined;
+      flushTimer = undefined;
       await evaluating;
+      await flushing;
     },
   };
 }

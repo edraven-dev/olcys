@@ -165,6 +165,21 @@ export async function buildReportData(
     ...(kase.scope?.enabledSources ?? []),
   ]);
 
+  // Own captures without a token: how their latest time-stamp request ended (a rejected one is final, not pending).
+  const timestampRequests: NonNullable<ReportData['timestampRequests']> = {};
+  if (repos.timestamps) {
+    const history = await Promise.all(
+      captures
+        .filter((c) => !c.timestamp)
+        .map(async (c) => [c.id, await repos.timestamps!.listRequests(c.id)] as const),
+    );
+    for (const [id, requests] of history) {
+      const latest = requests.at(-1);
+      if (latest)
+        timestampRequests[id] = { outcome: latest.outcome, ...(latest.reason ? { reason: latest.reason } : {}) };
+    }
+  }
+
   return {
     reportId: options.reportId ?? newId(),
     generatedAt: options.generatedAt ?? nowIso(),
@@ -181,6 +196,7 @@ export async function buildReportData(
       .toSorted((a, b) => cmp(a.id, b.id)),
     captures: byId(captures),
     earlierCaptures: byId(earlier),
+    ...(Object.keys(timestampRequests).length ? { timestampRequests } : {}),
     accounts: byId(accounts),
     observations: byId(observations),
     candidates: byId(candidates),

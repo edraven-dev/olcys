@@ -27,6 +27,7 @@ import type {
   SourceId,
   SourceKind,
   TextView,
+  TimestampRequestOutcome,
 } from '@olcys/core';
 
 export const REPORT_TEMPLATE_VERSION = 'report-html.v1';
@@ -73,6 +74,8 @@ export interface ReportData {
   captures: Capture[];
   /** Captures of earlier runs cited by change events (the "before" side of a wallet swap). */
   earlierCaptures: Capture[];
+  /** Latest time-stamp request of each own capture that has no token yet (absent when there was none or the store has none). */
+  timestampRequests?: Record<Id, { outcome: TimestampRequestOutcome; reason?: string }>;
   accounts: OnlineAccount[];
   observations: Observation[];
   candidates: AddressCandidate[];
