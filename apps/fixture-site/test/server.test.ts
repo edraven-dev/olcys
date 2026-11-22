@@ -74,6 +74,23 @@ describe('fixture server', () => {
     expect(await head.text()).toBe('');
   });
 
+  it('lists the persona pages in a sitemap, without the robots canary and the barrier pages', async () => {
+    const res = await get('/sitemap.xml');
+    expect([res.status, res.headers.get('content-type')]).toEqual([200, 'application/xml; charset=utf-8']);
+    const locs = [...(await res.text()).matchAll(/<loc>([^<]*)<\/loc>/g)].map((m) => m[1]?.replaceAll('&amp;', '&'));
+    const expected = manifest.pages
+      .filter((p) => !p.path.startsWith('/private/') && !p.path.startsWith('/barriers/'))
+      .map((p) => p.path);
+    expect(locs).toEqual(expected);
+    expect(locs).toContain('/wykop/ludzie/fikcyjny_kacper/');
+    expect(locs.some((l) => l?.startsWith('/private/') || l?.startsWith('/barriers/'))).toBe(false);
+    // Every listed page is served.
+    for (const path of locs) {
+      // oxlint-disable-next-line no-await-in-loop
+      expect([path, (await get(path ?? '/')).status]).toEqual([path, 200]);
+    }
+  });
+
   it('serves synthetic chain data in provider formats', async () => {
     const stats = (await (await get(`/chain/esplora/api/address/${addr('BTC-1')}`)).json()) as {
       chain_stats: { tx_count: number };

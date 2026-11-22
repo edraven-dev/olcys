@@ -32,9 +32,13 @@ Serwer (`src/`) używa wyłącznie wbudowanych modułów Node, bo kontener nie m
 | `/telegram/s/olcys_test_ostrzezenia/`                                       | kanał z ostrzeżeniami: adres oszusta TRON-2 (atrybucja przez stronę trzecią) i adres z homoglifem (D3)                              |
 | `/barriers/…`                                                               | CAPTCHA, logowanie, 403, 429, wyzwanie przeglądarki, przekierowania                                                                 |
 | `/robots.txt`, `/private/`                                                  | test zgodności z robots.txt (kanarek BTC-CANARY)                                                                                    |
+| `/sitemap.xml`                                                              | mapa witryny dla wyszukiwarki testowej: strony persony z manifestu bez `/private/` i `/barriers/` (osobno `v1`, `v2`)               |
 | `/chain/esplora/api/…`, `/chain/etherscan/v2/api?…`, `/chain/trongrid/v1/…` | syntetyczne historie transakcji, w tym depozyt giełdowy, przelewy P2P i kod kontraktu                                               |
 
 Pełny opis — adresy, wabiki, oczekiwane wyniki analizy i skróty plików — zawiera `fixtures/persona/manifest.json`.
+
+Mapa witryny podaje adresy względne, bo strona działa pod kilkoma adresami (host, compose, testy na wolnym porcie);
+wyszukiwarka testowa rozwiązuje je względem adresu samej mapy.
 
 ## Generator
 
