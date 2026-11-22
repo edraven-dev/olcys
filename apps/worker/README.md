@@ -38,9 +38,14 @@ Etapy (zbieranie, wyodrębnianie adresów, analiza łańcucha, punktacja, raport
 
 1. **Zbieranie** (`collect.source`) — kolektory przez jednego klienta ruchu wychodzącego na przebieg (lista dozwolonych hostów,
    robots.txt, dziennik ruchu i koperty pochodzenia zapisywane w magazynie). Treść stron jest maskowana z kluczy prywatnych
-   i fraz seed przed zapisem (`createSecretRedactor()` z pakietu wyodrębniania adresów).
+   i fraz seed przed zapisem (`createSecretRedactor()` z pakietu wyodrębniania adresów). Oprócz kolektorów platform
+   rejestrowane są wyszukiwarki według `OLCYS_SEARCH_MODE` (domyślnie `mock` — wyszukiwarka testowa po stronie testowej;
+   zob. `packages/collectors/README.md`); klucze API pochodzą wyłącznie ze zmiennych środowiskowych. Rejestr kolektorów
+   powstaje raz, przy tworzeniu etapu, więc błędna wartość `OLCYS_SEARCH_MODE` zatrzymuje start procesu.
 2. **Wyodrębnianie adresów** (`extract.capture`) — dla każdego udanego przechwycenia; lista wykluczeń
-   `config/rules/deny-list.v1.yaml`.
+   `config/rules/deny-list.v1.yaml`. Listy wyników wyszukiwarek (`isSearchResultCapture()`) są pomijane: to tylko
+   wskazania stron, a same strony zbierają i przetwarzają ich kolektory, więc fragment wyniku nie staje się drugą kopią
+   wzmianki o adresie.
 3. **Analiza łańcucha** (`chain.fetch`) — wstępna selekcja (lista wykluczeń, etykiety), dane łańcucha przez klienta ruchu
    wychodzącego (offline ze strony testowej), typ każdego pobranego adresu (`classifyAddress` z `@olcys/labels`: kod
    z pobrania i sondy przez tego samego dostawcę — EOA, delegacja EIP-7702, Safe, ERC-4337, kontrakt tokena, kontrakt,

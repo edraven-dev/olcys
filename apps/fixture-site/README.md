@@ -32,6 +32,7 @@ Serwer (`src/`) używa wyłącznie wbudowanych modułów Node, bo kontener nie m
 | `/telegram/s/olcys_test_ostrzezenia/`                                       | kanał z ostrzeżeniami: adres oszusta TRON-2 (atrybucja przez stronę trzecią) i adres z homoglifem (D3)                              |
 | `/barriers/…`                                                               | CAPTCHA, logowanie, 403, 429, wyzwanie przeglądarki, przekierowania                                                                 |
 | `/robots.txt`, `/private/`                                                  | test zgodności z robots.txt (kanarek BTC-CANARY)                                                                                    |
+| `/sitemap.xml`                                                              | mapa witryny dla wyszukiwarki testowej: strony persony z manifestu bez `/private/` i `/barriers/` (osobno `v1`, `v2`)               |
 | `/chain/esplora/api/…`, `/chain/etherscan/v2/api?…`, `/chain/trongrid/v1/…` | syntetyczne historie transakcji, w tym depozyt giełdowy, przelewy P2P i kod kontraktu                                               |
 
 Sondy typu adresu odpowiadają jak u prawdziwych dostawców: `eth_getStorageAt` zwraca słowo zerowe (brak singletonu
@@ -40,6 +41,9 @@ odrzucany regułą A2), do adresu bez kodu zwraca `0x`, a `/chain/trongrid/walle
 bez kontraktu). Adresy EOA persony pozostają kontami zewnętrznymi.
 
 Pełny opis — adresy, wabiki, oczekiwane wyniki analizy i skróty plików — zawiera `fixtures/persona/manifest.json`.
+
+Mapa witryny podaje adresy względem samej mapy (bez początkowego `/`), bo strona działa pod kilkoma adresami (host,
+compose, testy na wolnym porcie), także ze ścieżką bazową; wyszukiwarka testowa rozwiązuje je względem adresu mapy.
 
 ## Generator
 

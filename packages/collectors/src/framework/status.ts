@@ -31,6 +31,10 @@ export const NOTE_CODES = [
   'redirect_limit',
   'redirect_invalid',
   'truncated',
+  'search_provider_error',
+  'search_query_altered',
+  'search_index_skipped',
+  'search_results_not_stored',
 ] as const;
 export type NoteCode = (typeof NOTE_CODES)[number];
 

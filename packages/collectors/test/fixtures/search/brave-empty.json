@@ -1,0 +1,6 @@
+{
+  "_synthetic": "SYNTHETIC TEST DATA: hand-written in the documented Brave web search response shape",
+  "type": "search",
+  "query": { "original": "\"kacper.fikcyjny@example.org\"", "show_strict_warning": false },
+  "web": { "type": "search", "results": [] }
+}

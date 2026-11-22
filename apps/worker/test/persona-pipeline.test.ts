@@ -73,6 +73,8 @@ describe('demo scenario on the synthetic persona', () => {
               'wykop',
               'github',
               'telegram_preview',
+              // GREEN and on by default for new cases: the mock search over the fixture site's sitemap.
+              'mock_search',
               'mempool_space',
               'etherscan_v2',
               'trongrid',
@@ -166,6 +168,16 @@ describe('demo scenario on the synthetic persona', () => {
         [],
       );
       expect(contacted).toContain('trongrid');
+      // The search ran for the identifiers without disclosing any of them; the pages it found were collected once,
+      // by their own collectors, and its result lists are never read for addresses (no second copy of a mention).
+      expect(contacted).toContain('mock_search');
+      expect(egress.filter((e) => e.sourceId === 'mock_search').every((e) => !e.containsIdentifier)).toBe(true);
+      const captures = await runtime.repos.evidence.listCaptures(first.id);
+      const searchCaptures = new Set(captures.filter((c) => c.sourceId === 'mock_search').map((c) => c.id));
+      expect(searchCaptures.size).toBe(3);
+      expect(extracted.filter((r) => searchCaptures.has(r.captureId))).toEqual([]);
+      const pageUrls = captures.filter((c) => c.sourceId !== 'mock_search').map((c) => c.url);
+      expect(new Set(pageUrls).size).toBe(pageUrls.length);
       const stored = new Set((await runtime.repos.labels.list()).map((l) => l.id));
       const used = exclusions.flatMap((d) => d.evidence.labelIds ?? []);
       expect(used.length).toBeGreaterThan(0);
@@ -178,6 +190,8 @@ describe('demo scenario on the synthetic persona', () => {
       expect((await runtime.repos.runs.get(second.id))?.previousRunId).toBe(first.id);
       const changes = await runtime.repos.analysis.listChanges(second.id);
       const swap = changes.find((c) => c.kind === 'VALUE_CHANGED' && c.key.property === 'profile.bitcoin_address');
+      // The search finds the same pages in the same order in both variants: no change is reported for it.
+      expect(changes.filter((c) => c.key.property.startsWith('search.'))).toEqual([]);
       const secondReport = await runtime.repos.analysis.latestReport(second.id, 'html');
       const secondHtml = new TextDecoder().decode(await runtime.blobs.get(secondReport!.blobSha256));
       expect(secondHtml).toContain(manifest.addresses['BTC-2']!.address);

@@ -7,8 +7,11 @@
  *   I2  nick / social login                        → same nick on every other platform that has handles
  *   I3  any identifier                             → watch-list pages (kept only when an identifier matches)
  *   I4  identifier that is a profile URL           → that platform's collector
+ *   I5  name, nick, e-mail or crypto address       → every web search collector (one query per identifier)
  *   E1  `account.link` to a recognised account     → that platform's collector (depth + 1)
  *   E2  account discovered for the subject         → its handle on the other platforms (depth + 1)
+ *   E3  `search.result_url`                        → the page's watch-page collector (same key as I3), else the
+ *                                                    recognised account's collector (as E1) (depth + 1)
  */
 import type {
   CollectorInput,
@@ -24,6 +27,7 @@ import type { CollectorFactory, CollectorInstance } from '../framework/collector
 import type { WatchedPage } from '../framework/config.ts';
 import type { ResolvedScope } from '../framework/source-registry.ts';
 import { recogniseAccountUrl, toLogicalUrl, type FixtureMapping } from '../framework/urls.ts';
+import { normaliseQueryText, SEARCH_IDENTIFIER_KINDS } from '../search/query.ts';
 
 export const PIVOT_RULES_VERSION = 'pivot.v1';
 export const PIVOT_REASONS = [
@@ -32,6 +36,7 @@ export const PIVOT_REASONS = [
   'watch_list',
   'linked_url',
   'discovered_account',
+  'search_result',
 ] as const;
 export type PivotReason = (typeof PIVOT_REASONS)[number];
 export const SKIP_REASONS = [
@@ -93,11 +98,17 @@ export interface PlannerContext {
   counter: { planned: number };
   watchList: readonly WatchedPage[];
   fixture: FixtureMapping;
+  /**
+   * The case identifiers, given to watch-page collectors of pages found by search (they keep a page only when an
+   * identifier appears on it, as for watch-list pages). Default: the identifier the search task looked up.
+   */
+  identifiers?: readonly Identifier[];
 }
 
 export const DEFAULT_MAX_TASKS = 40;
 const HANDLE_KINDS: ReadonlySet<IdentifierKind> = new Set(['nickname', 'social_login', 'messenger_id']);
 const NICK_KINDS: ReadonlySet<IdentifierKind> = new Set(['nickname', 'social_login']);
+const SEARCH_KINDS: ReadonlySet<IdentifierKind> = new Set(SEARCH_IDENTIFIER_KINDS);
 /** Platforms whose register entry is RED: links to them are recorded, never followed. */
 const RED_PLATFORM_SOURCES: Readonly<Record<string, SourceId>> = {
   x_twitter: 'x_twitter',
@@ -133,6 +144,13 @@ export function accountAliasKeys(
 
 const emptyInput = (depth: number): CollectorInput => ({ identifiers: [], accounts: [], addresses: [], depth });
 
+/** Input naming one page (watch list, search result); a collector must support it without any identifier. */
+const pageInput = (url: string, depth: number, value: Omit<PivotValue, 'kind' | 'value' | 'method'> = {}) =>
+  ({
+    ...emptyInput(depth),
+    values: [{ kind: 'url', value: url, method: 'search', ...value }],
+  }) satisfies CollectorInput;
+
 class Planner {
   readonly #ctx: PlannerContext;
   readonly tasks: PlannedTask[] = [];
@@ -142,7 +160,8 @@ class Planner {
     this.#ctx = ctx;
   }
 
-  consider(task: PlannedTask): void {
+  /** `subject`: what the collector must support by itself (default the task input; page tasks: the page alone). */
+  consider(task: PlannedTask, subject: CollectorInput = task.input): void {
     const ctx = this.#ctx;
     const skip = (reason: SkipReason): void => {
       const { key, sourceId, platform, subjectKey, depth, provenance } = task;
@@ -153,13 +172,29 @@ class Planner {
     if (!ctx.scope.isEnabled(task.sourceId)) return skip('source_not_enabled');
     const instance = ctx.collectors.get(task.sourceId);
     if (!instance) return skip('not_registered');
-    if (!instance.collector.supports(task.input)) return skip('unsupported');
+    if (!instance.collector.supports(subject)) return skip('unsupported');
     if (task.depth > ctx.maxPivotDepth) return skip('depth_exceeded');
-    if (ctx.known.has(task.key)) return skip('duplicate');
+    const aliases = this.#aliases(task);
+    if (ctx.known.has(task.key) || aliases.some((k) => ctx.known.has(k))) return skip('duplicate');
     if (ctx.counter.planned >= ctx.maxTasks) return skip('budget_exceeded');
     ctx.known.add(task.key);
+    for (const alias of aliases) ctx.known.add(alias);
     ctx.counter.planned += 1;
     this.tasks.push(task);
+  }
+
+  /**
+   * Other keys of a page task's subject: a watch-list or search-result page that is an account page of the same
+   * platform (e.g. a channel preview) is that account, so a probe or link to it is a duplicate, and vice versa.
+   */
+  #aliases(task: PlannedTask): string[] {
+    if (!task.subjectKey.startsWith('url:')) return [];
+    const account = recogniseAccountUrl(task.subjectKey.slice('url:'.length), this.#ctx.fixture);
+    if (account?.platform !== task.platform) return [];
+    const keys: string[] = [];
+    if (account.handle) keys.push(taskKey(task.sourceId, handleSubject(account.platform, account.handle)));
+    if (account.platformUserId) keys.push(taskKey(task.sourceId, `id:${account.platform}:${account.platformUserId}`));
+    return keys;
   }
 
   /** Task for a recognised account URL (identifier value or `account.link`). */
@@ -213,9 +248,51 @@ class Planner {
     }
   }
 
+  /**
+   * A page found by web search: the watch-page collector that reads it, under the same key as a watch-list task (so a
+   * page reached both ways is collected once), else the collector of the recognised account it shows (as E1). The
+   * page alone chooses the collector; the case identifiers only go along, for matching on the page.
+   */
+  searchResult(
+    url: string,
+    depth: number,
+    provenance: PivotProvenance,
+    value: Pick<PivotValue, 'observationId' | 'captureId'>,
+    identifiers: readonly Identifier[],
+  ): void {
+    const logical = toLogicalUrl(url, this.#ctx.fixture);
+    const page = pageInput(logical, depth, value);
+    for (const factory of this.#ctx.factories) {
+      if (!factory.watchesPages || !this.#ctx.collectors.get(factory.sourceId)?.collector.supports(page)) continue;
+      const subjectKey = `url:${logical}`;
+      this.consider(
+        {
+          key: taskKey(factory.sourceId, subjectKey),
+          sourceId: factory.sourceId,
+          platform: factory.platform,
+          subjectKey,
+          depth,
+          input: { ...page, identifiers: [...identifiers] },
+          provenance: { ...provenance, detail: logical },
+        },
+        page,
+      );
+      return;
+    }
+    this.linked(logical, depth, provenance, { ...value, method: 'search' });
+  }
+
   plan(): PivotPlan {
     return { rulesVersion: PIVOT_RULES_VERSION, tasks: this.tasks, skipped: this.skipped };
   }
+}
+
+/** Task subject of a web search for an identifier: the address, or the query text in lower case. */
+export function searchSubject(identifier: Pick<Identifier, 'kind' | 'value' | 'chain'>): string {
+  const text = normaliseQueryText(identifier.value);
+  return identifier.kind === 'crypto_address'
+    ? `address:${identifier.chain ?? 'unknown'}:${text}`
+    : `query:${text.toLowerCase()}`;
 }
 
 export function planInitial(identifiers: readonly Identifier[], ctx: PlannerContext): PivotPlan {
@@ -267,14 +344,36 @@ export function planInitial(identifiers: readonly Identifier[], ctx: PlannerCont
       if (!factory) continue;
       const url = toLogicalUrl(page.url, ctx.fixture);
       const subjectKey = `url:${url}`;
+      // The page alone must be readable by the collector; the identifiers go along for matching only.
+      const subject = pageInput(url, 0);
+      planner.consider(
+        {
+          key: taskKey(factory.sourceId, subjectKey),
+          sourceId: factory.sourceId,
+          platform: factory.platform,
+          subjectKey,
+          depth: 0,
+          input: { ...subject, identifiers: matchable },
+          provenance: { reason: 'watch_list', rule: 'I3', detail: url },
+        },
+        subject,
+      );
+    }
+  }
+  // Searches last: they never take the task budget from the platform tasks of an identifier.
+  const searches = ctx.factories.filter((f) => f.webSearch);
+  for (const identifier of matchable) {
+    if (!SEARCH_KINDS.has(identifier.kind) || /^https?:\/\//i.test(identifier.value.trim())) continue;
+    const subjectKey = searchSubject(identifier);
+    for (const factory of searches) {
       planner.consider({
         key: taskKey(factory.sourceId, subjectKey),
         sourceId: factory.sourceId,
         platform: factory.platform,
         subjectKey,
         depth: 0,
-        input: { ...emptyInput(0), identifiers: matchable, values: [{ kind: 'url', value: url, method: 'search' }] },
-        provenance: { reason: 'watch_list', rule: 'I3', detail: url },
+        input: { ...emptyInput(0), identifiers: [identifier] },
+        provenance: { reason: 'input_identifier', rule: 'I5', identifierId: identifier.id },
       });
     }
   }
@@ -297,6 +396,16 @@ export function planExpansion(parent: PlannedTask, result: CollectorResult, ctx:
       depth,
       { reason: 'linked_url', rule: 'E1', parentTaskKey: parent.key, observationId: o.id, captureId: o.captureId },
       { method: 'cross_link', observationId: o.id, captureId: o.captureId },
+    );
+  }
+  for (const o of result.observations) {
+    if (o.property !== 'search.result_url') continue;
+    planner.searchResult(
+      o.value,
+      depth,
+      { reason: 'search_result', rule: 'E3', parentTaskKey: parent.key, observationId: o.id, captureId: o.captureId },
+      { observationId: o.id, captureId: o.captureId },
+      ctx.identifiers ?? parent.input.identifiers,
     );
   }
   if (factory?.pivotOnAccounts !== false) {
