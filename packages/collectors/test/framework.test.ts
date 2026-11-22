@@ -28,7 +28,7 @@ import { fakeEgress, identifier, MemoryBlobs, memoryLogger, TEST_REDACTOR } from
 const FIXTURE: FixtureMapping = { baseUrl: 'http://127.0.0.1:4100', hostPrefixes: DEFAULT_HOST_PREFIXES };
 
 const entry = (extra: string): string =>
-  `version: t\nsources:\n  a:\n    name: A\n    kind: web\n    compliance: GREEN\n    complianceNote: n\n    enabledByDefault: false\n    requiresApiKey: false\n    sendsIdentifiersExternally: false\n    reliability: B\n${extra}`;
+  `version: t\nsources:\n  a:\n    name: A\n    kind: web\n    compliance: GREEN\n    complianceNote: n\n    namePl: A\n    complianceNotePl: n\n    tosUrl: null\n    enabledByDefault: false\n    requiresApiKey: false\n    sendsIdentifiersExternally: false\n    reliability: B\n${extra}`;
 
 /** Problems of the `SourceConfigError` an invalid register throws (empty when it parses). */
 function fail(yaml: string): readonly string[] {
@@ -156,6 +156,9 @@ describe('source HTTP guards', () => {
     kind: 'forum',
     compliance: 'AMBER',
     complianceNote: 'test',
+    namePl: 'Bitcointalk',
+    complianceNotePl: 'test',
+    tosUrl: null,
     enabledByDefault: false,
     requiresApiKey: false,
     sendsIdentifiersExternally: true,

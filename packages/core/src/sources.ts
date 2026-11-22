@@ -48,13 +48,14 @@ export interface SourceDescriptor {
   compliance: ComplianceStatus;
   /** Why the source has this status (ToS clause, licence, data-flow concern). */
   complianceNote: string;
-  tosUrl?: string | null;
+  /** Link to the terms (or the documentation that holds the usage rules); `null` = no published terms. */
+  tosUrl: string | null;
   /** Polish display name / note for the analyst console. */
-  namePl?: string;
-  complianceNotePl?: string;
+  namePl: string;
+  complianceNotePl: string;
   /** False excludes this source's content from every LLM prompt (e.g. Telegram). Default true. */
   llmAllowed?: boolean;
-  /** Hosts that must never be contacted even if allowed elsewhere. */
+  /** Hosts that must never be contacted even if allowed elsewhere (required and non-empty for RED sources). */
   blockedHosts?: string[];
   /** Attribution text required by the provider's terms (e.g. "Powered by Etherscan.io APIs"). */
   attribution?: string;

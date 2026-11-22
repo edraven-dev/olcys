@@ -82,5 +82,9 @@ w pamięci (ostrzeżenie w dzienniku). Tryb pobierania określa `OLCYS_MODE` (`o
 
 ## Kontrola zakresu źródeł
 
-`POST /api/cases` odrzuca (400 `invalid_scope`) źródła RED, nieznane identyfikatory źródeł oraz źródła AMBER bez
-uzasadnienia (co najmniej 20 znaków) — niezależnie od interfejsu. Kolektory sprawdzają to samo ponownie przy zbieraniu.
+`POST /api/cases` waliduje zakres sprawy względem rejestru źródeł (`validateCaseScope` z `@olcys/collectors`) —
+niezależnie od interfejsu. Odpowiedź 400 ma postać `{ error: <kod pierwszego naruszenia>, message, details: [naruszenia] }`.
+Kody: `source_forbidden` (źródło RED), `unknown_source`, `amber_justification_required` (źródło AMBER bez uzasadnienia),
+`justification_too_short` (uzasadnienie krótsze niż 20 znaków; `details[].minLength`), `orphan_justification` (uzasadnienie
+dla źródła niewłączonego lub spoza AMBER), `pivot_depth_out_of_range` (głębokość 0–3) i `unknown_chain`. Kolektory
+sprawdzają to samo ponownie przy zbieraniu.

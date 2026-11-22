@@ -223,11 +223,16 @@ describe('api', () => {
     const sources = (await app.inject('/api/sources')).json().items as { id: string; compliance: string }[];
     const red = sources.find((s) => s.compliance === 'RED')?.id;
     const amber = sources.find((s) => s.compliance === 'AMBER')?.id;
-    for (const payload of [withSources([red!]), withSources(['no_such_source']), withSources([amber!])]) {
+    const refused: [ReturnType<typeof withSources>, string][] = [
+      [withSources([red!]), 'source_forbidden'],
+      [withSources(['no_such_source']), 'unknown_source'],
+      [withSources([amber!]), 'amber_justification_required'],
+    ];
+    for (const [payload, code] of refused) {
       // oxlint-disable-next-line no-await-in-loop
       const response = await app.inject({ method: 'POST', url: '/api/cases', payload });
       expect(response.statusCode).toBe(400);
-      expect(response.json()).toMatchObject({ error: 'invalid_scope' });
+      expect(response.json()).toMatchObject({ error: code });
     }
     const tooShort = await app.inject({
       method: 'POST',

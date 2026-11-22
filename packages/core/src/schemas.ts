@@ -80,9 +80,16 @@ export type IdentifierInput = z.infer<typeof IdentifierInputSchema>;
 
 export const CaseScopeInputSchema = z.strictObject({
   enabledSources: z.array(z.string().min(1).max(64)).max(64).default([]),
-  amberJustifications: z.record(z.string(), z.string().trim().min(20).max(1000)).default({}),
-  chains: z.array(ChainIdSchema).max(32).default([]),
-  maxPivotDepth: z.int().min(0).max(3).default(2),
+  // Length rules live in validateCaseScope (code `justification_too_short`), so the API answers with that code.
+  amberJustifications: z.record(z.string(), z.string().trim().max(1000)).default({}),
+  // Chain ids are checked by validateCaseScope (code `unknown_chain`) before a case is stored, so the parsed type is
+  // ChainId although the schema only bounds the strings.
+  chains: z
+    .array(z.string().max(64) as unknown as z.ZodType<ChainId>)
+    .max(32)
+    .default([]),
+  // The range (0-3) is checked by validateCaseScope (code `pivot_depth_out_of_range`).
+  maxPivotDepth: z.int().default(2),
 });
 
 export const CreateCaseSchema = z.strictObject({
@@ -140,22 +147,29 @@ export const SourceEntrySchema = z
     kind: z.enum(SOURCE_KINDS),
     compliance: z.enum(COMPLIANCE_STATUSES),
     complianceNote: z.string().min(1),
-    tosUrl: z.string().url().nullable().optional(),
+    /** Mandatory key: `null` means the source publishes no terms. */
+    tosUrl: z.string().url().nullable(),
     enabledByDefault: z.boolean(),
     requiresApiKey: z.boolean(),
     sendsIdentifiersExternally: z.boolean(),
     reliability: AdmiraltySchema,
     rateLimit: z.strictObject({ requests: z.number().min(0), perSeconds: z.number().positive() }),
     allowedHosts: z.array(z.string()),
-    namePl: z.string().optional(),
-    complianceNotePl: z.string().optional(),
+    namePl: z.string().trim().min(1),
+    complianceNotePl: z.string().trim().min(1),
     llmAllowed: z.boolean().optional(),
     blockedHosts: z.array(z.string()).optional(),
     attribution: z.string().optional(),
   })
-  .refine((s) => !(s.compliance === 'RED' && s.enabledByDefault), {
-    message: 'RED sources must not be enabled by default',
-    path: ['enabledByDefault'],
+  .superRefine((s, ctx) => {
+    const fail = (path: string, message: string) => ctx.addIssue({ code: 'custom', message, path: [path] });
+    if (s.compliance === 'AMBER' && s.enabledByDefault)
+      fail('enabledByDefault', 'AMBER sources are enabled per case only');
+    if (s.compliance !== 'RED') return;
+    if (s.enabledByDefault) fail('enabledByDefault', 'RED sources must not be enabled by default');
+    if (s.rateLimit.requests !== 0) fail('rateLimit', 'RED sources must have rateLimit.requests 0');
+    if (s.allowedHosts.length > 0) fail('allowedHosts', 'RED sources must have no allowed hosts');
+    if (!s.blockedHosts?.length) fail('blockedHosts', 'RED sources must list the hosts that are never contacted');
   });
 
 export const SourcesConfigSchema = z.strictObject({

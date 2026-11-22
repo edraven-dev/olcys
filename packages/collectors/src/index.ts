@@ -254,3 +254,43 @@ export {
   vatSearchUrl,
   type VatWhitelistOptions,
 } from './registries/vat-whitelist.ts';
+
+export { assertCollectorAllowed } from './compliance/guard.ts';
+export { SourceDescriptorMismatchError, SourceForbiddenError } from './compliance/errors.ts';
+export {
+  createSourceRegister,
+  loadSourceRegister,
+  redBlockedHosts,
+  registerOf,
+  type SourceRegister,
+} from './compliance/register.ts';
+export {
+  MAX_PIVOT_DEPTH,
+  MIN_PIVOT_DEPTH,
+  allowListFor,
+  validateCaseScope,
+  type ScopeViolation,
+} from './compliance/scope.ts';
+export {
+  DEFAULT_DOC_PATH,
+  DOC_END,
+  DOC_START,
+  checkSourcesDoc,
+  renderSourcesDoc,
+  replaceGeneratedBlock,
+  writeSourcesDoc,
+  type DocLang,
+} from './compliance/doc.ts';
+export {
+  DEFAULT_FORBIDDEN_TOOLS_PATH,
+  FORBIDDEN_CATEGORIES,
+  describeForbiddenDependency,
+  loadForbiddenTools,
+  parseForbiddenTools,
+  scanForbiddenDependencies,
+  type FeatureRule,
+  type ForbiddenCategory,
+  type ForbiddenDependency,
+  type ForbiddenTool,
+  type ForbiddenTools,
+} from './compliance/forbidden-tools.ts';

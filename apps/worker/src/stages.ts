@@ -66,6 +66,7 @@ import {
   isSearchResultCapture,
   loadCollectorConfig,
   loadSourceRegistry,
+  redBlockedHosts,
   type SourceRegistry,
 } from '@olcys/collectors';
 import {
@@ -141,6 +142,8 @@ export function createCollectStage(options: StageOptions): Stage {
         mode: options.mode,
         runId: ctx.run.id,
         enabledSources: scope.egressSources,
+        // The register is the source of truth: RED hosts are denied even when something else would allow them.
+        redHosts: redBlockedHosts(sources.list()),
         blobs: ctx.blobs,
         sinks: {
           log: (entry) => ctx.repos.evidence.addEgressLog([entry]),
@@ -425,6 +428,7 @@ export function createChainStage(options: StageOptions): Stage {
         runId,
         // Offline and replay every request goes to the fixture site (or its recordings), at the fixture site's pace.
         enabledSources: scope.egressSources.filter((s) => CHAIN_STAGE_KINDS.has(s.kind)),
+        redHosts: redBlockedHosts(sources.list()),
         blobs: ctx.blobs,
         sinks: {
           log: (entry) => ctx.repos.evidence.addEgressLog([entry]),

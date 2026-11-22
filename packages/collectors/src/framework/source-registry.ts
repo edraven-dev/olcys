@@ -55,6 +55,7 @@ function validate(descriptors: readonly SourceDescriptor[]): string[] {
       if (d.enabledByDefault) problems.push(`${at}.enabledByDefault: RED sources are never enabled by default`);
       if (d.rateLimit.requests !== 0) problems.push(`${at}.rateLimit.requests: must be 0 for RED sources`);
       if (d.allowedHosts.length) problems.push(`${at}.allowedHosts: must be empty for RED sources`);
+      if (!d.blockedHosts?.length) problems.push(`${at}.blockedHosts: RED sources must list the hosts never contacted`);
     } else {
       if (d.compliance === 'AMBER' && d.enabledByDefault) {
         problems.push(`${at}.enabledByDefault: AMBER sources are enabled per case only`);

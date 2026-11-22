@@ -9,6 +9,7 @@
     "start": "node src/main.ts"
   },
   "dependencies": {
+    "@olcys/collectors": "workspace:*",
     "@olcys/core": "workspace:*",
     "@olcys/worker": "workspace:*",
     "fastify": "5.12.8"
