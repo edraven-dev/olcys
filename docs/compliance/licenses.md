@@ -93,7 +93,7 @@ Wszystkie zależności bezpośrednie wszystkich pakietów monorepo (33 pakietów
 | vite | 8.3.8 | MIT | budowanie i serwer deweloperski interfejsu | apps/web (dev) |
 | vitest | 5.1.1 | MIT | testy | root (dev) |
 | yaml | 2.9.1 | ISC | odczyt plików konfiguracyjnych YAML (rejestr źródeł, reguły, wagi, dostawcy danych łańcuchowych) | root (dev), apps/worker, packages/address-extractor, packages/analytics, packages/chain-adapters, packages/collectors, packages/core (dev), packages/labels, packages/scoring |
-| zod | 4.6.7 | MIT | walidacja danych wejściowych i konfiguracji | packages/core |
+| zod | 4.6.7 | MIT | walidacja danych wejściowych i konfiguracji | packages/core, packages/llm |
 
 ### Pakiety Pythona (services/osint-py)
 

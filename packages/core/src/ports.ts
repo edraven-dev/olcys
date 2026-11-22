@@ -224,29 +224,3 @@ export interface SearchProvider {
   readonly id: string;
   search(query: SearchQuery, ctx: RunContext): Promise<SearchResult[]>;
 }
-
-export interface LlmRequest {
-  /** e.g. `address-role-classification`. */
-  task: string;
-  promptVersion: string;
-  system: string;
-  /** Scraped/untrusted text: always passed delimited as data, never as instructions. */
-  untrustedInput: string;
-  /** JSON Schema the output must satisfy. */
-  jsonSchema: Record<string, unknown>;
-  maxTokens?: number;
-  temperature?: number;
-  runId?: Id;
-}
-
-export interface LlmResponse<T> {
-  output: T;
-  callId: Id;
-  model: string;
-  modelDigest?: string;
-}
-
-/** Any OpenAI-compatible endpoint; swapping models = changing base URL + model id. */
-export interface LlmClient {
-  complete<T>(request: LlmRequest): Promise<LlmResponse<T>>;
-}

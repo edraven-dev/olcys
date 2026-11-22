@@ -53,6 +53,36 @@ Dane są wyłącznie syntetyczne (persona z domeną `example.org`). Seed łączy
 tytule i autorze `seed`, więc kolejne uruchomienia niczego nie dodają. Dwa równoległe uruchomienia w tej samej chwili
 mogą utworzyć dwie sprawy; uruchamiaj seed pojedynczo.
 
+### Demo w jednym poleceniu (`pnpm demo`)
+
+Skrypt `scripts/demo/run.ts` prowadzi przez cały syntetyczny scenariusz **działający** lokalny stos: API (`API_URL`,
+domyślnie `http://127.0.0.1:4000`) i stronę testową (`FIXTURE_SITE_URL`, domyślnie `http://127.0.0.1:4100`). Akceptuje
+wyłącznie adresy pętli zwrotnej (127.0.0.1, `localhost`, `[::1]`); każdy inny adres jest odrzucany przed wysłaniem
+jakiegokolwiek żądania. Skrypt niczego nie uruchamia ani nie restartuje.
+
+```bash
+cp .env.example .env     # FIXTURE_ALLOW_VARIANT_SWITCH=1 jest już w pliku
+pnpm dev:deps            # po zmianie .env uruchom to polecenie ponownie: kontener fixture czyta zmienną przy starcie
+pnpm dev                 # API, worker i aplikacja webowa
+pnpm demo                # scenariusz + podsumowanie po polsku
+pnpm demo --ci           # to samo, ale kod wyjścia 1 i czytelna lista niezgodności, gdy wynik odbiega od oczekiwań
+```
+
+Kroki: kontrola zdrowia obu usług (z podpowiedzią, co uruchomić, gdy któraś nie działa); wariant strony testowej `v1`;
+utworzenie sprawy persony przez `POST /api/cases` (ten sam ładunek co `pnpm seed`, plus archiwum syntetyczne); uruchomienie 1
+z odpytywaniem do końca; wariant `v2`; uruchomienie 2; odczyt wyników przez API i samokontrola z
+`fixtures/demo/manifest.json`. Ten plik jest jedynym źródłem oczekiwanych wartości dema (wyniki powiązań, odrzucenia z
+regułami, przesłanki wyjścia do fiat, zmiana `profile.bitcoin_address` BTC-1 → BTC-2); adresy bierze z
+`fixtures/persona/manifest.json` po nazwach slotów. Podsumowanie pokazuje identyfikator sprawy, powiązania z przedziałami
+ocen, odrzucone adresy z powodem, przesłanki wyjścia do fiat, alert zmiany oraz adresy: widok sprawy w interfejsie
+(`/sprawy/<id>`) i raport (`/api/runs/<id>/report`).
+
+Jeśli strona testowa odrzuci przełączenie wariantu, ustaw `FIXTURE_ALLOW_VARIANT_SWITCH=1` i uruchom ponownie
+`pnpm dev:deps`. Każde uruchomienie `pnpm demo` tworzy nową sprawę. Dane są wyłącznie syntetyczne.
+
+Poza zakresem tej wersji (planowane później): scenariusz z łańcuchami piaskownicy (regtest/Anvil), nagrywanie kaset,
+tryb `--mode sandbox` i wyliczanie nazw użytkowników.
+
 ### `pnpm dev:doctor`
 
 Skrypt tylko czyta stan (niczego nie uruchamia ani nie zmienia) i drukuje po jednej linii na kontrolę (`✔`, `!`
@@ -79,6 +109,10 @@ skrypt nazywa się `dev:doctor`.
 | `fixture-site` | 4100          | `GET /healthz` (wget)                 |
 | `osint-py`     | 8090          | profil `osint`; czeka na fixture-site |
 | `ollama`       | 11434         | profil `llm`                          |
+
+Model AI domyślnie nie działa w compose: sugestie korzystają z OpenVINO Model Server uruchomionego na komputerze
+(`LLM_BASE_URL=http://localhost:2140/v3`, `LLM_MODEL=qwen3.6-35b-ov`; włączane przez `LLM_ENABLED=true`). Usługa
+`ollama` (profil `llm`) jest opcjonalną alternatywą — wtedy `LLM_BASE_URL=http://127.0.0.1:11434/v1`.
 
 Wszystkie porty są wiązane do `127.0.0.1` i konfigurowane w `.env`. Profile: `docker compose --profile osint --profile
 llm up -d --wait`. Poprawność pliku sprawdza `docker compose --profile osint --profile llm --profile sandbox config -q`.

@@ -18,6 +18,7 @@ import type {
   TimestampSubject,
   TimestampToken,
 } from './evidence.ts';
+import type { LlmCallRecord, LlmSuggestion, LlmSuggestionDecision, NewLlmSuggestion } from './llm.ts';
 import type { AddressCandidate, ExtractionResult } from './extraction.ts';
 import type { FlowQuery, FlowQueryResult, FundFlowView } from './flows.ts';
 import type { AddressLabel, AddressTypeClassification, ExclusionDecision } from './labels.ts';
@@ -312,6 +313,19 @@ export interface TimestampRepository {
   listRequests(subjectId: Id): Promise<TimestampRequestRecord[]>;
 }
 
+/**
+ * Model calls and suggestions (append-only). A suggestion's status is derived from its one decision; a decision is
+ * recorded at most once and never changes a stored score. Lists are ordered oldest first by (`createdAt`, `id`).
+ */
+export interface LlmRepository {
+  addCall(record: LlmCallRecord): Promise<void>;
+  addSuggestions(suggestions: NewLlmSuggestion[]): Promise<void>;
+  getSuggestion(id: Id): Promise<LlmSuggestion | undefined>;
+  listSuggestionsByRun(runId: Id): Promise<LlmSuggestion[]>;
+  /** Records the decision; false when the suggestion already has one (nothing is written). */
+  decide(decision: LlmSuggestionDecision): Promise<boolean>;
+}
+
 export interface Repositories {
   cases: CaseRepository;
   runs: RunRepository;
@@ -333,4 +347,6 @@ export interface Repositories {
   custody?: CustodyRepository;
   /** Present when the store keeps RFC 3161 requests and tokens (`Capture.timestamp` is filled from it). */
   timestamps?: TimestampRepository;
+  /** Present when the store keeps model calls and suggestions (`ApiMeta.features.suggestions` also needs the model). */
+  llm?: LlmRepository;
 }

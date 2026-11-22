@@ -247,10 +247,25 @@ kontraktu usługi — konto EOA z delegacją, konto Safe i konto ERC-4337 mogą 
 ## AI (wymienny model)
 
 `@olcys/llm` korzysta z API Chat Completions zgodnego z OpenAI, więc zmiana modelu sprowadza się do zmiany
-`LLM_BASE_URL` i `LLM_MODEL` (domyślnie lokalnie: Ollama/llama.cpp/vLLM). Model jedynie _podpowiada_ (rola wzmianki
-o adresie, odmiana polskich imion i nazwisk, szkice wniosków w raporcie); nigdy nie wyszukuje adresów i nie ustala
-wyników, otrzymuje zebrany tekst wyłącznie jako oznaczone, niezaufane dane, nie ma dostępu do narzędzi, a każde
-wywołanie jest rejestrowane (wersja promptu, model, skrót modelu, odpowiedź).
+`LLM_BASE_URL` i `LLM_MODEL`. Domyślnie jest to lokalny OpenVINO Model Server (`http://localhost:2140/v3`, model
+`qwen3.6-35b-ov`, myślenie wyłączone przez `LLM_CHAT_TEMPLATE_KWARGS`); Ollama, llama.cpp i vLLM działają tak samo.
+Punkt końcowy modelu jest źródłem w `config/sources.yaml` (`local_llm`, rodzaj `ai_model`, nie wysyła identyfikatorów
+poza maszynę), a cały ruch idzie przez `@olcys/http`: lista dozwolonych hostów, limit zapytań, dziennik wyjścia
+(`containsIdentifier`) i koperta pochodzenia. Zdalny punkt końcowy wymaga własnego wpisu AMBER i zgody w sprawie.
+
+Model jedynie _podpowiada_ (rola wzmianki o adresie, odmiana polskich imion i nazwisk, szkice wniosków w raporcie);
+nigdy nie wyszukuje adresów i nie ustala wyników. Zebrany tekst trafia do niego wyłącznie jako niezaufane dane między
+znacznikami z jednorazowym, deterministycznym znacznikiem (tekst jest normalizowany, znaki niewidoczne i fałszywe
+znaczniki usuwane); żądanie nie zawiera narzędzi. Treści ze źródeł z `llmAllowed: false` (np. Telegram) nigdy nie
+trafiają do promptu, a zbyt długi tekst jest odrzucany. Odpowiedź musi spełniać schemat JSON; wyniki oczekiwane
+(`disabled`, `input_rejected`, `egress_denied`, `timeout`, `http_error`, `invalid_json`, `schema_violation`) są
+zwracane jako wartości, a każda próba trafia do dziennika `llm_call` (wersja i skrót promptu, model żądany i zgłoszony,
+skrót modelu, parametry, skrót i blob żądania, blob odpowiedzi). Prompty są wersjonowane i zablokowane skrótem w
+`packages/llm/prompts.lock.json`.
+
+Sugestie (`llm_suggestion`) mają zerową wagę w ocenie, dopóki analityk ich nie potwierdzi decyzją z uzasadnieniem
+(`POST /api/suggestions/:id/decision`, jedna decyzja na sugestię); potwierdzenie niczego nie zmienia w zapisanej
+ocenie, a uwzględnia je dopiero kolejny przebieg ponownej oceny. Fakty, wyniki obliczeń i wnioski pozostają rozdzielone.
 
 ## Język interfejsu i dokumentacji
 

@@ -19,14 +19,17 @@ import type {
   FundFlowView,
   ExtractionResult,
   LinkAssessment,
+  LlmSuggestion,
   NormalizedTransfer,
   OnlineAccount,
   ProvenanceEnvelope,
   ActivityIndicators,
   AddressCandidate,
   AnalystOverrideKind,
+  BlobRef,
   CustodyAction,
   CustodyEvent,
+  LlmOutcome,
   AnalystOverrideTarget,
   ScheduleTickOutcome,
   TimestampRequestOutcome,
@@ -355,6 +358,62 @@ export interface TimestampTokenTable {
   created_at: GeneratedTimestamp;
 }
 
+/** migrations/0010_llm.sql */
+export interface LlmCallTable {
+  id: string;
+  case_id: string | null;
+  run_id: string | null;
+  task: string;
+  prompt_version: string;
+  prompt_sha256: string;
+  base_url: string;
+  model_requested: string;
+  model_reported: string | null;
+  model_digest: string | null;
+  params: Json<Record<string, unknown>>;
+  request_sha256: string | null;
+  request_blob: Json<BlobRef> | null;
+  input_sha256: string;
+  input_capture_ids: string[];
+  input_source_ids: string[];
+  response_blob: Json<BlobRef> | null;
+  output_json: Json<unknown> | null;
+  outcome: LlmOutcome;
+  error: string | null;
+  http_status: number | null;
+  latency_ms: number | null;
+  usage: Json<Record<string, unknown>> | null;
+  fetch_id: string | null;
+  started_at: Timestamp;
+  finished_at: Timestamp;
+  created_at: GeneratedTimestamp;
+}
+
+export interface LlmSuggestionTable {
+  id: string;
+  run_id: string;
+  task: string;
+  target: Json<LlmSuggestion['target']>;
+  label: string;
+  rationale: string | null;
+  output: Json<unknown> | null;
+  model: string;
+  model_digest: string | null;
+  prompt_version: string;
+  call_id: string;
+  created_at: Timestamp;
+}
+
+export interface LlmSuggestionDecisionTable {
+  id: string;
+  suggestion_id: string;
+  decision: 'confirmed' | 'rejected';
+  justification: string;
+  edited_text: string | null;
+  decided_by: string;
+  decided_at: Timestamp;
+}
+
 /** migrations/0003_analyst_overrides.sql */
 export interface AnalystOverridesTable {
   id: string;
@@ -417,6 +476,9 @@ export interface Database {
   custody_event: CustodyEventTable;
   timestamp_request: TimestampRequestTable;
   timestamp_token: TimestampTokenTable;
+  llm_call: LlmCallTable;
+  llm_suggestion: LlmSuggestionTable;
+  llm_suggestion_decision: LlmSuggestionDecisionTable;
   change_events: ChangeEventsTable;
   reports: ReportsTable;
   schema_migrations: SchemaMigrationsTable;

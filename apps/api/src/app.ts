@@ -7,6 +7,7 @@ import type {
   ApiMeta,
   BlobStore,
   FetchMode,
+  LlmClient,
   Logger,
   Repositories,
   RunConfigSnapshot,
@@ -30,6 +31,7 @@ import { DEFAULT_ANALYST, registerAnalystRoutes, supportsJudgements, withJudgeme
 import { registerGuard, type GuardOptions } from './guard.ts';
 import { idOf } from './ids.ts';
 import { registerScheduleRoutes } from './schedule-routes.ts';
+import { registerSuggestionRoutes } from './suggestion-routes.ts';
 
 export interface ApiDeps {
   repos: Repositories;
@@ -56,6 +58,8 @@ export interface ApiDeps {
   mode?: FetchMode;
   /** Configuration snapshot of new runs, for `GET /api/meta`. */
   config?: { snapshot: RunConfigSnapshot };
+  /** The AI model: suggestions are offered (`ApiMeta.features.suggestions`) only when it is enabled. */
+  llm?: Pick<LlmClient, 'enabled'>;
   /** Audit log of analyst actions (judgements, overrides). */
   logger?: Logger;
   /** Renders a new version of a finished run's report (`POST /api/runs/:runId/report`). */
@@ -114,7 +118,7 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
       mode: deps.mode ?? 'offline',
       features: {
         judgements: supportsJudgements(repos),
-        suggestions: false,
+        suggestions: Boolean(repos.llm) && deps.llm?.enabled === true,
         schedules: repos.schedules !== undefined,
         reportPdf: false,
         exports: false,
@@ -347,6 +351,8 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
     ...(deps.logger ? { logger: deps.logger } : {}),
     ...(deps.renderReport ? { renderReport: deps.renderReport } : {}),
   });
+
+  registerSuggestionRoutes(app, { repos, analyst, ...(deps.logger ? { logger: deps.logger } : {}) });
 
   return app;
 }

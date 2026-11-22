@@ -8,6 +8,10 @@ import type {
   AnalystJudgement,
   AnalystOverride,
   CustodyEvent,
+  LlmCallRecord,
+  LlmSuggestion,
+  LlmSuggestionDecision,
+  NewLlmSuggestion,
   CashOutEvent,
   ChangeEvent,
   CaseWithIdentifiers,
@@ -59,6 +63,22 @@ export function createMemoryRepositories(): Repositories {
     judgements: [] as AnalystJudgement[],
     overrides: [] as AnalystOverride[],
     custody: [] as CustodyEvent[],
+    llmCalls: [] as LlmCallRecord[],
+    suggestions: [] as NewLlmSuggestion[],
+    decisions: [] as LlmSuggestionDecision[],
+  };
+
+  const withDecision = (s: NewLlmSuggestion): LlmSuggestion => {
+    const d = store.decisions.find((x) => x.suggestionId === s.id);
+    if (!d) return copy({ ...s, status: 'pending' as const });
+    return copy({
+      ...s,
+      status: d.decision,
+      decidedBy: d.decidedBy,
+      decidedAt: d.decidedAt,
+      justification: d.justification,
+      ...(d.editedText ? { editedText: d.editedText } : {}),
+    });
   };
 
   const timestamps = memoryTimestamps(store.custody);
@@ -348,5 +368,28 @@ export function createMemoryRepositories(): Repositories {
       },
     },
     timestamps: timestamps.repository,
+    llm: {
+      async addCall(record) {
+        store.llmCalls.push(copy(record));
+      },
+      async addSuggestions(suggestions) {
+        store.suggestions.push(...suggestions.map((s) => copy(s)));
+      },
+      async getSuggestion(id) {
+        const found = store.suggestions.find((s) => s.id === id);
+        return found ? withDecision(found) : undefined;
+      },
+      async listSuggestionsByRun(runId) {
+        return store.suggestions
+          .filter((s) => s.runId === runId)
+          .toSorted((a, b) => text(a.createdAt, b.createdAt) || text(a.id, b.id))
+          .map(withDecision);
+      },
+      async decide(decision) {
+        if (store.decisions.some((d) => d.suggestionId === decision.suggestionId)) return false;
+        store.decisions.push(copy(decision));
+        return true;
+      },
+    },
   };
 }
