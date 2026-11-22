@@ -49,6 +49,11 @@ export interface ChainFetchOutcome {
   items: number;
   /** Rows the provider could not represent (e.g. unsupported token decimals): skipped, the rest is kept. */
   skipped?: { txHash: string; reason: string }[];
+  /**
+   * The contract code could not be read (e.g. a backend without the node endpoint); the history was still fetched.
+   * The address type is then unknown.
+   */
+  codeError?: { kind: ChainErrorKind; message: string; fetchId?: Id };
   error?: { kind: ChainErrorKind | 'unexpected'; message: string };
 }
 
@@ -140,6 +145,7 @@ const sameAddress = (chain: ChainId, a: string, b: string): boolean =>
 interface Fetched {
   summary?: AddressSummary;
   code?: { code: string; fetchId: Id };
+  codeError?: { kind: ChainErrorKind; message: string; fetchId?: Id };
   transfers: NormalizedTransfer[];
   utxoTxs: UtxoTransaction[];
   pages: number;
@@ -157,7 +163,20 @@ async function fetchFrom(
 ): Promise<Fetched> {
   const fetched: Fetched = { transfers: [], utxoTxs: [], pages: 0, truncated: false, skipped: [] };
   if (want.summary) fetched.summary = await provider.getAddressSummary(address, ctx);
-  if (want.code && provider.getCode) fetched.code = await provider.getCode(address, ctx);
+  if (want.code && provider.getCode) {
+    try {
+      fetched.code = await provider.getCode(address, ctx);
+    } catch (error) {
+      // The code only decides the address type: its failure never costs the history. A barrier (403, challenge,
+      // throttling) has opened the provider's circuit, so the listing below fails over to the next provider anyway.
+      if (!isChainProviderError(error)) throw error;
+      fetched.codeError = {
+        kind: error.kind,
+        message: error.message,
+        ...(error.fetchId !== undefined ? { fetchId: error.fetchId } : {}),
+      };
+    }
+  }
   if (want.transfers) {
     let cursor: string | undefined;
     for (let page = 0; ; page += 1) {
@@ -303,6 +322,7 @@ export async function runChainFetch(
           pages: fetched.pages,
           items: kept,
           ...(fetched.skipped.length > 0 ? { skipped: fetched.skipped } : {}),
+          ...(fetched.codeError ? { codeError: fetched.codeError } : {}),
         });
         break;
       }

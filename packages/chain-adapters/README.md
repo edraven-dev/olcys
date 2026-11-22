@@ -36,7 +36,8 @@ createChainProviderRegistry(configs, { env? }) → ChainProviderRegistry   // fo
 runChainFetch(plan, registry, ctx, { enabledSources, defaultMaxPages?, unknownEvmChains?, tips? }) → ChainFetchResult
 // plan: { address, want?: { summary, transfers, utxo, code }, maxPages? }[]   (code domyślnie dla EVM i TRON)
 // wynik: tips, summaries, transfers, utxoTxs, codes (z providerId dostawcy, który zwrócił kod), outcomes (status na
-//        adres i dostawcę), resolved (evm:unknown)
+//        adres i dostawcę; codeError, gdy nie udało się odczytać tylko kodu — historia jest pobierana dalej),
+//        resolved (evm:unknown)
 ```
 
 Pojedyncze adaptery i funkcje czyste: `createEsploraProvider`, `createEtherscanProvider`, `createTronGridProvider`,

@@ -159,6 +159,31 @@ describe('runChainFetch', () => {
     expect(result.outcomes.every((o) => o.address.chain === 'evm:unknown')).toBe(true);
   });
 
+  it('keeps the history when only the contract code cannot be read', async () => {
+    const registry = new ChainProviderRegistry();
+    const provider = fakeProvider('a', {});
+    provider.getCode = () =>
+      Promise.reject(new ChainProviderError('not_found', 'a', 'HTTP 404 from the node endpoint', { fetchId: 'f-404' }));
+    registry.register(provider, cfg('a', 'src_a', 1));
+    const result = await runChainFetch([{ address: { chain: 'evm:1', address: '0xaa' } }], registry, ctx, {
+      enabledSources: ['src_a'],
+    });
+    expect(result.codes).toEqual([]);
+    expect(result.transfers).toHaveLength(1);
+    expect(result.outcomes).toEqual([
+      expect.objectContaining({
+        providerId: 'a',
+        status: 'ok',
+        codeError: { kind: 'not_found', message: 'a: not_found: HTTP 404 from the node endpoint', fetchId: 'f-404' },
+      }),
+    ]);
+    // A bug in an adapter is not an expected failure.
+    provider.getCode = () => Promise.reject(new TypeError('broken adapter'));
+    await expect(
+      runChainFetch([{ address: { chain: 'evm:1', address: '0xab' } }], registry, ctx, { enabledSources: ['src_a'] }),
+    ).rejects.toThrow('broken adapter');
+  });
+
   it('reports chains without an enabled provider as unsupported', async () => {
     const result = await runChainFetch(
       [{ address: { chain: 'solana', address: 'x' } }],
