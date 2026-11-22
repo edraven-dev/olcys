@@ -53,6 +53,7 @@ import { createSecretRedactor, extractCapture, parseDenyList, type CaptureConten
 import {
   collectCase,
   createDefaultCollectorRegistry,
+  isSearchResultCapture,
   loadCollectorConfig,
   loadSourceRegistry,
   type SourceRegistry,
@@ -92,6 +93,9 @@ export function createCollectStage(options: StageOptions): Stage {
   const registry = lazy<SourceRegistry>(() => loadSourceRegistry());
   const redactor = createSecretRedactor();
   const env = options.env ?? process.env;
+  // Platform collectors plus the web search collectors of OLCYS_SEARCH_MODE (keys from the environment only); built
+  // once, so a misconfigured search mode stops the start-up instead of failing every run.
+  const collectors = createDefaultCollectorRegistry({ mode: options.mode, env });
   return {
     step: 'collect.source',
     async run(ctx: StageContext) {
@@ -134,8 +138,7 @@ export function createCollectStage(options: StageOptions): Stage {
         config,
         robots: new RobotsCache(http, USER_AGENT),
         redactor,
-        // Platform collectors plus the web search collectors of OLCYS_SEARCH_MODE (keys from the environment only).
-        collectors: createDefaultCollectorRegistry({ mode: options.mode, env }),
+        collectors,
         maxPivotDepth: ctx.case.scope.maxPivotDepth,
         onTask: (event) => ctx.progress({ tasksDone: event.done, tasksPlanned: event.planned }),
       });
@@ -156,19 +159,18 @@ export function createCollectStage(options: StageOptions): Stage {
   };
 }
 
-export function createExtractStage(options: Partial<Pick<StageOptions, 'sources'>> = {}): Stage {
+export function createExtractStage(): Stage {
   const denyList = lazy(async () =>
     parseDenyList(await readFile(join(REPO_ROOT, 'config', 'rules', 'deny-list.v1.yaml'), 'utf8')),
   );
-  // A search result list only points at pages; the pages themselves are collected and extracted, so a snippet never
-  // becomes a second copy of an address found on a page.
-  const searchSources = new Set((options.sources ?? []).filter((s) => s.kind === 'search').map((s) => s.id));
   return {
     step: 'extract.capture',
     async run(ctx: StageContext) {
       const list = await denyList();
+      // A search result list only points at pages; the pages themselves are collected and extracted, so a snippet
+      // never becomes a second copy of an address found on a page.
       const captures = (await ctx.repos.evidence.listCaptures(ctx.evidenceRunId)).filter(
-        (c) => c.status === 'ok' && !searchSources.has(c.sourceId),
+        (c) => c.status === 'ok' && !isSearchResultCapture(c),
       );
       let candidates = 0;
       for (const capture of captures) {
@@ -477,7 +479,7 @@ export function createChainStage(options: StageOptions): Stage {
 export function defaultStages(options: StageOptions): Stage[] {
   return [
     createCollectStage(options),
-    createExtractStage(options),
+    createExtractStage(),
     createChainStage(options),
     createScoreStage(options),
     // Runs after the built-in comparison with the previous run, so the report includes the changes.
