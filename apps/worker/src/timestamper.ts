@@ -243,8 +243,7 @@ export async function createTrustedTimestamper(options: TimestamperOptions): Pro
     if (outcome.status === 'granted') {
       const { token } = outcome;
       const request = requestOf(subject, 'granted', base);
-      const skewSuspected =
-        token.skewSeconds !== undefined && Math.abs(token.skewSeconds) > settings.maxClockSkewSeconds;
+      const skewSuspected = token.skewSuspected ?? false;
       const record: TimestampTokenRecord = {
         id: newId(),
         subject,

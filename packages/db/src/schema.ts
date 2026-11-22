@@ -316,6 +316,7 @@ export interface TimestampTokenTable {
   tsa_name: string | null;
   qualified: boolean;
   skew_seconds: number | null;
+  skew_suspected: boolean;
   response_blob: string;
   response_bytes: number;
   verification: Json<unknown>;

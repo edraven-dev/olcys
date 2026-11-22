@@ -87,6 +87,7 @@ const tokenOf = (request: TimestampRequestRecord): TimestampTokenRecord => ({
     tsaName: 'CN=Test TSA',
     qualified: false,
     skewSeconds: 5,
+    skewSuspected: true,
   },
   verification: { ok: true, checks: [{ name: 'imprint', passed: true }] },
   createdAt: '2026-11-21T10:00:06.000Z',

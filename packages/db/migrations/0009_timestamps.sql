@@ -42,6 +42,8 @@ CREATE TABLE timestamp_token (
   tsa_name       text,
   qualified      boolean NOT NULL DEFAULT false,
   skew_seconds   integer,
+  -- |skew_seconds| above the threshold configured when the token was obtained (TSA_MAX_CLOCK_SKEW_SECONDS).
+  skew_suspected boolean NOT NULL DEFAULT false,
   -- The whole TimeStampResp (DER) in the blob store; `openssl ts -verify` checks it independently.
   response_blob  char(64) NOT NULL CHECK (response_blob ~ '^[0-9a-f]{64}$'),
   response_bytes integer NOT NULL CHECK (response_bytes > 0),

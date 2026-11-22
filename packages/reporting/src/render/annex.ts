@@ -102,9 +102,6 @@ export function changesSection(view: View): SafeHtml {
   );
 }
 
-/** Skew above which the register warns (the default of `TSA_MAX_CLOCK_SKEW_SECONDS`; the custody event has the exact flag). */
-const SKEW_WARNING_SECONDS = 120;
-
 function timestampLine(view: View, capture: Capture): SafeHtml {
   const e = pl.evidence;
   const token = capture.timestamp;
@@ -112,7 +109,7 @@ function timestampLine(view: View, capture: Capture): SafeHtml {
     const offline = view.data.run.mode === 'offline' || view.data.run.mode === 'replay';
     return muted(offline ? e.timestampPendingOffline : e.timestampPending);
   }
-  const skew = token.skewSeconds !== undefined && Math.abs(token.skewSeconds) > SKEW_WARNING_SECONDS;
+  const skew = token.skewSuspected === true;
   return markup`${muted(
     t(e.timestamp, {
       genTime: formatUtc(token.genTime),

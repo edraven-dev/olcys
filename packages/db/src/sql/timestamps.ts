@@ -53,7 +53,7 @@ export function tokenFromRow(r: TokenRow): TimestampToken {
     ...(r.policy_oid ? { policyOid: r.policy_oid } : {}),
     ...(r.tsa_name ? { tsaName: r.tsa_name } : {}),
     qualified: r.qualified,
-    ...(r.skew_seconds !== null ? { skewSeconds: r.skew_seconds } : {}),
+    ...(r.skew_seconds !== null ? { skewSeconds: r.skew_seconds, skewSuspected: r.skew_suspected } : {}),
   };
 }
 
@@ -117,6 +117,7 @@ export function sqlTimestampRepository(db: Db): TimestampRepository {
               tsa_name: token.token.tsaName ?? null,
               qualified: token.token.qualified ?? false,
               skew_seconds: token.token.skewSeconds ?? null,
+              skew_suspected: token.token.skewSuspected ?? false,
               response_blob: token.token.token.sha256,
               response_bytes: token.token.token.bytes,
               verification: json(token.verification),

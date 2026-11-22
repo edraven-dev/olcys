@@ -36,6 +36,8 @@ export interface TimestampToken {
   qualified?: boolean;
   /** `genTime` minus the subject's reference time (capture `collectedAt`), in whole seconds. */
   skewSeconds?: number;
+  /** True when `|skewSeconds|` exceeds the configured threshold (`TSA_MAX_CLOCK_SKEW_SECONDS`), decided once at stamping. */
+  skewSuspected?: boolean;
 }
 
 export const TIMESTAMP_SUBJECT_TYPES = ['capture_manifest', 'report_pdf', 'report_signature'] as const;

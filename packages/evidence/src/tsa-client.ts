@@ -115,10 +115,11 @@ export function createRfc3161Client(config: Rfc3161Config, random: () => bigint 
         ...(verification.policyOid ? { policyOid: verification.policyOid } : {}),
         ...(verification.tsaName ? { tsaName: verification.tsaName } : {}),
         qualified: config.qualified,
-        ...(subject.referenceTime
-          ? { skewSeconds: Math.round((Date.parse(verification.genTime) - Date.parse(subject.referenceTime)) / 1000) }
-          : {}),
       };
+      if (subject.referenceTime) {
+        token.skewSeconds = Math.round((Date.parse(verification.genTime) - Date.parse(subject.referenceTime)) / 1000);
+        token.skewSuspected = Math.abs(token.skewSeconds) > config.maxClockSkewSeconds;
+      }
       return { ...base, verification, outcome: { status: 'granted', token, tokenDer: response.body } };
     },
   };

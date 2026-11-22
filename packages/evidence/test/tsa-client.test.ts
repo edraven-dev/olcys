@@ -65,7 +65,17 @@ describe('Rfc3161Client', () => {
   it('AC6: skew is reported in seconds', async () => {
     const egress = createFakeTsaEgress(tsa, [{ genTime: new Date('2026-11-21T12:10:00.000Z') }]);
     const attempt = await createRfc3161Client(config()).request(subject, ctx(egress.client));
-    expect(attempt.outcome.status === 'granted' && attempt.outcome.token.skewSeconds).toBe(600);
+    expect(attempt.outcome.status === 'granted' && attempt.outcome.token).toMatchObject({
+      skewSeconds: 600,
+      skewSuspected: true,
+    });
+    // The threshold is the configured one: 600 s is fine under a 900 s limit.
+    const lenient = createFakeTsaEgress(tsa, [{ genTime: new Date('2026-11-21T12:10:00.000Z') }]);
+    const ok = await createRfc3161Client({ ...config(), maxClockSkewSeconds: 900 }).request(
+      subject,
+      ctx(lenient.client),
+    );
+    expect(ok.outcome.status === 'granted' && ok.outcome.token.skewSuspected).toBe(false);
   });
 
   it.each<FetchMode>(['offline', 'replay'])('AC4: %s mode queues without any egress call', async (mode) => {

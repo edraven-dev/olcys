@@ -195,6 +195,22 @@ function suite(name: string, makeRepos: () => Repositories, enabled = true) {
       await ok.timestamper.stamp(subjectOf(ok.capture));
       const [okEvent] = await ok.repos.custody!.listBySubjects([ok.capture.id]);
       expect(okEvent?.detail).toMatchObject({ skewSeconds: 30, skewSuspected: false });
+      expect((await slow.repos.evidence.getCapture(slow.capture.id))?.timestamp?.skewSuspected).toBe(true);
+      expect((await ok.repos.evidence.getCapture(ok.capture.id))?.timestamp?.skewSuspected).toBe(false);
+
+      // A custom TSA_MAX_CLOCK_SKEW_SECONDS decides: 30 s is suspect under a 10 s limit, 600 s fine under 900 s.
+      const strict = await setup(makeRepos, {
+        script: [{ genTime: new Date('2026-11-21T12:00:30.000Z') }],
+        settings: { maxClockSkewSeconds: 10 },
+      });
+      await strict.timestamper.stamp(subjectOf(strict.capture));
+      expect((await strict.repos.evidence.getCapture(strict.capture.id))?.timestamp?.skewSuspected).toBe(true);
+      const lenient = await setup(makeRepos, {
+        script: [{ genTime: new Date('2026-11-21T12:10:00.000Z') }],
+        settings: { maxClockSkewSeconds: 900 },
+      });
+      await lenient.timestamper.stamp(subjectOf(lenient.capture));
+      expect((await lenient.repos.evidence.getCapture(lenient.capture.id))?.timestamp?.skewSuspected).toBe(false);
     });
 
     it('AC7: TSA_ENABLED=false queues every stamp as disabled and never calls the TSA', async () => {

@@ -290,6 +290,7 @@ describe('trusted timestamps in the evidence register', () => {
         tsaName: 'CN=Test TSA',
         qualified: false,
         skewSeconds: 600,
+        skewSuspected: true,
       },
     };
     const html = renderReport({ ...data, captures: [stamped, ...rest] });
@@ -300,5 +301,28 @@ describe('trusted timestamps in the evidence register', () => {
     expect(register).toContain('niekwalifikowana');
     expect(register).toContain('różni się od czasu zebrania o 600 s');
     expect(() => assertSelfContainedHtml(html)).not.toThrow();
+  });
+});
+
+const withSkew = (skewSeconds: number, skewSuspected: boolean) => {
+  const data = personaData();
+  const [first, ...rest] = data.captures;
+  const token = {
+    tsaUrl: 'https://freetsa.org/tsr',
+    token: { sha256: 'd'.repeat(64), bytes: 1500, mediaType: 'application/timestamp-reply' },
+    genTime: '2026-11-21T10:01:05.000Z',
+    hashAlgorithm: 'sha256' as const,
+    messageImprint: first!.manifestSha256,
+    skewSeconds,
+    skewSuspected,
+  };
+  return sectionOf(renderReport({ ...data, captures: [{ ...first!, timestamp: token }, ...rest] }), 'rejestr');
+};
+
+describe('timestamp skew warning', () => {
+  it('follows the stored flag, not a fixed threshold (custom TSA_MAX_CLOCK_SKEW_SECONDS)', () => {
+    // 200 s is above the default 120 s but within a configured 300 s: no warning; 90 s flagged under a 60 s threshold.
+    expect(withSkew(200, false)).not.toContain('różni się od czasu zebrania');
+    expect(withSkew(90, true)).toContain('różni się od czasu zebrania o 90 s');
   });
 });
