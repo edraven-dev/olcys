@@ -109,16 +109,25 @@ describe('address types in the console', () => {
     );
   });
 
-  it('matches a candidate without an attributed EVM network to the network it was fetched on', () => {
+  it('takes the type of the network the decision was fetched on, never the first match in list order', () => {
+    const TRON = 'TEF4fy9kB3AMsif7YutQWnLo4JZ5TnUVtu';
     const types: AddressTypeClassification[] = [
-      { address: { chain: 'evm:1', address: CONTRACT }, type: 'contract', fetchIds: [] },
-      { address: { chain: 'tron', address: 'TEF4fy9kB3AMsif7YutQWnLo4JZ5TnUVtu' }, type: 'eoa', fetchIds: [] },
+      // the same address on another network sorts first
+      { address: { chain: 'evm:10', address: CONTRACT }, type: 'eoa', fetchIds: ['f-op'] },
+      { address: { chain: 'evm:1', address: CONTRACT }, type: 'contract', fetchIds: ['f-code', 'f-slot'] },
+      { address: { chain: 'tron', address: TRON }, type: 'eoa', fetchIds: [] },
     ];
+    const unknown = { chain: 'evm:unknown' as const, address: CONTRACT.toUpperCase().replace('0X', '0x') };
+    const resolved = { chain: 'evm:1' as const, address: CONTRACT };
+    expect(addressTypeFor({ address: unknown, resolved, evidence: {} }, types)?.type).toBe('contract');
+    // A decision that cites the classification's requests (A2/A3) without a recorded network.
+    expect(addressTypeFor({ address: unknown, evidence: { fetchIds: ['f-slot'] } }, types)?.type).toBe('contract');
+    // Neither: no guess.
+    expect(addressTypeFor({ address: unknown, evidence: { fetchIds: ['f-transfers'] } }, types)).toBeUndefined();
+    expect(addressTypeFor({ address: { chain: 'evm:137', address: CONTRACT }, evidence: {} }, types)).toBeUndefined();
+    expect(addressTypeFor({ address: { chain: 'tron', address: TRON }, evidence: {} }, types)?.type).toBe('eoa');
     expect(
-      addressTypeFor({ chain: 'evm:unknown', address: CONTRACT.toUpperCase().replace('0X', '0x') }, types)?.type,
-    ).toBe('contract');
-    expect(addressTypeFor({ chain: 'evm:137', address: CONTRACT }, types)).toBeUndefined();
-    expect(addressTypeFor({ chain: 'tron', address: 'TEF4fy9kB3AMsif7YutQWnLo4JZ5TnUVtu' }, types)?.type).toBe('eoa');
-    expect(addressTypeFor({ chain: 'tron', address: 'tef4fy9kb3amsif7yutqwnlo4jz5tnuvtu' }, types)).toBeUndefined();
+      addressTypeFor({ address: { chain: 'tron', address: TRON.toLowerCase() }, evidence: {} }, types),
+    ).toBeUndefined();
   });
 });

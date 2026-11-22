@@ -4,6 +4,7 @@ import type {
   AddressRef,
   AddressTypeClassification,
   Capture,
+  ExclusionDecision,
   ExtractionResult,
   Observation,
   OnlineAccount,
@@ -13,18 +14,21 @@ import type {
 } from '@olcys/core';
 
 /**
- * The address type of a decision's address: on its own chain or — for a candidate whose EVM network was not
- * attributed (`evm:unknown`) — on the EVM network the chain data was fetched on.
+ * The address type behind a decision: the classification of the address its chain data was fetched on (`resolved` for
+ * a candidate without an attributed EVM network), else the one whose requests the decision cites (A2/A3 record the
+ * classification's fetch ids). Never chosen by list order: without either, no type is shown.
  */
 export function addressTypeFor(
-  address: AddressRef,
+  decision: Pick<ExclusionDecision, 'address' | 'resolved'> & { evidence: { fetchIds?: string[] } },
   types: readonly AddressTypeClassification[],
 ): AddressTypeClassification | undefined {
-  const evm = address.chain.startsWith('evm:');
-  const same = (a: string) => (evm ? a.toLowerCase() === address.address.toLowerCase() : a === address.address);
-  const exact = types.find((c) => c.address.chain === address.chain && same(c.address.address));
-  if (exact || address.chain !== 'evm:unknown') return exact;
-  return types.find((c) => c.address.chain.startsWith('evm:') && same(c.address.address));
+  const ref: AddressRef = decision.resolved ?? decision.address;
+  const evm = ref.chain.startsWith('evm:');
+  const same = (a: string) => (evm ? a.toLowerCase() === ref.address.toLowerCase() : a === ref.address);
+  const exact = types.find((c) => c.address.chain === ref.chain && same(c.address.address));
+  if (exact) return exact;
+  const cited = new Set(decision.evidence.fetchIds ?? []);
+  return cited.size ? types.find((c) => c.fetchIds.some((id) => cited.has(id))) : undefined;
 }
 
 /** Context cues that mark a mention as someone else's statement (warnings, scam reports, quotes). */

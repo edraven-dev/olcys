@@ -92,7 +92,7 @@ export function RejectedTab({ scope }: { scope: RunScope }) {
   const captureById = new Map((captures.data ?? []).map((c) => [c.id, c]));
   const accountById = new Map((accounts.data ?? []).map((a) => [a.id, a]));
   const labelList = labels.data ?? [];
-  const typeOf = (decision: ExclusionView) => addressTypeFor(decision.address, addressTypes.data ?? []);
+  const typeOf = (decision: ExclusionView) => addressTypeFor(decision, addressTypes.data ?? []);
 
   const subjectHandles = new Set(
     [

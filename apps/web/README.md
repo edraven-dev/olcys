@@ -59,8 +59,8 @@ pnpm vitest run --project @olcys/web
 - **Typ adresu przy decyzji.** Karta reguły w zakładce „Odrzucone adresy” pokazuje typ adresu z analizy łańcuchowej
   (`/api/runs/:id/address-types`: konto zewnętrzne (EOA), EOA z delegacją EIP-7702, konto Safe, konto inteligentne
   ERC-4337, kontrakt tokena, kontrakt, skrypt UTXO, nieznany typ) z delegatem, kontraktem bazowym Safe, EntryPoint lub
-  implementacją proxy; kandydat bez wskazanej sieci EVM jest dopasowywany do sieci, na której pobrano dane. Brak trasy
-  oznacza kartę bez typu.
+  implementacją proxy; typ pochodzi z sieci zapisanej w decyzji (`resolved`, dla kandydata bez wskazanej sieci EVM)
+  albo z klasyfikacji, której zapytania decyzja cytuje — nigdy z kolejności listy. Brak trasy oznacza kartę bez typu.
 - **Dostępność.** Nawigacja klawiaturą, etykiety wszystkich pól, odnośnik „Przejdź do treści”, komunikaty o postępie
   w regionie `aria-live`, tabele z nagłówkami, układ działający na szerokości telefonu, motyw jasny i ciemny.
 - **Tylko typy z `@olcys/core`.** Do przeglądarki nie trafia kod serwera; lokalne listy (sieci, etapy) są
