@@ -85,8 +85,23 @@ services:
       # The worker may reach the fixture site by default; real third-party sites only when enabled.
       OLCYS_OSINT_ALLOW_EXTERNAL: ${OLCYS_OSINT_ALLOW_EXTERNAL:-false}
       OLCYS_FIXTURE_BASE_URL: http://fixture-site:4100
+      # Telemetry stays off (no analytics or model-hub calls from the Python stack).
+      DO_NOT_TRACK: '1'
+      HF_HUB_OFFLINE: '1'
     ports:
       - '127.0.0.1:${OSINT_PY_PORT:-8090}:8000'
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'python',
+          '-c',
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=3)",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     depends_on:
       fixture-site:
         condition: service_healthy

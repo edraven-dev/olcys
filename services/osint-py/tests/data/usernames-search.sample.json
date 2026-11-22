@@ -1,0 +1,189 @@
+{
+  "schemaVersion": "usernames-search.v1",
+  "service": {
+    "version": "0.1.0",
+    "maigretVersion": "0.6.6",
+    "socidExtractorVersion": "0.1.2",
+    "python": "3.15.2"
+  },
+  "username": "fikcyjny_kacper",
+  "database": {
+    "id": "fixture",
+    "sha256": "0beae8d4faf3e49754632bdd8b8dde7ee54d37ef6971d5258eb6235b310746a9",
+    "sitesTotal": 6,
+    "sitesSelected": 4,
+    "excludedByPolicy": 2
+  },
+  "policy": {
+    "version": "maigret-policy.v1",
+    "allowExternal": false,
+    "tags": ["crypto", "finance", "pl", "social", "coding", "messaging"],
+    "userAgent": "OLCYS/0.1.0 (OSINT research prototype)"
+  },
+  "startedAt": "2026-11-22T04:06:09.851Z",
+  "finishedAt": "2026-11-22T04:06:09.884Z",
+  "results": [
+    {
+      "site": "GitHub",
+      "platform": "github",
+      "tags": ["coding"],
+      "profileUrl": "https://github.com/fikcyjny_kacper",
+      "status": "not_found",
+      "reason": null,
+      "httpStatus": 404,
+      "requestIds": ["01a2016e-d2ca-7287-a632-8492cb0496ef"],
+      "ids": {},
+      "idsLinks": []
+    },
+    {
+      "site": "Keybase",
+      "platform": "keybase",
+      "tags": ["crypto", "messaging"],
+      "profileUrl": "https://keybase.io/fikcyjny_kacper",
+      "status": "blocked",
+      "reason": "access_denied",
+      "httpStatus": 403,
+      "requestIds": ["01a2016e-d2cb-71cd-9231-619711f33ea3"],
+      "ids": {},
+      "idsLinks": []
+    },
+    {
+      "site": "Telegram",
+      "platform": "telegram",
+      "tags": ["messaging", "social"],
+      "profileUrl": "https://t.me/fikcyjny_kacper",
+      "status": "not_found",
+      "reason": null,
+      "httpStatus": 404,
+      "requestIds": ["01a2016e-d2cb-71cd-9231-619842823b48"],
+      "ids": {},
+      "idsLinks": []
+    },
+    {
+      "site": "Wykop",
+      "platform": "wykop",
+      "tags": ["pl", "social"],
+      "profileUrl": "https://wykop.pl/ludzie/fikcyjny_kacper",
+      "status": "found",
+      "reason": null,
+      "httpStatus": 200,
+      "requestIds": ["01a2016e-d2cb-71cd-9231-61991da7e0a8"],
+      "ids": {},
+      "idsLinks": []
+    }
+  ],
+  "requests": [
+    {
+      "id": "01a2016e-d2ca-7287-a632-8492cb0496ef",
+      "method": "GET",
+      "url": "http://fixture-site:4100/github/fikcyjny_kacper",
+      "logicalUrl": "https://github.com/fikcyjny_kacper",
+      "host": "fixture-site",
+      "site": "GitHub",
+      "purpose": "username enumeration",
+      "containsIdentifier": true,
+      "allowed": true,
+      "denyReason": null,
+      "requestedAt": "2026-11-22T04:06:09.866Z",
+      "receivedAt": "2026-11-22T04:06:09.868Z",
+      "httpStatus": 404,
+      "responseHeaders": {
+        "content-type": "text/plain; charset=utf-8",
+        "date": "Sun, 22 Nov 2026 04:06:09 GMT",
+        "x-olcys-synthetic": "true"
+      },
+      "bodySha256": "907ba78b4545338d3539683e63ecb51cf51c10adc9dabd86e92bd52339f298b9",
+      "bodyBase64": null,
+      "bodyTruncated": false,
+      "userAgent": "OLCYS/0.1.0 (OSINT research prototype)",
+      "error": null
+    },
+    {
+      "id": "01a2016e-d2cb-71cd-9231-619711f33ea3",
+      "method": "GET",
+      "url": "http://fixture-site:4100/keybase/fikcyjny_kacper",
+      "logicalUrl": "https://keybase.io/fikcyjny_kacper",
+      "host": "fixture-site",
+      "site": "Keybase",
+      "purpose": "username enumeration",
+      "containsIdentifier": true,
+      "allowed": true,
+      "denyReason": null,
+      "requestedAt": "2026-11-22T04:06:09.867Z",
+      "receivedAt": "2026-11-22T04:06:09.874Z",
+      "httpStatus": 403,
+      "responseHeaders": {
+        "content-type": "text/html; charset=utf-8",
+        "content-length": "740",
+        "date": "Sun, 22 Nov 2026 04:06:09 GMT",
+        "x-olcys-synthetic": "true"
+      },
+      "bodySha256": "045b5af319357d60169181d704f24978065d4d3907bad595d1a068fd86625311",
+      "bodyBase64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9InBsIj4KICA8aGVhZD4KICAgIDxtZXRhIGNoYXJzZXQ9InV0Zi04IiAvPgogICAgPG1ldGEgbmFtZT0icm9ib3RzIiBjb250ZW50PSJub2luZGV4LG5vZm9sbG93IiAvPgogICAgPHRpdGxlPk9jaHJvbmEgcHJ6ZWQgYm90YW1pIChTWU5USEVUSUMpPC90aXRsZT4KICAgIDxsaW5rIHJlbD0ic3R5bGVzaGVldCIgaHJlZj0iL2Fzc2V0cy9maXh0dXJlLmNzcyIgLz4KICA8L2hlYWQ+CiAgPGJvZHk+CiAgICA8ZGl2IGNsYXNzPSJvbGN5cy1zeW50aGV0aWMiIHJvbGU9Im5vdGUiPkRBTkUgU1lOVEVUWUNaTkUg4oCUIFNZTlRIRVRJQyBURVNUIERBVEEuIEZpa2N5am5hIHBlcnNvbmEgdGVzdG93YSBPxYFDecWaOyDFvGFkbmEgcHJhd2R6aXdhIG9zb2JhIG5pZSBqZXN0IHR1IG9waXNhbmEuPC9kaXY+CiAgICA8bWFpbiBkYXRhLW9sY3lzLWJhcnJpZXI9ImJsb2NrZWQiPgogICAgICA8aDE+T2Nocm9uYSBwcnplZCBib3RhbWkgKFNZTlRIRVRJQyk8L2gxPgogICAgICA8cD5TZXJ3aXMgb2RyenVjacWCIHphdXRvbWF0eXpvd2FuZSB6YXB5dGFuaWUgbyBwcm9maWwuIFRvIHN5bnRldHljem5hIGtvbnRyb2xuYSBvZHBvd2llZMW6IOKAnnphYmxva293YW5v4oCdOiBuYXJ6xJlkemllIG1hIGrEhSBvZG5vdG93YcSHIGkgemF0cnp5bWHEhyBzacSZLCBuaWUgcHLDs2J1asSFYyBqZWogb2JlasWbxIcuPC9wPgogICAgPC9tYWluPgogIDwvYm9keT4KPC9odG1sPgo=",
+      "bodyTruncated": false,
+      "userAgent": "OLCYS/0.1.0 (OSINT research prototype)",
+      "error": null
+    },
+    {
+      "id": "01a2016e-d2cb-71cd-9231-619842823b48",
+      "method": "GET",
+      "url": "http://fixture-site:4100/telegram/fikcyjny_kacper",
+      "logicalUrl": "https://t.me/fikcyjny_kacper",
+      "host": "fixture-site",
+      "site": "Telegram",
+      "purpose": "username enumeration",
+      "containsIdentifier": true,
+      "allowed": true,
+      "denyReason": null,
+      "requestedAt": "2026-11-22T04:06:09.867Z",
+      "receivedAt": "2026-11-22T04:06:09.878Z",
+      "httpStatus": 404,
+      "responseHeaders": {
+        "content-type": "text/plain; charset=utf-8",
+        "date": "Sun, 22 Nov 2026 04:06:09 GMT",
+        "x-olcys-synthetic": "true"
+      },
+      "bodySha256": "907ba78b4545338d3539683e63ecb51cf51c10adc9dabd86e92bd52339f298b9",
+      "bodyBase64": null,
+      "bodyTruncated": false,
+      "userAgent": "OLCYS/0.1.0 (OSINT research prototype)",
+      "error": null
+    },
+    {
+      "id": "01a2016e-d2cb-71cd-9231-61991da7e0a8",
+      "method": "GET",
+      "url": "http://fixture-site:4100/wykop/ludzie/fikcyjny_kacper",
+      "logicalUrl": "https://wykop.pl/ludzie/fikcyjny_kacper",
+      "host": "fixture-site",
+      "site": "Wykop",
+      "purpose": "username enumeration",
+      "containsIdentifier": true,
+      "allowed": true,
+      "denyReason": null,
+      "requestedAt": "2026-11-22T04:06:09.867Z",
+      "receivedAt": "2026-11-22T04:06:09.883Z",
+      "httpStatus": 200,
+      "responseHeaders": {
+        "content-type": "text/html; charset=utf-8",
+        "content-length": "1347",
+        "date": "Sun, 22 Nov 2026 04:06:09 GMT",
+        "x-olcys-synthetic": "true"
+      },
+      "bodySha256": "4633d3a7ab3befaa8d967e6d330fc6194db27974e7d2d2ae597e9984b5531653",
+      "bodyBase64": "PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9InBsIj4KICA8aGVhZD4KICAgIDxtZXRhIGNoYXJzZXQ9InV0Zi04IiAvPgogICAgPG1ldGEgbmFtZT0icm9ib3RzIiBjb250ZW50PSJub2luZGV4LG5vZm9sbG93IiAvPgogICAgPHRpdGxlPmZpa2N5am55X2thY3BlciDigJQgcHJvZmlsIChTWU5USEVUSUMpPC90aXRsZT4KICAgIDxsaW5rIHJlbD0ic3R5bGVzaGVldCIgaHJlZj0iL2Fzc2V0cy9maXh0dXJlLmNzcyIgLz4KICA8L2hlYWQ+CiAgPGJvZHk+CiAgICA8ZGl2IGNsYXNzPSJvbGN5cy1zeW50aGV0aWMiIHJvbGU9Im5vdGUiPkRBTkUgU1lOVEVUWUNaTkUg4oCUIFNZTlRIRVRJQyBURVNUIERBVEEuIEZpa2N5am5hIHBlcnNvbmEgdGVzdG93YSBPxYFDecWaOyDFvGFkbmEgcHJhd2R6aXdhIG9zb2JhIG5pZSBqZXN0IHR1IG9waXNhbmEuPC9kaXY+CiAgICA8bWFpbiBkYXRhLW9sY3lzLWFjY291bnQ9Ind5a29wIiBkYXRhLW9sY3lzLWhhbmRsZT0iZmlrY3lqbnlfa2FjcGVyIj4KICAgICAgPGhlYWRlciBjbGFzcz0icHJvZmlsZS1oZWFkZXIiPgogICAgICAgIDxoMSBjbGFzcz0idXNlcm5hbWUiPmZpa2N5am55X2thY3BlcjwvaDE+CiAgICAgICAgPHNlY3Rpb24gY2xhc3M9ImFib3V0Ij4KICAgICAgICAgIDxoMj5PIG1uaWU8L2gyPgogICAgICAgICAgPHA+S3J5cHRvd2FsdXR5LCBzdGFraW5nLCBjemFzZW0gRGVGaS4gUHJvZmlsIG5hIGZvcnVtOiA8YSBocmVmPSIvYml0Y29pbnRhbGsvaW5kZXgucGhwP2FjdGlvbj1wcm9maWxlO3U9OTAwMDAxIj5maWtjeWpueV9rYWNwZXI8L2E+PC9wPgogICAgICAgIDwvc2VjdGlvbj4KICAgICAgPC9oZWFkZXI+CiAgICAgIDxzZWN0aW9uIGNsYXNzPSJlbnRyaWVzIj4KICAgICAgICA8YXJ0aWNsZSBjbGFzcz0iZW50cnkiIGlkPSJ3cGlzLTcxMDAwMDAxIiBkYXRhLWVudHJ5LWlkPSI3MTAwMDAwMSI+CiAgICAgICAgICA8aGVhZGVyPgogICAgICAgICAgICA8YSBjbGFzcz0iYXV0aG9yIiBocmVmPSIvd3lrb3AvbHVkemllL2Zpa2N5am55X2thY3Blci8iPmZpa2N5am55X2thY3BlcjwvYT4KICAgICAgICAgICAgPHRpbWUgZGF0ZXRpbWU9IjIwMjYtMTAtMTJUMTk6MDU6MDBaIj4xMi4xMC4yMDI2LCAyMTowNTwvdGltZT4KICAgICAgICAgIDwvaGVhZGVyPgogICAgICAgICAgPGRpdiBjbGFzcz0iZW50cnktY29udGVudCI+PHA+UHJ6ZXN6ZWTFgmVtIG5hIHN0YWJsZWNvaW55LiBtw7NqIHBvcnRmZWwgVVNEVCBUUkMyMDogVE1WWkxiaE11RVlmc1hZVXp3V1NhckxtTFBXSlVtVlBWazwvcD48L2Rpdj4KICAgICAgICA8L2FydGljbGU+CiAgICAgIDwvc2VjdGlvbj4KICAgIDwvbWFpbj4KICA8L2JvZHk+CjwvaHRtbD4K",
+      "bodyTruncated": false,
+      "userAgent": "OLCYS/0.1.0 (OSINT research prototype)",
+      "error": null
+    }
+  ],
+  "summary": {
+    "found": 1,
+    "not_found": 2,
+    "blocked": 1,
+    "login_wall": 0,
+    "captcha": 0,
+    "unknown": 0,
+    "illegal": 0,
+    "skipped": 0
+  }
+}
