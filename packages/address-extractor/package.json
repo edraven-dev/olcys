@@ -8,6 +8,7 @@
     ".": "./src/index.ts"
   },
   "scripts": {
+    "bench": "node scripts/bench.ts",
     "corpus:generate": "node scripts/corpus/generate.ts",
     "corpus:check": "node scripts/corpus/generate.ts --check"
   },
