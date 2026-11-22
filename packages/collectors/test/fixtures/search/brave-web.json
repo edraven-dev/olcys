@@ -1,0 +1,46 @@
+{
+  "_synthetic": "SYNTHETIC TEST DATA: hand-written in the documented Brave web search response shape",
+  "type": "search",
+  "query": {
+    "original": "\"Kacper Fikcyjny\"",
+    "show_strict_warning": false,
+    "is_navigational": false,
+    "spellcheck_off": true
+  },
+  "mixed": { "type": "mixed", "main": [{ "type": "web", "index": 0, "all": true }] },
+  "web": {
+    "type": "search",
+    "family_friendly": true,
+    "results": [
+      {
+        "type": "search_result",
+        "title": "Kacper Fikcyjny — profil testowy",
+        "url": "https://example.org/profil/fikcyjny_kacper",
+        "description": "Profil testowy: Kacper Fikcyjny, nick fikcyjny_kacper (dane syntetyczne).",
+        "language": "pl",
+        "family_friendly": true
+      },
+      {
+        "type": "search_result",
+        "title": "Ogłoszenie testowe — sprzedam USDT",
+        "url": "https://example.org/ogloszenie/81000001",
+        "description": "Sprzedający: Kacper Fikcyjny. Kontakt TESTSECRET-abc123 (dane syntetyczne).",
+        "language": "pl",
+        "family_friendly": true
+      },
+      {
+        "type": "search_result",
+        "title": "Powtórzony adres",
+        "url": "https://example.org/profil/fikcyjny_kacper",
+        "description": "Ten sam adres po raz drugi."
+      },
+      { "type": "search_result", "title": "Wynik bez adresu", "description": "Brak pola url." },
+      {
+        "type": "search_result",
+        "title": "Adres nie-HTTP",
+        "url": "ftp://example.org/plik",
+        "description": "Pominięty."
+      }
+    ]
+  }
+}

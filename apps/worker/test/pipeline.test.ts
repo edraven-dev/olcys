@@ -2,7 +2,7 @@ import type { AnalysisRun, Capture, Observation, Repositories } from '@olcys/cor
 import { newId, nowIso } from '@olcys/core';
 import { createMemoryRepositories } from '@olcys/db';
 import { describe, expect, it } from 'vitest';
-import { createRun, diffWithPrevious } from '../src/index.ts';
+import { createCollectStage, createRun, diffWithPrevious } from '../src/index.ts';
 
 const CONFIG: AnalysisRun['config'] = {
   toolVersion: '0.1.0',
@@ -72,5 +72,14 @@ describe('diffWithPrevious', () => {
       ['VALUE_CHANGED', 'bc1qbazowy', 'bc1qwolny', baseline.id],
     ]);
     expect(await diffWithPrevious(repos, (await repos.runs.get(baseline.id))!)).toEqual([]);
+  });
+});
+
+describe('collect stage configuration', () => {
+  it('refuses an unknown search mode when the stage is created, not in every run', () => {
+    expect(() => createCollectStage({ mode: 'offline', sources: [], env: { OLCYS_SEARCH_MODE: 'google' } })).toThrow(
+      /OLCYS_SEARCH_MODE must be one of off, mock, external/,
+    );
+    expect(createCollectStage({ mode: 'offline', sources: [], env: {} }).step).toBe('collect.source');
   });
 });
