@@ -242,7 +242,7 @@ export function coSpendTransfers(
     if (!tx) continue;
     for (const address of new Set(tx.inputs.flatMap((i) => (i.address ? [i.address] : [])))) {
       if (address === t.from || address === t.to) continue;
-      const copy = Object.assign({}, t, { from: address });
+      const copy: NormalizedTransfer = Object.assign({}, t, { from: address, derivedFrom: 'co_spend' as const });
       const key = transferKey(copy);
       if (known.has(key)) continue;
       known.add(key);

@@ -11,6 +11,7 @@ import type {
   FundFlowSankeyLink,
   FundFlowSankeyNode,
 } from '@olcys/core';
+import { countOutputsOnce } from './flow-edges.ts';
 import { addressKey, dAdd, dCmp, dRound, flowAddress } from '@olcys/core';
 
 /** Links kept before the rest is merged into one remainder node per layer. */
@@ -64,7 +65,7 @@ export function buildSankey(
   const maxLinks = options.maxLinks ?? SANKEY_MAX_LINKS;
   const refs = new Map<string, AddressRef>();
   const merged = new Map<string, Acc>();
-  for (const edge of edges) {
+  for (const edge of countOutputsOnce(edges)) {
     const from = keyOf(edge.from);
     const to = keyOf(edge.to);
     if (edge.isCycle || from === to || edge.hop === 0) continue;

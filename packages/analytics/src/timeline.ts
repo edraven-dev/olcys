@@ -4,6 +4,7 @@
  */
 import type { AddressRef, CashOutEvent, EntityCategory, FlowEdge, FlowTimelineEntry, SwapEvent } from '@olcys/core';
 import { addressKey } from '@olcys/core';
+import { countOutputsOnce } from './flow-edges.ts';
 
 const KIND_ORDER: Record<FlowTimelineEntry['kind'], number> = { transfer: 0, swap: 1, cash_out: 2 };
 const text = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
@@ -25,7 +26,7 @@ export function buildTimeline(
 ): FlowTimelineEntry[] {
   const maxHop = options.maxHop ?? 1;
   const entries: (FlowTimelineEntry & { index: number })[] = [];
-  for (const e of edges) {
+  for (const e of countOutputsOnce(edges)) {
     if (e.hop === 0 || Math.abs(e.hop) > maxHop) continue;
     const other = e.hop > 0 ? e.to : e.from;
     const service = options.counterparty?.(other);

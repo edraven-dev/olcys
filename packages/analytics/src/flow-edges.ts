@@ -30,7 +30,29 @@ export async function buildFlowEdges(
       hop: row.hop,
       ...(value.status === 'ok' ? { valuation: value.valuation } : {}),
       ...(row.isCycle ? { isCycle: true } : {}),
+      ...(row.derivedFrom ? { derivedFrom: row.derivedFrom } : {}),
     });
   }
   return edges;
+}
+
+/**
+ * The edges with every transaction output counted once: a co-spend edge (`derivedFrom`) repeats the output of an original
+ * edge (or of another co-spend edge) of the same transaction, so only one of them is kept (the original first).
+ */
+export function countOutputsOnce(edges: readonly FlowEdge[]): FlowEdge[] {
+  const key = (e: FlowEdge): string =>
+    [e.from.chain, e.txHash, e.index ?? '', e.to.address, e.asset, e.amount, e.hop > 0 ? 'out' : 'in'].join('|');
+  const original = new Set(edges.filter((e) => !e.derivedFrom).map(key));
+  const seen = new Set<string>();
+  const kept: FlowEdge[] = [];
+  for (const e of edges) {
+    if (e.derivedFrom) {
+      const k = key(e);
+      if (original.has(k) || seen.has(k)) continue;
+      seen.add(k);
+    }
+    kept.push(e);
+  }
+  return kept;
 }

@@ -144,4 +144,12 @@ describe('buildSankey', () => {
     const layer = new Map(sankey.nodes.map((n) => [n.id, n.layer]));
     for (const link of sankey.links) expect((layer.get(link.target) ?? NaN) - (layer.get(link.source) ?? NaN)).toBe(1);
   });
+
+  it('counts a transaction output once when a co-spend edge repeats it', () => {
+    const original = edge('A', 'C', 1, T(1), { tx: 'tx-1', amount: '5' });
+    const derived = { ...edge('B', 'C', 1, T(1), { tx: 'tx-1', amount: '5' }), derivedFrom: 'co_spend' as const };
+    const sankey = buildSankey([original, derived], new Set(), new Map());
+    expect(sankey.links).toHaveLength(1);
+    expect(sankey.links[0]?.byAsset).toEqual([{ asset: 'USDT', amount: '5' }]);
+  });
 });

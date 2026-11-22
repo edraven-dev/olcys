@@ -91,4 +91,13 @@ describe('buildTimeline', () => {
     expect(entry).toMatchObject({ kind: 'transfer', amount: '100', asset: 'USDT' });
     expect(entry?.valuation).toBeUndefined();
   });
+
+  it('counts a transaction output once when a co-spend edge repeats it', () => {
+    const original = edge('TA', 'TC', 1, T1, { tx: 'tx-1' });
+    const derived = { ...edge('TB', 'TC', 1, T1, { tx: 'tx-1' }), derivedFrom: 'co_spend' as const };
+    expect(buildTimeline([derived, original], [], [])).toHaveLength(1);
+    expect(buildTimeline([derived, original], [], [])[0]?.from?.address).toBe('TA');
+    // a derived edge alone (no original in the view) is kept
+    expect(buildTimeline([derived], [], [])).toHaveLength(1);
+  });
 });

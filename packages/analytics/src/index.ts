@@ -28,7 +28,7 @@ export {
   type CashOutRulesConfig,
   type CashOutScoreConfig,
 } from './cashout.ts';
-export { buildFlowEdges } from './flow-edges.ts';
+export { buildFlowEdges, countOutputsOnce } from './flow-edges.ts';
 export {
   DEFAULT_HOP_BUDGET,
   planHopExpansion,

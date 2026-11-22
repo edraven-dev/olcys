@@ -405,4 +405,28 @@ describe('Bitcoin co-spenders', () => {
       'bc1qsyntha>bc1qsynthc@1',
     ]);
   });
+
+  it('counts one output once: inputs of A and B fund 0.5 BTC to the analysed C, C receives 0.5 BTC', async () => {
+    const transfers = [payment, ...coSpendTransfers([payment], [tx])];
+    expect(transfers.map((t) => t.derivedFrom)).toEqual([undefined, 'co_spend']);
+    const graph = await computeFlowGraph({
+      runId: 'run',
+      seeds: [{ chain: 'bitcoin', address: 'bc1qsynthc' }],
+      settings: settings(),
+      pool: { transfers, utxoTxs: [tx] },
+      assets,
+      valuator,
+      ctx,
+      classify: async () => ({ service: false, excluded: false }),
+      labelOf: async () => undefined,
+      swapsOf: () => [],
+      eventsOf: () => [],
+      computedAt: '2026-11-21T12:00:00.000Z',
+    });
+    // upstream walks never use the derived row
+    expect(graph.edges.map((e) => `${e.from.address}>${e.to.address}@${e.hop}`)).toEqual(['bc1qsyntha>bc1qsynthc@-1']);
+    const view = graph.views[0]!;
+    expect(view.timeline.map((e) => e.amount)).toEqual(['0.5']);
+    expect(view.sankey.links.map((l) => l.byAsset)).toEqual([[{ asset: 'BTC', amount: '0.5' }]]);
+  });
 });
