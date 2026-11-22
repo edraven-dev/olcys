@@ -328,8 +328,10 @@ Bariery (`blocked`, `login_wall`, `captcha`) i niepowodzenia (`unknown`) są zap
 bariery → najsilniejsza z nich; w pozostałych przypadkach `partial`. Odpowiedź `409` serwisu (`external_disabled`:
 `OLCYS_OSINT_ALLOW_EXTERNAL` nie jest `true`; `db_hash_mismatch`: baza serwisów nie zgadza się z przypiętym skrótem)
 daje `error` z odpowiednią notatką. W trybie `live` syntetyczny nick persony jest odrzucany (`synthetic_identifier_refused`).
-Wyjątek od zasady 3: serwis osint-py nie czyta `robots.txt` — sprawdza istnienie jednego publicznego profilu pod adresem
-z bazy serwisów (lista tagów i RED w `services/osint-py/config/policy.json`), a cały jego ruch trafia do dziennika.
+Zasada 3 obowiązuje też tu, po stronie serwisu: osint-py pobiera `robots.txt` każdego hosta (raz na wyszukiwanie, przez
+własny dziennik) i pomija adresy wyłączone (`skipped`, `robots_disallowed`); semantyka odpowiedzi jak w `RobotsCache`.
+Poza trybem `live` kolektor wysyła wyłącznie `database: 'fixture'` i odrzuca `upstream` (`unsupported_input`), więc
+`offline` i `replay` nigdy nie sięgają do zewnętrznego internetu przez osint-py.
 
 ## Pivoty (`pivot.v2`)
 

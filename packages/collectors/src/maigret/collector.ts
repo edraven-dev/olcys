@@ -362,6 +362,11 @@ export function maigretCollectorFactory(options: MaigretCollectorOptions): Colle
             rb.note('synthetic_identifier_refused', new SyntheticIdentifierError(username).message);
             return rb.build();
           }
+          // Offline and replay never reach the external web, not even through osint-py: fixture database only.
+          if (deps.mode !== 'live' && options.database !== 'fixture') {
+            rb.note('unsupported_input', `the ${options.database} site database is refused in ${deps.mode} mode`);
+            return rb.build();
+          }
           // The service's own requests must reach the egress log: without the merge hook nothing is sent at all.
           if (!ctx.http.recordDelegated) {
             rb.note('delegated_log_unavailable', 'the egress client cannot merge the osint-py request log');

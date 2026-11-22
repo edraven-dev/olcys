@@ -92,13 +92,16 @@ describe('response parser', () => {
     const parsed = parseUsernameSearchResponse(sample);
     expect(parsed.schemaVersion).toBe('usernames-search.v1');
     expect(parsed.results.map((r) => [r.site, r.status])).toEqual([
+      ['Archiwum', 'skipped'],
       ['GitHub', 'not_found'],
       ['Keybase', 'blocked'],
       ['Telegram', 'not_found'],
       ['Wykop', 'found'],
     ]);
-    expect(parsed.requests).toHaveLength(4);
-    expect(parsed.requests.every((r) => r.containsIdentifier && r.method === 'GET')).toBe(true);
+    expect(parsed.requests).toHaveLength(6);
+    expect(parsed.requests.every((r) => r.method === 'GET')).toBe(true);
+    // robots.txt requests carry no identifier; every other request does.
+    expect(parsed.requests.every((r) => r.containsIdentifier === (r.purpose !== 'robots.txt'))).toBe(true);
     expect(stripBodies(parsed).requests.every((r) => r.bodyBase64 === null)).toBe(true);
   });
 
@@ -133,6 +136,7 @@ describe('collector on the sample (offline)', () => {
     });
     const status = result.observations.filter((o) => o.property === 'enumeration.status');
     expect(status.map((o) => [o.subject.key, o.value]).toSorted()).toEqual([
+      ['archiwum:fikcyjny_kacper', 'skipped'],
       ['github:fikcyjny_kacper', 'not_found'],
       ['keybase:fikcyjny_kacper', 'blocked'],
       ['telegram:fikcyjny_kacper', 'not_found'],
@@ -161,9 +165,10 @@ describe('collector on the sample (offline)', () => {
     const { run, test } = setup();
     await run();
     const delegated = test.logs.filter((l) => l.delegate === 'osint-py');
-    expect(delegated).toHaveLength(4);
-    expect(delegated.every((l) => l.containsIdentifier && l.sourceId === 'maigret' && l.method === 'GET')).toBe(true);
-    expect(delegated.map((l) => l.host)).toEqual(['fixture-site', 'fixture-site', 'fixture-site', 'fixture-site']);
+    expect(delegated).toHaveLength(6);
+    expect(delegated.every((l) => l.sourceId === 'maigret' && l.method === 'GET')).toBe(true);
+    expect(delegated.filter((l) => !l.containsIdentifier)).toHaveLength(1);
+    expect(new Set(delegated.map((l) => l.host))).toEqual(new Set(['fixture-site']));
     // The call to the service itself is an ordinary egress row.
     expect(test.logs.filter((l) => !l.delegate)).toHaveLength(1);
     const withBody = test.envelopes.filter((e) => e.delegatedVia);
@@ -183,8 +188,8 @@ describe('collector on the sample (offline)', () => {
     const { run, test } = setup(() => new Response(JSON.stringify({ ...sample, requests }), { status: 200 }));
     await run();
     const denied = test.logs.filter((l) => l.delegate === 'osint-py' && !l.allowed);
-    expect(denied).toHaveLength(1);
-    expect(denied[0]?.denyReason).toBe('no fixture mapping for host x');
+    expect(denied.map((l) => l.denyReason)).toContain('no fixture mapping for host x');
+    expect(denied.map((l) => l.denyReason)).toContain('robots_disallowed');
   });
 
   it('sends a canonical body that is byte-identical across runs and carries the run id only in a header', async () => {
@@ -233,6 +238,21 @@ describe('collector on the sample (offline)', () => {
     const unreadable = await garbled.run();
     expect(unreadable.status).toBe('error');
     expect(unreadable.notes.some((n) => n.startsWith('unrecognised_markup'))).toBe(true);
+  });
+
+  it('refuses the upstream database outside live mode and sends nothing', async () => {
+    const { deps, test, sent } = setup();
+    const factory = maigretCollectorFactory({ baseUrl: 'http://127.0.0.1:8090', database: 'upstream' });
+    for (const mode of ['offline', 'replay'] as const) {
+      // eslint-style: sequential, each mode is an independent collector
+      // oxlint-disable-next-line no-await-in-loop
+      const result = await factory
+        .create(registry.require('maigret'), { ...deps, mode })
+        .collect(nickInput(), test.ctx);
+      expect(result.status).toBe('error');
+      expect(result.notes.some((n) => n.startsWith('unsupported_input') && n.includes(mode))).toBe(true);
+    }
+    expect(sent).toHaveLength(0);
   });
 
   it('refuses a synthetic persona name in live mode', async () => {
