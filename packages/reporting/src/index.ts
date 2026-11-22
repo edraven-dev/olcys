@@ -33,6 +33,7 @@ export {
   type StixOptions,
   type TlpLevel,
 } from './export/index.ts';
+export { buildReportModel } from './model.ts';
 export { escapeHtml, markup, SafeHtml, t, type Html } from './html.ts';
 export { pl, type Catalogue } from './i18n/pl.ts';
 export { STATEMENT_IDS, type StatementClass } from './render/blocks.ts';
@@ -41,6 +42,7 @@ export { assertSelfContainedHtml, ExternalReferenceError } from './self-containe
 export {
   createReportStage,
   findExportSet,
+  findReportData,
   REPORT_DATA_MEDIA_TYPE,
   REPORT_HTML_MEDIA_TYPE,
   REPORT_KINDS,

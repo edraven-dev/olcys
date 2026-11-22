@@ -144,6 +144,25 @@ export async function findExportSet(
   }
 }
 
+/** The report data behind the run's latest report (the exact input of its HTML), or `undefined` when there is none. */
+export async function findReportData(
+  deps: { repos: Repositories; blobs: BlobStore },
+  runId: Id,
+): Promise<{ data: ReportData; sha256: string; bytes: number } | undefined> {
+  const stored = await deps.repos.analysis.latestReport(runId, REPORT_KINDS.data);
+  if (!stored) return undefined;
+  try {
+    const bytes = await deps.blobs.get(stored.blobSha256);
+    return {
+      data: JSON.parse(new TextDecoder().decode(bytes)) as ReportData,
+      sha256: stored.blobSha256,
+      bytes: bytes.length,
+    };
+  } catch {
+    return undefined;
+  }
+}
+
 export function createReportStage(options: ReportStageOptions = {}): ReportStage {
   const clock = options.clock ?? { now: () => new Date() };
   return {

@@ -6,6 +6,8 @@ import { createHash } from 'node:crypto';
 import type {
   ApiMeta,
   BlobStore,
+  ReportFile,
+  ReportView,
   FetchMode,
   LlmClient,
   Logger,
@@ -24,7 +26,16 @@ import {
   parse,
   StartRunSchema,
 } from '@olcys/core';
-import { EXPORT_FILE_EXTENSIONS, EXPORT_KINDS, findExportSet, isExportKind } from '@olcys/reporting';
+import {
+  buildReportModel,
+  EXPORT_FILE_EXTENSIONS,
+  EXPORT_KINDS,
+  EXPORT_MEDIA_TYPES,
+  findExportSet,
+  findReportData,
+  isExportKind,
+  REPORT_DATA_MEDIA_TYPE,
+} from '@olcys/reporting';
 import { evidenceRunIdOf, TOOL_VERSION } from '@olcys/worker';
 import Fastify, { type FastifyInstance, type FastifyReply } from 'fastify';
 import { DEFAULT_ANALYST, registerAnalystRoutes, supportsJudgements, withJudgements } from './analyst-routes.ts';
@@ -64,8 +75,40 @@ export interface ApiDeps {
   logger?: Logger;
   /** Renders a new version of a finished run's report (`POST /api/runs/:runId/report`). */
   renderReport?(run: RunWithProgress): Promise<void>;
+  /** Read-only facts for `GET /api/meta` that only the composition root knows (never secrets). */
+  settings?: ApiSettings;
   /** Periodic re-runs: live-mode minimum interval (default 60 min), who changes schedules (default: `analyst`), clock. */
   schedule?: { minIntervalMinutes?: number; analyst?: string; clock?: () => Date };
+}
+
+/** What `GET /api/meta` shows about the swappable model and the environment; credentials never belong here. */
+export interface ApiSettings {
+  llm?: { baseUrl: string; model: string; modelDigest?: string };
+  extractorVersion?: string;
+  weightsStatus?: string;
+  /** Environment to report the telemetry opt-outs from (names only are exposed, never values). */
+  env?: Readonly<Record<string, string | undefined>>;
+}
+
+/** Telemetry opt-out variables of `.env.example` that apply to the tool and its containers. */
+export const TELEMETRY_OPT_OUTS = [
+  'DO_NOT_TRACK',
+  'NEXT_TELEMETRY_DISABLED',
+  'TURBO_TELEMETRY_DISABLED',
+  'DOTNET_CLI_TELEMETRY_OPTOUT',
+  'HF_HUB_OFFLINE',
+  'HF_HUB_DISABLE_TELEMETRY',
+  'VLLM_NO_USAGE_STATS',
+  'OLLAMA_NO_CLOUD',
+] as const;
+
+/** Host (with port) of a base URL; nothing else of it — no credentials, path or query. Unparseable input gives ''. */
+export function hostOfBaseUrl(baseUrl: string): string {
+  try {
+    return new URL(baseUrl).host;
+  } catch {
+    return '';
+  }
 }
 
 const describeViolation = (v: ScopeViolation): string => {
@@ -130,9 +173,25 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
               weightsVersion: snapshot.weightsVersion,
               weightsSha256: snapshot.weightsSha256,
               rulesVersions: snapshot.rulesVersions,
+              weightsStatus: deps.settings?.weightsStatus ?? 'uncalibrated',
             },
           }
         : {}),
+      ...(deps.settings?.extractorVersion ? { extractorVersion: deps.settings.extractorVersion } : {}),
+      ...(deps.settings?.llm
+        ? {
+            llm: {
+              enabled: deps.llm?.enabled === true,
+              baseUrlHost: hostOfBaseUrl(deps.settings.llm.baseUrl),
+              model: deps.settings.llm.model,
+              ...(deps.settings.llm.modelDigest ? { modelDigest: deps.settings.llm.modelDigest } : {}),
+            },
+          }
+        : {}),
+      telemetryOptOuts: TELEMETRY_OPT_OUTS.map((name) => {
+        const value = deps.settings?.env?.[name];
+        return { name, set: value !== undefined && value !== '' && value !== '0' };
+      }),
     };
   });
 
@@ -287,6 +346,84 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
       .header('content-type', report.mediaType)
       .header('content-security-policy', "default-src 'none'; style-src 'unsafe-inline'; img-src data:")
       .header('x-content-type-options', 'nosniff')
+      .send(Buffer.from(bytes));
+  });
+
+  // The report model the HTML renderer is built from (same stored data), plus the downloadable files with digests.
+  app.get<{ Params: { runId: string } }>('/api/runs/:runId/report/view', async (request, reply) => {
+    const runId = idOf(request.params.runId);
+    const stored = runId ? await findReportData(deps, runId) : undefined;
+    if (!runId || !stored) return notFound(reply, 'report');
+    const base = `/api/runs/${runId}`;
+    const name = (extension: string) => `olcys-raport-${runId}.${extension}`;
+    const files: ReportFile[] = [];
+    const html = await repos.analysis.latestReport(runId, 'html');
+    if (html) {
+      const bytes = await deps.blobs.get(html.blobSha256);
+      files.push({
+        kind: 'html',
+        fileName: name('html'),
+        mediaType: html.mediaType,
+        available: true,
+        path: `${base}/report`,
+        bytes: bytes.length,
+        sha256: html.blobSha256,
+      });
+    }
+    // PDF/A is produced by a later pipeline step; until then the file is listed as unavailable.
+    files.push({ kind: 'pdf', fileName: name('pdf'), mediaType: 'application/pdf', available: false, path: '' });
+    files.push({
+      kind: 'manifest',
+      fileName: name('json'),
+      mediaType: REPORT_DATA_MEDIA_TYPE,
+      available: true,
+      path: `${base}/report/data`,
+      bytes: stored.bytes,
+      sha256: stored.sha256,
+    });
+    for (const capture of stored.data.captures) {
+      const token = capture.timestamp?.token;
+      if (!token) continue;
+      files.push({
+        kind: 'timestamp',
+        fileName: `olcys-znacznik-${capture.id}.tsr`,
+        mediaType: token.mediaType,
+        available: true,
+        path: `/api/blobs/${token.sha256}`,
+        bytes: token.bytes,
+        sha256: token.sha256,
+        captureId: capture.id,
+      });
+    }
+    const set = await findExportSet(deps, runId);
+    for (const format of EXPORT_KINDS) {
+      const e = set?.exports[format];
+      if (!e) continue;
+      files.push({
+        kind: format,
+        fileName: `olcys-${runId}-${EXPORT_FILE_EXTENSIONS[format]}`,
+        mediaType: EXPORT_MEDIA_TYPES[format],
+        available: true,
+        path: `${base}/exports/${format}`,
+        bytes: (await deps.blobs.get(e.sha256)).length,
+        sha256: e.sha256,
+      });
+    }
+    const view: ReportView = { report: buildReportModel(stored.data), files };
+    return view;
+  });
+
+  // The canonical JSON report data (the "manifest" download): the exact input of the HTML renderer.
+  app.get<{ Params: { runId: string } }>('/api/runs/:runId/report/data', async (request, reply) => {
+    const runId = idOf(request.params.runId);
+    const stored = runId ? await repos.analysis.latestReport(runId, 'data_json') : undefined;
+    if (!runId || !stored) return notFound(reply, 'report');
+    const bytes = await deps.blobs.get(stored.blobSha256);
+    return reply
+      .header('content-type', stored.mediaType)
+      .header('content-disposition', `attachment; filename="olcys-raport-${runId}.json"`)
+      .header('x-content-type-options', 'nosniff')
+      .header('content-security-policy', "sandbox; default-src 'none'")
       .send(Buffer.from(bytes));
   });
 
