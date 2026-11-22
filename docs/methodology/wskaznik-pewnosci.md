@@ -101,8 +101,8 @@ i reguł, SHA-256 zbioru danych oraz ziarno; te same dane wejściowe i to samo z
   Roszczenia `THIRD_PARTY_ATTRIBUTION` nie są generowane (nie są oceniane).
 - **Tryb `oracle`:** częstość cechy w klasie prawdziwej i fałszywej tak, by m / u = BF′ (iloraz po osłabieniu według
   wiarygodności), a priorytety klas równe priorytetom z wag (identyfikator kotwicy: 0,99). Poprawny silnik musi być tu
-  skalibrowany, więc tryb sprawdza generator, bufory deduplikacji i arytmetykę, **nie wagi**. Silnik traktuje brak
-  cechy jako neutralny (iloraz 1), dlatego w tym trybie cechy muszą być rzadkie (największa różnica częstości między
+  skalibrowany, więc tryb sprawdza generator, bufory deduplikacji i arytmetykę, **nie wagi**. Silnik z założenia traktuje brak
+  cechy jako neutralny (iloraz 1); to założenie silnika, a nie dostrojenie sprawdzianu, i jest poprawne tylko dla cech rzadkich, dlatego w tym trybie cechy muszą być rzadkie (największa różnica częstości między
   klasami: 0,04); przy częstszych cechach średnia prognoza systematycznie przewyższa obserwowaną.
 - **Tryb `scenarios`:** osiem scenariuszy z ręcznie przyjętymi założeniami (prawdziwy właściciel z kotwicą, konto
   o tej samej nazwie z linkiem w profilu, ta sama nazwa i dowód kryptograficzny należący do obcej osoby, cytowany
@@ -165,3 +165,9 @@ i reguł, SHA-256 zbioru danych oraz ziarno; te same dane wejściowe i to samo z
 - Dopóki nie będzie rzeczywistych, oznaczonych przypadków (wymagają podstawy prawnej i opracowania przez ekspertów),
   wagi zachowują status **„nieskalibrowane”**, a Wskaźnik Pewności należy czytać jako uporządkowaną miarę wspierającą
   decyzję analityka, nie jako częstość prawdziwych powiązań.
+- **Znane ograniczenie: konto o tej samej nazwie z poprawnym dowodem kryptograficznym.** Silnik ocenia dwa etapy osobno:
+  dowód kryptograficzny potwierdza, że konto kontroluje adres, ale etap tożsamości (sama zgodność nazwy, iloraz 3
+  przy priorytecie 1:9) pozostaje słaby, więc iloczyn daje około 24 („mało prawdopodobne”), a nie wartość bliską 0.
+  To skutek przyjętej konstrukcji, a nie błąd arytmetyki; sprawdzian zgłasza go jako
+  `overconfident:same_nick_stranger_with_proof`. Czy etap tożsamości powinien silniej obniżać wynik w takim przypadku,
+  jest pytaniem projektowym i wymaga decyzji; ta wersja silnika się nie zmienia.
