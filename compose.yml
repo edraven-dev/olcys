@@ -14,11 +14,33 @@
 
 name: olcys
 
+# Telemetry opt-outs, merged into the environment of every service (a test checks it stays that way) and mirrored in
+# .env.example, the Dockerfiles and the CI workflow.
+x-telemetry-off: &telemetry-off
+  DO_NOT_TRACK: '1'
+  HF_HUB_OFFLINE: '1'
+  HF_HUB_DISABLE_TELEMETRY: '1'
+  VLLM_NO_USAGE_STATS: '1'
+  OLLAMA_NO_CLOUD: '1'
+  NEXT_TELEMETRY_DISABLED: '1'
+  TURBO_TELEMETRY_DISABLED: '1'
+  DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+  NPM_CONFIG_UPDATE_NOTIFIER: 'false'
+
+# Container hardening shared by the services below. No new privileges, no capabilities unless a service adds some back.
+x-hardened: &hardened
+  security_opt: ['no-new-privileges:true']
+  cap_drop: [ALL]
+
 services:
   postgres:
     image: postgres:19.0-alpine3.24
     restart: unless-stopped
+    <<: *hardened
+    # The entrypoint chowns the data directory and drops from root to postgres; nothing else is needed.
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETGID, SETUID]
     environment:
+      <<: *telemetry-off
       POSTGRES_DB: ${POSTGRES_DB:-olcys}
       POSTGRES_USER: ${POSTGRES_USER:-olcys_owner}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-olcys_owner_dev}
@@ -42,6 +64,9 @@ services:
   gotenberg:
     image: gotenberg/gotenberg:9.9.1
     restart: unless-stopped
+    <<: *hardened
+    environment:
+      <<: *telemetry-off
     ports:
       - '127.0.0.1:${GOTENBERG_PORT:-3100}:3000'
     healthcheck:
@@ -59,7 +84,12 @@ services:
     restart: unless-stopped
     working_dir: /srv/fixture-site
     command: ['node', 'src/server.ts']
+    <<: *hardened
+    user: node
+    read_only: true
+    tmpfs: [/tmp]
     environment:
+      <<: *telemetry-off
       FIXTURE_HOST: 0.0.0.0
       FIXTURE_PORT: 4100
       FIXTURE_VARIANT: ${FIXTURE_VARIANT:-v1}
@@ -81,7 +111,11 @@ services:
     build:
       context: ./services/osint-py
     restart: unless-stopped
+    <<: *hardened
+    read_only: true
+    tmpfs: [/tmp]
     environment:
+      <<: *telemetry-off
       # The worker may reach the fixture site by default; real third-party sites only when enabled.
       OLCYS_OSINT_ALLOW_EXTERNAL: ${OLCYS_OSINT_ALLOW_EXTERNAL:-false}
       OLCYS_FIXTURE_BASE_URL: http://fixture-site:4100
@@ -97,10 +131,10 @@ services:
     profiles: ['llm']
     image: ollama/ollama:0.40.17
     restart: unless-stopped
+    <<: *hardened
     environment:
+      <<: *telemetry-off
       OLLAMA_HOST: 0.0.0.0:11434
-      OLLAMA_NO_CLOUD: '1'
-      DO_NOT_TRACK: '1'
       OLLAMA_KEEP_ALIVE: 30m
       OLLAMA_CONTEXT_LENGTH: '8192'
     volumes:
@@ -121,6 +155,9 @@ services:
     profiles: ['llm-llamacpp']
     image: ghcr.io/ggml-org/llama.cpp:server-b12602
     restart: unless-stopped
+    <<: *hardened
+    environment:
+      <<: *telemetry-off
     command:
       [
         '-m',
@@ -154,6 +191,9 @@ services:
     profiles: ['sandbox']
     image: blockstream/esplora:v3.0.1
     command: ['bash', '-c', '/srv/explorer/run.sh bitcoin-regtest explorer']
+    security_opt: ['no-new-privileges:true']
+    environment:
+      <<: *telemetry-off
     volumes:
       - esplora-regtest-data:/data
     ports:
@@ -164,6 +204,9 @@ services:
     profiles: ['sandbox']
     image: ghcr.io/foundry-rs/foundry:v1.10.0
     command: ['anvil --host 0.0.0.0 --chain-id 1 --state /data/anvil-state.json']
+    security_opt: ['no-new-privileges:true']
+    environment:
+      <<: *telemetry-off
     volumes:
       - anvil-data:/data
     ports:

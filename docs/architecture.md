@@ -277,6 +277,11 @@ Sugestie (`llm_suggestion`) mają zerową wagę w ocenie, dopóki analityk ich n
 (`POST /api/suggestions/:id/decision`, jedna decyzja na sugestię); potwierdzenie niczego nie zmienia w zapisanej
 ocenie, a uwzględnia je dopiero kolejny przebieg ponownej oceny. Fakty, wyniki obliczeń i wnioski pozostają rozdzielone.
 
+## Bezpieczeństwo
+
+Nagłówki i CSP, dziennik dostępu (tabela `access_log`, tylko dopisywanie), brak telemetrii, sekrety wyłącznie ze
+środowiska i utwardzone kontenery opisuje `docs/security.md`. Konta i logowanie są poza zakresem MVP (planowane później).
+
 ## Język interfejsu i dokumentacji
 
 Konsola analityka, raporty, wszystkie pliki README oraz katalog `docs/` są **po polsku**. Wszystkie teksty widoczne dla
