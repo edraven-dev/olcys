@@ -7,6 +7,7 @@ import type {
   AddressLabel,
   AnalystJudgement,
   AnalystOverride,
+  CustodyEvent,
   CashOutEvent,
   ChangeEvent,
   CaseWithIdentifiers,
@@ -50,6 +51,7 @@ export function createMemoryRepositories(): Repositories {
     labels: [] as { key: string; sha: string; lastmod: string; label: AddressLabel }[],
     judgements: [] as AnalystJudgement[],
     overrides: [] as AnalystOverride[],
+    custody: [] as CustodyEvent[],
   };
 
   return {
@@ -255,6 +257,15 @@ export function createMemoryRepositories(): Repositories {
       },
       async listByCase(caseId) {
         return chronological(store.overrides.filter((o) => o.caseId === caseId));
+      },
+    },
+    custody: {
+      async add(events) {
+        store.custody.push(...events.map((e) => copy(e)));
+      },
+      async listBySubjects(subjectIds) {
+        const wanted = new Set(subjectIds);
+        return chronological(store.custody.filter((e) => wanted.has(e.subject.id)));
       },
     },
   };
