@@ -857,6 +857,13 @@ export const pl = {
       'Model lokalny może przygotować szkice wniosków do sekcji C na podstawie faktów (A) i wyników obliczeń (B) tego raportu. Szkice to sugestie: nie zmieniają Wskaźnika Pewności ani podsumowania, a do raportu trafiają dopiero po potwierdzeniu przez analityka. Treści z Telegramu nigdy nie są wysyłane do modelu.',
     propose: 'Zaproponuj wnioski (AI)',
     proposing: 'Model przygotowuje szkice…',
+    modelOff:
+      'Model AI jest wyłączony: nowych szkiców nie można zamówić, ale zapisane szkice można nadal rozstrzygnąć.',
+    waitingReport: 'Czekam na zaktualizowany raport…',
+    reportTimeout:
+      'Zaktualizowany raport nie pojawił się w ciągu minuty. Decyzja jest zapisana; raport powstanie, gdy zakończy się jego generowanie.',
+    reportCheckFailed: 'Nie udało się sprawdzić, czy raport został zaktualizowany.',
+    retryReport: 'Sprawdź ponownie',
     badge: 'Sugestia AI — niezweryfikowana',
     badgeConfirmed: 'Sugestia AI — potwierdzona przez analityka',
     badgeRejected: 'Sugestia AI — odrzucona przez analityka',

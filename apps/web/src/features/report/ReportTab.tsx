@@ -1,5 +1,5 @@
 import type { ApiMeta, LegacyReportView, ReportModel, ReportView } from '@olcys/core';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ErrorState, Icon, LoadingState, StaleNotice } from '../../components/ui.tsx';
 import { pl } from '../../i18n/pl.ts';
 import { api, ApiRequestError, apiPaths } from '../../lib/api.ts';
@@ -32,8 +32,23 @@ const anchorTargets = (report: ReportModel): Map<string, string> =>
 export const reportVersion = (runVersion: string, regenerations: number): string =>
   `${runVersion}#regenerated-${regenerations}`;
 
+/**
+ * Waits between checks while the API renders the report version that shows a decision: backoff up to about a minute
+ * in total (1+2+4+8 s, then 10 s steps).
+ */
+export const REPORT_POLL_SCHEDULE_MS: readonly number[] = [1000, 2000, 4000, 8000, 10000, 10000, 10000, 10000, 10000];
+
+type Awaiting = { from: string; attempt: number; state: 'waiting' | 'timeout' | 'failed' };
+
 /** The report is rendered natively from the report model the API serves; files are offered as downloads. */
-export function ReportTab({ scope }: { scope: RunScope }) {
+export function ReportTab({
+  scope,
+  pollSchedule = REPORT_POLL_SCHEDULE_MS,
+}: {
+  scope: RunScope;
+  /** Waits between checks for the re-rendered report (milliseconds); tests pass short ones. */
+  pollSchedule?: readonly number[];
+}) {
   const { run, version } = scope;
   const done = isTerminal(run.status);
   const [regenerations, setRegenerations] = useState(0);
@@ -42,10 +57,56 @@ export function ReportTab({ scope }: { scope: RunScope }) {
     () => loadReport(run.id),
   );
   const meta = useJson<ApiMeta>(apiPaths.meta);
-  // The API renders a new report version after a decision without making the response wait: load it again shortly.
-  const refreshAfterDecision = () => {
-    for (const delay of [1500, 5000]) setTimeout(() => setRegenerations((n) => n + 1), delay);
-  };
+  // A decision makes the API render a new report version in the background: poll until the published version id
+  // changes (never a fixed number of reloads), then show it. A render that takes too long ends in a message with retry.
+  const [awaiting, setAwaiting] = useState<Awaiting | null>(null);
+  const publishedVersion = report.data && !report.data.legacy ? report.data.version : undefined;
+  const refreshAfterDecision = () =>
+    setAwaiting((current) =>
+      current?.state === 'waiting'
+        ? current
+        : { from: publishedVersion ?? '', attempt: (current?.attempt ?? 0) + 1, state: 'waiting' },
+    );
+  const retryAwaiting = () =>
+    setAwaiting((current) => (current ? { ...current, attempt: current.attempt + 1, state: 'waiting' } : current));
+  const waitingAttempt = awaiting?.state === 'waiting' ? awaiting.attempt : 0;
+  const waitingFrom = awaiting?.from ?? '';
+  useEffect(() => {
+    if (waitingAttempt === 0) return undefined;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const check = async (step: number): Promise<void> => {
+      if (step >= pollSchedule.length) {
+        setAwaiting((c) => (c ? { ...c, state: 'timeout' } : c));
+        return;
+      }
+      await new Promise<void>((resolve) => {
+        timer = setTimeout(resolve, pollSchedule[step]);
+      });
+      if (cancelled) return;
+      try {
+        const latest = await loadReport(run.id);
+        if (cancelled) return;
+        if (latest && !latest.legacy && latest.version !== waitingFrom) {
+          setAwaiting(null);
+          setRegenerations((n) => n + 1);
+          return;
+        }
+      } catch {
+        // A failed check is retried on the next step; only the end of the schedule reports it.
+        if (step + 1 >= pollSchedule.length && !cancelled) {
+          setAwaiting((c) => (c ? { ...c, state: 'failed' } : c));
+          return;
+        }
+      }
+      await check(step + 1);
+    };
+    void check(0);
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [waitingAttempt, waitingFrom, run.id, pollSchedule]);
   const sources = useList<SourceItem>(apiPaths.sources);
   const names = new Map((sources.data ?? []).map((s) => [s.id, s.name]));
   return (
@@ -67,14 +128,29 @@ export function ReportTab({ scope }: { scope: RunScope }) {
           {report.error ? <StaleNotice resource={report as Resource<unknown>} /> : null}
           {report.data.legacy ? <p className="notice">{pl.report.legacy}</p> : null}
           <DownloadsPanel files={report.data.files} />
-          {report.data.legacy || !meta.data?.features.inferenceDrafts ? null : (
+          {report.data.legacy ? null : (
             <DraftInferences
               runId={run.id}
               version={reportVersion(version, regenerations)}
               targets={anchorTargets(report.data.report)}
+              canGenerate={meta.data?.features.inferenceDrafts === true}
               onDecided={refreshAfterDecision}
             />
           )}
+          {awaiting?.state === 'waiting' ? (
+            <output className="hint block">
+              <Icon name="info" />
+              {pl.drafts.waitingReport}
+            </output>
+          ) : null}
+          {awaiting && awaiting.state !== 'waiting' ? (
+            <div className="notice" role="alert">
+              <p>{awaiting.state === 'timeout' ? pl.drafts.reportTimeout : pl.drafts.reportCheckFailed}</p>
+              <button type="button" className="button" onClick={retryAwaiting}>
+                {pl.drafts.retryReport}
+              </button>
+            </div>
+          ) : null}
           {report.data.legacy ? null : <ReportDocument report={report.data.report} names={names} />}
         </>
       )}

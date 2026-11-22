@@ -47,10 +47,13 @@ export function DraftInferences({
   runId,
   version,
   targets,
+  canGenerate,
   onDecided,
 }: {
   runId: string;
   version: string;
+  /** The model is enabled: only the button that asks for new drafts depends on it, saved drafts stay reviewable. */
+  canGenerate: boolean;
   /** Anchors of the report's facts and results, to link the cited ids. */
   targets: ReadonlyMap<string, string>;
   /** Called after a decision, so the report (re-rendered by the API) can be loaded again. */
@@ -79,15 +82,21 @@ export function DraftInferences({
     }
   };
 
+  // Saved drafts are reviewed (confirmed or rejected) even when the model has been switched off since.
+  if (!canGenerate && items.length === 0) return null;
   return (
     <section aria-labelledby="report-drafts-title" className="card stack">
       <h3 id="report-drafts-title">{pl.drafts.title}</h3>
       <p className="hint">{pl.drafts.intro}</p>
-      <p>
-        <button type="button" className="button" disabled={busy} onClick={() => void propose()}>
-          {busy ? pl.drafts.proposing : pl.drafts.propose}
-        </button>
-      </p>
+      {canGenerate ? (
+        <p>
+          <button type="button" className="button" disabled={busy} onClick={() => void propose()}>
+            {busy ? pl.drafts.proposing : pl.drafts.propose}
+          </button>
+        </p>
+      ) : (
+        <p className="hint">{pl.drafts.modelOff}</p>
+      )}
       {message ? (
         <output className="hint block">
           <Icon name="info" />
