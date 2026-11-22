@@ -54,7 +54,7 @@ describe('weights proposal and CLI', () => {
     expect(proposed.scales).toEqual(w.scales);
   });
 
-  it('AC7 + smoke: the CLI writes the proposal only under --out and leaves the committed weights untouched', async () => {
+  it('the CLI writes the proposal only under --out and leaves the committed weights untouched', async () => {
     const before = await sha(weightsPath('weights.v1.yaml'));
     const beforeV2 = await sha(weightsPath('weights.v2.yaml'));
     const out = await mkdtemp(join(tmpdir(), 'olcys-calibration-'));
@@ -80,7 +80,7 @@ describe('weights proposal and CLI', () => {
         relationAccuracy?: { macroF1: number; confusion: object };
         weightsSha256: string;
       };
-      // AC8: the corpus is part of the repository, so relation accuracy is reported.
+      // The corpus is part of the repository, so relation accuracy is reported.
       expect(report.relationAccuracy?.macroF1).toBeGreaterThan(0);
       expect(report.relationAccuracy?.confusion).toBeDefined();
       expect(report.weightsSha256).toBe(w.sha256);

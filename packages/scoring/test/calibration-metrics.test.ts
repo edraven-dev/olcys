@@ -5,13 +5,13 @@ const P = [0.9, 0.2, 0.6, 0.5];
 const Y = [1, 0, 1, 0];
 
 describe('calibration metrics', () => {
-  it('AC1: toy set gives Brier 0.115, log loss 0.383119 and ECE 0.3', () => {
+  it('toy set gives Brier 0.115, log loss 0.383119 and ECE 0.3', () => {
     expect(brier(P, Y)).toBeCloseTo(0.115, 12);
     expect(logLoss(P, Y)).toBeCloseTo(0.383119, 6);
     expect(ece(P, Y, 10)).toBeCloseTo(0.3, 12);
   });
 
-  it('AC2: p = 1 lands in [0.9, 1], p = 0.1 in [0.1, 0.2), and the counts sum to n', () => {
+  it('p = 1 lands in [0.9, 1], p = 0.1 in [0.1, 0.2), and the counts sum to n', () => {
     expect(binIndex(1)).toBe(9);
     expect(binIndex(0.1)).toBe(1);
     expect(binIndex(0)).toBe(0);

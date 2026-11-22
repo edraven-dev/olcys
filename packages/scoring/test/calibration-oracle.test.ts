@@ -26,7 +26,7 @@ beforeAll(async () => {
 });
 
 describe('oracle mode (n = 20,000, seed 20261121)', () => {
-  it('AC3: a correct engine is calibrated on data drawn from its own weights', () => {
+  it('a correct engine is calibrated on data drawn from its own weights', () => {
     const report = calibrate(generateClaims(oracleScenarios(w), 20000, SEED, tierOf), w, {
       seed: SEED,
       mode: 'oracle',
@@ -49,7 +49,7 @@ describe('oracle mode (n = 20,000, seed 20261121)', () => {
     expect(report.warnings.filter((x) => x.startsWith('overconfident'))).toEqual([]);
   });
 
-  it('AC5: same inputs and seed give byte-identical report.json carrying the provenance fields', () => {
+  it('same inputs and seed give byte-identical report.json carrying the provenance fields', () => {
     const run = () =>
       serialiseReport(
         calibrate(generateClaims(oracleScenarios(w), 2000, SEED, tierOf), w, { seed: SEED, bootstrap: 100 }),
@@ -80,7 +80,7 @@ const base = (originGroups: number): ScenarioSpec => ({
 const warnings = (originGroups: number): string[] =>
   calibrate(generateClaims([base(originGroups)], 1000, SEED, tierOf), w, { seed: SEED, bootstrap: 10 }).warnings;
 
-describe('double counting (AC4)', () => {
+describe('double counting', () => {
   it('mirrors from one shared origin group are counted once: no warning', () => {
     expect(warnings(1)).not.toContain('overconfident:mirrored_duplicates');
   });
@@ -101,7 +101,7 @@ describe('scenario file, persona set and corpus fields', () => {
     expect(Math.abs((report.byScenario['mirrored_duplicates']?.meanPredicted ?? 0) - 0.56)).toBeLessThan(0.01);
   });
 
-  it('AC6: the persona set reproduces 99 / 77 / 24 and the worked example 50 / 62', () => {
+  it('the persona set reproduces 99 / 77 / 24 and the worked example 50 / 62', () => {
     const { cases } = parsePersonaSet(readFileSync(join(FIXTURES, 'persona.v1.yaml'), 'utf8'));
     const result = scorePersona(cases, w);
     expect(result.map((r) => r.got)).toEqual(result.map((r) => r.expected));
@@ -111,7 +111,7 @@ describe('scenario file, persona set and corpus fields', () => {
     expect(wrong.warnings).toContain('persona_mismatch:BTC-1');
   });
 
-  it('AC8: relation accuracy is reported when pairs are given, with a confusion matrix and macro-F1', () => {
+  it('relation accuracy is reported when pairs are given, with a confusion matrix and macro-F1', () => {
     const pairs = [
       { truth: 'SELF_DECLARED', predicted: 'SELF_DECLARED' },
       { truth: 'SELF_DECLARED', predicted: 'MENTION_UNCLEAR' },
