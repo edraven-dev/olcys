@@ -94,7 +94,7 @@ hostów. Obecnie: **19 źródeł GREEN, 12 AMBER i 10 RED**.
   blokowane w kodzie, także jako hosty dodatkowe.
 
 Pełne tabele (limity zapytań, czy źródło ujawnia identyfikator, ocena wiarygodności, regulamin, uzasadnienie) są
-generowane z rejestru poleceniem `pnpm compliance:sources` i znajdują się w
+generowane z rejestru poleceniem `node packages/collectors/scripts/sources-doc.ts --write` (sprawdzenie zgodności: `pnpm compliance:sources`) i znajdują się w
 [`docs/compliance/sources.md`](docs/compliance/sources.md).
 
 ### Tryby pracy i zmienne środowiskowe
