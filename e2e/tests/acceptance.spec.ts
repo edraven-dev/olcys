@@ -258,9 +258,19 @@ test('step 7b: sources and the final report', async ({ page }) => {
   // Downloads: every available file lists its SHA-256 (64 hex characters).
   const downloads = main.locator('section[aria-labelledby="report-downloads"]');
   await expect(downloads.getByRole('heading', { name: pl.report.downloads.title })).toBeVisible();
-  const digests = await downloads.locator('tbody tr td:nth-child(3)').allTextContents();
-  expect(digests.length).toBeGreaterThan(0);
-  expect(digests.some((d) => /[0-9a-f]{64}/i.test(d))).toBe(true);
+  // Every available file row carries a 64-hex SHA-256; only rows explicitly marked unavailable (e.g. PDF without
+  // Gotenberg) are excluded.
+  const rows = downloads.locator('tbody tr');
+  const rowCount = await rows.count();
+  expect(rowCount).toBeGreaterThan(0);
+  let checked = 0;
+  for (let i = 0; i < rowCount; i++) {
+    const row = rows.nth(i);
+    if (await row.getByText(pl.report.downloads.unavailable, { exact: true }).count()) continue;
+    await expect(row.locator('td:nth-child(3)'), `SHA-256 of row ${i}`).toHaveText(/[0-9a-f]{64}/i);
+    checked++;
+  }
+  expect(checked).toBeGreaterThan(0);
   await shot(page, '09-raport', main.getByRole('heading', { name: pl.report.sections.facts }));
 
   // The read-only settings page.

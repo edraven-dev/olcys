@@ -163,15 +163,26 @@ export function maskInitScript(source: MaskSource): string {
     CSS.highlights.set('olcys-mask', highlight);
     fields(RE);
   }
-  try {
-    const sheet = new CSSStyleSheet();
-    sheet.replaceSync('::highlight(olcys-mask){color:transparent;background-color:rgba(100,116,139,.28);text-shadow:0 0 9px #0f172a,0 0 9px #0f172a;}');
-    document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
-  } catch {}
-  let pending = false;
-  const schedule = () => { if (pending) return; pending = true; setTimeout(() => { pending = false; scan(); }, 40); };
+  // A failure to install the hiding stylesheet must stop the run: nothing may be recorded unmasked.
+  const sheet = new CSSStyleSheet();
+  sheet.replaceSync(
+    '::highlight(olcys-mask){color:transparent;background-color:rgba(100,116,139,.28);text-shadow:0 0 9px #0f172a,0 0 9px #0f172a;}' +
+    // Graph labels are painted on canvas, where text masking cannot reach: blur the canvases themselves.
+    'canvas{filter:blur(6px) !important;}' +
+    // The case form is blurred from the first paint, before anything is typed into it.
+    '.case-form input:not([type="checkbox"]):not([type="radio"]),.case-form textarea,.case-form select{filter:blur(7px);}',
+  );
+  document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
+  // No debounce: scan synchronously in the observer callback (before the next paint) and once more per frame.
+  let framePending = false;
+  const schedule = () => {
+    scan();
+    if (framePending) return;
+    framePending = true;
+    requestAnimationFrame(() => { framePending = false; scan(); });
+  };
   new MutationObserver(schedule).observe(document, { childList: true, characterData: true, subtree: true });
-  for (const type of ['input', 'change', 'focusin']) document.addEventListener(type, schedule, true);
+  for (const type of ['input', 'change', 'focusin', 'keydown', 'keyup']) document.addEventListener(type, schedule, true);
   setInterval(scan, 500);
   document.addEventListener('DOMContentLoaded', scan);
   // Independent check used by the tests: text matching \`check\` that is not covered by a mask range.
@@ -182,7 +193,10 @@ export function maskInitScript(source: MaskSource): string {
     const bad = rangesFor(check).filter((m) => !covered(m)).map((m) => m.toString());
     for (const el of document.querySelectorAll('input, textarea, select')) {
       check.lastIndex = 0;
-      if (check.test(fieldText(el)) && !String(el.style.filter).includes('blur')) bad.push('field: ' + fieldText(el));
+      if (check.test(fieldText(el)) && !getComputedStyle(el).filter.includes('blur')) bad.push('field: ' + fieldText(el));
+    }
+    for (const canvas of document.querySelectorAll('canvas')) {
+      if (!getComputedStyle(canvas).filter.includes('blur')) bad.push('canvas without blur');
     }
     return bad;
   };

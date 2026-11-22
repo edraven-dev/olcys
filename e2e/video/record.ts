@@ -39,7 +39,7 @@ const maskSource = await loadMaskSource();
 const llm = process.argv.includes('--llm');
 if (llm) process.env['E2E_LLM'] = '1';
 if (existsSync(OUTPUT) && !force) {
-  console.error(`olcys-demo.mp4 już istnieje — nie nadpisuję. Użyj --force, aby nagrać od nowa.`);
+  console.error(`olcys-demo.mp4 already exists; not overwriting. Pass --force to record again.`);
   process.exit(2);
 }
 
@@ -85,6 +85,8 @@ async function record(): Promise<number> {
   const pause = (seconds: number) => page.waitForTimeout(seconds * 1000);
   /** Scrolls the element to the middle of the screen, outlines it for `seconds`, then removes the outline. */
   const show = async (target: Locator, seconds: number) => {
+    // Fails (instead of highlighting nothing) when the target is not on screen.
+    await target.first().waitFor({ state: 'visible', timeout: 10_000 });
     await target.first().evaluate(scrollToMiddle);
     await pause(1);
     await target.first().evaluate(mark);
@@ -157,12 +159,13 @@ async function record(): Promise<number> {
         await summary.click();
         if (await badge.isVisible()) {
           await show(badge, 4);
+          await summary.click(); // close the explanation again: the score step opens it on its own
           shown = true;
           break;
         }
         await summary.click();
       }
-      if (!shown) console.warn('Brak karty „Sugestia AI” — film nagrany bez niej.');
+      if (!shown) console.warn('No AI suggestion card appeared; the video is recorded without it.');
     }
   });
 
@@ -172,7 +175,10 @@ async function record(): Promise<number> {
       await show(linkCard(page, link.address).locator('.link-head'), 2);
     }
     const btc = linkCard(page, btc1.address);
-    await btc.locator('details.explain > summary').click();
+    // Open the explanation unless it already is, then the formula must be visible.
+    if ((await btc.locator('details.explain').getAttribute('open')) === null) {
+      await btc.locator('details.explain > summary').click();
+    }
     await show(btc.locator('.formula').first(), 4);
     await btc.locator('details.explain > summary').click();
   });
@@ -250,11 +256,7 @@ async function record(): Promise<number> {
   if (!videoPath) throw new Error('Playwright did not record a video.');
 
   if (guard.violations.length > 0 || guard.pageErrors.length > 0) {
-    console.error(
-      'Nagranie przerwane: żądania poza lokalnym hostem lub błędy strony:',
-      guard.violations,
-      guard.pageErrors,
-    );
+    console.error('Recording aborted: requests to non-local hosts or page errors:', guard.violations, guard.pageErrors);
     return 1;
   }
 
@@ -263,16 +265,16 @@ async function record(): Promise<number> {
   const saved = fastSegments.reduce((sum, s) => sum + (s.to - s.from) * (1 - 1 / FAST), 0);
   const outTime = (t: number) =>
     t - fastSegments.reduce((sum, s) => sum + Math.max(0, Math.min(t, s.to) - s.from) * (1 - 1 / FAST), 0);
-  console.info('\nCzasy kroków w gotowym filmie:');
+  console.info('\nStep durations in the final video:');
   for (const t of timings) console.info(`  ${t.name}: ${(outTime(t.to) - outTime(t.from)).toFixed(1)} s`);
   console.info(
-    `Surowe nagranie: ${rawSeconds.toFixed(1)} s, po przyspieszeniu oczekiwania (−${saved.toFixed(1)} s): ${total.toFixed(1)} s`,
+    `Raw recording: ${rawSeconds.toFixed(1)} s, after speeding up the waits (-${saved.toFixed(1)} s): ${total.toFixed(1)} s`,
   );
   const size = statSync(OUTPUT).size / 1e6;
-  console.info(`Plik: ${OUTPUT} (${size.toFixed(1)} MB)`);
+  console.info(`File: ${OUTPUT} (${size.toFixed(1)} MB)`);
   if (total > LIMIT_SECONDS) {
     rmSync(OUTPUT, { force: true });
-    console.error(`Film trwa ${total.toFixed(1)} s — limit to ${LIMIT_SECONDS} s. Plik usunięto.`);
+    console.error(`The video is ${total.toFixed(1)} s long; the limit is ${LIMIT_SECONDS} s. File deleted.`);
     return 1;
   }
   return 0;

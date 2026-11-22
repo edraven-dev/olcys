@@ -42,17 +42,20 @@ async function waitFor(url: string, timeoutMs: number): Promise<void> {
   }
 }
 
+/** A child that has exited (normally or by a signal) is stopped: no 'exit' event will come again. */
+export const hasStopped = (child: Pick<ChildProcess, 'exitCode' | 'signalCode'>): boolean =>
+  child.exitCode !== null || child.signalCode !== null;
+
 const stopAll = async (): Promise<void> => {
   for (const child of [...children].reverse()) {
-    if (child.pid && child.exitCode === null) {
+    if (child.pid && !hasStopped(child)) {
       child.removeAllListeners('exit');
       child.kill('SIGTERM');
     }
   }
   await Promise.all(
     children.map(
-      (child) =>
-        new Promise<void>((resolve) => (child.exitCode !== null ? resolve() : child.once('exit', () => resolve()))),
+      (child) => new Promise<void>((resolve) => (hasStopped(child) ? resolve() : child.once('exit', () => resolve()))),
     ),
   );
 };
