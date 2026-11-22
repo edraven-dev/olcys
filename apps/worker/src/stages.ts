@@ -61,7 +61,13 @@ import {
   toClusterSummary,
 } from '@olcys/labels';
 import { parse as parseYaml } from 'yaml';
-import { createSecretRedactor, extractCapture, parseDenyList, type CaptureContent } from '@olcys/address-extractor';
+import {
+  createSecretRedactor,
+  EXTRACTOR_VERSION,
+  extractCapture,
+  parseDenyList,
+  type CaptureContent,
+} from '@olcys/address-extractor';
 import {
   collectCase,
   createDefaultCollectorRegistry,
@@ -219,8 +225,16 @@ export function createExtractStage(): Stage {
       const captures = (await ctx.repos.evidence.listCaptures(ctx.evidenceRunId)).filter(
         (c) => c.status === 'ok' && !isSearchResultCapture(c),
       );
-      let candidates = 0;
-      for (const capture of captures) {
+      // Redelivery is harmless: a capture already extracted by this run with the current extractor is not stored twice.
+      const done = new Set(
+        (await ctx.repos.evidence.listExtractionResults(ctx.run.id))
+          .filter((r) => r.extractorVersion === EXTRACTOR_VERSION)
+          .map((r) => r.captureId),
+      );
+      // Extract everything first and persist afterwards: a failure (e.g. `SecretLeakError`) stores nothing.
+      const results: Awaited<ReturnType<typeof extractCapture>>[] = [];
+      const started = Date.now();
+      for (const capture of captures.filter((c) => !done.has(c.id))) {
         const artifacts: CaptureContent['artifacts'] = [];
         for (const artifact of capture.artifacts.filter((a) => TEXT_ARTIFACTS.has(a.kind))) {
           // Sequential on purpose: pages are processed one at a time to bound memory.
@@ -229,15 +243,32 @@ export function createExtractStage(): Stage {
           artifacts.push({ kind: artifact.kind, mediaType: artifact.blob.mediaType, bytes });
         }
         if (artifacts.length === 0) continue;
-        // oxlint-disable-next-line no-await-in-loop
-        const result = await extractCapture(
-          { captureId: capture.id, url: capture.url, finalUrl: capture.finalUrl, artifacts },
-          { denyList: list },
+        results.push(
+          // oxlint-disable-next-line no-await-in-loop
+          await extractCapture(
+            { captureId: capture.id, url: capture.url, finalUrl: capture.finalUrl, artifacts },
+            { denyList: list },
+          ),
         );
+      }
+      let candidates = 0;
+      const secretsByKind: Record<string, number> = {};
+      let rejected = 0;
+      for (const result of results) {
         candidates += result.candidates.length;
+        rejected += result.rejected.length;
+        for (const s of result.secrets) secretsByKind[s.kind] = (secretsByKind[s.kind] ?? 0) + 1;
         // oxlint-disable-next-line no-await-in-loop
         await ctx.repos.evidence.addExtraction(ctx.run.id, result);
       }
+      // Counts only: nothing extracted from a page (and certainly no secret) goes to the log.
+      ctx.logger.info('extraction finished', {
+        captures: results.length,
+        candidates,
+        rejected,
+        secrets: secretsByKind,
+        ms: Date.now() - started,
+      });
       await ctx.progress({ extracted: captures.length, candidates });
     },
   };
