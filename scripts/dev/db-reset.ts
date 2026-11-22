@@ -2,8 +2,17 @@
  * `pnpm db:reset --yes`: destroys the compose PostgreSQL container and its data volume, starts a fresh one (roles and
  * schemas come from infra/postgres/init on first start) and applies the migrations. Without `--yes` it only prints
  * the plan and refuses. `--dry-run` prints the plan and stops, with or without `--yes`.
+ *
+ * The volume name comes from the resolved compose configuration (`config --format json`), so `-p`, `-f`,
+ * `COMPOSE_PROJECT_NAME` and the file's `name:` are all honoured, and the volume command keeps the engine prefix of the
+ * compose command (`docker --context x compose` → `docker --context x volume rm`). When either cannot be determined,
+ * nothing is deleted.
  */
 import { detectCompose, exec, type Exec } from './exec.ts';
+
+/** The database service and its data volume key in compose.yml. */
+const SERVICE = 'postgres';
+const VOLUME_KEY = 'postgres-data';
 
 export interface ResetPlan {
   composeCommand: string[];
@@ -11,23 +20,52 @@ export interface ResetPlan {
   steps: { description: string; command: string; args: string[] }[];
 }
 
-export function buildPlan(compose: string[], env: Record<string, string | undefined>): ResetPlan {
+/**
+ * The container engine command behind a compose command: the words before `compose` (`docker --context x compose -p y`
+ * → `docker --context x`), or `docker` / `podman` for the standalone `docker-compose` / `podman-compose` binaries.
+ */
+export function engineOf(compose: readonly string[]): string[] | undefined {
+  const at = compose.indexOf('compose');
+  if (at > 0) return compose.slice(0, at);
+  const bin = (compose[0] ?? '').split('/').at(-1);
+  if (bin === 'docker-compose') return ['docker'];
+  if (bin === 'podman-compose') return ['podman'];
+  return undefined;
+}
+
+/** The resolved name of the database volume, from `<compose> config --format json`; undefined when unknown. */
+export async function resolveVolume(run: Exec, compose: readonly string[]): Promise<string | undefined> {
   const [bin = '', ...rest] = compose;
-  const project = env['COMPOSE_PROJECT_NAME'] || 'olcys';
-  const volume = `${project}_postgres-data`;
-  // The container runtime CLI for the volume: the first word of the compose command (docker / podman).
-  const engine = bin === 'docker-compose' ? 'docker' : bin === 'podman-compose' ? 'podman' : bin;
+  const result = await run(bin, [...rest, 'config', '--format', 'json']);
+  const start = result.stdout.indexOf('{');
+  if (result.code !== 0 || start === -1) return undefined;
+  try {
+    const config = JSON.parse(result.stdout.slice(start)) as { volumes?: Record<string, { name?: unknown } | null> };
+    const name = config.volumes?.[VOLUME_KEY]?.name;
+    return typeof name === 'string' && name !== '' ? name : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export function buildPlan(compose: string[], engine: readonly string[], volume: string): ResetPlan {
+  const [bin = '', ...rest] = compose;
+  const [engineBin = '', ...engineArgs] = engine;
   return {
     composeCommand: compose,
     volume,
     steps: [
-      { description: 'stop the postgres service', command: bin, args: [...rest, 'stop', 'postgres'] },
-      { description: 'remove the postgres container', command: bin, args: [...rest, 'rm', '--force', 'postgres'] },
-      { description: `delete the data volume ${volume}`, command: engine, args: ['volume', 'rm', '--force', volume] },
+      { description: 'stop the postgres service', command: bin, args: [...rest, 'stop', SERVICE] },
+      { description: 'remove the postgres container', command: bin, args: [...rest, 'rm', '--force', SERVICE] },
+      {
+        description: `delete the data volume ${volume}`,
+        command: engineBin,
+        args: [...engineArgs, 'volume', 'rm', '--force', volume],
+      },
       {
         description: 'start a fresh postgres and wait until healthy (runs infra/postgres/init)',
         command: bin,
-        args: [...rest, 'up', '-d', '--wait', 'postgres'],
+        args: [...rest, 'up', '-d', '--wait', SERVICE],
       },
     ],
   };
@@ -55,7 +93,23 @@ export async function resetDatabase(argv: readonly string[], deps: ResetDeps): P
     deps.log('db:reset: no working `docker compose` or `podman compose` (set OLCYS_COMPOSE to override)');
     return 1;
   }
-  const plan = buildPlan(compose, deps.env);
+  const engine = engineOf(compose);
+  if (!engine) {
+    deps.log(
+      `db:reset: cannot tell the container engine of "${compose.join(' ')}" (expected "<engine> compose", ` +
+        'docker-compose or podman-compose); nothing was changed',
+    );
+    return 1;
+  }
+  const volume = await resolveVolume(deps.run, compose);
+  if (!volume) {
+    deps.log(
+      `db:reset: cannot resolve the ${VOLUME_KEY} volume from \`${compose.join(' ')} config --format json\`; ` +
+        'refusing to delete anything',
+    );
+    return 1;
+  }
+  const plan = buildPlan(compose, engine, volume);
   deps.log(describePlan(plan));
   if (argv.includes('--dry-run')) {
     deps.log('dry run: nothing was changed');

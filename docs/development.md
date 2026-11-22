@@ -37,8 +37,11 @@ Domyślnie `OLCYS_MODE=offline`: poza serwisem fixture nic nie wychodzi do sieci
 ### `pnpm db:reset`
 
 Polecenie **niszczy** lokalną bazę (wszystkie sprawy, uruchomienia i dowody). Zawsze najpierw wypisuje dokładny plan
-(zatrzymanie i usunięcie kontenera `postgres`, usunięcie wolumenu `<projekt>_postgres-data`, start świeżej bazy,
-migracje). Bez flagi `--yes` odmawia i niczego nie zmienia; `--dry-run` wypisuje plan i kończy bez zmian.
+(zatrzymanie i usunięcie kontenera `postgres`, usunięcie wolumenu danych, start świeżej bazy, migracje). Bez flagi
+`--yes` odmawia i niczego nie zmienia; `--dry-run` wypisuje plan i kończy bez zmian.
+Nazwę wolumenu skrypt odczytuje z rozwiązanej konfiguracji (`<compose> config --format json`), więc uwzględnia `-p`,
+`-f`, `COMPOSE_PROJECT_NAME` i `name:` z pliku, a polecenie usuwające wolumen zachowuje prefiks silnika z
+`OLCYS_COMPOSE` (np. `docker --context zdalny`). Gdy nazwy nie da się ustalić, skrypt niczego nie usuwa.
 Operacja dotyczy wyłącznie usługi `postgres` i jej wolumenu, pozostałe usługi działają dalej.
 
 ### `pnpm seed`
@@ -59,8 +62,10 @@ ostrzeżenie, `✖` błąd) oraz podsumowanie `OK` lub `FAIL`:
 - obecność pliku `.env`,
 - działające polecenie compose oraz stan usług `postgres`, `gotenberg`, `fixture-site` (muszą być `healthy`);
   usługi profili opcjonalnych (`osint`, `llm`, `sandbox`) są raportowane, gdy istnieją,
-- porty usług (`POSTGRES_PORT`, `GOTENBERG_PORT`, `FIXTURE_PORT`): wolne albo zajęte przez nasze usługi, inaczej błąd;
-  porty `API_PORT` i `WEB_PORT` zajęte dają tylko ostrzeżenie (może działać `pnpm dev`).
+- porty usług (`POSTGRES_PORT`, `GOTENBERG_PORT`, `FIXTURE_PORT`): wolne albo opublikowane przez działający kontener
+  danej usługi (porównanie z portami z `compose ps`); port z `.env` inny niż opublikowany (zmiana bez odtworzenia
+  kontenera) albo zajęty przez obcy proces to błąd; porty `API_PORT` i `WEB_PORT` zajęte dają tylko ostrzeżenie (może
+  działać `pnpm dev`).
 
 Uwaga: pnpm ma wbudowane polecenie `pnpm doctor`, które ma pierwszeństwo przed skryptem o tej samej nazwie, dlatego
 skrypt nazywa się `dev:doctor`.
@@ -94,8 +99,8 @@ Znane różnice:
 - **Dostawca compose:** `podman compose` jest cienką nakładką na `docker-compose` lub `podman-compose`; format
   wyjścia `ps --format json` bywa różny (tablica albo jeden obiekt na linię), `pnpm dev:doctor` obsługuje oba.
   Komunikat „Executing external compose provider” trafia na stderr i jest niegroźny.
-- **Wolumeny:** nazwa wolumenu to `<nazwa projektu>_postgres-data` (projekt `olcys`, zmiana przez
-  `COMPOSE_PROJECT_NAME`); `pnpm db:reset` używa tej samej nazwy.
+- **Wolumeny:** nazwa wolumenu to zwykle `<nazwa projektu>_postgres-data` (projekt `olcys`); `pnpm db:reset` odczytuje
+  ją z `config --format json`, więc zmiana projektu przez `-p` lub `COMPOSE_PROJECT_NAME` jest uwzględniana.
 - **Rootless:** porty poniżej 1024 nie są dostępne; domyślne porty projektu są wyższe.
 
 ## Rozwiązywanie problemów
@@ -103,6 +108,8 @@ Znane różnice:
 - **`.env` brakuje:** `cp .env.example .env`.
 - **`port ... taken by another process`:** inny proces zajmuje port; zmień odpowiednią zmienną `*_PORT` w `.env`
   (oraz adresy URL, które jej używają) albo zatrzymaj ten proces.
+- **`POSTGRES_PORT is … but the running postgres publishes …`:** port w `.env` zmieniono bez odtworzenia kontenera;
+  `pnpm dev:deps` odtworzy go z nowym portem.
 - **Usługa `unhealthy` lub `exited`:** `docker compose logs <usługa>`; po zmianie `infra/postgres/init` trzeba
   odtworzyć wolumen (`pnpm db:reset --yes`), bo skrypty inicjalizacji działają tylko przy pierwszym starcie.
 - **`DATABASE_URL_OWNER is not set`:** brak `.env`; skrypty ładują go flagą `--env-file-if-exists`.

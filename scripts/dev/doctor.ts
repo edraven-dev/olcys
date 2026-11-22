@@ -48,6 +48,33 @@ export interface ComposeContainer {
   service: string;
   state: string;
   health: string;
+  /** Host ports the container publishes; undefined when `compose ps` gave no port data. */
+  published?: number[] | undefined;
+}
+
+const field = (item: unknown, key: string): unknown =>
+  typeof item === 'object' && item !== null ? (item as Record<string, unknown>)[key] : undefined;
+
+/** Host ports from docker compose `Publishers`, podman's `Ports` array or the `Ports` text ("127.0.0.1:5432->5432/tcp"). */
+function publishedPorts(o: Record<string, unknown>): number[] | undefined {
+  const publishers = o['Publishers'];
+  const ports = o['Ports'];
+  if (Array.isArray(publishers)) {
+    return publishers.flatMap((p) => {
+      const port = field(p, 'PublishedPort');
+      return typeof port === 'number' && port > 0 ? [port] : [];
+    });
+  }
+  if (Array.isArray(ports)) {
+    return ports.flatMap((p) => {
+      const port = field(p, 'host_port');
+      const range = field(p, 'range');
+      if (typeof port !== 'number' || port <= 0) return [];
+      return Array.from({ length: typeof range === 'number' && range > 1 ? range : 1 }, (_, i) => port + i);
+    });
+  }
+  if (typeof ports === 'string') return [...ports.matchAll(/:(\d+)->/g)].map((m) => Number(m[1]));
+  return undefined;
 }
 
 function toContainer(raw: unknown): ComposeContainer | undefined {
@@ -59,6 +86,7 @@ function toContainer(raw: unknown): ComposeContainer | undefined {
     service,
     state: typeof o['State'] === 'string' ? o['State'].toLowerCase() : '',
     health: typeof o['Health'] === 'string' ? o['Health'].toLowerCase() : '',
+    published: publishedPorts(o),
   };
 }
 
@@ -116,7 +144,8 @@ export async function runDoctor(deps: DoctorDeps): Promise<Check[]> {
 
   // --- compose services ---
   const compose = await detectCompose(deps.run, deps.env);
-  const healthy = new Set<string>();
+  /** Running containers of the default services: their published ports decide whether a busy port is ours. */
+  const running = new Map<string, ComposeContainer>();
   if (!compose) {
     add('compose', 'fail', 'neither `docker compose` nor `podman compose` works (set OLCYS_COMPOSE to override)');
   } else {
@@ -133,13 +162,13 @@ export async function runDoctor(deps: DoctorDeps): Promise<Check[]> {
     } else {
       for (const { service } of DEFAULT_SERVICES) {
         const c = containers.find((x) => x.service === service);
+        if (c?.state === 'running') running.set(service, c);
         if (!c) add(`service ${service}`, 'fail', 'not created: run `pnpm dev:deps`');
         else if (c.state !== 'running')
           add(`service ${service}`, 'fail', `state is "${c.state}": run \`pnpm dev:deps\``);
-        else if (c.health === 'healthy' || c.health === '') {
-          healthy.add(service);
+        else if (c.health === 'healthy' || c.health === '')
           add(`service ${service}`, 'ok', c.health === '' ? 'running (no health check)' : 'healthy');
-        } else add(`service ${service}`, 'fail', `running but health is "${c.health}"`);
+        else add(`service ${service}`, 'fail', `running but health is "${c.health}"`);
       }
       // Optional profiles are reported only when their containers exist.
       for (const c of containers.filter((x) => !DEFAULT_SERVICES.some((d) => d.service === x.service))) {
@@ -156,11 +185,41 @@ export async function runDoctor(deps: DoctorDeps): Promise<Check[]> {
   // --- ports ---
   for (const { service, portVar, port: dflt } of DEFAULT_SERVICES) {
     const port = Number(deps.env[portVar] ?? dflt);
-    if (healthy.has(service)) add(`port ${port}`, 'ok', `in use by our ${service} (${portVar})`);
+    const ours = running.get(service);
+    if (ours?.published?.includes(port)) {
+      add(`port ${port}`, 'ok', `published by our ${service} (${portVar})`);
+      continue;
+    }
+    if (ours?.published) {
+      // E.g. the port was changed in .env but the container was not recreated.
+      const actual = ours.published.join(', ') || 'no host port';
+      add(
+        `port ${port}`,
+        'fail',
+        `${portVar} is ${port} but the running ${service} publishes ${actual}: run \`pnpm dev:deps\``,
+      );
+      continue;
+    }
     // Sequential: each probe binds and releases a socket.
     // oxlint-disable-next-line no-await-in-loop
-    else if (await deps.portFree(port)) add(`port ${port}`, 'ok', `free for ${service} (${portVar})`);
-    else add(`port ${port}`, 'fail', `taken by another process; ${service} cannot bind it (change ${portVar} in .env)`);
+    const free = await deps.portFree(port);
+    if (!ours) {
+      if (free) add(`port ${port}`, 'ok', `free for ${service} (${portVar})`);
+      else
+        add(`port ${port}`, 'fail', `taken by another process; ${service} cannot bind it (change ${portVar} in .env)`);
+    } else if (free) {
+      add(
+        `port ${port}`,
+        'fail',
+        `nothing listens on it although ${service} is running: run \`pnpm dev:deps\` (${portVar})`,
+      );
+    } else {
+      add(
+        `port ${port}`,
+        'warn',
+        `in use, but \`compose ps\` gave no port data to confirm it is our ${service} (${portVar})`,
+      );
+    }
   }
   for (const { name, portVar, port: dflt } of APP_PORTS) {
     const port = Number(deps.env[portVar] ?? dflt);
