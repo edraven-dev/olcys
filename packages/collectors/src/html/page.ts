@@ -118,6 +118,18 @@ export async function fetchPage(http: SourceHttp, request: PageRequest): Promise
     const robotsUrl = new URL('/robots.txt', url).toString();
     robots = decision.allowed ? { allowed: true, robotsUrl } : { allowed: false, robotsUrl, reason: decision.reason };
     if (!decision.allowed) {
+      if (/HTTP 429/.test(decision.reason)) {
+        // A rate-limited robots.txt is a rate limit like any other: stop the source for the run.
+        http.stop('blocked', `robots.txt HTTP 429 for ${new URL(url).origin}`);
+        return {
+          status: 'blocked',
+          logicalUrl: http.logicalUrl(url),
+          notes: [
+            note('rate_limited', `robots.txt of ${new URL(url).origin} answered HTTP 429`),
+            note('robots_disallowed', `${http.logicalUrl(url)} (${decision.reason})`),
+          ],
+        };
+      }
       return {
         status: 'blocked',
         logicalUrl: http.logicalUrl(url),

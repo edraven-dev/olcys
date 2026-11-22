@@ -310,6 +310,19 @@ describe('collector', () => {
     expect(result.status).toBe('partial');
   });
 
+  it('opens the circuit when the archive robots.txt answers 429', async () => {
+    const { run, sent, deps } = setup(happy);
+    deps.robots = { check: async () => ({ allowed: false, reason: 'robots.txt rate limited (HTTP 429)' }) };
+    const first = await run({ maxSnapshotsPerUrl: 2 });
+    expect(sent).toHaveLength(2);
+    expect(first.notes.some((n) => n.startsWith('rate_limited: robots.txt'))).toBe(true);
+    expect(first.notes).toContain('rate_limited: wayback rate limited (circuit open)');
+    // Shared circuit: a second task of the run sends nothing.
+    const second = await run({}, urlInput('https://forum.example.org/profile/other'));
+    expect(sent).toHaveLength(2);
+    expect(second.status).toBe('blocked');
+  });
+
   it('does not look up the archive itself or non-http values', async () => {
     const { run, sent } = setup(happy);
     const factory = createWaybackCollector();
@@ -387,7 +400,7 @@ const parentTask = (): PlannedTask => ({
   subjectKey: 'handle:bitcointalk:fikcyjny_kacper',
   depth: 1,
   input: { identifiers: [], accounts: [], addresses: [], depth: 1 },
-  provenance: { reason: 'input_identifier', rule: 'I1' },
+  provenance: { reason: 'input_identifier', rule: 'I1', own: true },
 });
 
 describe('planner rule E6', () => {
@@ -405,6 +418,40 @@ describe('planner rule E6', () => {
     expect(wayback[0]?.input.values).toEqual([
       { kind: 'url', value: 'https://bitcointalk.org/index.php?action=profile;u=900001', method: 'cross_link' },
     ]);
+  });
+
+  it('never looks up accounts reached through a search hit, even when the hit links onward', async () => {
+    const ctx = await plannerContext(['bitcointalk', 'wayback_cdx']);
+    const hit: PlannedTask = { ...parentTask(), provenance: { reason: 'search_result', rule: 'E3' } };
+    expect(planExpansion(hit, resultOf([accountOf('cross_link')]), ctx).tasks).toEqual([]);
+    // The hit's profile links to another account: that task is not own either, so nothing is looked up for it.
+    const link = {
+      ...resultOf([]),
+      observations: [
+        {
+          id: '00000000-0000-7000-8000-000000000301',
+          runId: '00000000-0000-7000-8000-000000000901',
+          captureId: '00000000-0000-7000-8000-000000000201',
+          sourceId: 'bitcointalk',
+          subject: { type: 'account' as const, key: 'bitcointalk:900001' },
+          property: 'account.link',
+          value: 'https://bitcointalk.org/index.php?action=profile;u=900002',
+          locator: 'l',
+          observedAt: '2026-11-22T08:00:00.000Z',
+        },
+      ],
+    };
+    const linked = planExpansion(hit, link, ctx).tasks;
+    expect(linked.map((t) => [t.sourceId, t.provenance.own])).toEqual([['bitcointalk', false]]);
+    const child = linked[0] as PlannedTask;
+    expect(planExpansion(child, resultOf([accountOf('cross_link')]), ctx).tasks).toEqual([]);
+    // Whereas a link from an own account stays in the own chain and is looked up.
+    const ownCtx = await plannerContext(['bitcointalk', 'wayback_cdx']);
+    const own = planExpansion(parentTask(), link, ownCtx).tasks;
+    expect(own[0]?.provenance.own).toBe(true);
+    expect(
+      planExpansion(own[0] as PlannedTask, resultOf([accountOf('cross_link')]), ownCtx).tasks.map((t) => t.sourceId),
+    ).toEqual(['wayback_cdx']);
   });
 
   it('never looks up third-party pages (same-nick probes) and stays silent when the archive is not enabled', async () => {
