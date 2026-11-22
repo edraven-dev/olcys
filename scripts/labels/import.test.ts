@@ -104,4 +104,17 @@ describe('labels:import', () => {
     expect(await active(eth, '2026-11-15')).toBe(0);
     expect(await active(eth, '2026-12-05')).toBe(1);
   });
+
+  it('rejects an OFAC snapshot older than the latest imported one', async () => {
+    const dir = await dirPromise;
+    const repos = createMemoryRepositories();
+    const deps = { labels: repos.labels, dataDir: dir, now };
+    const file = join(dir, 'order.json');
+    await writeFile(file, JSON.stringify(['0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa']));
+    const run = (version: string) => runImport({ datasetId: 'ofac-0xb10c', file, asset: 'ETH', version }, deps);
+    await run('2026-10-01');
+    await run('2026-11-01');
+    await expect(run('2026-10-15')).rejects.toThrow(/date order/);
+    expect((await repos.labels.list()).every((l) => l.attributes.activeTo === undefined)).toBe(true);
+  });
 });

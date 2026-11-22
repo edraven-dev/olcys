@@ -116,6 +116,12 @@ export async function runImport(options: ImportOptions, deps: ImportDeps): Promi
             (l) => l.provenance.datasetId === entry.datasetId && l.provenance.asset === asset,
           )
         : undefined;
+      const latest = (previous ?? []).map((l) => l.provenance.version ?? '').reduce((a, b) => (b > a ? b : a), '');
+      if (version < latest) {
+        throw new Error(
+          `ofac-0xb10c ${asset}: snapshot ${version} is older than the latest imported snapshot ${latest}; import snapshots in date order`,
+        );
+      }
       labels = diffOfacVersions(previous, parsed.rows, version);
       break;
     }
