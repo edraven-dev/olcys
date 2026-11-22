@@ -55,9 +55,19 @@
         "**/*.test.ts",
         "**/*.test.tsx",
         "scripts/lib/local-fetch.ts",
-        "scripts/demo/local-http.ts"
+        "scripts/demo/local-http.ts",
+        "e2e/**"
       ],
       "rules": { "no-restricted-globals": "off", "no-restricted-imports": "off" }
+    },
+    {
+      "files": ["e2e/**"],
+      "rules": {
+        "no-await-in-loop": "off",
+        "no-underscore-dangle": "off",
+        "unicorn/no-array-reverse": "off",
+        "unicorn/no-array-sort": "off"
+      }
     },
     {
       "files": ["apps/web/src/**"],
@@ -69,5 +79,5 @@
     "node": true,
     "browser": true
   },
-  "ignorePatterns": ["data/**", "**/dist/**", "**/node_modules/**"]
+  "ignorePatterns": ["data/**", "e2e/.results/**", "e2e/.video/**", "**/dist/**", "**/node_modules/**"]
 }
