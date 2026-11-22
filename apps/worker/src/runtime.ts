@@ -9,6 +9,7 @@ import { FileBlobStore, InMemoryBlobStore } from '@olcys/evidence';
 import type { BlobStore } from '@olcys/core';
 import { loadConfig, REPO_ROOT, type LoadedConfig } from './config.ts';
 import { createRun, runPipeline, type Stage } from './pipeline.ts';
+import { createTrustedTimestamper, tsaSettings, type WorkerTimestamper } from './timestamper.ts';
 
 export interface Runtime {
   repos: Repositories;
@@ -17,6 +18,8 @@ export interface Runtime {
   config: LoadedConfig;
   mode: FetchMode;
   logger: Logger;
+  /** RFC 3161 timestamping of capture manifests (live: stamps; offline/replay: queues; see `TSA_ENABLED`). */
+  timestamper: WorkerTimestamper;
   startRun(
     caseId: string,
     input: { trigger?: 'manual' | 'rescore'; rescoreOfRunId?: string },
@@ -33,7 +36,9 @@ export interface Runtime {
 
 export interface RuntimeOptions {
   env?: NodeJS.ProcessEnv;
-  stages?: (runtime: Pick<Runtime, 'repos' | 'blobs' | 'sources' | 'config' | 'mode' | 'logger'>) => Stage[];
+  stages?: (
+    runtime: Pick<Runtime, 'repos' | 'blobs' | 'sources' | 'config' | 'mode' | 'logger' | 'timestamper'>,
+  ) => Stage[];
   repos?: Repositories;
   blobs?: BlobStore;
   logger?: Logger;
@@ -81,7 +86,22 @@ export async function createRuntime(options: RuntimeOptions = {}): Promise<Runti
     options.blobs ??
     (env['OLCYS_BLOBS'] === 'memory' ? new InMemoryBlobStore() : new FileBlobStore(join(dataDir, 'blobs')));
 
-  const base = { repos, blobs, sources: config.sources, config, mode, logger };
+  // Fails the start-up when the TSA host is not allow-listed (`tsa_host_not_allow_listed`) or the anchors are unreadable.
+  let timestamper: WorkerTimestamper;
+  try {
+    timestamper = await createTrustedTimestamper({
+      repos,
+      blobs,
+      settings: tsaSettings(env),
+      sources: config.sources,
+      mode,
+      logger,
+    });
+  } catch (error) {
+    await closeDb();
+    throw error;
+  }
+  const base = { repos, blobs, sources: config.sources, config, mode, logger, timestamper };
   const stages = options.stages?.(base) ?? [];
   const running = new Set<Promise<unknown>>();
   const launchRun = (runId: string): void => {

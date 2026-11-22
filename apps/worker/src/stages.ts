@@ -9,6 +9,8 @@ import { join } from 'node:path';
 import type {
   ActivityIndicators,
   AddressRef,
+  Capture,
+  Logger,
   CashOutEvent,
   ChainId,
   Clock,
@@ -19,6 +21,7 @@ import type {
   RunContext,
   SourceDescriptor,
   SourceKind,
+  TrustedTimestamper,
   UtxoTransaction,
 } from '@olcys/core';
 import { addressKey, chainFamily, dCmp, dSub, newId, transferKey, uniqueTransfers } from '@olcys/core';
@@ -97,6 +100,8 @@ export interface StageOptions {
   /** Environment for collector configuration (fixture base URL, watch pages) and cassettes. */
   env?: Readonly<Record<string, string | undefined>>;
   sources: readonly SourceDescriptor[];
+  /** Stamps every persisted capture manifest (RFC 3161); without it captures are not timestamped. */
+  timestamper?: TrustedTimestamper;
 }
 
 /** Loads once per process; a rejected load is retried by the next run. */
@@ -188,6 +193,7 @@ export function createCollectStage(options: StageOptions): Stage {
       );
       await ctx.repos.evidence.addAccounts(result.accounts);
       await ctx.repos.evidence.addObservations(result.observations);
+      const timestampProblems = await stampCaptures(options.timestamper, result.captures, ctx.logger);
       if (result.partial) {
         const unavailable = result.sources.filter((s) => s.status !== 'ok' && s.status !== 'not_found');
         const ids = unavailable.map((s) => s.sourceId).join(', ');
@@ -201,9 +207,40 @@ export function createCollectStage(options: StageOptions): Stage {
         observations: result.observations.length,
         accounts: result.accounts.length,
         refusedSources: scope.refused.map((r) => r.sourceId),
+        ...(timestampProblems ? { timestampProblems } : {}),
       });
     },
   };
+}
+
+/**
+ * Stamps the manifest digest of every persisted capture. A TSA outage never fails the run: the request is stored as
+ * failed or queued and retried by the flush. Only unexpected errors (bugs) are counted and logged here.
+ */
+async function stampCaptures(
+  timestamper: TrustedTimestamper | undefined,
+  captures: readonly Capture[],
+  logger: Logger,
+): Promise<number> {
+  if (!timestamper) return 0;
+  let problems = 0;
+  for (const capture of captures) {
+    try {
+      // Sequential on purpose: the TSA is rate limited.
+      // oxlint-disable-next-line no-await-in-loop
+      await timestamper.stamp({
+        type: 'capture_manifest',
+        id: capture.id,
+        digest: capture.manifestSha256,
+        runId: capture.runId,
+        referenceTime: capture.collectedAt,
+      });
+    } catch (error) {
+      problems += 1;
+      logger.error('capture could not be timestamped', { captureId: capture.id, error: String(error) });
+    }
+  }
+  return problems;
 }
 
 export function createExtractStage(): Stage {
