@@ -76,7 +76,9 @@ export function metadataSection(view: View): SafeHtml {
         [pl.meta.algorithm, algorithms.length ? algorithms.join(', ') : pl.common.none],
         [
           pl.meta.llm,
-          cfg.llm ? t(pl.meta.llmUsed, { model: cfg.llm.model, baseUrl: cfg.llm.baseUrl }) : pl.meta.llmNone,
+          cfg.llm && cfg.llm.enabled !== false
+            ? t(pl.meta.llmUsed, { model: cfg.llm.model, baseUrl: cfg.llm.baseUrl })
+            : pl.meta.llmNone,
         ],
       ]),
       markup`<h3>${pl.meta.reportBlock}</h3>`,

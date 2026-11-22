@@ -125,7 +125,8 @@ services:
       fixture-site:
         condition: service_healthy
 
-  # Local model runtime exposing an OpenAI-compatible API at /v1.
+  # Local model runtime exposing an OpenAI-compatible API at /v1. Cloud features and telemetry are off; the weights are
+  # pulled once by hand (see packages/llm/README.md), never during an analysis.
   ollama:
     profiles: ['llm']
     image: ollama/ollama:0.40.17
@@ -134,10 +135,53 @@ services:
     environment:
       <<: *telemetry-off
       OLLAMA_HOST: 0.0.0.0:11434
+      OLLAMA_KEEP_ALIVE: 30m
+      OLLAMA_CONTEXT_LENGTH: '8192'
     volumes:
       - ollama-models:/root/.ollama
     ports:
       - '127.0.0.1:${OLLAMA_PORT:-11434}:11434'
+    healthcheck:
+      # The image ships no curl.
+      test: ['CMD', 'ollama', 'list']
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+
+  # Alternative swap target: llama.cpp server (OpenAI-compatible at /v1, json_schema output). It has no telemetry.
+  # Needs a GGUF file in ./data/models (git-ignored): LLAMACPP_MODEL_FILE names it, LLAMACPP_ALIAS is the model id.
+  llamacpp:
+    profiles: ['llm-llamacpp']
+    image: ghcr.io/ggml-org/llama.cpp:server-b12602
+    restart: unless-stopped
+    <<: *hardened
+    environment:
+      <<: *telemetry-off
+    command:
+      [
+        '-m',
+        '/models/${LLAMACPP_MODEL_FILE:-model.gguf}',
+        '--host',
+        '0.0.0.0',
+        '--port',
+        '8080',
+        '--alias',
+        '${LLAMACPP_ALIAS:-bielik-11b-v3}',
+        '--jinja',
+        '-c',
+        '8192',
+      ]
+    volumes:
+      - ./data/models:/models:ro
+    ports:
+      - '127.0.0.1:${LLAMACPP_PORT:-8081}:8080'
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:8080/health']
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
 
   # --- Sandbox chains for the demo (profile "sandbox") -------------------------------------------------------
   # Demo wallets and transactions exist only in these local networks; nothing is ever sent to a public chain.

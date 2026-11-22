@@ -8,7 +8,7 @@ import { createDb, createMemoryRepositories, createSqlRepositories } from '@olcy
 import { FileBlobStore, InMemoryBlobStore } from '@olcys/evidence';
 import type { BlobStore } from '@olcys/core';
 import { loadConfig, REPO_ROOT, type LoadedConfig } from './config.ts';
-import { createLlmRuntime } from './llm.ts';
+import { createLlmRuntime, llmSnapshot } from './llm.ts';
 import { createRun, runPipeline, type Stage } from './pipeline.ts';
 import { createTrustedTimestamper, tsaSettings, type WorkerTimestamper } from './timestamper.ts';
 
@@ -68,7 +68,7 @@ function modeFrom(value: string | undefined): FetchMode {
 export async function createRuntime(options: RuntimeOptions = {}): Promise<Runtime> {
   const env = options.env ?? process.env;
   const logger = options.logger ?? consoleLogger('olcys');
-  const config = await loadConfig();
+  const loaded = await loadConfig();
   const mode = modeFrom(env['OLCYS_MODE']);
 
   let closeDb: () => Promise<void> = noop;
@@ -96,7 +96,7 @@ export async function createRuntime(options: RuntimeOptions = {}): Promise<Runti
       repos,
       blobs,
       settings: tsaSettings(env),
-      sources: config.sources,
+      sources: loaded.sources,
       mode,
       logger,
     });
@@ -104,7 +104,10 @@ export async function createRuntime(options: RuntimeOptions = {}): Promise<Runti
     await closeDb();
     throw error;
   }
-  const llm = createLlmRuntime({ env, repos, blobs, sources: config.sources, mode }).client;
+  const llmRuntime = createLlmRuntime({ env, repos, blobs, sources: loaded.sources, mode });
+  const llm = llmRuntime.client;
+  // The model identity is part of every run's snapshot, so a result can be tied to the exact model that suggested.
+  const config: LoadedConfig = { ...loaded, snapshot: { ...loaded.snapshot, llm: llmSnapshot(llmRuntime.config) } };
   const base = { repos, blobs, sources: config.sources, config, mode, logger, timestamper, llm };
   const stages = options.stages?.(base) ?? [];
   const running = new Set<Promise<unknown>>();

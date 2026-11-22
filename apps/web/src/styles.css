@@ -1197,3 +1197,11 @@ details > summary {
   min-width: 0;
   overflow-wrap: anywhere;
 }
+
+/* --- page timeline (case timeline) ------------------------------------------------------------------------- */
+.timeline-moment {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  align-items: center;
+}

@@ -14,7 +14,7 @@ import type {
   RunWithProgress,
   SourceDescriptor,
 } from '@olcys/core';
-import { createSourceRegister, validateCaseScope, type ScopeViolation } from '@olcys/collectors';
+import { buildWaybackHistory, createSourceRegister, validateCaseScope, type ScopeViolation } from '@olcys/collectors';
 import {
   ContractError,
   CORE_CONTRACTS_VERSION,
@@ -23,7 +23,9 @@ import {
   nowIso,
   parse,
   StartRunSchema,
+  TimelineQuerySchema,
 } from '@olcys/core';
+import { buildPropertyTimelines, latestExtractions } from '@olcys/evidence';
 import { EXPORT_FILE_EXTENSIONS, EXPORT_KINDS, findExportSet, isExportKind } from '@olcys/reporting';
 import { evidenceRunIdOf, TOOL_VERSION } from '@olcys/worker';
 import Fastify, { type FastifyInstance, type FastifyReply } from 'fastify';
@@ -90,6 +92,11 @@ const describeViolation = (v: ScopeViolation): string => {
 
 const notFound = (reply: FastifyReply, what: string) =>
   reply.code(404).send({ error: 'not_found', message: `${what} not found` });
+
+/** Rows of several runs without repeats (a rescore reads the evidence of the run it rescored). */
+const unique = <T extends { id: string }>(rows: T[][]): T[] => [
+  ...new Map(rows.flat().map((row) => [row.id, row])).values(),
+];
 
 export function buildApp(deps: ApiDeps): FastifyInstance {
   const app = Fastify({
@@ -194,6 +201,45 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
     const caseId = idOf(request.params.caseId);
     if (!caseId || !(await repos.cases.get(caseId))) return notFound(reply, 'case');
     return { items: await repos.runs.listByCase(caseId) };
+  });
+
+  /**
+   * History timeline of a case: what each page (and property) showed over time, from the live runs and the archived
+   * copies of the page. Read-only over the stored evidence of all the case's runs.
+   */
+  app.get<{ Params: { caseId: string } }>('/api/cases/:caseId/timeline', async (request, reply) => {
+    const caseId = idOf(request.params.caseId);
+    if (!caseId || !(await repos.cases.get(caseId))) return notFound(reply, 'case');
+    const filter = parse(TimelineQuerySchema, request.query);
+    const runs = await repos.runs.listByCase(caseId);
+    const evidenceRunIds = [...new Set(runs.map((run) => evidenceRunIdOf(run)))];
+    const [captures, observations, accounts, extractions] = await Promise.all([
+      Promise.all(evidenceRunIds.map((id) => repos.evidence.listCaptures(id))),
+      Promise.all(evidenceRunIds.map((id) => repos.evidence.listObservations(id))),
+      Promise.all(evidenceRunIds.map((id) => repos.evidence.listAccounts(id))),
+      // Oldest run first: the newest analysis of a capture (e.g. a rescore) decides what was found on it.
+      Promise.all(
+        runs
+          .toSorted((a, b) => a.queuedAt.localeCompare(b.queuedAt))
+          .map((run) => repos.evidence.listExtractionResults(run.id)),
+      ),
+    ]);
+    const allCaptures = unique(captures);
+    const allObservations = unique(observations);
+    return buildPropertyTimelines(
+      {
+        captures: allCaptures,
+        extractions: latestExtractions(extractions),
+        archive: buildWaybackHistory(allCaptures, allObservations),
+        observations: allObservations,
+        accounts: unique(accounts),
+      },
+      {
+        ...(filter.url !== undefined ? { url: filter.url } : {}),
+        ...(filter.property !== undefined ? { property: filter.property } : {}),
+        ...(filter.walletOnly !== undefined ? { walletOnly: filter.walletOnly } : {}),
+      },
+    );
   });
 
   app.post<{ Params: { caseId: string } }>('/api/cases/:caseId/runs', async (request, reply) => {
