@@ -24,6 +24,7 @@
     "@olcys/llm": "workspace:*",
     "@olcys/reporting": "workspace:*",
     "@olcys/scoring": "workspace:*",
+    "cron-parser": "5.10.6",
     "yaml": "2.9.1"
   }
 }

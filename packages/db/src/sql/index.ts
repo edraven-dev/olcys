@@ -4,6 +4,7 @@ import { sqlAnalysisRepository, sqlChainDataRepository, sqlLabelRepository } fro
 import { sqlCaseRepository } from './cases.ts';
 import { sqlEvidenceRepository } from './evidence.ts';
 import { sqlRunRepository } from './runs.ts';
+import { sqlScheduleRepository } from './schedules.ts';
 
 /** PostgreSQL (Kysely) implementations of every repository port. */
 export function createSqlRepositories(db: Db): Repositories {
@@ -14,6 +15,7 @@ export function createSqlRepositories(db: Db): Repositories {
     chain: sqlChainDataRepository(db),
     analysis: sqlAnalysisRepository(db),
     labels: sqlLabelRepository(db),
+    schedules: sqlScheduleRepository(db),
   };
 }
 
@@ -21,3 +23,4 @@ export { sqlAnalysisRepository, sqlChainDataRepository, sqlLabelRepository } fro
 export { sqlCaseRepository } from './cases.ts';
 export { sqlEvidenceRepository } from './evidence.ts';
 export { sqlRunRepository } from './runs.ts';
+export { sqlScheduleRepository } from './schedules.ts';

@@ -18,6 +18,7 @@ zarówno w Node.js, jak i w przeglądarce.
 | `src/analytics.ts`  | `Valuation` (NBP), `CashOutEvent` (reguły B1–B7), `ActivityIndicators`, `FlowEdge`                                                                         |
 | `src/scoring.ts`    | poziomy dowodów E1–E4/AUTH, `Relation`, `LinkAssessment`, `HopResult`, `AnalystJudgement`                                                                  |
 | `src/changes.ts`    | `ChangeEvent` (ADDED / REMOVED / VALUE_CHANGED / SCORE_CHANGED)                                                                                            |
+| `src/schedule.ts`   | harmonogram analiz okresowych: `ScheduleTick`, `CaseScheduleChange`, `CaseScheduleState`, `UpdateScheduleSchema`; port `ScheduleRepository`                |
 | `src/report.ts`     | `ReportModel` z rozdzieleniem faktów, wyników obliczeń i wniosków                                                                                          |
 | `src/ports.ts`      | `EgressClient`, `BlobStore`, `SourceCollector`, `ChainProvider`, `LabelLookup`, `FxRateSource`, `PriceSource`, `SearchProvider`, `LlmClient`, `RunContext` |
 

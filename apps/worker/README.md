@@ -11,12 +11,23 @@ zgłoszone przez etapy (`markPartial`) są od razu zapisywane w `progress.partia
 - `createRuntime(options)` — buduje środowisko: repozytoria (PostgreSQL przy `DATABASE_URL`, inaczej w pamięci),
   magazyn treści (`OLCYS_DATA_DIR/blobs`), rejestr źródeł z `config/sources.yaml`, migawkę konfiguracji przebiegu
   (skróty SHA-256 rejestru źródeł i wag), tryb (`OLCYS_MODE`) oraz `startRun()`, który tworzy przebieg i uruchamia potok
-  bez czekania na wynik.
+  bez czekania na wynik, i `launchRun(runId)`, który uruchamia potok przebiegu utworzonego wcześniej (z tego korzysta
+  planista).
 - `runPipeline(runId, deps)` — wykonuje etapy (`Stage`: `step` + `run(ctx)`), aktualizuje status (`running` →
   `succeeded`, `partial` gdy część źródeł lub danych łańcucha była niedostępna, albo `failed` z komunikatem błędu)
   i zapisuje zmiany. Ponowna ocena dziedziczy powody niepełności ocenianego przebiegu.
 - `diffWithPrevious(repos, run)` — porównanie z poprzednim przebiegiem przez `diffRuns` z `@olcys/evidence`.
 - `loadConfig()` — rejestr źródeł i migawka konfiguracji.
+- `createScheduler({ runtime, settings?, clock? })` — planista analiz okresowych (zob. `docs/architecture.md`,
+  „Analizy okresowe”): `start()` uzgadnia stan z bazą (`reconcile()`), od razu obsługuje termin do nadrobienia, a potem
+  sprawdza harmonogramy co `OLCYS_SCHEDULER_INTERVAL_SECONDS`; `stop()` czeka na trwające sprawdzenie. `evaluate()`
+  i `fire(caseId, termin)` obsługują terminy (jeden wpis `schedule_tick` na termin, bez nakładania się przebiegów
+  sprawy; termin, który przestał być należny dla bieżącego harmonogramu, nie jest obsługiwany). Uruchamia go proces API.
+- `validateCron(cron, { mode, minIntervalMinutes, now })` — sprawdza wyrażenie cron (pięć pól, UTC; bez makr, pola
+  sekund, `H`, RRULE i jednoczesnego ograniczenia obu pól dnia; w trybie `live` minimalny odstęp terminów) i zwraca trzy
+  najbliższe terminy; `latestOccurrence()` i `nextOccurrences()` liczą terminy (cron-parser).
+- `schedulingSettings(env)` — `OLCYS_SCHEDULER_INTERVAL_SECONDS` (domyślnie 30) i `OLCYS_SCHEDULE_MIN_INTERVAL_MINUTES`
+  (domyślnie 60); wartość niebędąca dodatnią liczbą całkowitą zatrzymuje start.
 
 Etapy (zbieranie, wyodrębnianie adresów, analiza łańcucha, punktacja, raport) rejestruje proces API
 (`apps/api/src/stages.ts`).

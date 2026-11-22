@@ -34,6 +34,16 @@
 - Cash-out indicators B1-B7 (`config/rules/cashout.v1.yaml`) form a separate indicator. PLN values use the NBP Table A
   average rate of the last business day before the transaction; amounts are decimal strings, never floats.
 
+## Periodic re-runs
+
+- A case schedule is a five-field cron expression in UTC (no macros, seconds, `H` or RRULE). The scheduler runs in the
+  API process (MVP) and derives all state from the database: no external scheduler, no in-memory queue.
+- Each handled occurrence is one append-only `schedule_tick` row with the unique job id `<caseId>@<occurrence>`; the
+  insert is the claim, so an occurrence starts at most one run, also across processes (per-case advisory lock).
+- No overlapping runs of a case (`skipped_overlap`); after downtime at most one catch-up run, for the latest missed
+  occurrence. In `live` mode occurrences keep `OLCYS_SCHEDULE_MIN_INTERVAL_MINUTES` apart; schedules never enable
+  sources. The author of a schedule change comes from server configuration, never from the request.
+
 ## Synthetic demo data
 
 - Personas, forum pages and chain histories are synthetic and served by `apps/fixture-site`. Demo wallets exist only

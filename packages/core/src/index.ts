@@ -22,6 +22,7 @@ export * from './ports.ts';
 export * from './provenance.ts';
 export * from './report.ts';
 export * from './repositories.ts';
+export * from './schedule.ts';
 export * from './schemas.ts';
 export * from './scoring.ts';
 export * from './sources.ts';
