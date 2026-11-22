@@ -87,7 +87,11 @@ export async function createRun(
     mode: input.mode,
     status: 'queued',
     // A rescore fixes the analyst overrides it applies (those recorded until it was queued).
-    config: await withOverridesSnapshot(repos, { caseId: input.caseId, trigger, queuedAt }, config),
+    config: await withOverridesSnapshot(
+      repos,
+      { caseId: input.caseId, trigger, queuedAt, ...(evidenceRunId ? { rescoreOfRunId: evidenceRunId } : {}) },
+      config,
+    ),
     queuedAt,
   };
   await repos.runs.create(run);

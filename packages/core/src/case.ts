@@ -1,4 +1,4 @@
-import type { ChainId } from './chains.ts';
+import type { AddressRef, ChainId } from './chains.ts';
 import type { Id, IsoDateTime, Sha256Hex } from './common.ts';
 import type { FetchMode } from './provenance.ts';
 import type { SourceId } from './sources.ts';
@@ -85,6 +85,23 @@ export interface RunConfigSnapshot {
    * oldest first). Scoring and reports use exactly this set; `rulesVersions.overrides` labels it.
    */
   analystOverrides?: Id[];
+  /**
+   * Rescore runs: the analyst-confirmed model suggestions (role cues) the run applies, fixed when it was queued.
+   * Scoring uses exactly this list, never decisions made later; `rulesVersions.confirmedSuggestions` labels it.
+   */
+  confirmedSuggestions?: ConfirmedSuggestionRef[];
+}
+
+/** A confirmed role suggestion as a rescore applies it. */
+export interface ConfirmedSuggestionRef {
+  suggestionId: Id;
+  /** When the analyst confirmed it (the decision has no id of its own). */
+  decidedAt: IsoDateTime;
+  /** The confirmed role (`RoleCue`). */
+  role: string;
+  /** The candidate of the rescored run the suggestion is about, and its address. */
+  candidateId: Id;
+  address?: AddressRef;
 }
 
 /** One execution of a case analysis. Re-runs never modify earlier runs; they are diffed. */

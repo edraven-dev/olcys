@@ -433,7 +433,12 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
     ...(deps.renderReport ? { renderReport: deps.renderReport } : {}),
   });
 
-  registerSuggestionRoutes(app, { repos, analyst, ...(deps.logger ? { logger: deps.logger } : {}) });
+  registerSuggestionRoutes(app, {
+    repos,
+    analyst,
+    ...(deps.logger ? { logger: deps.logger } : {}),
+    ...(deps.renderReport ? { renderReport: deps.renderReport } : {}),
+  });
 
   return app;
 }

@@ -375,7 +375,7 @@ describe('run overview', () => {
     expect(states['chain.fetch']).toBe('running');
     expect(states['score.links']).toBe('pending');
     expect(stepStates({ status: 'failed', progress: { step: 'score.links' } })['score.links']).toBe('failed');
-    expect(Object.values(stepStates({ status: 'succeeded', progress: {} }))).toEqual(Array(12).fill('done'));
+    expect(Object.values(stepStates({ status: 'succeeded', progress: {} }))).toEqual(Array(13).fill('done'));
     expect(progressCounters({ progress: { step: 'x', done: 1, total: 2, captures: 5, partial: [] } })).toEqual([
       ['captures', 5],
     ]);

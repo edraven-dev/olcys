@@ -15,5 +15,17 @@ export {
 } from './client.ts';
 export { DEFAULT_LLM_SOURCE_ID, DEFAULT_LLM_TIMEOUT_MS, llmConfigFromEnv } from './config.ts';
 export { sanitizeUntrusted, UNTRUSTED_CLOSE, UNTRUSTED_OPEN, wrapUntrusted, type WrappedInput } from './untrusted.ts';
+export {
+  buildRoleInput,
+  classifyAddressMention,
+  isLlmAllowed,
+  lexiconAgreement,
+  MIN_SNIPPET_CHARS,
+  spanInInput,
+  type AddressRoleSuggestion,
+  type RoleClassificationInput,
+  type RoleClassificationOutcome,
+  type RoleSkipReason,
+} from './address-role.ts';
 export * from './prompts/index.ts';
 export { z } from 'zod';

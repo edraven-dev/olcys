@@ -80,3 +80,22 @@ Test dymny z działającym modelem jest wyłączony domyślnie: `OLCYS_LLM_LIVE=
 (tylko pętla zwrotna, krótki syntetyczny prompt).
 
 Sugestie (`LlmSuggestion`) mają zerową wagę w ocenie; decyzję analityka zapisuje `POST /api/suggestions/:id/decision`.
+
+## Zadanie `address-role-classification` (v1): rola wzmianki o adresie
+
+`classifyAddressMention` prosi model o zasugerowanie roli wzmianki o adresie: `first_person_owner`, `payment_request`,
+`donation`, `scam_report`, `warning`, `quote`, `exchange_deposit`, `listing` albo `unclear` (to samo co `ROLE_CUES` w
+`@olcys/core`). Odpowiedź ma ścisły schemat JSON (`role`, `evidenceSpan` do 200 znaków, `rationale` do 300 znaków,
+`confidence`; `additionalProperties: false`). Dane z strony (adres, sieć, platforma, nagłówek, etykieta, fragment)
+trafiają do modelu wyłącznie jako dane w znaczniku `UNTRUSTED_DATA` (`wrapUntrusted`); długi fragment jest okienkowany
+wokół adresu, a nie obcinany od końca.
+
+Bramki przed wywołaniem (wynik `skipped`, brak żądania): model włączony; źródło może być pokazane modelowi
+(`isLlmAllowed`: nieznane źródło, `llmAllowed: false`, `telegram_preview`, host Telegrama w `url`/`finalUrl` albo w
+adresie oryginału kopii z archiwum — nigdy); fragment ma co najmniej 20 znaków. Po wywołaniu `evidenceSpan` musi być
+dosłownym cytatem z linii `nagłówek:`, `etykieta:` lub `fragment:` (po zwinięciu białych znaków) — inaczej wynik to
+`failed: span_not_in_input` i sugestia nie powstaje. `lexiconAgreement` porównuje rolę z sygnałami leksykalnymi
+ekstraktora (`agrees` / `differs` / `lexicon_silent`); wynik trafia do `output.agreement`.
+
+Wynik to sugestia o zerowej wadze: nie zapisuje żadnej przesłanki ani oceny. Krok potoku (`llm.suggest`) opisuje
+`apps/worker/README.md`. Test dymny z żywym modelem: `OLCYS_LLM_LIVE=1 pnpm vitest run --project @olcys/worker suggest-roles-live`.

@@ -1205,3 +1205,7 @@ details > summary {
   gap: 0.3rem;
   align-items: center;
 }
+
+.ai-suggestion {
+  border-style: dashed;
+}

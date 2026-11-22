@@ -153,6 +153,8 @@ export const apiPaths = {
     `/api/cases/${enc(caseId)}/timeline${filter.walletOnly ? '?walletOnly=true' : ''}`,
   run: (runId: string) => `/api/runs/${enc(runId)}`,
   runList: (runId: string, list: RunListName) => `/api/runs/${enc(runId)}/${list}`,
+  runSuggestions: (runId: string) => `/api/runs/${enc(runId)}/suggestions`,
+  suggestionDecision: (id: string) => `/api/suggestions/${enc(id)}/decision`,
   report: (runId: string) => `/api/runs/${enc(runId)}/report`,
   meta: '/api/meta',
   linkJudgements: (linkId: string) => `/api/links/${enc(linkId)}/judgements`,

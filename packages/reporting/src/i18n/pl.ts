@@ -302,6 +302,8 @@ export const pl = {
       valuation_unavailable: 'brak wyceny w PLN dla {count} transferów (brak ceny lub kursu NBP)',
       flow_graph_truncated:
         'graf przepływów środków przycięty limitem {limit} krawędzi (zapytań: {count}); część dalszych przepływów nie została pokazana',
+      llm_unavailable:
+        'model AI był niedostępny lub zawiódł dla {count} wzmianek o adresach: nie powstały dla nich sugestie ról (nie wpływa to na wyniki)',
     } as Record<string, string>,
     addresses: 'W treści zabezpieczonych stron znaleziono {addresses} o poprawnym formacie i sumie kontrolnej.',
     transfers: 'Z publicznych danych blockchain pobrano {transfers} dotyczące analizowanych adresów.',
@@ -324,6 +326,24 @@ export const pl = {
     inferenceKyc:
       'Trop KYC: osoba sama opublikowała adres depozytowy giełdy ({address}) — giełda może na wniosek wskazać posiadacza konta.',
     inferenceSwap: 'Możliwa podmiana portfela: {where} — poprzednio {before}, obecnie {after}.',
+    inferenceAiRole:
+      'Sugestia AI — {status}: rola wzmianki o adresie {address} ({url}): {role} — „{span}”. Model: {model}, prompt {prompt}. Sugestia ma zerowy wpływ na Wskaźnik Pewności.',
+    aiStatus: {
+      pending: 'niezweryfikowana',
+      confirmed: 'potwierdzona przez analityka {analyst} ({date}); uwzględniana dopiero w ponownej ocenie (rescore)',
+      rejected: 'odrzucona przez analityka {analyst} ({date})',
+    },
+    aiRoles: {
+      first_person_owner: 'wypowiedź o własności w 1. osobie',
+      payment_request: 'prośba o płatność',
+      donation: 'darowizna',
+      scam_report: 'zgłoszenie oszustwa',
+      warning: 'ostrzeżenie',
+      quote: 'cytat',
+      exchange_deposit: 'wpłata na giełdę',
+      listing: 'lista adresów',
+      unclear: 'niejasne',
+    } as Record<string, string>,
     noInferences: 'Brak wniosków wymagających weryfikacji.',
     tableColumns: {
       identity: 'Identyfikator',

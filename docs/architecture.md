@@ -84,6 +84,7 @@ chain.fetch*      ChainProvider → AddressSummary, NormalizedTransfer, UtxoTran
 labels.classify*  AddressTypeClassification, AddressLabel, ExclusionDecision (A1–A8)
 analytics.compute ActivityIndicators, CashOutEvent (B1–B7), FlowEdge, Valuation (PLN, NBP)
 score.links       EvidenceFeature → LinkAssessment (dwuetapowy iloraz wiarygodności)
+llm.suggest       (tylko przy włączonym modelu) rola wzmianki o adresie → LlmSuggestion o wadze 0, w procesie, bez kolejki
 diff.previous     ChangeEvent względem poprzedniego przebiegu (ADDED / REMOVED / VALUE_CHANGED / SCORE_CHANGED)
 report.render     ReportModel → HTML → PDF/A (+ manifest, podpis, znacznik czasu RFC 3161)
 run.finish        status succeeded | partial | failed
@@ -275,7 +276,10 @@ skrót modelu, parametry, skrót i blob żądania, blob odpowiedzi). Prompty są
 
 Sugestie (`llm_suggestion`) mają zerową wagę w ocenie, dopóki analityk ich nie potwierdzi decyzją z uzasadnieniem
 (`POST /api/suggestions/:id/decision`, jedna decyzja na sugestię); potwierdzenie niczego nie zmienia w zapisanej
-ocenie, a uwzględnia je dopiero kolejny przebieg ponownej oceny. Fakty, wyniki obliczeń i wnioski pozostają rozdzielone.
+ocenie, a uwzględnia je dopiero kolejny przebieg ponownej oceny (potwierdzona rola wzmianki trafia wtedy jako sygnał
+`AnalystCue` do punktu wejścia oceny; oczekujące i odrzucone sugestie nigdy). Krok `llm.suggest` nigdy nie kończy
+przebiegu błędem: niedostępny lub zawodzący model daje kod `llm_unavailable` (przebieg `partial`), a po 3 kolejnych
+niepowodzeniach kolejne wzmianki nie są wysyłane. Decyzja o sugestii zleca w tle ponowne wygenerowanie raportu przebiegu (nowa wersja, wcześniejsze zostają); odpowiedź nie czeka na renderowanie. Tekst z Telegrama nie trafia do modelu. Fakty, wyniki obliczeń i wnioski pozostają rozdzielone.
 
 ## Bezpieczeństwo
 

@@ -3,7 +3,7 @@
  *
  * Pipeline (one pg-boss job type per step, idempotent per run):
  *   run.start → pivot.plan → collect.source* → extract.capture* → pivot.expand → chain.fetch*
- *   → labels.classify* → analytics.compute → score.links → diff.previous → report.render → run.finish
+ *   → labels.classify* → analytics.compute → score.links → llm.suggest → diff.previous → report.render → run.finish
  */
 import { CORE_CONTRACTS_VERSION } from '@olcys/core';
 
