@@ -138,6 +138,11 @@ export interface ExclusionDecision {
   id: Id;
   runId: Id;
   address: AddressRef;
+  /**
+   * For a candidate whose EVM network was not attributed (`evm:unknown`): the address on the network its chain data
+   * was fetched on — the address type and transfers behind the decision belong to it.
+   */
+  resolved?: AddressRef;
   ruleId: ExclusionRuleId;
   outcome: 'excluded' | 'reclassified' | 'kept' | 'flagged';
   relation?: Relation;

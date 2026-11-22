@@ -101,7 +101,7 @@ pary, κ, portfel docelowy, `kycLead` (adres opublikowany przez konto sprawy jes
 **Pierwszeństwo** (`effectiveOutcome`): A8 > A1 > A4 > A2 (`excluded`) > A3 (`flagged`) > `kept`. `prescreenExclusions`
 (A8, A1) działa przed pobraniem danych łańcuchowych — wykluczone adresy nie wymagają historii transakcji ani sond typu
 adresu. A2/A3 korzystają z klasyfikacji adresu, na którym pobrano dane (dla kandydata `evm:unknown` — z jawnie wskazanej
-sieci). Dowody decyzji A2/A3: `fetchIds` zapytań klasyfikacji, `codePrefix`, `codeBytes`, a dla A3 `delegate`
+sieci); decyzje A2–A4 takiego kandydata zapisują tę sieć w polu `resolved`. Dowody decyzji A2/A3: `fetchIds` zapytań klasyfikacji, `codePrefix`, `codeBytes`, a dla A3 `delegate`
 i `delegateInfo` (wpis rejestru delegatów).
 
 ## Publiczne API

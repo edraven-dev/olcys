@@ -256,6 +256,31 @@ describe('exclusion rules on the synthetic persona', () => {
     expect((await classifyCode(contract, '0x')).type).toBe('eoa');
   });
 
+  it('records the network the chain data of an evm:unknown candidate was fetched on', async () => {
+    const candidate = { chain: 'evm:unknown' as const, address: slot('CONTRACT-1') };
+    const resolved = { chain: 'evm:1' as const, address: lower('CONTRACT-1') };
+    const code = manifest.chain.contractCode['CONTRACT-1'] ?? '';
+    const decisions = await evaluateExclusions(
+      {
+        address: candidate,
+        resolved,
+        classification: await classifyCode(resolved, code),
+        transfers: [],
+        published: false,
+      },
+      deps(),
+    );
+    expect(decisions.map((d) => [d.ruleId, d.outcome, d.address.chain, d.resolved])).toEqual([
+      ['A2', 'excluded', 'evm:unknown', resolved],
+    ]);
+    // A candidate on a known network needs no such record.
+    const direct = await evaluateExclusions(
+      { address: resolved, classification: await classifyCode(resolved, code), transfers: [], published: false },
+      deps(),
+    );
+    expect(direct[0]).not.toHaveProperty('resolved');
+  });
+
   it('A2 keeps Safe and ERC-4337 accounts: personal smart accounts stay attributable', async () => {
     const address = { chain: 'evm:1' as const, address: '0x' + '5a'.repeat(20) };
     const base = { address, codePrefix: '0x608060', codeSize: 171, fetchIds: ['f1', 'f2'] };

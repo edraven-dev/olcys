@@ -67,6 +67,13 @@ function decision(
   return { id: newId(), runId: deps.runId, address, ruleId, rulesVersion: deps.rules.version, ...fields };
 }
 
+/** The fetched network of an `evm:unknown` candidate, recorded with the decisions that rest on its chain data. */
+function resolvedOf(facts: AddressFacts): Pick<ExclusionDecision, 'resolved'> {
+  const resolved = facts.resolved;
+  if (facts.address.chain !== 'evm:unknown' || !resolved || resolved.chain === 'evm:unknown') return {};
+  return { resolved: canonicalAddress(resolved) };
+}
+
 function isDecidingService(label: AddressLabel, trustOrder: readonly string[]): boolean {
   return (
     label.provenance.deciding === true &&
@@ -163,6 +170,7 @@ async function a4(facts: AddressFacts, deps: ExclusionDeps): Promise<ExclusionDe
   if (!target) return undefined;
   const distinctSenders = new Set(pairs.map((p) => senders.get(p.receive))).size;
   return decision(deps, facts.address, 'A4', {
+    ...resolvedOf(facts),
     outcome: 'reclassified',
     relation: 'CUSTODIAL_EXCHANGE',
     emitsCashOut: 'B1',
@@ -241,6 +249,7 @@ function a3(facts: AddressFacts, c: AddressTypeClassification, deps: ExclusionDe
     : '';
   const delegate = record ? `the delegate ${c.delegate ?? 'unknown'}${named}` : 'the delegate';
   return decision(deps, facts.address, 'A3', {
+    ...resolvedOf(facts),
     outcome: sweeper ? 'flagged' : 'kept',
     reason: sweeper
       ? `A3: EIP-7702 delegated account; ${delegate} is listed as a sweeper that forwards incoming funds to a third party — the account's key is likely compromised`
@@ -266,6 +275,7 @@ function a2a3(facts: AddressFacts, deps: ExclusionDeps): ExclusionDecision | und
           ? `ERC-4337 EntryPoint ${c.entryPoint ?? 'unknown'}`
           : 'contract code';
     return decision(deps, facts.address, 'A2', {
+      ...resolvedOf(facts),
       outcome: 'kept',
       reason: `A2: ${c.type} is a personal smart account (${detail}); still attributable`,
       evidence: { fetchIds: c.fetchIds, ...codeEvidence(c) },
@@ -273,6 +283,7 @@ function a2a3(facts: AddressFacts, deps: ExclusionDeps): ExclusionDecision | und
   }
   if (c.type === 'contract' || c.type === 'token_contract') {
     return decision(deps, facts.address, 'A2', {
+      ...resolvedOf(facts),
       outcome: 'excluded',
       reason: `A2: the address holds ${c.type === 'token_contract' ? 'token contract' : 'contract'} bytecode (no Safe, ERC-4337 account or EIP-7702 delegation); a smart contract is not a personal holding`,
       evidence: { fetchIds: c.fetchIds, ...codeEvidence(c) },
