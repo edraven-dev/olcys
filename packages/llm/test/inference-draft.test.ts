@@ -37,7 +37,11 @@ const input = (m: ReportModel, over: Partial<DraftInput> = {}): DraftInput => ({
   caseId: 'case-1',
   captureSource: (captureId) => {
     const sourceId = SOURCES[captureId];
-    return sourceId && isLlmAllowed({ sourceId, url: 'https://example.org/x' }, { id: sourceId, llmAllowed: true })
+    return sourceId &&
+      isLlmAllowed(
+        { sourceId, url: 'https://example.org/x', finalUrl: 'https://example.org/x' },
+        { id: sourceId, llmAllowed: true },
+      )
       ? sourceId
       : undefined;
   },

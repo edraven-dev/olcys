@@ -1,4 +1,4 @@
-import type { ApiMeta, LegacyReportView, ReportView } from '@olcys/core';
+import type { ApiMeta, LegacyReportView, ReportModel, ReportView } from '@olcys/core';
 import { useState } from 'react';
 import { ErrorState, Icon, LoadingState, StaleNotice } from '../../components/ui.tsx';
 import { pl } from '../../i18n/pl.ts';
@@ -8,6 +8,7 @@ import { useJson, useList, useResource, type Resource } from '../../lib/use-api.
 import type { RunScope } from '../run/RunPage.tsx';
 import { isTerminal } from '../run/run-model.ts';
 import { DownloadsPanel } from './DownloadsPanel.tsx';
+import { DraftInferences } from './DraftInferences.tsx';
 import { ReportDocument } from './ReportDocument.tsx';
 
 /** `null` while the run has no report (404), so the tab can say so instead of failing. */
@@ -19,6 +20,13 @@ async function loadReport(runId: string): Promise<ReportView | LegacyReportView 
     throw error;
   }
 }
+
+/** Anchors of the report's facts and computed results, by id (the document's own ids). */
+const anchorTargets = (report: ReportModel): Map<string, string> =>
+  new Map<string, string>([
+    ...report.facts.map((f): [string, string] => [f.id, `fact-${f.id}`]),
+    ...report.computed.map((c): [string, string] => [c.id, `computed-${c.id}`]),
+  ]);
 
 /** Cache key of the report: changes with the run and with every successful regeneration of the report. */
 export const reportVersion = (runVersion: string, regenerations: number): string =>
@@ -34,6 +42,10 @@ export function ReportTab({ scope }: { scope: RunScope }) {
     () => loadReport(run.id),
   );
   const meta = useJson<ApiMeta>(apiPaths.meta);
+  // The API renders a new report version after a decision without making the response wait: load it again shortly.
+  const refreshAfterDecision = () => {
+    for (const delay of [1500, 5000]) setTimeout(() => setRegenerations((n) => n + 1), delay);
+  };
   const sources = useList<SourceItem>(apiPaths.sources);
   const names = new Map((sources.data ?? []).map((s) => [s.id, s.name]));
   return (
@@ -55,6 +67,14 @@ export function ReportTab({ scope }: { scope: RunScope }) {
           {report.error ? <StaleNotice resource={report as Resource<unknown>} /> : null}
           {report.data.legacy ? <p className="notice">{pl.report.legacy}</p> : null}
           <DownloadsPanel files={report.data.files} />
+          {report.data.legacy || !meta.data?.features.inferenceDrafts ? null : (
+            <DraftInferences
+              runId={run.id}
+              version={reportVersion(version, regenerations)}
+              targets={anchorTargets(report.data.report)}
+              onDecided={refreshAfterDecision}
+            />
+          )}
           {report.data.legacy ? null : <ReportDocument report={report.data.report} names={names} />}
         </>
       )}
