@@ -8,6 +8,31 @@ export const PACKAGE_NAME = '@olcys/reporting';
 
 export { buildReportData, type BuildReportOptions } from './build.ts';
 export { formatAmount, formatDecimal, formatLongDate, formatPln, formatUtc, plural } from './format.ts';
+export {
+  buildExports,
+  csvCell,
+  CSV_EXPORTS,
+  EXPORT_FILE_EXTENSIONS,
+  EXPORT_KINDS,
+  EXPORT_MEDIA_TYPES,
+  isExportKind,
+  likelihoodValue,
+  parseTlp,
+  stixScoId,
+  TLP_LEVELS,
+  TLP_MARKINGS,
+  toCsv,
+  toMispEvent,
+  toStixBundle,
+  uuidv5,
+  type CsvExport,
+  type ExportArtifact,
+  type ExportInput,
+  type ExportKind,
+  type ExportSettings,
+  type StixOptions,
+  type TlpLevel,
+} from './export/index.ts';
 export { escapeHtml, markup, SafeHtml, t, type Html } from './html.ts';
 export { pl, type Catalogue } from './i18n/pl.ts';
 export { STATEMENT_IDS, type StatementClass } from './render/blocks.ts';
@@ -15,10 +40,12 @@ export { REPORT_CSP, renderReport } from './render/document.ts';
 export { assertSelfContainedHtml, ExternalReferenceError } from './self-contained.ts';
 export {
   createReportStage,
+  findExportSet,
   REPORT_DATA_MEDIA_TYPE,
   REPORT_HTML_MEDIA_TYPE,
   REPORT_KINDS,
   storeReport,
+  type ExportSet,
   type ReportStage,
   type ReportStageContext,
   type ReportStageOptions,

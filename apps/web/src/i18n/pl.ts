@@ -1274,6 +1274,17 @@ export const pl = {
     missing: 'Raport dla tego przebiegu nie został jeszcze wygenerowany.',
     pending: 'Raport powstanie po zakończeniu analizy.',
     error: 'Nie udało się sprawdzić dostępności raportu.',
+    exports: {
+      title: 'Eksport do innych narzędzi',
+      none: 'Ta wersja raportu nie ma eksportów (powstała przed ich wprowadzeniem albo zapis eksportów się nie powiódł). Użyj przycisku „Wygeneruj raport ponownie”, aby je utworzyć.',
+      hint: 'Pliki zawierają dane sprawy (domyślnie oznaczenie TLP:AMBER); pobranie jest odnotowywane w łańcuchu dowodowym. Eksport obejmuje fakty i wyniki obliczeń, bez niezatwierdzonych sugestii modelu AI.',
+      stix: 'Pakiet STIX 2.1 (JSON)',
+      misp: 'Zdarzenie MISP (JSON)',
+      csv_links: 'Powiązania (CSV)',
+      csv_evidence: 'Materiał dowodowy (CSV)',
+      csv_cash_out: 'Wyjścia do walut tradycyjnych (CSV)',
+      csv_changes: 'Zmiany od poprzedniego uruchomienia (CSV)',
+    },
   },
 } as const;
 

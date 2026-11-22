@@ -79,7 +79,7 @@ import {
   resolveCollectorIdentity,
 } from '@olcys/evidence';
 import { createEgressClient, RobotsCache } from '@olcys/http';
-import { createReportStage } from '@olcys/reporting';
+import { createReportStage, parseTlp } from '@olcys/reporting';
 import { loadWeights, scoreRun } from '@olcys/scoring';
 import { classifyFetched } from './address-types.ts';
 import { withAnalystOverrides } from './analyst.ts';
@@ -749,12 +749,21 @@ export function createChainStage(options: StageOptions): Stage {
 
 /** The stages of a run, in pipeline order (the comparison with the previous run is built in). */
 export function defaultStages(options: StageOptions): Stage[] {
+  const env = options.env ?? process.env;
+  const producerName = env['OLCYS_STIX_PRODUCER_NAME']?.trim();
   return [
     createCollectStage(options),
     createExtractStage(),
     createChainStage(options),
     createScoreStage(options),
     // Runs after the built-in comparison with the previous run, so the report includes the changes.
-    createReportStage({ sources: options.sources, weightsStatus: 'uncalibrated' }),
+    createReportStage({
+      sources: options.sources,
+      weightsStatus: 'uncalibrated',
+      exports: {
+        ...(producerName ? { producerName } : {}),
+        tlp: parseTlp(env['OLCYS_EXPORT_TLP']),
+      },
+    }),
   ];
 }

@@ -481,6 +481,14 @@ export const pl = {
       meaning: 'adres znanej giełdy lub usługi, miksera albo smart kontraktu — nie przypisuje się go osobie',
     },
   },
+  exports: {
+    producerDefault: 'OŁCyŚ (instancja demonstracyjna)',
+    reportName: 'Raport OŁCyŚ: {title}',
+    relationship: 'Powiązanie identyfikatora z adresem: Wskaźnik Pewności {score}/100, {icd}; relacja: {relation}.',
+    mispInfo: 'OŁCyŚ: {title} — przebieg {runId}',
+    mispObject: 'Adres kryptowalutowy powiązany z identyfikatorem sprawy (Wskaźnik Pewności {score}/100, {icd}).',
+    mispEvidence: 'Zrzut dowodowy: {id}',
+  },
   icd203: {
     'almost no chance': 'niemal wykluczone',
     'very unlikely': 'bardzo mało prawdopodobne',

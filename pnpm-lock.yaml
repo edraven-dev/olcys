@@ -202,6 +202,9 @@ importers:
       '@olcys/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@olcys/reporting':
+        specifier: workspace:*
+        version: link:../../packages/reporting
       '@olcys/worker':
         specifier: workspace:*
         version: link:../worker
