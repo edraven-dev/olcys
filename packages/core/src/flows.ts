@@ -3,11 +3,13 @@
  * in `@olcys/db`; the in-memory store uses `traceFlows`). Both have the same semantics:
  *
  * - downstream (`out`): hop 1 is the transfers leaving a seed; each next hop takes the transfers leaving the recipients
- *   reached in the previous hop, not older than the earliest transfer that reached that address (time-monotonic);
- *   upstream (`in`) mirrors it with hops −1, −2, … and the latest departure;
- * - an address is expanded once (breadth first), so every transfer is returned once, at its first hop; an exit address
- *   already visited (a seed or an earlier hop) marks the edge `isCycle` and is not expanded; stop addresses (labelled
- *   service, excluded address) end the path;
+ *   reached in the previous hop, not older than the transfer that reached them (time-monotonic); upstream (`in`)
+ *   mirrors it with hops −1, −2, … and up to the latest departure;
+ * - a bounded label-correcting walk: an address is expanded again when a later hop reaches it earlier in time, parallel
+ *   transfers collapse into dominated (hop, time) labels, so the work stays linear; every transfer is returned once, at
+ *   its first hop; an edge is a cycle (`isCycle`, not expanded) only when its exit is a seed or lies on the path that
+ *   led to its entry; stop addresses (labelled service, excluded address) end the path;
+ * - rows derived for co-spending Bitcoin inputs (`derivedFrom`) are used downstream only;
  * - the result is ordered by |hop|, time, transaction, index, sender, recipient and cut at `limit` (`truncated` tells
  *   that more existed).
  *
@@ -96,50 +98,81 @@ export interface FlowFrontierItem {
  */
 export type FlowHopLoader = (frontier: readonly FlowFrontierItem[], limit: number) => Promise<NormalizedTransfer[]>;
 
+/** A (hop, time) label of an address: the funds of the path reached it at `hop`, at `at` (ms). */
+interface FlowLabel {
+  address: string;
+  hop: number;
+  at: number;
+  parent?: FlowLabel;
+}
+
 /**
- * Bounded address-level breadth-first walk: per hop one entry per address (with its earliest arrival, or latest departure
- * upstream), the next hop takes the transfers leaving that address from that time on. An address is expanded once, so
- * every transfer is emitted once, at its first hop, and the work stays linear in the transfers however many parallel
- * transfers a leg has. An exit address already visited (a seed or an earlier hop) marks the edge `isCycle` and is not
- * expanded; stop addresses are not expanded either.
+ * Bounded label-correcting walk, hop by hop. Each address keeps its non-dominated labels (hop, time): a label is dropped
+ * when the address already has one with an equal or smaller hop and an equal or earlier time (upstream: later), so an
+ * address reached again EARLIER is expanded again and parallel transfers collapse into dominated labels (linear work).
+ * The next hop takes the transfers leaving a label's address from its time on (upstream: up to it). Every transfer is
+ * emitted once, at its first hop. An edge is a cycle (`isCycle`, not expanded) only when its exit is a seed or an
+ * address on the label chain that led to its entry; a cross edge (A→B, A→C, B→C) is an ordinary edge. Stop addresses
+ * end the path.
  */
 export async function walkFlows(load: FlowHopLoader, q: FlowQuery): Promise<FlowQueryResult> {
   const out = q.direction === 'out';
   const norm = (a: string): string => flowAddress(q.chain, a);
+  const entryOf = (t: NormalizedTransfer): string => norm(out ? t.from : t.to);
   const exit = (t: NormalizedTransfer): string => norm(out ? t.to : t.from);
-  const seeds = [...new Set(q.seeds.map(norm))];
+  const seeds = new Set(q.seeds.map(norm));
   const stop = new Set(q.stopAt.map(norm));
-  const visited = new Set(seeds);
+  const labels = new Map<string, FlowLabel[]>();
+  /** `a` is at least as good as `b`: no more hops and not worse in time. */
+  const covers = (a: FlowLabel, b: FlowLabel): boolean => a.hop <= b.hop && (out ? a.at <= b.at : a.at >= b.at);
+  const emitted = new Set<string>();
   const rows: FlowRow[] = [];
-  let frontier: FlowFrontierItem[] = seeds.map((address) => ({ address }));
+  let frontier: FlowLabel[] = [...seeds].map((address) => ({ address, hop: 0, at: out ? -Infinity : Infinity }));
   for (let hop = 1; hop <= q.maxHops && frontier.length > 0; hop += 1) {
     const signed = out ? hop : -hop;
+    const entries = new Map(frontier.map((l) => [l.address, l]));
     // Sequential on purpose: each hop starts from the previous one.
     // oxlint-disable-next-line no-await-in-loop
-    const loaded = await load(frontier, q.limit + 1 - rows.length);
-    const reached: FlowRow[] = [];
-    for (const t of loaded) reached.push(Object.assign({}, t, { hop: signed, isCycle: visited.has(exit(t)) }));
+    const loaded = await load(
+      frontier.map((l) =>
+        Number.isFinite(l.at) ? { address: l.address, at: new Date(l.at).toISOString() } : { address: l.address },
+      ),
+      q.limit + 1 + rows.length,
+    );
+    const reached: (FlowRow & { entry: FlowLabel })[] = [];
+    for (const t of loaded) {
+      const key = rowKey(t);
+      const entry = entries.get(entryOf(t));
+      if (emitted.has(key) || !entry) continue;
+      emitted.add(key);
+      let cycle = seeds.has(exit(t));
+      for (let l: FlowLabel | undefined = entry; l && !cycle; l = l.parent) cycle = l.address === exit(t);
+      reached.push(Object.assign({}, t, { hop: signed, isCycle: cycle, entry }));
+    }
     reached.sort(compareFlowRows);
     if (rows.length + reached.length > q.limit) {
-      rows.push(...reached.slice(0, q.limit - rows.length));
+      for (const r of reached.slice(0, q.limit - rows.length)) rows.push(strip(r));
       return { rows, truncated: true };
     }
-    rows.push(...reached);
-    const next = new Map<string, string>();
-    for (const row of reached) {
-      const at = exit(row);
-      if (row.isCycle || stop.has(at)) continue;
-      const known = next.get(at);
-      // Downstream the earliest arrival counts, upstream the latest departure.
-      const better =
-        known === undefined ||
-        (out ? Date.parse(row.blockTime) < Date.parse(known) : Date.parse(row.blockTime) > Date.parse(known));
-      if (better) next.set(at, row.blockTime);
+    for (const r of reached) rows.push(strip(r));
+    const created: FlowLabel[] = [];
+    for (const r of reached) {
+      const at = exit(r);
+      if (r.isCycle || stop.has(at)) continue;
+      const label: FlowLabel = { address: at, hop, at: Date.parse(r.blockTime), parent: r.entry };
+      const known = labels.get(at) ?? [];
+      if (known.some((k) => covers(k, label))) continue;
+      labels.set(at, [...known.filter((k) => !covers(label, k)), label]);
+      created.push(label);
     }
-    for (const row of reached) visited.add(exit(row));
-    frontier = [...next].map(([address, at]) => ({ address, at }));
+    frontier = created.filter((l) => labels.get(l.address)?.includes(l));
   }
   return { rows, truncated: false };
+}
+
+function strip(row: FlowRow & { entry?: FlowLabel }): FlowRow {
+  const { entry: _entry, ...flow } = row;
+  return flow;
 }
 
 /** The in-memory flow query: `walkFlows` over an index of the distinct transfers of the chain. */
@@ -148,7 +181,7 @@ export function traceFlows(transfers: readonly NormalizedTransfer[], q: FlowQuer
   const norm = (a: string): string => flowAddress(q.chain, a);
   const unique = new Map<string, NormalizedTransfer>();
   for (const t of transfers) {
-    if (t.chain !== q.chain || norm(t.from) === norm(t.to)) continue;
+    if (t.chain !== q.chain || norm(t.from) === norm(t.to) || (!out && t.derivedFrom)) continue;
     const key = rowKey(t);
     if (!unique.has(key)) unique.set(key, t);
   }

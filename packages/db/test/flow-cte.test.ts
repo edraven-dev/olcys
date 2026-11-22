@@ -76,6 +76,25 @@ function scenarios(store: () => Store): void {
     expect(path(await run(query({ maxHops: 5 })))).toEqual(['A>B@1', 'B>C@2', 'B>Z@2', 'C>B@3c']);
   });
 
+  it('expands an address again when a later hop reaches it earlier in time', async () => {
+    const run = await store().seed([
+      transfer('A', 'B', day(10)),
+      transfer('A', 'C', day(1)),
+      transfer('C', 'B', day(2)),
+      transfer('B', 'D', day(3)), // only reachable through A→C→B (B reached on day 2), not from A→B (day 10)
+    ]);
+    expect(path(await run(query({})))).toEqual(['A>C@1', 'A>B@1', 'C>B@2', 'B>D@3']);
+  });
+
+  it('keeps a cross edge (A→B, A→C, B→C) as an ordinary edge, not a cycle', async () => {
+    const run = await store().seed([
+      transfer('A', 'B', day(1)),
+      transfer('A', 'C', day(1)),
+      transfer('B', 'C', day(2)),
+    ]);
+    expect(path(await run(query({})))).toEqual(['A>B@1', 'A>C@1', 'B>C@2']);
+  });
+
   it('returns a transfer back to a seed without expanding the seed again', async () => {
     const run = await store().seed([
       transfer('A', 'B', day(1)),
@@ -139,7 +158,7 @@ function scenarios(store: () => Store): void {
       transfer('A', 'B', day(1), { tx: 'tx-1' }), // exact repeat of tx-1: the same movement
     ]);
     const result = await run(query({}));
-    expect(path(result)).toEqual(['A>B@1', 'A>C@1', 'A>B@1', 'A>B@1', 'B>C@2c', 'C>D@2']);
+    expect(path(result)).toEqual(['A>B@1', 'A>C@1', 'A>B@1', 'A>B@1', 'B>C@2', 'C>D@2']);
     expect(result.rows.filter((r) => r.txHash === 'tx-5').map((r) => r.index)).toEqual([undefined, 1]);
   });
 

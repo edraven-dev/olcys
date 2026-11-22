@@ -18,6 +18,8 @@ export function queryFlowEdges(db: Db, query: FlowQuery & { runId: Id }): Promis
   // Column names and operators are fixed strings chosen here, never input.
   const entry = sql.raw(out ? 'x.f' : 'x.t');
   const later = sql.raw(out ? '>=' : '<=');
+  // Derived co-spend rows start and continue downstream paths only.
+  const original = sql.raw(out ? 'TRUE' : "(x.record->>'derivedFrom') IS NULL");
   return walkFlows(
     async (frontier, limit) => {
       const addresses = frontier.map((i) => i.address);
@@ -38,7 +40,7 @@ export function queryFlowEdges(db: Db, query: FlowQuery & { runId: Id }): Promis
                  WHERE run_id = ${query.runId} AND chain = ${query.chain}
               ) x
               JOIN fr ON ${entry} = fr.a AND (fr.t IS NULL OR x.bt ${later} fr.t)
-             WHERE x.f <> x.t
+             WHERE x.f <> x.t AND ${original}
              ORDER BY x.chain, x.record->>'txHash', x.record->>'index', x.record->>'kind', x.f, x.t,
                       x.record->'asset'->>'symbol', x.record->'asset'->>'contract', x.record->>'amount', x.id
           ) d

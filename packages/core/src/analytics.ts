@@ -115,6 +115,8 @@ export interface FlowEdge {
    */
   hop: number;
   valuation?: Valuation;
+  /** A co-spend row (Bitcoin): the same output as an original edge; aggregations count the output once. */
+  derivedFrom?: 'co_spend';
   /** True when the edge closes a loop back to an address already on the path (never expanded further). */
   isCycle?: boolean;
 }
