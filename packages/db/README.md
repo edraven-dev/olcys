@@ -10,7 +10,7 @@ Schemat PostgreSQL, migracje SQL i typowane repozytoria dla magazynu dowodów dz
 - `createDb(url)` — instancja Kysely związana ze schematem `olcys`.
 - `createMemoryRepositories()` — implementacja tych samych portów w pamięci (testy, demonstracja bez bazy).
 - `createSqlRepositories(db)` — implementacje SQL portów repozytoriów z `@olcys/core` (`cases`, `runs`, `evidence`,
-  `chain`, `addressTypes`, `analysis`, `labels`, `schedules`, `judgements`, `overrides`). Dowody są tylko do
+  `chain`, `addressTypes`, `analysis`, `labels`, `schedules`, `judgements`, `overrides`, `custody`, `llm`). Dowody są tylko do
   dopisywania; rola `olcys_app` nie ma praw UPDATE/DELETE.
 - `schedules` (migracja `0002_schedules.sql`) — `setSchedule` zastępuje `cases.schedule` (poza statusem jedyna kolumna
   sprawy z prawem UPDATE) i w tej samej transakcji dopisuje zmianę do `case_schedule_change` (kto, dlaczego, przed, po);
@@ -37,6 +37,12 @@ Schemat PostgreSQL, migracje SQL i typowane repozytoria dla magazynu dowodów dz
   `add(runId, klastry)` odrzuca powtórzony identyfikator, `list(runId)` zwraca wiersze według identyfikatora,
   `previousSizes(caseId, ziarna, beforeRunId)` — rozmiary klastrów ziaren z najnowszego wcześniejszego przebiegu sprawy
   (współczynnik wzrostu reguły A7). Tabela tylko do dopisywania (`olcys_app`: SELECT i INSERT).
+- `llm` (migracja `0010_llm.sql`) — wywołania modelu AI (`llm_call`: zadanie, wersja i skrót promptu, adres bazowy,
+  model żądany i zgłoszony, skrót modelu, parametry, skrót i blob żądania, blob odpowiedzi, wynik, wynik wywołania,
+  opóźnienie), sugestie (`llm_suggestion`) i decyzje analityka (`llm_suggestion_decision`, jedna na sugestię:
+  `UNIQUE (suggestion_id)`). Status sugestii wynika z decyzji (brak decyzji = `pending`), więc nic nie jest
+  aktualizowane; `decide` zwraca `false`, gdy decyzja już istnieje. Trzy tabele są tylko do dopisywania (`olcys_app`:
+  SELECT i INSERT) i nie wpływają na żadną wartość oceny.
 - `migrate(ownerUrl)` / `pnpm db:migrate` — migracje SQL z `migrations/` (z kontrolą skrótów SHA-256). Historię
   migracji (`schema_migrations`) może zapisywać wyłącznie właściciel schematu — `migrate()` odbiera prawa zapisu
   pozostałym rolom. Równoczesne uruchomienia (np. równoległe pliki testów) czekają na blokadę doradczą, więc każda

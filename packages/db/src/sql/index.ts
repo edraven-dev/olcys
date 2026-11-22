@@ -7,6 +7,7 @@ import { sqlCaseRepository } from './cases.ts';
 import { sqlClusterRepository } from './clusters.ts';
 import { sqlCustodyRepository } from './custody.ts';
 import { sqlEvidenceRepository } from './evidence.ts';
+import { sqlLlmRepository } from './llm.ts';
 import { sqlRunRepository } from './runs.ts';
 import { sqlScheduleRepository } from './schedules.ts';
 
@@ -25,6 +26,7 @@ export function createSqlRepositories(db: Db): Repositories {
     judgements: sqlJudgementRepository(db),
     overrides: sqlOverrideRepository(db),
     custody: sqlCustodyRepository(db),
+    llm: sqlLlmRepository(db),
   };
 }
 
@@ -35,5 +37,6 @@ export { sqlCaseRepository } from './cases.ts';
 export { sqlClusterRepository } from './clusters.ts';
 export { sqlCustodyRepository } from './custody.ts';
 export { sqlEvidenceRepository } from './evidence.ts';
+export { sqlLlmRepository } from './llm.ts';
 export { sqlRunRepository } from './runs.ts';
 export { sqlScheduleRepository } from './schedules.ts';
