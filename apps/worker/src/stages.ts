@@ -325,8 +325,24 @@ export function trackUnpriced(inner: Valuator): {
   unpricedTransfers(transfers: readonly NormalizedTransfer[]): number;
   /** Bitcoin transactions whose net amount (valued per transaction, e.g. a self-send's fee) could not be valued. */
   unpricedNetTxs(address: AddressRef, txs: readonly UtxoTransaction[]): string[];
+  /**
+   * Distinct failed valuation inputs: the unpriced transfers plus the Bitcoin net amounts of `utxo`, where a net amount
+   * that is the very calculation of an unpriced transfer of the same transaction (an incoming payment) counts once.
+   */
+  unpricedCount(
+    transfers: readonly NormalizedTransfer[],
+    utxo: readonly { address: AddressRef; txs: readonly UtxoTransaction[] }[],
+  ): number;
 } {
   const failed = new Set<string>();
+  /** Bitcoin net amounts (absolute, per transaction) whose valuation failed. */
+  const failedNets = (address: AddressRef, txs: readonly UtxoTransaction[]) =>
+    utxoVolumes({ address, transfers: [], decisions: [], utxoTxs: txs })
+      .map(({ tx, net }) => ({ tx, amount: dCmp(net, '0') < 0 ? dSub('0', net) : net }))
+      .filter(
+        ({ tx, amount }) =>
+          dCmp(amount, '0') !== 0 && failed.has(`${address.chain}|BTC|${amount}|${tx.blockTime ?? ''}`),
+      );
   return {
     valuator: {
       async value(input, ctx) {
@@ -338,14 +354,20 @@ export function trackUnpriced(inner: Valuator): {
       },
     },
     unpricedTransfers: (transfers) => uniqueTransfers(transfers).filter((t) => failed.has(calculationKey(t))).length,
-    unpricedNetTxs: (address, txs) =>
-      utxoVolumes({ address, transfers: [], decisions: [], utxoTxs: txs })
-        .map(({ tx, net }) => ({ tx, amount: dCmp(net, '0') < 0 ? dSub('0', net) : net }))
-        .filter(
-          ({ tx, amount }) =>
-            dCmp(amount, '0') !== 0 && failed.has(`${address.chain}|BTC|${amount}|${tx.blockTime ?? ''}`),
-        )
-        .map(({ tx }) => `${tx.chain}|${tx.txid}`),
+    unpricedNetTxs: (address, txs) => failedNets(address, txs).map(({ tx }) => `${tx.chain}|${tx.txid}`),
+    unpricedCount: (transfers, utxo) => {
+      const failedTransfers = uniqueTransfers(transfers).filter((t) => failed.has(calculationKey(t)));
+      // An incoming payment's net amount is the calculation of its transfer: the same failed input.
+      const covered = new Set(failedTransfers.map((t) => `${t.chain}|${t.txHash}|${calculationKey(t)}`));
+      const nets = new Set<string>();
+      for (const { address, txs } of utxo) {
+        for (const { tx, amount } of failedNets(address, txs)) {
+          const calculation = `${address.chain}|BTC|${amount}|${tx.blockTime ?? ''}`;
+          if (!covered.has(`${tx.chain}|${tx.txid}|${calculation}`)) nets.add(`${tx.chain}|${tx.txid}`);
+        }
+      }
+      return failedTransfers.length + nets.size;
+    },
   };
 }
 
@@ -721,11 +743,10 @@ export function createChainStage(options: StageOptions): Stage {
       }
       // A leg without a price or NBP rate leaves its PLN value missing: say so instead of staying silent.
       // Every distinct failed valuation counts once: a transfer by `transferKey`, a Bitcoin net amount by chain and txid.
-      const unpriced =
-        counted.unpricedTransfers(analysed.flatMap(ownTransfers)) +
-        new Set(
-          analysed.flatMap((a) => (chainFamily(a.chain) === 'bitcoin' ? counted.unpricedNetTxs(a, utxoOf(a)) : [])),
-        ).size;
+      const unpriced = counted.unpricedCount(
+        analysed.flatMap(ownTransfers),
+        analysed.filter((a) => chainFamily(a.chain) === 'bitcoin').map((a) => ({ address: a, txs: utxoOf(a) })),
+      );
       if (unpriced) {
         ctx.markPartial(`PLN valuation unavailable for ${unpriced} transfer(s): no price or NBP rate`, {
           code: 'valuation_unavailable',

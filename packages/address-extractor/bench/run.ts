@@ -134,6 +134,15 @@ function formatFamily(format: string, chain: ChainId): string {
   return chainFamily(chain);
 }
 
+/** Attribution groups a positive row belongs to (the same for a correct and a failed result). */
+function attributionSlices(r: TruthRow, family: string): string[] {
+  const slices = ['all', family];
+  if (r.subtype === 'p2pkh' || r.subtype === 'p2sh') slices.push('base58_1_3');
+  if (r.subtype === 'p2sh') slices.push('p2sh_3');
+  if (r.channel === 'uri' || r.channel === 'explorer') slices.push(`marker_${r.channel}`);
+  return slices;
+}
+
 /** Ranges that share at least one character, give or take the tolerance (attributing a result to a row). */
 function overlaps(a: Range, b: Range): boolean {
   return a.start < b.end + TOLERANCE && b.start < a.end + TOLERANCE;
@@ -530,7 +539,7 @@ function assemble(
       if (!hit) {
         const wrong = e.oursWrongChain.get(r.occurrence);
         if (wrong) {
-          pushAttribution('all', false);
+          for (const slice of attributionSlices(r, family)) pushAttribution(slice, false);
           failures.attributionErrors.push({
             docId: e.doc.docId,
             occurrence: r.occurrence,
@@ -550,11 +559,7 @@ function assemble(
       }
       if (r.chain) {
         const ok = hit.chain === r.chain;
-        pushAttribution('all', ok);
-        pushAttribution(family, ok);
-        if (r.subtype === 'p2pkh' || r.subtype === 'p2sh') pushAttribution('base58_1_3', ok);
-        if (r.subtype === 'p2sh') pushAttribution('p2sh_3', ok);
-        if (r.channel === 'uri' || r.channel === 'explorer') pushAttribution(`marker_${r.channel}`, ok);
+        for (const slice of attributionSlices(r, family)) pushAttribution(slice, ok);
         if (!ok) {
           failures.attributionErrors.push({
             docId: e.doc.docId,
