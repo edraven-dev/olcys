@@ -40,10 +40,12 @@ export { REPORT_CSP, renderReport } from './render/document.ts';
 export { assertSelfContainedHtml, ExternalReferenceError } from './self-contained.ts';
 export {
   createReportStage,
+  findExportSet,
   REPORT_DATA_MEDIA_TYPE,
   REPORT_HTML_MEDIA_TYPE,
   REPORT_KINDS,
   storeReport,
+  type ExportSet,
   type ReportStage,
   type ReportStageContext,
   type ReportStageOptions,

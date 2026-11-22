@@ -53,6 +53,28 @@ describe('MISP export', () => {
     expect(tagsOf(A.BTC1).some((t: string) => /^admiralty-scale:source-reliability="[a-f]"$/.test(t))).toBe(true);
   });
 
+  it('ignores paths that did not count when choosing the Admiralty grade', () => {
+    // oxlint-disable-next-line unicorn/consistent-function-scoping
+    const gradeOf = (counted: boolean) => {
+      const data = exportData();
+      const link = data.links.find((l) => l.id === 'link-eth2')!;
+      const extra = structuredClone(link.paths[0]!);
+      for (const hop of [extra.identityHop, extra.addressHop]) {
+        for (const c of hop.contributions) Object.assign(c, { reliability: 'A', counted: true });
+      }
+      extra.counted = counted;
+      link.paths = [...link.paths, extra];
+      const out = (JSON.parse(toMispEvent({ data }, { tlp: 'amber' }).json) as { Event: Obj }).Event;
+      const tags = (out.Object as Obj[])
+        .flatMap((o) => o.Attribute as Obj[])
+        .find((a) => a.value === A.ETH2)!
+        .Tag.map((t: Obj) => t.name as string);
+      return tags.find((t: string) => t.startsWith('admiralty-scale:source-reliability'));
+    };
+    expect(gradeOf(true)).toBe('admiralty-scale:source-reliability="a"');
+    expect(gradeOf(false)).not.toBe('admiralty-scale:source-reliability="a"');
+  });
+
   it('maps every ICD 203 term to a taxonomy value', () => {
     const values = estimative.values
       .find((v) => v.predicate === 'likelihood-probability')!

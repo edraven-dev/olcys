@@ -91,8 +91,11 @@ nim, więc raport zawiera wykryte zmiany. `GET /api/runs/:id/report` zwraca najn
 ## Eksporty: STIX 2.1, MISP i CSV
 
 Krok `report.render` zapisuje obok raportu HTML sześć eksportów, zbudowanych z tych samych danych (`ReportData`) co
-dokument — jako kolejne raporty przebiegu o rodzajach `stix`, `misp`, `csv_links`, `csv_evidence`, `csv_cash_out`
-i `csv_changes` (skrót SHA-256 i typ nośnika jak przy raporcie). Eksporty są deterministyczne: te same dane dają
+dokument. Wszystkie pliki (HTML, dane, sześć eksportów: `stix`, `misp`, `csv_links`, `csv_evidence`, `csv_cash_out`,
+`csv_changes`) są najpierw zapisywane w magazynie blobów, a dopiero potem rejestrowana jest jedna wersja raportu; ostatni
+wpis (`export_set`) wskazuje skrót HTML i skróty eksportów tej wersji. `findExportSet` zwraca eksporty tylko wtedy,
+gdy zestaw wskazuje najnowszy raport HTML — nowszy HTML bez eksportów (lub przebieg sprzed eksportów) daje „brak
+eksportów”, więc wersje nigdy się nie mieszają. Eksporty są deterministyczne: te same dane dają
 identyczne bajty. Zawierają wyłącznie fakty i wyniki obliczeń oraz oceny analityka; wnioski i sugestie modelu AI nie są
 eksportowane, więc nie mogą trafić do innego systemu. Domyślnie wyeksportowane są tylko przyjęte powiązania
 własnościowe; odrzucone (wykluczone regułą, przypisane przez stronę trzecią) trafiają do STIX i MISP tylko przy
@@ -120,6 +123,11 @@ własnościowe; odrzucone (wykluczone regułą, przypisane przez stronę trzeci�
   dowodowy, wyjścia do walut tradycyjnych, zmiany. Komórki tekstowe zaczynające się od `=`, `+`, `-`, `@`, TAB lub CR
   dostają przedrostek `'` (ochrona przed wstrzykiwaniem formuł); liczby i `DecimalString` są zapisywane dokładnie tak,
   jak zapisano je w danych (bez liczb zmiennoprzecinkowych).
+
+Tabela `cash_out.csv` ma na końcu kolumnę `pln_synthetic` (`true`, gdy wartość PLN, także któregoś ze składników
+zdarzenia zagregowanego, opiera się na kursie syntetycznym; puste, gdy brak wyceny), aby kwoty demonstracyjne nie
+przechodziły za oficjalne wyceny NBP. STIX i MISP nie zawierają wartości PLN. Tag `admiralty-scale` uwzględnia tylko
+ścieżki, które się liczyły (`counted`).
 
 Zamiast osobnego zadania `report.export` eksporty powstają w kroku `report.render` (potok nie ma kolejki zadań), więc
 każde ponowne wygenerowanie raportu tworzy też nowe eksporty z aktualnymi ocenami analityka. Nic nie jest wysyłane do

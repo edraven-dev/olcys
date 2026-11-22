@@ -7,6 +7,8 @@ import {
   createReportStage,
   EXPORT_KINDS,
   EXPORT_MEDIA_TYPES,
+  findExportSet,
+  storeReport,
   REPORT_HTML_MEDIA_TYPE,
   renderReport,
   type ReportData,
@@ -109,17 +111,47 @@ describe('report.render stage', () => {
       clock: { now: () => new Date('2026-11-21T13:41:00.000Z') },
     });
     await stage.run({ run, repos, blobs, async progress() {} });
+    const set = await findExportSet({ repos, blobs }, run.id);
+    expect(Object.keys(set?.exports ?? {}).toSorted()).toEqual([...EXPORT_KINDS].toSorted());
+    expect(set?.htmlSha256).toBe((await repos.analysis.latestReport(run.id, 'html'))?.blobSha256);
     for (const kind of EXPORT_KINDS) {
+      expect(set?.exports[kind]?.mediaType).toBe(EXPORT_MEDIA_TYPES[kind]);
       // oxlint-disable-next-line no-await-in-loop
-      const stored = await repos.analysis.latestReport(run.id, kind);
-      expect(stored?.mediaType).toBe(EXPORT_MEDIA_TYPES[kind]);
-      // oxlint-disable-next-line no-await-in-loop
-      expect(await blobs.has(stored?.blobSha256 ?? '')).toBe(true);
+      expect(await blobs.has(set?.exports[kind]?.sha256 ?? '')).toBe(true);
     }
-    const stix = await repos.analysis.latestReport(run.id, 'stix');
-    const bundle = JSON.parse(decode(await blobs.get(stix?.blobSha256 ?? ''))) as { objects: { name?: string }[] };
+    const bundle = JSON.parse(decode(await blobs.get(set?.exports['stix']?.sha256 ?? ''))) as {
+      objects: { name?: string }[];
+    };
     expect(bundle.objects.some((o) => o.name === 'OŁCyŚ (test)')).toBe(true);
     expect(bundle.objects.some((o) => o.name === 'TLP:GREEN')).toBe(true);
+  });
+
+  it('registers nothing when an export cannot be saved, so the previous version stays whole', async () => {
+    const { repos, blobs, run, fixture } = await seed();
+    await storeReport({ repos, blobs }, { ...fixture, run });
+    const before = await repos.analysis.latestReport(run.id, 'html');
+    const failing = {
+      ...blobs,
+      has: (sha: string) => blobs.has(sha),
+      get: (sha: string) => blobs.get(sha),
+      async put(bytes: Uint8Array, mediaType: string) {
+        if (mediaType.startsWith('application/stix')) throw new Error('disk full');
+        return blobs.put(bytes, mediaType);
+      },
+    } as typeof blobs;
+    const next = { ...fixture, run, generatedAt: '2026-11-22T10:00:00.000Z' };
+    await expect(storeReport({ repos, blobs: failing }, next)).rejects.toThrow('disk full');
+    expect((await repos.analysis.latestReport(run.id, 'html'))?.blobSha256).toBe(before?.blobSha256);
+    expect((await findExportSet({ repos, blobs }, run.id))?.htmlSha256).toBe(before?.blobSha256);
+  });
+
+  it('offers no exports when a newer HTML report has none (older or interrupted versions)', async () => {
+    const { repos, blobs, run, fixture } = await seed();
+    await storeReport({ repos, blobs }, { ...fixture, run });
+    expect(await findExportSet({ repos, blobs }, run.id)).toBeDefined();
+    const sha = (await blobs.put(new TextEncoder().encode('<p>newer</p>'), 'text/html')).sha256;
+    await repos.analysis.addReport({ runId: run.id, kind: 'html', blobSha256: sha, mediaType: 'text/html' });
+    expect(await findExportSet({ repos, blobs }, run.id)).toBeUndefined();
   });
 
   it('assembles the data from the repositories with stable ordering', async () => {

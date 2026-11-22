@@ -44,9 +44,10 @@ export function linkCaptures(view: View, link: LinkAssessment): Capture[] {
     .toSorted((a, b) => cmp(a.collectedAt, b.collectedAt) || cmp(a.id, b.id));
 }
 
-/** The best (lowest letter) Admiralty grade among the evidence items that counted towards the link. */
+/** The best (lowest letter) Admiralty grade among the evidence items that counted, in paths that counted. */
 export function bestReliability(link: LinkAssessment): AdmiraltyReliability | undefined {
   const grades = (link.paths ?? [])
+    .filter((p) => p.counted !== false)
     .flatMap((p) => p.identityHop.contributions.concat(p.addressHop.contributions))
     .filter((c) => c.counted)
     .map((c) => c.reliability);

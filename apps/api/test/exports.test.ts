@@ -11,6 +11,8 @@ let runtime: Runtime;
 let app: ReturnType<typeof buildApp>;
 let runId: string;
 let caseId: string;
+const missing = new Set<string>();
+const damaged = new Set<string>();
 
 beforeAll(async () => {
   runtime = await createRuntime({
@@ -20,7 +22,17 @@ beforeAll(async () => {
     logger: silent,
     stages: () => [],
   });
-  app = buildApp({ ...runtime, analyst: ANALYST });
+  const blobs = runtime.blobs;
+  const faulty: typeof blobs = {
+    ...blobs,
+    put: (bytes, mediaType) => blobs.put(bytes, mediaType),
+    has: async (sha) => !missing.has(sha) && blobs.has(sha),
+    async get(sha) {
+      const bytes = await blobs.get(sha);
+      return damaged.has(sha) ? new TextEncoder().encode('damaged') : bytes;
+    },
+  };
+  app = buildApp({ ...runtime, blobs: faulty, analyst: ANALYST });
   caseId = (await app.inject({ method: 'POST', url: '/api/cases', payload: newCase })).json().id as string;
   runId = (await app.inject({ method: 'POST', url: `/api/cases/${caseId}/runs`, payload: {} })).json().id as string;
   await runtime.idle();
@@ -59,5 +71,38 @@ describe('report exports', () => {
     expect((await app.inject(`/api/runs/${runId}/exports/pdf`)).statusCode).toBe(400);
     expect((await app.inject(`/api/runs/${newId()}/exports/stix`)).statusCode).toBe(404);
     expect((await app.inject(`/api/runs/not-an-id/exports/stix`)).statusCode).toBe(404);
+  });
+
+  // oxlint-disable-next-line unicorn/consistent-function-scoping
+  const exported = async () =>
+    ((await runtime.repos.custody?.listBySubjects([runId])) ?? []).filter((e) => e.action === 'exported').length;
+
+  it('lists the available exports of the current report', async () => {
+    const items = (await app.inject(`/api/runs/${runId}/exports`)).json().items as { format: string }[];
+    expect(items.map((i) => i.format)).toEqual([...EXPORT_KINDS]);
+    expect((await app.inject(`/api/runs/${newId()}/exports`)).statusCode).toBe(404);
+  });
+
+  it('does not record an export for HEAD, a missing blob or a damaged blob', async () => {
+    const before = await exported();
+    expect((await app.inject({ method: 'HEAD', url: `/api/runs/${runId}/exports/misp` })).statusCode).toBe(200);
+    expect(await exported()).toBe(before);
+
+    const items = (await app.inject(`/api/runs/${runId}/exports`)).json().items as { format: string; sha256: string }[];
+    const sha = (format: string) => items.find((i) => i.format === format)!.sha256;
+    missing.add(sha('csv_links'));
+    expect((await app.inject(`/api/runs/${runId}/exports/csv_links`)).statusCode).toBe(404);
+    damaged.add(sha('csv_changes'));
+    expect((await app.inject(`/api/runs/${runId}/exports/csv_changes`)).statusCode).toBe(500);
+    expect(await exported()).toBe(before);
+    missing.clear();
+    damaged.clear();
+  });
+
+  it('offers nothing for a run whose newest HTML report has no matching exports', async () => {
+    const sha = (await runtime.blobs.put(new TextEncoder().encode('<p>x</p>'), 'text/html')).sha256;
+    await runtime.repos.analysis.addReport({ runId, kind: 'html', blobSha256: sha, mediaType: 'text/html' });
+    expect((await app.inject(`/api/runs/${runId}/exports`)).json().items).toEqual([]);
+    expect((await app.inject(`/api/runs/${runId}/exports/stix`)).statusCode).toBe(404);
   });
 });

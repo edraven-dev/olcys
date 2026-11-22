@@ -24,6 +24,7 @@ serwer deweloperski Vite (`/api`). W MVP uruchamia też potok analizy w tym samy
 | `GET /api/runs/:id/changes`                                         | zmiany względem poprzedniego przebiegu (m.in. podmiana portfela)                            |
 | `GET /api/runs/:id/egress`                                          | dziennik ruchu wychodzącego przebiegu                                                       |
 | `GET /api/runs/:id/report`                                          | raport HTML przebiegu                                                                       |
+| `GET /api/runs/:id/exports`                                         | lista eksportów bieżącej wersji raportu (pusta dla starszych raportów)                      |
 | `GET /api/runs/:id/exports/:format`                                 | eksport raportu: `stix`, `misp`, `csv_links`, `csv_evidence`, `csv_cash_out`, `csv_changes` |
 | `GET /api/labels`                                                   | etykiety adresów z pochodzeniem (zbiór danych, URL, licencja, data zmiany)                  |
 | `GET /api/captures/:id`, `GET /api/blobs/:sha256`                   | metadane przechwycenia; surowa treść dowodu wyłącznie jako plik do pobrania                 |
@@ -94,7 +95,7 @@ sprawdzają to samo ponownie przy zbieraniu.
 
 `GET /api/runs/:id/exports/:format` zwraca najnowszy eksport przebiegu (STIX 2.1, MISP lub jedną z czterech tabel CSV —
 zob. `packages/reporting/README.md`) jako załącznik z nagłówkami `x-content-type-options: nosniff` i
-`content-security-policy: sandbox`. Każde pobranie zapisuje w łańcuchu dowodowym zdarzenie `exported` (podmiot: raport
+`content-security-policy: sandbox`. Plik jest czytany i sprawdzany względem skrótu SHA-256 przed wysłaniem (brak lub uszkodzenie: 404 / 500); zdarzenie zapisuje wyłącznie udane `GET` tuż przed wysłaniem (nie `HEAD`). Eksporty pochodzą zawsze z tej samej wersji raportu co HTML. Każde pobranie zapisuje w łańcuchu dowodowym zdarzenie `exported` (podmiot: raport
 przebiegu; szczegóły: format, skrót SHA-256 pliku i cel sprawy), z analitykiem z konfiguracji serwera. Nieznany format to
 400, nieznany przebieg lub brak eksportu — 404. Znacznik TLP i nazwa producenta STIX pochodzą ze zmiennych
 `OLCYS_EXPORT_TLP` (domyślnie `amber`) i `OLCYS_STIX_PRODUCER_NAME`.

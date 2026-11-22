@@ -1162,6 +1162,7 @@ export const pl = {
     error: 'Nie udało się sprawdzić dostępności raportu.',
     exports: {
       title: 'Eksport do innych narzędzi',
+      none: 'Ta wersja raportu nie ma eksportów (powstała przed ich wprowadzeniem albo zapis eksportów się nie powiódł). Użyj przycisku „Wygeneruj raport ponownie”, aby je utworzyć.',
       hint: 'Pliki zawierają dane sprawy (domyślnie oznaczenie TLP:AMBER); pobranie jest odnotowywane w łańcuchu dowodowym. Eksport obejmuje fakty i wyniki obliczeń, bez niezatwierdzonych sugestii modelu AI.',
       stix: 'Pakiet STIX 2.1 (JSON)',
       misp: 'Zdarzenie MISP (JSON)',

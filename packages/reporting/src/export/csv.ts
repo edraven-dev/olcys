@@ -3,7 +3,7 @@
  * English snake_case headers (data, not UI). Text cells are protected against spreadsheet formula injection; numbers and
  * decimals are written exactly as stored.
  */
-import type { Capture } from '@olcys/core';
+import type { Capture, CashOutEvent } from '@olcys/core';
 import { addressKey } from '@olcys/core';
 import { cmp, icdTerm } from '../view.ts';
 import { selectLinks, type ExportInput } from './select.ts';
@@ -55,6 +55,7 @@ const HEADERS: Record<CsvExport, readonly string[]> = {
     'nbp_table',
     'nbp_effective_date',
     'nbp_rate',
+    'pln_synthetic',
   ],
   csv_changes: [
     'kind',
@@ -91,6 +92,16 @@ const num = (n: string | number | undefined): Cell => ({ num: n });
 function table(kind: CsvExport, rows: Cell[][]): string {
   const lines = [HEADERS[kind].join(','), ...rows.map((r) => r.map(cell).join(','))];
   return `\uFEFF${lines.join('\r\n')}\r\n`;
+}
+
+/**
+ * `true` when the PLN value rests on a synthetic (demo) rate, in the event or in any of its components; `false` for
+ * official NBP rates; empty when the event has no valuation.
+ */
+function syntheticFlag(e: CashOutEvent): string {
+  const valuations = [e.valuation, ...(e.components ?? []).map((c) => c.valuation)].filter((v) => v !== undefined);
+  if (!valuations.length) return '';
+  return String(valuations.some((v) => v.nbp.synthetic === true));
 }
 
 const urlOf = (c: Capture) => c.finalUrl || c.url;
@@ -158,6 +169,7 @@ export function toCsv(kind: CsvExport, input: ExportInput): string {
             e.valuation?.nbp.table,
             e.valuation?.nbp.effectiveDate,
             num(e.valuation?.nbp.rate),
+            syntheticFlag(e),
           ]),
       );
     case 'csv_changes':
