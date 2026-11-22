@@ -1,4 +1,12 @@
-import type { AddressLabel, AddressRef, AnalysisRun, Capture, LinkAssessment, Observation } from '@olcys/core';
+import type {
+  AddressLabel,
+  AddressRef,
+  AnalysisRun,
+  Capture,
+  ExtractionResult,
+  LinkAssessment,
+  Observation,
+} from '@olcys/core';
 import { newId } from '@olcys/core';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createDb, createSqlRepositories, migrate, type Db } from '../src/index.ts';
@@ -6,6 +14,14 @@ import { createDb, createSqlRepositories, migrate, type Db } from '../src/index.
 const appUrl = process.env['OLCYS_TEST_DATABASE_URL'];
 const ownerUrl = process.env['OLCYS_TEST_DATABASE_URL_OWNER'];
 const enabled = Boolean(appUrl && ownerUrl);
+
+const extractionOf = (captureId: string): ExtractionResult => ({
+  captureId,
+  candidates: [],
+  rejected: [],
+  secrets: [{ kind: 'wif', view: 'visible_text', span: { start: 1, end: 5 } }],
+  extractorVersion: 'test',
+});
 
 describe.skipIf(!enabled)('SQL repositories (integration: needs OLCYS_TEST_DATABASE_URL[_OWNER])', () => {
   let db: Db;
@@ -185,5 +201,62 @@ describe.skipIf(!enabled)('SQL repositories (integration: needs OLCYS_TEST_DATAB
     await expect(
       db.insertInto('schema_migrations').values({ version: '9999', name: 'forged', sha256: 'x' }).execute(),
     ).rejects.toThrow(/permission denied/);
+  });
+
+  it('addExtractions stores all results or none (one transaction)', async () => {
+    const repos = createSqlRepositories(db);
+    const kase = await repos.cases.create(
+      {
+        title: 'Test wsadowy',
+        purpose: 'Test integracyjny na danych syntetycznych',
+        legalBasis: 'demonstracja',
+        identifiers: [{ kind: 'nickname', value: 'fikcyjny_batch', isAnchor: true }],
+        scope: { enabledSources: [], amberJustifications: {}, chains: [], maxPivotDepth: 1 },
+      },
+      'test',
+    );
+    const run: AnalysisRun = {
+      id: newId(),
+      caseId: kase.id,
+      trigger: 'manual',
+      mode: 'offline',
+      status: 'queued',
+      config: {
+        toolVersion: '0',
+        sourcesConfigSha256: 'a',
+        weightsVersion: 'w',
+        weightsSha256: 'b',
+        rulesVersions: {},
+      },
+      queuedAt: new Date().toISOString(),
+    };
+    await repos.runs.create(run);
+    const capture: Capture = {
+      id: newId(),
+      runId: run.id,
+      sourceId: 'fixture_site',
+      url: 'http://127.0.0.1:4100/p',
+      finalUrl: 'http://127.0.0.1:4100/p',
+      collectedAt: new Date().toISOString(),
+      collector: 'test',
+      clockSynced: true,
+      toolVersion: '0',
+      userAgent: 'test',
+      httpStatus: 200,
+      status: 'ok',
+      artifacts: [],
+      manifestSha256: '0'.repeat(64),
+      fetchIds: [],
+    };
+    await repos.evidence.addCaptures([capture]);
+    // The second result names a capture that does not exist: the foreign key fails the whole batch.
+    await expect(
+      repos.evidence.addExtractions!(run.id, [extractionOf(capture.id), extractionOf(newId())]),
+    ).rejects.toThrow(/foreign key|violates/i);
+    expect(await repos.evidence.listExtractionResults(run.id)).toEqual([]);
+    expect(await db.selectFrom('secret_findings').select('id').where('run_id', '=', run.id).execute()).toEqual([]);
+
+    await repos.evidence.addExtractions!(run.id, [extractionOf(capture.id)]);
+    expect(await repos.evidence.listExtractionResults(run.id)).toHaveLength(1);
   });
 });

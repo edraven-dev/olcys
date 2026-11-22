@@ -3,6 +3,7 @@
  * Runtime code connects as `olcys_app` (append-only); migrations run as the schema owner.
  */
 export { createDb, iso, json, type Db } from './client.ts';
+export { queryFlowEdges } from './flow-query.ts';
 export { migrate, migrationStatus, MIGRATIONS_DIR, type MigrationStatus } from './migrate.ts';
 export type * from './schema.ts';
 export * from './sql/index.ts';

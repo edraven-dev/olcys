@@ -27,6 +27,11 @@ export interface NormalizedTransfer {
   kind: 'native' | 'token' | 'internal';
   /** Method name or 4-byte selector of the top-level call, when known. */
   method?: string;
+  /**
+   * Set on rows derived for flow queries only: a Bitcoin payment attributed to a co-spending input (the same output as
+   * the original row, so a value aggregation must count it once). Such rows start and continue downstream paths only.
+   */
+  derivedFrom?: 'co_spend';
   fetchId: Id;
 }
 
