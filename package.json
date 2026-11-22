@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "dev:deps": "docker compose up -d --wait",
+    "signing:init": "docker compose --profile osint run --rm --no-deps osint-py python scripts/make_demo_signer.py /signing",
     "dev:deps:down": "docker compose down",
     "dev": "pnpm --parallel --filter \"./apps/*\" --filter \"!@olcys/fixture-site\" run dev",
     "dev:fixture": "pnpm --filter @olcys/fixture-site run dev",

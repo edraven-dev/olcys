@@ -67,6 +67,19 @@ services:
     <<: *hardened
     environment:
       <<: *telemetry-off
+      # Hardening: Chromium may only read the files uploaded with the request (they live under /tmp) and cannot fetch
+      # anything else. The patterns are anchored: an allow-list match bypasses the IP checks. Never set
+      # CHROMIUM_PROXY_SERVER (it switches off the DNS-rebinding pinning proxy).
+      CHROMIUM_ALLOW_LIST: '^file:///tmp/.*'
+      CHROMIUM_DENY_PUBLIC_IPS: 'true'
+      CHROMIUM_DENY_PRIVATE_IPS: 'true'
+      CHROMIUM_DISABLE_JAVASCRIPT: 'true'
+      API_DISABLE_DOWNLOAD_FROM: 'true'
+      WEBHOOK_DISABLE: 'true'
+      # No time-stamp authority is reachable from the PDF engine (stamps are requested by the worker, never by Gotenberg).
+      PDF_DENY_PUBLIC_IPS: 'true'
+      PDF_DENY_PRIVATE_IPS: 'true'
+      API_TIMEOUT: 60s
     ports:
       - '127.0.0.1:${GOTENBERG_PORT:-3100}:3000'
     healthcheck:
@@ -114,11 +127,15 @@ services:
     <<: *hardened
     read_only: true
     tmpfs: [/tmp]
+    volumes:
+      - signing-keys:/signing
     environment:
       <<: *telemetry-off
       # The worker may reach the fixture site by default; real third-party sites only when enabled.
       OLCYS_OSINT_ALLOW_EXTERNAL: ${OLCYS_OSINT_ALLOW_EXTERNAL:-false}
       OLCYS_FIXTURE_BASE_URL: http://fixture-site:4100
+      # Demo signing identity (self-signed, not qualified): created on first use inside this volume, never committed.
+      OLCYS_SIGNING_DIR: /signing
       # Telemetry stays off (no analytics or model-hub calls from the Python stack).
       DO_NOT_TRACK: '1'
       HF_HUB_OFFLINE: '1'
@@ -232,3 +249,5 @@ volumes:
   ollama-models:
   esplora-regtest-data:
   anvil-data:
+  # Demo signing identity of osint-py (private key; never in the repository or an image).
+  signing-keys:

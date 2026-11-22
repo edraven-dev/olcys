@@ -33,11 +33,34 @@ export {
   type StixOptions,
   type TlpLevel,
 } from './export/index.ts';
+export { draftOutput, inferencesFromDrafts, isReportableDraft } from './drafts.ts';
 export { buildReportModel } from './model.ts';
 export { escapeHtml, markup, SafeHtml, t, type Html } from './html.ts';
 export { pl, type Catalogue } from './i18n/pl.ts';
 export { STATEMENT_IDS, type StatementClass } from './render/blocks.ts';
 export { REPORT_CSP, renderReport } from './render/document.ts';
+export {
+  buildReportManifest,
+  createReportManifest,
+  MANIFEST_FILE_NAME,
+  REPORT_MANIFEST_SCHEMA,
+  type ReportManifest,
+  type ReportManifestCapture,
+} from './manifest.ts';
+export {
+  gotenbergStages,
+  PDF_MAX_BYTES,
+  PDF_MAX_RESPONSE_BYTES,
+  PDF_MEDIA_TYPE,
+  PDF_SOURCES,
+  PDFA_PROFILE,
+  PdfRenderError,
+  renderReportPdf,
+  type ReportPdfArtifact,
+  type ReportPdfDeps,
+  type ReportPdfResult,
+  type ReportPdfStatus,
+} from './pdf.ts';
 export { assertSelfContainedHtml, ExternalReferenceError } from './self-contained.ts';
 export {
   createReportStage,
@@ -51,6 +74,8 @@ export {
   REPORT_KINDS,
   storeReport,
   type ExportSet,
+  type PdfSetEntry,
+  type ReportPdfOptions,
   type ReportStage,
   type ReportStageContext,
   type ReportStageOptions,

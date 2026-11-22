@@ -55,6 +55,19 @@ ocenie, tabela korekt analityka ze zbioru ustalonego przy zleceniu (`config.anal
 portów `judgements` i `overrides`; raport zakończonego przebiegu można wygenerować ponownie (nowa wersja z ocenami
 zapisanymi do tej chwili, poprzednie pozostają w magazynie).
 
+### Szkice wniosków AI w sekcji C
+
+Sekcja C („Wnioski wymagające weryfikacji”) może zawierać szkice przygotowane przez model lokalny na prośbę analityka
+(zadanie `report-inference-draft`, `packages/llm/README.md`). `buildReportData` dołącza do `ReportData.inferenceDrafts`
+wyłącznie szkice **potwierdzone** przez analityka (z poprawionym tekstem lub bez), od najwcześniejszej decyzji;
+oczekujące i odrzucone nigdy nie trafiają ani do danych, ani do HTML, ani do modelu raportu — widzi je tylko interfejs
+jako „Sugestia AI — niezweryfikowana”. Potwierdzony szkic jest wnioskiem (`origin: 'ai_suggestion'`, pole `ai` z
+analitykiem, czasem decyzji, modelem i wersją promptu; `review: 'edited'` i `draftStatement` przy poprawionym tekście)
+z etykietą „Wspomagane AI, zatwierdzone przez analityka: {analityk} ({data})”, powołanymi identyfikatorami faktów i
+wyników (w HTML z odwołaniem do rejestru dowodów), wyjaśnieniami alternatywnymi i krokami weryfikacji. Szkic nie zmienia
+wyników obliczeń, Wskaźnika Pewności ani podsumowania; bez potwierdzonych szkiców HTML jest identyczny jak bez modelu.
+Decyzja zleca ponowne wygenerowanie raportu przez tę samą, szeregowaną ścieżkę co każda decyzja o sugestii.
+
 ## Bezpieczeństwo i jakość dokumentu
 
 - Każda wartość wstawiana do HTML jest escapowana (`html`, `t()`); znaki niewidoczne i sterujące kierunkiem tekstu są
@@ -100,6 +113,43 @@ nim, więc raport zawiera wykryte zmiany. `GET /api/runs/:id/report` zwraca najn
 źródłowe, wyniki obliczeń i wnioski (każdy z `requiresVerification`) osobno, blok odtwarzalności, podsumowanie, chronologię
 przepływów, zmiany i rejestr dowodów. Zdania pochodzą z katalogu polskiego (`pl.model` i istniejących sekcji), więc
 konsola i HTML mówią tym samym językiem. `findPublishedReport` zwraca bieżącą, w pełni opublikowaną wersję raportu (skrót wpisu `export_set` jako id wersji, skróty HTML, danych i eksportów), a `loadReportVersion` — wersję wskazaną id; brak wiersza to `undefined`, raport w starym formacie to `legacy: true`, a nieczytelny blob lub błędny JSON to wyjątek. `ReportModel.coverage` niesie ostrzeżenie o niepełnej analizie (niedostępne strony i powody zgłoszone przez etapy), tak jak raport HTML.
+
+## Raport PDF/A-3b, manifest i podpis
+
+Krok `report.render` może — po zapisaniu HTML, danych i eksportów — wytworzyć raport PDF (`createReportStage({ pdf })`;
+w workerze włączany zmienną `GOTENBERG_URL`, wyłączany `OLCYS_REPORT_PDF=false`; `OLCYS_PDF_SIGNING=false` pomija
+podpis). `renderReportPdf` robi to w kolejności:
+
+1. `assertSelfContainedHtml` (zewnętrzne odwołanie przerywa przed jakimkolwiek żądaniem).
+2. Manifest raportu (`createReportManifest` / `buildReportManifest`): kanoniczny JSON (RFC 8785) z modelem raportu, skrótami
+   HTML i danych, zabezpieczeniami (z tokenami RFC 3161) i wersją narzędzia. `reportModelSha256` jest równy skrótowi danych
+   raportu wypisanemu w metryce HTML.
+3. Gotenberg 9 (`POST /forms/chromium/convert/html`, jedno żądanie): pliki `index.html` i `manifest.json`, etapy
+   `attach` (manifest jako plik skojarzony PDF/A-3, relacja `Data`) i `remediate` (profil PDF/A-3b, język `pl-PL`),
+   `failOnResourceLoadingFailed` i `failOnConsoleExceptions`. Wymagany nagłówek `Gotenberg-Remediation-Residual: 0`, po
+   czym `POST /forms/pdf/validate` musi zwrócić `compliant: true` bez naruszeń. Etapów `sign` i `timestamp` Gotenberga nie
+   używamy (klucz w każdym żądaniu i zapytanie do TSA poza klientem ruchu wychodzącego). Zweryfikowano, że pojedyncze
+   żądanie z etapami działa w Gotenberg 9.9.1, więc zapasowa ścieżka „konwersja + osobny załącznik” nie jest potrzebna.
+4. Podpis przez osint-py (`prepare` → `RFC 3161` przez `TrustedTimestamper` → `finish`, zob. `services/osint-py/README.md`).
+
+Każde wywołanie jest jednym żądaniem klienta ruchu wychodzącego (źródła `gotenberg` i `pdf_signing`, `containsIdentifier:
+true`; w trybach `offline` i `replay` bez nagrań). Wynik (`ReportPdfResult`): status `signed_timestamped` (PAdES B-T),
+`signed` (B-B: w trybie offline lub gdy TSA jest niedostępne; kolejkowany jest znacznik `report_pdf` dla skrótu podpisanego
+pliku, wydawany później przez `tsa:flush`) albo `unsigned` (usługa podpisu niedostępna: PDF i manifest zapisane, jedno
+ostrzeżenie `signing_unavailable`, przebieg nie kończy się błędem). Błąd renderowania lub walidacji PDF/A (`PdfRenderError`)
+nie przerywa zapisu raportu HTML: przebieg kończy się jako `partial` (kod `pdf_unavailable`).
+
+PDF należy do **tej samej wersji** raportu co HTML: wpis `pdf` w zbiorze `export_set` (a więc w id wersji) niesie skrót,
+rozmiar, status podpisu, profil PDF/A i skrót osadzonego manifestu. Konsola i `GET /api/runs/:id/report/view` pokazują go
+z jednoznacznym oznaczeniem, że podpis jest **demonstracyjny, niekwalifikowany**; znacznik `report_pdf` wydany później jest
+dołączany do listy plików (`pdf_timestamp`) bez zmiany wersji.
+
+**Utwardzenie Gotenberga** (`compose.yml`): Chromium czyta wyłącznie przesłane pliki (`CHROMIUM_ALLOW_LIST=^file:///tmp/.*`,
+zakotwiczony wzorzec), odrzuca adresy publiczne i prywatne, bez JavaScriptu; pobieranie z adresu i webhooki wyłączone;
+`PDF_DENY_*_IPS` (brak dostępu do TSA); nigdy `CHROMIUM_PROXY_SERVER`. Test integracyjny
+(`OLCYS_IT_GOTENBERG=1 GOTENBERG_URL=... pnpm vitest run --project @olcys/reporting`) sprawdza zgodność PDF/A-3b, manifest
+w załączniku i brak żądań wychodzących (obraz z `https://example.org`, z `fixture-site` i z nasłuchiwacza testowego).
+Zablokowany zasób nie powoduje błędu: PDF powstaje bez obrazu (nawet z `failOnResourceLoadingFailed`).
 
 ## Eksporty: STIX 2.1, MISP i CSV
 

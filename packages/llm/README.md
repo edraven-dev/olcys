@@ -99,3 +99,25 @@ ekstraktora (`agrees` / `differs` / `lexicon_silent`); wynik trafia do `output.a
 
 Wynik to sugestia o zerowej wadze: nie zapisuje żadnej przesłanki ani oceny. Krok potoku (`llm.suggest`) opisuje
 `apps/worker/README.md`. Test dymny z żywym modelem: `OLCYS_LLM_LIVE=1 pnpm vitest run --project @olcys/worker suggest-roles-live`.
+
+## Zadanie `report-inference-draft` (v1): szkice wniosków do sekcji C raportu
+
+Na prośbę analityka (`POST /api/runs/:runId/report/drafts`, przycisk „Zaproponuj wnioski (AI)” w zakładce raportu;
+tylko gdy model jest włączony) `draftInferences` prosi model o szkice wniosków „wymagających weryfikacji” na podstawie
+**wyłącznie** faktów (A) i wyników obliczeń (B) zapisanego raportu — nigdy stron źródłowych. `buildDraftContext` buduje
+wejście: jedna linia na pozycję, `[W:<id>] …` (wynik obliczeń; najpierw wyniki, od najwyższego Wskaźnika Pewności, potem
+identyfikatory) i `[F:<id>] …` (fakt, po identyfikatorze), z pominięciem wszystkiego, co opiera się na zabezpieczeniu,
+którego model nie może zobaczyć (`captureSource`, czyli `isLlmAllowed`: Telegram, źródło z `llmAllowed: false`,
+nieznane źródło — bezpośrednio albo przez `basedOn`; licznik `excluded`). Cała lista jest daną w znaczniku
+`UNTRUSTED_DATA`; limit 12000 znaków obcina całe linie (`truncated`), wynik jest deterministyczny.
+
+Odpowiedź ma ścisły schemat: do 6 szkiców, każdy z `statement` (do 600 znaków), `basedOn` (1–10 identyfikatorów w
+postaci `F:<id>`/`W:<id>`), `alternatives` (1–4, do 300 znaków) i `verificationSteps` (0–4, do 300 znaków); prompt
+mówi po polsku, że to hipotezy, a nie ustalenia, zakazuje powtarzania wyników punktowych i ocen osoby. Po wywołaniu
+szkic jest odrzucany, gdy cytuje identyfikator spoza wejścia (`dropped.unknownBasis`) albo powtarza wynik punktowy
+(`%`, `/100`, „Wskaźnik Pewności”; `dropped.restatesScore`). Wynik to sugestie (`LlmSuggestion`, zadanie
+`report-inference-draft`, `target.reportId`, `label: 'draft'`, `output` = `InferenceDraft`) o zerowej wadze: nie
+zmieniają ocen ani podsumowania. Decyzja (potwierdź lub odrzuć, uzasadnienie co najmniej 10 znaków, opcjonalnie
+poprawiony tekst `editedText`) zapada przez `POST /api/suggestions/:id/decision`; w raporcie pojawiają się tylko
+potwierdzone szkice (opis w `packages/reporting/README.md`). Test dymny z żywym modelem (dane syntetyczne):
+`OLCYS_LLM_LIVE=1 pnpm vitest run --project @olcys/worker draft-inferences-live`.

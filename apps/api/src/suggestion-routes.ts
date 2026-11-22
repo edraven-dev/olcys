@@ -3,7 +3,7 @@
  * the analyst's confirmation or rejection (append-only, once per suggestion, with a justification); it never changes
  * a stored score and takes effect only in a later rescore. The analyst is the API's configured identity.
  */
-import type { LlmSuggestionDecision, Logger, Repositories, RunWithProgress } from '@olcys/core';
+import type { DraftInferencesResult, LlmSuggestionDecision, Logger, Repositories, RunWithProgress } from '@olcys/core';
 import { newId, nowIso, parse, SuggestionDecisionSchema } from '@olcys/core';
 import type { FastifyInstance } from 'fastify';
 import { idOf } from './ids.ts';
@@ -14,6 +14,10 @@ export interface SuggestionRouteDeps {
   logger?: Logger;
   /** Renders the run's report again (a new stored version); see `reportRenderer`. */
   renderReport?(run: RunWithProgress): Promise<void>;
+  /** Whether the AI model is enabled; drafts of section C are offered only then. */
+  llmEnabled?: boolean;
+  /** Drafts inferences for section C of the run's report (suggestions only); see `createDraftInferencer`. */
+  draftInferences?(run: RunWithProgress): Promise<DraftInferencesResult>;
 }
 
 export function registerSuggestionRoutes(app: FastifyInstance, deps: SuggestionRouteDeps): void {
@@ -57,6 +61,20 @@ export function registerSuggestionRoutes(app: FastifyInstance, deps: SuggestionR
     const run = runId ? await deps.repos.runs.get(runId) : undefined;
     if (!run) return reply.code(404).send({ error: 'not_found', message: 'run not found' });
     return { items: await llm.listSuggestionsByRun(run.id) };
+  });
+
+  // Explicit, analyst-triggered and bounded: one model call, a handful of drafts. A model failure is a typed result
+  // (200 with `status: 'failed'`), never an error; the drafts are pending suggestions and change nothing else.
+  app.post<{ Params: { runId: string } }>('/api/runs/:runId/report/drafts', async (request, reply) => {
+    const runId = idOf(request.params.runId);
+    const run = runId ? await deps.repos.runs.get(runId) : undefined;
+    if (!run) return reply.code(404).send({ error: 'not_found', message: 'run not found' });
+    if (!deps.llmEnabled || !deps.draftInferences) {
+      return reply.code(409).send({ error: 'llm_disabled', message: 'the AI model is not enabled' });
+    }
+    const result = await deps.draftInferences(run);
+    deps.logger?.info('inference drafts requested', { runId: run.id, analyst: deps.analyst, status: result.status });
+    return result;
   });
 
   app.post<{ Params: { id: string } }>('/api/suggestions/:id/decision', async (request, reply) => {

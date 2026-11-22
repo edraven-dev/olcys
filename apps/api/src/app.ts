@@ -7,6 +7,7 @@ import type {
   AnalysisRun,
   ApiMeta,
   BlobStore,
+  DraftInferencesResult,
   LegacyReportView,
   ReportFile,
   ReportView,
@@ -35,6 +36,7 @@ import {
   EXPORT_KINDS,
   EXPORT_MEDIA_TYPES,
   findExportSet,
+  type PdfSetEntry,
   findPublishedReport,
   loadReportVersion,
   REPORT_HTML_MEDIA_TYPE,
@@ -87,6 +89,8 @@ export interface ApiDeps {
   config?: { snapshot: RunConfigSnapshot };
   /** The AI model: suggestions are offered (`ApiMeta.features.suggestions`) only when it is enabled. */
   llm?: Pick<LlmClient, 'enabled'>;
+  /** Drafts inferences for section C of a run's report (`POST /api/runs/:runId/report/drafts`); needs `llm`. */
+  draftInferences?(run: RunWithProgress): Promise<DraftInferencesResult>;
   /** Audit log of analyst actions (judgements, overrides). */
   logger?: Logger;
   /** Renders a new version of a finished run's report (`POST /api/runs/:runId/report`). */
@@ -154,6 +158,45 @@ const legacyFiles = (runId: string, set: ExportSet): ReportFile[] => [
       : [];
   }),
 ];
+
+/**
+ * The token of the report PDF: embedded in the signature (B-T) or, for a B-B signature, the stamp of the whole file that
+ * a live flush granted later. A version is immutable; this lookup only adds the token once it exists.
+ */
+async function pdfTimestamp(
+  repos: Repositories,
+  pdf: PdfSetEntry | undefined,
+): Promise<{ sha256: string; bytes: number } | undefined> {
+  if (!pdf) return undefined;
+  if (pdf.timestampSha256) return { sha256: pdf.timestampSha256, bytes: pdf.timestampBytes ?? 0 };
+  const stored = await repos.timestamps?.getToken({ type: 'report_pdf', id: pdf.reportId, digest: pdf.sha256 });
+  return stored ? { sha256: stored.token.token.sha256, bytes: stored.token.token.bytes } : undefined;
+}
+
+/** The report PDF of a version as a listed file: available with its signature status, or unavailable. */
+const pdfFile = (pdf: PdfSetEntry | undefined, base: string, fileName: string): ReportFile =>
+  pdf
+    ? {
+        kind: 'pdf',
+        fileName,
+        mediaType: 'application/pdf',
+        available: true,
+        path: `${base}/pdf`,
+        bytes: pdf.bytes,
+        sha256: pdf.sha256,
+        pdf: {
+          status: pdf.status,
+          demoCertificate: true,
+          pdfaProfile: pdf.pdfa.profile,
+          pdfaCompliant: pdf.pdfa.compliant,
+          ...(pdf.signature
+            ? { signedAt: pdf.signature.signedAt, signerCertSha256: pdf.signature.signerCertSha256 }
+            : {}),
+          warnings: pdf.warnings,
+          manifestSha256: pdf.manifestSha256,
+        },
+      }
+    : { kind: 'pdf', fileName, mediaType: 'application/pdf', available: false, path: '' };
 
 const describeViolation = (v: ScopeViolation): string => {
   switch (v.code) {
@@ -258,6 +301,7 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
       features: {
         judgements: supportsJudgements(repos),
         suggestions: Boolean(repos.llm) && deps.llm?.enabled === true,
+        inferenceDrafts: Boolean(repos.llm) && deps.llm?.enabled === true && deps.draftInferences !== undefined,
         schedules: repos.schedules !== undefined,
         reportPdf: false,
         exports: false,
@@ -530,8 +574,7 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
         bytes: await size(set.htmlSha256),
         sha256: set.htmlSha256,
       },
-      // PDF/A is produced by a later pipeline step; until then the file is listed as unavailable.
-      { kind: 'pdf', fileName: name('pdf'), mediaType: 'application/pdf', available: false, path: '' },
+      pdfFile(set.pdf, base, name('pdf')),
       {
         kind: 'manifest',
         fileName: name('json'),
@@ -542,6 +585,18 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
         sha256: set.dataSha256,
       },
     ];
+    const pdfToken = await pdfTimestamp(repos, set.pdf);
+    if (pdfToken) {
+      files.push({
+        kind: 'pdf_timestamp',
+        fileName: name('pdf.tsr'),
+        mediaType: 'application/timestamp-reply',
+        available: true,
+        path: `/api/blobs/${pdfToken.sha256}`,
+        bytes: pdfToken.bytes,
+        sha256: pdfToken.sha256,
+      });
+    }
     for (const capture of data.captures) {
       const token = capture.timestamp?.token;
       if (!token) continue;
@@ -588,11 +643,13 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
         const stored = published.set.exports[kind];
         return stored ? sendExport(request, reply, run, kind, stored) : notFound(reply, 'export');
       }
+      const pdf = published.set.pdf;
       const files = {
         html: { sha: published.set.htmlSha256, mediaType: REPORT_HTML_MEDIA_TYPE, extension: 'html' },
         manifest: { sha: published.set.dataSha256, mediaType: REPORT_DATA_MEDIA_TYPE, extension: 'json' },
-      } as const;
-      const file = kind === 'html' || kind === 'manifest' ? files[kind] : undefined;
+        ...(pdf ? { pdf: { sha: pdf.sha256, mediaType: 'application/pdf', extension: 'pdf' } } : {}),
+      } as Record<string, { sha: string; mediaType: string; extension: string }>;
+      const file = files[kind];
       if (!file || !(await deps.blobs.has(file.sha))) return notFound(reply, 'report');
       const bytes = await deps.blobs.get(file.sha);
       if (createHash('sha256').update(bytes).digest('hex') !== file.sha) {
@@ -650,6 +707,8 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
     analyst,
     ...(deps.logger ? { logger: deps.logger } : {}),
     ...(deps.renderReport ? { renderReport: deps.renderReport } : {}),
+    llmEnabled: deps.llm?.enabled === true,
+    ...(deps.draftInferences ? { draftInferences: deps.draftInferences } : {}),
   });
 
   return app;

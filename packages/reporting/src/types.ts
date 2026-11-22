@@ -105,6 +105,11 @@ export interface ReportData {
    * AI hypotheses with zero score weight, never facts. Rejected ones are listed as rejected.
    */
   suggestions?: LlmSuggestion[];
+  /**
+   * AI-drafted inferences of section C that an analyst confirmed (optionally edited), oldest decision first. Pending
+   * and rejected drafts are never part of the report data.
+   */
+  inferenceDrafts?: LlmSuggestion[];
   /** Analyst overrides this run applied (rescore runs: those recorded until it was queued), oldest first. */
   overrides?: AnalystOverride[];
 }

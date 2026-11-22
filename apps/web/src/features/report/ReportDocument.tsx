@@ -338,10 +338,20 @@ function InferencesSection({
             <li key={item.id} id={`inference-${item.id}`}>
               <p>
                 <span className={`tag${item.origin === 'ai_suggestion' ? ' tag-ai' : ''}`}>
-                  {pl.report.origins[item.origin]}
+                  {item.ai ? pl.report.aiAssisted : pl.report.origins[item.origin]}
                 </span>
                 <span className="tag tag-warn">{pl.report.requiresVerification}</span> {item.statement}
               </p>
+              {item.ai ? (
+                <p className="hint">
+                  {t(item.ai.review === 'edited' ? pl.report.aiEdited : pl.report.aiConfirmed, {
+                    analyst: item.ai.analyst,
+                    at: item.ai.decidedAt,
+                    model: item.ai.model,
+                    prompt: item.ai.promptVersion,
+                  })}
+                </p>
+              ) : null}
               <BasedOn ids={item.basedOn} targets={targets} />
               {item.alternatives.length > 0 ? (
                 <div>
@@ -349,6 +359,16 @@ function InferencesSection({
                   <ul>
                     {item.alternatives.map((alternative) => (
                       <li key={alternative}>{alternative}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+              {item.verificationSteps && item.verificationSteps.length > 0 ? (
+                <div>
+                  <h4>{pl.report.verificationSteps}</h4>
+                  <ul>
+                    {item.verificationSteps.map((step) => (
+                      <li key={step}>{step}</li>
                     ))}
                   </ul>
                 </div>

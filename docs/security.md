@@ -69,6 +69,20 @@ i z jakim wynikiem. Jest dopisywana w tle, bez żadnego monitu przed wyświetlen
   rejestruje samą ścieżkę (bez ciągu zapytania, który może zawierać identyfikatory) i nie zapisuje nagłówków żądania.
   Klucze prywatne i frazy odzyskiwania nie są przechowywane ani logowane (ekstraktor adresów usuwa je z pamięci).
 
+## Podpis raportu i renderowanie PDF
+
+- **Gotenberg** (renderowanie PDF/A) jest utwardzony w `compose.yml`: Chromium może czytać tylko pliki przesłane w żądaniu
+  (zakotwiczona lista dozwolonych `^file:///tmp/.*`), adresy publiczne i prywatne są odrzucane, JavaScript jest wyłączony,
+  pobieranie z adresu i webhooki są wyłączone, a usługa nie ma dostępu do żadnego serwera znaczników czasu (`PDF_DENY_*`).
+  Nie ustawiamy `CHROMIUM_PROXY_SERVER` (wyłączyłoby ochronę przed przepięciem DNS). Dostęp do usługi: tylko przez klienta
+  ruchu wychodzącego, jako źródło lokalne `gotenberg` (`internal_service`), z `containsIdentifier: true`.
+- **Podpis** (pyHanko w `services/osint-py`, źródło `pdf_signing`) używa lokalnego klucza **demonstracyjnego**: certyfikat
+  jest samopodpisany i **niekwalifikowany** — nie daje domniemań prawnych podpisu kwalifikowanego (eIDAS), a raport i konsola
+  mówią o tym wprost. Klucz prywatny powstaje na maszynie przy pierwszym użyciu w wolumenie kontenera, nie trafia do
+  repozytorium, obrazu, dziennika ani odpowiedzi API (`GET /v1/pdf/signer` zwraca wyłącznie certyfikaty). Zastosowanie
+  produkcyjne wymaga certyfikatu kwalifikowanego na module HSM (PKCS#11).
+- Poza system wychodzi wyłącznie skrót SHA-256 podpisu (znacznik czasu RFC 3161, jak dla zabezpieczeń dowodowych).
+
 ## Telemetria wyłączona
 
 Każdy kontener i konfiguracja CI ustawiają opt-outy z bloku telemetrii w `.env.example`: `DO_NOT_TRACK`,

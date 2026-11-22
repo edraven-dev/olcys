@@ -18,6 +18,8 @@ export interface ApiFeatures {
   /** Analyst judgements on links and analyst overrides of a case. */
   judgements: boolean;
   suggestions: boolean;
+  /** The analyst can ask the model for draft inferences of a report (needs the model and the report drafter). */
+  inferenceDrafts?: boolean;
   schedules: boolean;
   reportPdf: boolean;
   exports: boolean;
@@ -53,6 +55,7 @@ export interface ApiMeta {
 export const REPORT_FILE_KINDS = [
   'html',
   'pdf',
+  'pdf_timestamp',
   'manifest',
   'timestamp',
   'stix',
@@ -76,6 +79,24 @@ export interface ReportFile {
   sha256?: Sha256Hex;
   /** `timestamp` files: the capture whose manifest the RFC 3161 token stamps. */
   captureId?: string;
+  /** The `pdf` file: how it is signed. The certificate is always a self-signed demo one (never qualified). */
+  pdf?: ReportPdfInfo;
+}
+
+/** Signature and PDF/A status of the report PDF of one version. */
+export interface ReportPdfInfo {
+  /** `signed_timestamped`: PAdES B-T; `signed`: B-B (the file's time-stamp is requested separately); `unsigned`: no signature. */
+  status: 'signed_timestamped' | 'signed' | 'unsigned';
+  /** Always true: a demo certificate, not a qualified one. */
+  demoCertificate: true;
+  pdfaProfile: string;
+  pdfaCompliant: boolean;
+  signedAt?: string;
+  signerCertSha256?: Sha256Hex;
+  /** Stable warning codes (e.g. `signing_unavailable`). */
+  warnings: string[];
+  /** SHA-256 of the PDF/A manifest embedded in the file (an associated file). */
+  manifestSha256: Sha256Hex;
 }
 
 /** `GET /api/runs/:runId/report/view` for a report saved in the old format: files only, links not bound to a version. */

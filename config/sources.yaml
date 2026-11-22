@@ -593,6 +593,37 @@ providers:
     rateLimit: { requests: 50, perSeconds: 1 }
     allowedHosts: [127.0.0.1, localhost, anvil]
 
+  # --- Local services (never leave the machine; PDF rendering and signing of the report) ---------------
+  gotenberg:
+    name: Gotenberg (HTML to PDF/A rendering, local service)
+    kind: internal_service
+    compliance: GREEN
+    complianceNote: 'Open-source (MIT) Chromium/PDF engine run as a local container. It receives the finished report (it contains case data) and has no outbound access: Chromium is limited to the uploaded files (anchored allow-list, public and private IP denial, no JavaScript), download-from and webhooks are disabled. No licence-restricted PDF library is used. Reached only through the egress client; never served from or written to cassettes.'
+    namePl: 'Gotenberg (renderowanie HTML do PDF/A, usługa lokalna)'
+    complianceNotePl: 'Otwarte oprogramowanie (MIT): silnik Chromium/PDF uruchomiony jako lokalny kontener. Otrzymuje gotowy raport (zawiera dane sprawy) i nie ma dostępu do sieci: Chromium jest ograniczony do przesłanych plików (zakotwiczona lista dozwolonych adresów, blokada adresów publicznych i prywatnych, bez JavaScriptu), pobieranie z adresu i webhooki są wyłączone. Nie używa się bibliotek PDF o ograniczonej licencji. Dostęp wyłącznie przez klienta ruchu wychodzącego; nigdy nie jest odtwarzana z kaset ani do nich zapisywana.'
+    tosUrl: https://github.com/gotenberg/gotenberg/blob/main/LICENSE
+    enabledByDefault: true
+    requiresApiKey: false
+    sendsIdentifiersExternally: false
+    reliability: F
+    rateLimit: { requests: 2, perSeconds: 1 }
+    allowedHosts: [127.0.0.1, localhost, gotenberg]
+
+  pdf_signing:
+    name: PDF signing service (pyHanko in services/osint-py, local service)
+    kind: internal_service
+    compliance: GREEN
+    complianceNote: 'pyHanko (MIT) signs the report PDF (PAdES) with a local demo key on this machine; the service opens no network connections: the RFC 3161 time-stamp request is made by the Node side with the digest only, through the timestamping source. The demo certificate is self-signed and NOT qualified; a qualified certificate on an HSM is the production follow-up. Reached only through the egress client; never served from or written to cassettes.'
+    namePl: 'Usługa podpisu PDF (pyHanko w services/osint-py, usługa lokalna)'
+    complianceNotePl: 'pyHanko (MIT) podpisuje PDF raportu (PAdES) lokalnym kluczem demonstracyjnym na tym komputerze; usługa nie otwiera połączeń sieciowych: żądanie znacznika czasu RFC 3161 wysyła strona Node (tylko skrót) przez źródło znakowania czasem. Certyfikat demonstracyjny jest samopodpisany i NIEkwalifikowany; kwalifikowany certyfikat na module HSM to kolejny krok produkcyjny. Dostęp wyłącznie przez klienta ruchu wychodzącego; nigdy nie jest odtwarzana z kaset ani do nich zapisywana.'
+    tosUrl: https://github.com/MatthiasValvekens/pyHanko/blob/master/LICENSE
+    enabledByDefault: true
+    requiresApiKey: false
+    sendsIdentifiersExternally: false
+    reliability: F
+    rateLimit: { requests: 5, perSeconds: 1 }
+    allowedHosts: [127.0.0.1, localhost, osint-py]
+
   # --- AI model (suggestions only; never part of the score) ---------------------------------------------
   # A remote OpenAI-compatible endpoint needs its own AMBER entry (sendsIdentifiersExternally: true, its hosts, a
   # per-case justification) before anything is sent to it; LLM_SOURCE_ID names the entry in use.

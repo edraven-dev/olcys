@@ -173,6 +173,7 @@ export const apiPaths = {
   runSuggestions: (runId: string) => `/api/runs/${enc(runId)}/suggestions`,
   suggestionDecision: (id: string) => `/api/suggestions/${enc(id)}/decision`,
   report: (runId: string) => `/api/runs/${enc(runId)}/report`,
+  reportDrafts: (runId: string) => `/api/runs/${enc(runId)}/report/drafts`,
   reportView: (runId: string) => `/api/runs/${enc(runId)}/report/view`,
   meta: '/api/meta',
   linkJudgements: (linkId: string) => `/api/links/${enc(linkId)}/judgements`,

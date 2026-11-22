@@ -139,3 +139,20 @@ export type NewLlmSuggestion = Omit<
   LlmSuggestion,
   'status' | 'decidedBy' | 'decidedAt' | 'justification' | 'editedText'
 >;
+
+/** Task of the model's drafts for section C of a report (an analyst confirms, edits or rejects each one). */
+export const INFERENCE_DRAFT_TASK = 'report-inference-draft';
+
+/** `output` of a suggestion of task `INFERENCE_DRAFT_TASK`; `basedOn` holds ids of the report's facts and results. */
+export interface InferenceDraft {
+  statement: string;
+  basedOn: string[];
+  alternatives: string[];
+  verificationSteps: string[];
+}
+
+/** Typed answer of `POST /api/runs/:runId/report/drafts` (a model failure is a value, not an error). */
+export type DraftInferencesResult =
+  | { status: 'drafted'; created: number; dropped: { unknownBasis: number; restatesScore: number } }
+  | { status: 'skipped'; reason: 'nothing_to_draft' | 'pending_drafts' | 'busy' | 'no_report' }
+  | { status: 'failed'; reason: LlmFailureCode };

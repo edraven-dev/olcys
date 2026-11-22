@@ -79,6 +79,9 @@ const KEPT_HEADERS = [
   // Anti-bot challenge marker: collectors classify the response as a CAPTCHA/challenge barrier and stop there.
   'cf-mitigated',
   'x-olcys-synthetic',
+  // PDF/A remediation outcome of the local Gotenberg service (the report PDF step requires a residual of 0).
+  'gotenberg-remediation-residual',
+  'gotenberg-remediation-rolled-back',
 ];
 /** Request headers that change the response, hence part of the cassette key. */
 const KEYED_REQUEST_HEADERS: ReadonlySet<string> = new Set(['accept', 'accept-language', 'content-type']);
