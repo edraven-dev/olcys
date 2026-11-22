@@ -29,6 +29,8 @@ import { createVatWhitelistCollector } from '../registries/vat-whitelist.ts';
 import { createBitlistCollector } from '../identity/bitlist.ts';
 import { createEnsCollector } from '../identity/ens.ts';
 import { createKeybaseCollector } from '../identity/keybase.ts';
+import { createFarcasterCollector } from '../farcaster/collector.ts';
+import { createNostrCollector } from '../nostr/collector.ts';
 import { createGithubCollector } from '../platforms/code-hosting.ts';
 import { createWykopCollector } from '../platforms/social-profile.ts';
 import { createTelegramCollector } from '../platforms/telegram.ts';
@@ -62,6 +64,8 @@ export function createDefaultCollectorRegistry(options: { mode?: FetchMode; env?
     .register(createTelegramCollector())
     .register(createKeybaseCollector())
     .register(createBitlistCollector())
+    .register(createFarcasterCollector({ hubUrl: options.env?.['FARCASTER_HUB_URL']?.trim() || undefined }))
+    .register(createNostrCollector())
     .register(createClassifiedAdsCollector())
     .register(createVatWhitelistCollector())
     .register(createKrsCollector())

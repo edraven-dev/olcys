@@ -2,7 +2,7 @@
  * Pivot planner (pure, no I/O): input identifiers → collector tasks, and each task's result → follow-up tasks, inside
  * the run's locked scope and depth limit. Every task and every skipped candidate records why it exists.
  *
- * Rules `pivot.v3` (v2 added E6; v3 adds I7, I8 and E7 for the identity lookups BitList, ENS and Keybase):
+ * Rules `pivot.v4` (v2 added E6; v3 added I7, I8 and E7 for the identity lookups BitList, ENS and Keybase; v4 adds I9):
  *   I1  identifier given for platform P            → P's collector
  *   I2  nick / social login                        → same nick on every other platform that has handles
  *   I3  any identifier                             → watch-list pages (kept only when an identifier matches)
@@ -24,6 +24,9 @@
  *   I8  identifier ending in `.eth`                → ENS forward check (name → address, text records)
  *   E7  account of another platform found by a lookup source (BitList uid, a proof of a Keybase user) → that platform's
  *       collector (depth + 1); never for accounts found from an address (any poster of an address is a third party)
+ *   I9  identifier given for Farcaster or Nostr (fname / FID, `name@domain`) → that source only (I1): neither source is
+ *       probed with a nick (Farcaster is AMBER and its node sees every name; a NIP-05 domain sees the name), and the
+ *       GitHub account of a Farcaster profile is followed through its `account.link` (E1)
  *   Nicks reach BitList and Keybase through I2 (same-nick probe) like every other platform with handles.
  *   Third parties found in a registry (representatives, clerks, partners, board members) are never pivots.
  */
@@ -45,7 +48,7 @@ import { isFixtureUrl, recogniseAccountUrl, toLogicalUrl, type FixtureMapping } 
 import { normalizeKrs, normalizeNip } from '../registries/polish-ids.ts';
 import { normaliseQueryText, SEARCH_IDENTIFIER_KINDS } from '../search/query.ts';
 
-export const PIVOT_RULES_VERSION = 'pivot.v3';
+export const PIVOT_RULES_VERSION = 'pivot.v4';
 export const PIVOT_REASONS = [
   'input_identifier',
   'same_nick',
