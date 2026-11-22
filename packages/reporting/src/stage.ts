@@ -75,26 +75,44 @@ export async function storeReport(
     set.exports[artifact.kind] = { sha256: ref.sha256, mediaType: artifact.mediaType };
   });
   const setRef = await deps.blobs.put(encoder.encode(canonicalJson(set)), REPORT_DATA_MEDIA_TYPE);
-  await deps.repos.analysis.addReport({
-    runId: data.run.id,
-    kind: REPORT_KINDS.data,
-    blobSha256: dataRef.sha256,
-    mediaType: REPORT_DATA_MEDIA_TYPE,
-  });
-  await deps.repos.analysis.addReport({
-    runId: data.run.id,
-    kind: REPORT_KINDS.html,
-    blobSha256: htmlRef.sha256,
-    mediaType: REPORT_HTML_MEDIA_TYPE,
-  });
-  // Registered last: the exports belong to the version whose HTML this set names (see `findExportSet`).
-  await deps.repos.analysis.addReport({
-    runId: data.run.id,
-    kind: REPORT_KINDS.exportSet,
-    blobSha256: setRef.sha256,
-    mediaType: REPORT_DATA_MEDIA_TYPE,
+  // One publication at a time per run: concurrent renders must not interleave their rows, or the latest HTML
+  // and the latest export set could belong to different versions.
+  await serialized(data.run.id, async () => {
+    await deps.repos.analysis.addReport({
+      runId: data.run.id,
+      kind: REPORT_KINDS.data,
+      blobSha256: dataRef.sha256,
+      mediaType: REPORT_DATA_MEDIA_TYPE,
+    });
+    await deps.repos.analysis.addReport({
+      runId: data.run.id,
+      kind: REPORT_KINDS.html,
+      blobSha256: htmlRef.sha256,
+      mediaType: REPORT_HTML_MEDIA_TYPE,
+    });
+    // Registered last: the exports belong to the version whose HTML this set names (see `findExportSet`).
+    await deps.repos.analysis.addReport({
+      runId: data.run.id,
+      kind: REPORT_KINDS.exportSet,
+      blobSha256: setRef.sha256,
+      mediaType: REPORT_DATA_MEDIA_TYPE,
+    });
   });
   return { html: htmlRef, data: dataRef, exports };
+}
+
+const publishing = new Map<string, Promise<unknown>>();
+
+/** Runs `task` after every earlier task of the same key (in this process) has settled. */
+async function serialized<T>(key: string, task: () => Promise<T>): Promise<T> {
+  const run = (publishing.get(key) ?? Promise.resolve()).catch(() => undefined).then(task);
+  const tail = run.catch(() => undefined);
+  publishing.set(key, tail);
+  try {
+    return await run;
+  } finally {
+    if (publishing.get(key) === tail) publishing.delete(key);
+  }
 }
 
 /** The exports of one report version: the HTML they were generated with and a digest per export kind. */

@@ -14,6 +14,7 @@ export function ReportTab({ scope }: { scope: RunScope }) {
   const path = apiPaths.report(run.id);
   const available = useResource<boolean>(done ? `${path}#head#${version}` : null, () => api.exists(path));
   const meta = useJson<ApiMeta>(apiPaths.meta);
+  const [regenerations, setRegenerations] = useState(0);
   return (
     <section aria-labelledby="report-title" className="stack">
       <h2 id="report-title">{pl.report.title}</h2>
@@ -34,11 +35,19 @@ export function ReportTab({ scope }: { scope: RunScope }) {
       ) : (
         <p className="notice">{pl.report.missing}</p>
       )}
-      {done && available.data ? <Exports runId={run.id} version={version} /> : null}
-      {done && available.data && meta.data?.features.judgements ? <RegenerateReport runId={run.id} /> : null}
+      {done && available.data ? (
+        <Exports runId={run.id} version={exportsListingVersion(version, regenerations)} />
+      ) : null}
+      {done && available.data && meta.data?.features.judgements ? (
+        <RegenerateReport runId={run.id} onRegenerated={() => setRegenerations((n) => n + 1)} />
+      ) : null}
     </section>
   );
 }
+
+/** Cache key of the export listing: changes with the run and with every successful regeneration of the report. */
+export const exportsListingVersion = (runVersion: string, regenerations: number): string =>
+  `${runVersion}#regenerated-${regenerations}`;
 
 const EXPORT_FORMATS = ['stix', 'misp', 'csv_links', 'csv_evidence', 'csv_cash_out', 'csv_changes'] as const;
 
@@ -78,7 +87,7 @@ export function ExportLinks({ runId, available }: { runId: string; available: re
 }
 
 /** A new version of the report, e.g. with the analyst judgements recorded since; earlier versions stay stored. */
-function RegenerateReport({ runId }: { runId: string }) {
+function RegenerateReport({ runId, onRegenerated }: { runId: string; onRegenerated: () => void }) {
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState<unknown>();
@@ -89,6 +98,7 @@ function RegenerateReport({ runId }: { runId: string }) {
     try {
       await api.post(apiPaths.report(runId), {});
       setDone(true);
+      onRegenerated();
     } catch (failure) {
       setError(failure);
     } finally {

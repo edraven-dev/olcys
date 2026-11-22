@@ -145,6 +145,28 @@ describe('report.render stage', () => {
     expect((await findExportSet({ repos, blobs }, run.id))?.htmlSha256).toBe(before?.blobSha256);
   });
 
+  it('keeps the latest HTML and the latest export set in step when renders overlap', async () => {
+    const { repos, blobs, run, fixture } = await seed();
+    let setsSeen = 0;
+    const slow = {
+      ...repos,
+      analysis: {
+        ...repos.analysis,
+        listLinks: repos.analysis.listLinks.bind(repos.analysis),
+        async addReport(report: Parameters<typeof repos.analysis.addReport>[0]) {
+          // The first export set to be registered is slow, so a second render would overtake it without the lock.
+          if (report.kind === 'export_set' && setsSeen++ === 0) await new Promise((r) => setTimeout(r, 30));
+          return repos.analysis.addReport(report);
+        },
+      },
+    } as typeof repos;
+    const a = { ...fixture, run, generatedAt: '2026-11-22T10:00:00.000Z' };
+    const b = { ...fixture, run, generatedAt: '2026-11-22T11:00:00.000Z' };
+    await Promise.all([storeReport({ repos: slow, blobs }, a), storeReport({ repos: slow, blobs }, b)]);
+    const html = await repos.analysis.latestReport(run.id, 'html');
+    expect((await findExportSet({ repos, blobs }, run.id))?.htmlSha256).toBe(html?.blobSha256);
+  });
+
   it('offers no exports when a newer HTML report has none (older or interrupted versions)', async () => {
     const { repos, blobs, run, fixture } = await seed();
     await storeReport({ repos, blobs }, { ...fixture, run });

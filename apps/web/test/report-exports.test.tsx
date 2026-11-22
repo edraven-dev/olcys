@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { ExportLinks } from '../src/features/report/ReportTab.tsx';
+import { ExportLinks, exportsListingVersion } from '../src/features/report/ReportTab.tsx';
 import { pl } from '../src/i18n/pl.ts';
 
 describe('report export links', () => {
@@ -16,5 +16,10 @@ describe('report export links', () => {
     const html = renderToStaticMarkup(<ExportLinks runId="run-1" available={[]} />);
     expect(html).not.toContain('/exports/');
     expect(html).toContain('Wygeneruj raport ponownie');
+  });
+
+  it('reloads the export listing after each regeneration', () => {
+    expect(exportsListingVersion('v1', 0)).not.toBe(exportsListingVersion('v1', 1));
+    expect(exportsListingVersion('v1', 1)).not.toBe(exportsListingVersion('v2', 1));
   });
 });
