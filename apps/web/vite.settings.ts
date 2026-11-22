@@ -12,3 +12,21 @@ export function serverSettings(
   const env = { ...loadEnv(mode, envDir, ''), ...processEnv };
   return { port: Number(env.WEB_PORT || 5173), apiTarget: `http://127.0.0.1:${env.API_PORT || 4000}` };
 }
+
+/**
+ * Strict CSP of the production build (`vite preview`): same
+ * origin only, no inline script or style, no framing. The dev server cannot run it (React Refresh injects an inline
+ * preamble and HMR opens a socket), so it gets the other headers only.
+ */
+export const SPA_CSP =
+  "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; font-src 'self'; " +
+  "connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'";
+
+export const SECURITY_HEADERS: Readonly<Record<string, string>> = {
+  'X-Content-Type-Options': 'nosniff',
+  'Referrer-Policy': 'no-referrer',
+  'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=(), usb=()',
+  'Cross-Origin-Opener-Policy': 'same-origin',
+  'Cross-Origin-Resource-Policy': 'same-origin',
+  'X-Frame-Options': 'DENY',
+};

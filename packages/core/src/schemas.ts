@@ -106,6 +106,20 @@ export const StartRunSchema = z.strictObject({
   rescoreOfRunId: z.uuid().optional(),
 });
 
+/** Query of `GET /api/cases/:caseId/timeline`: every filter is optional; `walletOnly` is the literal `true` or `false`. */
+export const TimelineQuerySchema = z.strictObject({
+  url: z.string().min(1).max(2048).optional(),
+  property: z
+    .string()
+    .regex(/^[a-z0-9_.[\]]{1,200}$/, 'invalid property name')
+    .optional(),
+  walletOnly: z
+    .enum(['true', 'false'])
+    .transform((value) => value === 'true')
+    .optional(),
+});
+export type TimelineQuery = z.infer<typeof TimelineQuerySchema>;
+
 // --- API input: analyst judgements and overrides -----------------------------------------------------------------
 
 /**

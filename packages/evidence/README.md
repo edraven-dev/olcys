@@ -9,6 +9,16 @@ Magazyn plików adresowany treścią (SHA-256), manifesty, rekordy zabezpieczeń
 
 - `FileBlobStore(root)` — niezmienny magazyn plików adresowany SHA-256 (zapis atomowy, weryfikacja przy odczycie).
 - `InMemoryBlobStore` — implementacja do testów; `sha256Hex()`; `canonicalJson()` (RFC 8785, z `@olcys/core`).
+- `buildPropertyTimelines(wejście, filtr?)` — oś czasu wartości strony (`page.address`: adresy wyodrębnione ze strony)
+  i pól profilu: punkty z kopii archiwalnych (Wayback Machine, czas migawki podany przez archiwum, nigdy czas naszego
+  pobrania) i z przebiegów na żywo, okresy o tym samym zbiorze wartości oraz zmiany z przedziałem czasu (ostatni punkt
+  przed zmianą — pierwszy po). Wartości pochodzą z wyników wyodrębnienia (`extractions`; `latestExtractions()` wybiera dla przechwycenia wynik najnowszej analizy, więc ponowna ocena z odrzuconym adresem usuwa go z osi); przechwycenie bez wyniku wyodrębnienia to luka `extraction_pending`, a nie usunięcie adresu. Przechwycenie, które odczytało profil konta (`profileCaptureId`), reprezentuje kanoniczną stronę
+  profilu tego konta (np. profil pobrany po nicku to strona `…;u=<id>` z wykazu archiwum), niezależnie od adresu żądania. Niepobrana kopia z tym samym skrótem CDX dziedziczy wartości (`inferredFromDigest`,
+  data przybliżona); niepobrana kopia z nowym skrótem, skrót niezgodny, strona zablokowana, za logowaniem, z CAPTCHA,
+  z błędem lub 404 to luka — nigdy nie kończy okresu i nie tworzy zmiany. Funkcja jest czysta (bez sieci i bez dostępu
+  do bazy); pomocnicze: `normalisePageUrl()` (http/https jednakowo, mała litera hosta, bez portu domyślnego, fragmentu
+  i końcowego ukośnika) oraz `snapshotTimestampToIso()` (14-cyfrowy znacznik Wayback → UTC ISO; nieprawidłowy →
+  `undefined`, wiersz jest pomijany z ostrzeżeniem).
 - `diffRuns(before, after)` — porównanie dwóch przebiegów: fakty porównywane według `(platforma, lokalizator,
   właściwość)` dają zdarzenia `ADDED`, `REMOVED` i `VALUE_CHANGED`; zmiana właściwości z adresem portfela ma znacznik
   `wallet` (alert podmiany portfela). Fakt nieobecny na stronie zablokowanej, za logowaniem, za CAPTCHA, z błędem lub

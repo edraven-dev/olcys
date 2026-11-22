@@ -1200,4 +1200,10 @@ details > summary {
 
 .ai-suggestion {
   border-style: dashed;
+/* --- page timeline (case timeline) ------------------------------------------------------------------------- */
+.timeline-moment {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  align-items: center;
 }
