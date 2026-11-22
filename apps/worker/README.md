@@ -103,5 +103,21 @@ NBP znacznik `synthetic: true`; raport i interfejs dodają przy niej „(kurs sy
 analizowany, gdy wybrano dowolny łańcuch EVM; pusta lista oznacza wszystkie). Pominięcie to decyzja analityka, więc
 nie czyni przebiegu `partial` — etap zapisuje tylko notatkę w postępie (`skippedByChain`, `skippedChains`) i w logu.
 
+## Przepływy środków i rozszerzenie o kontrahentów
+
+Po jednoskokowym rozszerzeniu o nieoznaczonych odbiorców etap `chain.fetch` pobiera kolejne skoki kontrahentów
+(`src/flows.ts`, `expandFlowHops`). Głębokość ustawia `OLCYS_FLOW_EXPANSION_HOPS` (domyślnie 1, `0` wyłącza, nie więcej niż
+`maxHops` reguł wyjścia do fiat, czyli 3). W każdym skoku `planHopExpansion` wybiera najwyżej 25 adresów (najpierw odbiorcy,
+potem nadawcy, wg wartości PLN), z pominięciem usług z etykietą, adresów wykluczonych i już pobranych. Najpierw pobierane są
+podsumowania; adresy z co najmniej 1000 transakcji zostają „liśćmi” (bez historii transferów). Każde pobranie przechodzi przez
+klienta ruchu wychodzącego (rejestrowane, z `containsIdentifier`) i tylko u dostawców włączonych w sprawie. Niepełna historia
+kontrahenta ustawia `partial` z kodem `counterparty_chain_incomplete`.
+
+Z zapisanych transferów (analizowanych adresów i kontrahentów) etap liczy graf przepływów dla każdego adresu analizowanego
+(`computeFlowGraph`, w dół i w górę, do `maxHops`, ścieżki kończą się na usługach i adresach wykluczonych): krawędzie
+wyceniane w PLN, a dla adresu oś czasu i agregat Sankey. Zapisuje je w `analysis.addFlows` i `addFlowViews`. Przycięcie
+grafu limitem 2 000 krawędzi ustawia `partial` z kodem `flow_graph_truncated`. Transfery kontrahentów trafiają do magazynu
+z `expansionHop ≥ 1` i nie są częścią listy transferów raportu.
+
 Transfer między dwoma analizowanymi adresami jest zapisywany raz na przebieg (klucz `transferKey` z `@olcys/core`);
 odczyt `listTransfers` także usuwa powtórzenia, więc raport i API nie liczą go podwójnie.
