@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DownloadsPanel } from '../src/features/report/DownloadsPanel.tsx';
 import { pl } from '../src/i18n/pl.ts';
 import { setFetch } from '../src/lib/api.ts';
+import type { ReportFile } from '@olcys/core';
 import { personaFiles } from './fixtures/persona-report.ts';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -93,5 +94,56 @@ describe('downloads panel', () => {
     await flush();
     expect(host.querySelector('[role="alert"]')?.textContent).toContain(pl.report.downloads.failed);
     expect(clicked).toEqual([]);
+  });
+});
+
+describe('downloads panel with a PDF', () => {
+  const pdfFile = (status: 'signed_timestamped' | 'signed' | 'unsigned', warnings: string[] = []): ReportFile => ({
+    kind: 'pdf',
+    fileName: 'olcys-raport-run-1.pdf',
+    mediaType: 'application/pdf',
+    available: true,
+    path: `/api/runs/run-1/report/versions/${'9'.repeat(64)}/pdf`,
+    bytes: 4096,
+    sha256: 'a'.repeat(64),
+    pdf: {
+      status,
+      demoCertificate: true,
+      pdfaProfile: 'PDF/A-3b',
+      pdfaCompliant: true,
+      warnings,
+      manifestSha256: 'b'.repeat(64),
+    },
+  });
+  const render = (files: ReportFile[]) => {
+    act(() => root.render(<DownloadsPanel files={files} />));
+  };
+
+  it('lists the PDF with its digest, size and signature status, always as a demo signature', () => {
+    render([pdfFile('signed')]);
+    expect(host.textContent).toContain('a'.repeat(64));
+    expect(host.textContent).toMatch(/4,1\s*kB/);
+    expect(host.textContent).toContain('PAdES B-B');
+    expect(host.textContent).toContain('niekwalifikowany');
+    expect(host.textContent).toContain(pl.report.downloads.pdfDemoNote);
+    expect(button(pl.report.downloads.kinds.pdf).disabled).toBe(false);
+  });
+
+  it('states the reason when the PDF is unsigned and lists the PDF time-stamp token', () => {
+    render([
+      pdfFile('unsigned', ['signing_unavailable']),
+      {
+        kind: 'pdf_timestamp',
+        fileName: 'olcys-raport-run-1.pdf.tsr',
+        mediaType: 'application/timestamp-reply',
+        available: true,
+        path: `/api/blobs/${'c'.repeat(64)}`,
+        bytes: 1500,
+        sha256: 'c'.repeat(64),
+      },
+    ]);
+    expect(host.textContent).toContain('Bez podpisu');
+    expect(host.textContent).toContain(pl.report.downloads.pdfWarnings['signing_unavailable']);
+    expect(host.textContent).toContain(pl.report.downloads.kinds.pdf_timestamp);
   });
 });

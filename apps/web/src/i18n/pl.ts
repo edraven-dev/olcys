@@ -1451,7 +1451,8 @@ export const pl = {
       downloaded: 'Pobrano plik {name}.',
       kinds: {
         html: 'Raport HTML',
-        pdf: 'Raport PDF/A (podpisany)',
+        pdf: 'Raport PDF/A-3b',
+        pdf_timestamp: 'Znacznik czasu RFC 3161 (.tsr) — plik PDF raportu',
         manifest: 'Manifest raportu (JSON)',
         timestamp: 'Znacznik czasu RFC 3161 (.tsr) — zabezpieczenie {id}',
         stix: 'Eksport STIX 2.1 (JSON)',
@@ -1462,6 +1463,21 @@ export const pl = {
         csv_changes: 'Eksport CSV: zmiany od poprzedniego uruchomienia',
       },
       pdfUnavailable: 'PDF/A niedostępny w tej wersji — dostępny raport HTML.',
+      pdfStatus: {
+        signed_timestamped:
+          'Podpisany (PAdES B-T) z znacznikiem czasu RFC 3161 w podpisie · {pdfa} · podpis demonstracyjny, niekwalifikowany',
+        signed:
+          'Podpisany (PAdES B-B), bez znacznika czasu w podpisie; znacznik czasu całego pliku jest w kolejce lub dołączony poniżej · {pdfa} · podpis demonstracyjny, niekwalifikowany',
+        unsigned: 'Bez podpisu — {reason} · {pdfa}',
+      },
+      pdfWarnings: {
+        signing_unavailable: 'usługa podpisu była niedostępna',
+        signing_disabled: 'podpisywanie jest wyłączone w konfiguracji',
+      } as Record<string, string>,
+      pdfDemoNote:
+        'Certyfikat podpisu jest samopodpisany i demonstracyjny — nie jest to podpis kwalifikowany w rozumieniu eIDAS.',
+      pdfaCompliant: 'zgodny z {profile}',
+      pdfaNotCompliant: 'niezgodny z {profile}',
       exportsHint:
         'Eksporty zawierają dane sprawy (domyślnie oznaczenie TLP:AMBER); obejmują fakty i wyniki obliczeń, bez niezatwierdzonych sugestii modelu AI.',
     },
