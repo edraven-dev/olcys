@@ -34,12 +34,14 @@ loadChainProviderConfig(yamlText, { providers }) → ChainProviderConfig[]
 withFixtureSite(configs, fixtureBaseUrl, hostPrefixes) → ChainProviderConfig[]
 createChainProviderRegistry(configs, { env? }) → ChainProviderRegistry   // forChain(chain, enabledSources)
 runChainFetch(plan, registry, ctx, { enabledSources, defaultMaxPages?, unknownEvmChains?, tips? }) → ChainFetchResult
-// plan: { address, want?: { summary, transfers, utxo, code }, maxPages? }[]
-// wynik: tips, summaries, transfers, utxoTxs, codes, outcomes (status na adres i dostawcę), resolved (evm:unknown)
+// plan: { address, want?: { summary, transfers, utxo, code }, maxPages? }[]   (code domyślnie dla EVM i TRON)
+// wynik: tips, summaries, transfers, utxoTxs, codes (z providerId dostawcy, który zwrócił kod), outcomes (status na
+//        adres i dostawcę), resolved (evm:unknown)
 ```
 
 Pojedyncze adaptery i funkcje czyste: `createEsploraProvider`, `createEtherscanProvider`, `createTronGridProvider`,
-`mapEsploraTx`, `deriveTransfers`, `mapEtherscanRows`, `classifyEtherscan`, `mapTrc20Items`, `requestJson`,
+`mapEsploraTx`, `deriveTransfers`, `mapEtherscanRows`, `classifyEtherscan`, `classifyEthCall`, `mapTrc20Items`,
+`requestJson`,
 `baseUnitsToDecimal`, `ChainProviderError` (rodzaje: `blocked`, `rate_limited`, `replay_miss`, `egress_denied`, …).
 
 ## Zachowanie
@@ -57,13 +59,20 @@ Pojedyncze adaptery i funkcje czyste: `createEsploraProvider`, `createEtherscanP
   (`deriveTransfers`) służy regułom kontrahentów.
 - **EVM (Etherscan V2):** strumienie `txlist` → `txlistinternal` → `tokentx`, 1000 wierszy na stronę, nowe okno od
   ostatniego bloku po 10 000 wierszy; nieudane transakcje i tokeny o zerowej wartości (spam) pomijane; tokeny
-  identyfikowane po kontrakcie, nigdy po symbolu. `eth_getCode` służy regule A2. Warunki: „Powered by Etherscan.io APIs”
-  przy każdej prezentacji danych; plany darmowe tylko do użytku osobistego/badawczego (prototyp).
+  identyfikowane po kontrakcie, nigdy po symbolu. Odczyty stanu modułu `proxy` z `tag=latest` (stan na zapisany
+  wierzchołek) służą klasyfikacji typu adresu (`@olcys/labels`): `eth_getCode` (`getCode`), `eth_getStorageAt`
+  (`getStorageAt(address, slot)`) i `eth_call` (`call(address, data)`). Wycofanie wywołania (`execution reverted`) to
+  odpowiedź `{ status: 'reverted' }` — negatywny wynik sondy, nie błąd; pozostałe błędy JSON-RPC są błędami dostawcy.
+  Każda sonda zawiera adres (`containsIdentifier: true`). Warunki: „Powered by Etherscan.io APIs” przy każdej
+  prezentacji danych; plany darmowe tylko do użytku osobistego/badawczego (prototyp).
 - **TRON (TronGrid):** przelewy TRC-20 (`/v1/accounts/{a}/transactions/trc20`, stronicowanie `fingerprint`) i saldo
-  konta. Pozycje TRC-20 nie mają numeru bloku (`blockHeight: 0`, kolejność według czasu).
+  konta. Pozycje TRC-20 nie mają numeru bloku (`blockHeight: 0`, kolejność według czasu). Kod kontraktu z API węzła:
+  `wallet/getcontract?value={a}&visible=true` (`bytecode` → `0x…`; konto bez kontraktu odpowiada `{}` → `0x`; pole
+  `Error` → błąd dostawcy). TRON nie ma sond slotów ani wywołań — typ adresu to konto, kontrakt tokena (etykieta lub
+  rejestr aktywów) albo kontrakt.
 - **`evm:unknown`:** adres bez wskazania sieci jest sprawdzany na łańcuchach z `unknownEvmChains` (domyślnie `evm:1`).
 
 ## Ograniczenia MVP
 
-Brak natywnych przelewów TRX i detekcji kontraktów TRON, brak skrótu bloku wierzchołka, brak trwałej pamięci podręcznej
-między przebiegami, brak dostawcy Solana i węzłów Erigon/Otterscan (ścieżka produkcyjna).
+Brak natywnych przelewów TRX i sond stanu kontraktów TRON (tylko kod), brak skrótu bloku wierzchołka, brak trwałej
+pamięci podręcznej między przebiegami, brak dostawcy Solana i węzłów Erigon/Otterscan (ścieżka produkcyjna).

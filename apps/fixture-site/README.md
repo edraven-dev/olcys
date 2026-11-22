@@ -34,6 +34,11 @@ Serwer (`src/`) używa wyłącznie wbudowanych modułów Node, bo kontener nie m
 | `/robots.txt`, `/private/`                                                  | test zgodności z robots.txt (kanarek BTC-CANARY)                                                                                    |
 | `/chain/esplora/api/…`, `/chain/etherscan/v2/api?…`, `/chain/trongrid/v1/…` | syntetyczne historie transakcji, w tym depozyt giełdowy, przelewy P2P i kod kontraktu                                               |
 
+Sondy typu adresu odpowiadają jak u prawdziwych dostawców: `eth_getStorageAt` zwraca słowo zerowe (brak singletonu
+Safe i implementacji proxy), `eth_call` do CONTRACT-1 kończy się wycofaniem (`execution reverted` — zwykły kontrakt,
+odrzucany regułą A2), do adresu bez kodu zwraca `0x`, a `/chain/trongrid/wallet/getcontract` odpowiada `{}` (konto TRON
+bez kontraktu). Adresy EOA persony pozostają kontami zewnętrznymi.
+
 Pełny opis — adresy, wabiki, oczekiwane wyniki analizy i skróty plików — zawiera `fixtures/persona/manifest.json`.
 
 ## Generator

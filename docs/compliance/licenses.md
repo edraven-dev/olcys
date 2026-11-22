@@ -37,6 +37,9 @@ licencje „source-available” (np. Blockscout ≥ v11) oraz licencje wykluczaj
 | yaml                           | 2.9.1   | ISC               | odczyt plików konfiguracyjnych (wagi Wskaźnika Pewności, testy)                                        | packages/scoring, packages/core (dev)                                           |
 | yaml                           | 2.9.1   | ISC               | odczyt rejestru źródeł `config/sources.yaml`                                                           | packages/collectors                                                             |
 | yaml                           | 2.9.1   | ISC               | odczyt konfiguracji: dostawcy danych łańcuchowych, reguły wykluczeń i wyjścia do walut, lista odrzuceń | packages/chain-adapters, packages/labels, packages/analytics, apps/worker (dev) |
+| @safe-global/safe-deployments  | 1.37.67 | MIT               | adresy singletonów Safe (klasyfikacja typu adresu); zależność przechodnia: semver (ISC)                | packages/labels                                                                 |
+| @scure/base                    | 2.4.0   | MIT               | dekodowanie bech32/bech32m i base58check (typ skryptu adresu Bitcoin)                                  | packages/labels                                                                 |
+| @noble/hashes                  | 2.4.0   | MIT               | Keccak-256 i SHA-256 w testach (selektory i sloty sond, adresy syntetyczne)                            | packages/labels (dev)                                                           |
 | linkedom                       | 0.18.15 | ISC               | parsowanie HTML zebranych stron (DOM bez przeglądarki)                                                 | packages/collectors                                                             |
 | Unicode TR39 (confusables)     | —       | Unicode-3.0       | dane: ręcznie wybrana tabela homoglifów (cyrylica/greka)                                               | packages/address-extractor                                                      |
 | Kysely                         | 0.29.9  | MIT               | typowany konstruktor zapytań SQL                                                                       | packages/db                                                                     |
@@ -58,3 +61,8 @@ licencje „source-available” (np. Blockscout ≥ v11) oraz licencje wykluczaj
 Zbiory danych (etykiety, listy sankcyjne, archiwa cen) mają własne licencje; są one zapisywane przy każdej etykiecie
 i rekordzie ceny (`LabelProvenance.license`) i podsumowane w `docs/compliance/sources.md`. Demonstracyjne etykiety
 (`fixtures/labels/demo-curated.json`) i ceny (`fixtures/prices/demo-prices.v1.json`) są syntetyczne, CC0-1.0.
+
+Dane referencyjne klasyfikacji typu adresu: adresy EntryPoint ERC-4337 (`config/labels/erc4337-entrypoints.v1.yaml`)
+to fakty przepisane z notatek wydań eth-infinitism (kod tego repozytorium, objęty licencją GPL, nie jest używany),
+a rejestr delegatów EIP-7702 (`config/labels/eip7702-delegates.v1.yaml`) zawiera wyłącznie syntetyczny wpis
+demonstracyjny.
