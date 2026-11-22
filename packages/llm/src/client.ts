@@ -14,6 +14,7 @@ import type {
   LlmFailureCode,
   LlmRequest,
   LlmResult,
+  SourceDescriptor,
   SourceId,
 } from '@olcys/core';
 import { newId } from '@olcys/core';
@@ -35,6 +36,21 @@ export interface LlmConfig {
   chatTemplateKwargs?: Record<string, unknown>;
 }
 
+/** The part of the register entry the model traffic is attributed to that decides whether it may carry case text. */
+export type LlmSourceInfo = Pick<SourceDescriptor, 'id' | 'kind' | 'compliance' | 'sendsIdentifiersExternally'>;
+
+/**
+ * Only a GREEN `ai_model` source that keeps identifiers on this side may be used. A remote (AMBER) endpoint needs
+ * case-scoped approval and a justification, which this client does not provide.
+ */
+export function llmSourceProblem(source: LlmSourceInfo | undefined, sourceId: string): string | undefined {
+  if (!source) return `source ${sourceId} is not in the register`;
+  if (source.kind !== 'ai_model') return `source ${source.id} is not an ai_model source`;
+  if (source.compliance !== 'GREEN') return `source ${source.id} is ${source.compliance}: needs case-scoped approval`;
+  if (source.sendsIdentifiersExternally) return `source ${source.id} sends identifiers externally`;
+  return undefined;
+}
+
 export interface LlmCallLog {
   append(record: LlmCallRecord): Promise<void>;
 }
@@ -45,6 +61,8 @@ export interface LlmClientDeps {
   log: LlmCallLog;
   clock: Clock;
   config: LlmConfig;
+  /** The register entry of `config.sourceId`; checked on every call (see `llmSourceProblem`). */
+  source?: LlmSourceInfo | undefined;
 }
 
 const DEFAULT_MAX_TOKENS = 1024;
@@ -67,7 +85,7 @@ function isTransportFailure(error: unknown): boolean {
 const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 
 export function createLlmClient(deps: LlmClientDeps): LlmClient {
-  const { http, blobs, log, clock, config } = deps;
+  const { http, blobs, log, clock, config, source } = deps;
   const endpoint = `${config.baseUrl.replace(/\/+$/, '')}/chat/completions`;
 
   return {
@@ -110,6 +128,8 @@ export function createLlmClient(deps: LlmClientDeps): LlmClient {
 
       // Guards run before any network call.
       if (!config.enabled) return fail('disabled', 'the AI model is disabled (LLM_ENABLED=false)');
+      const sourceProblem = llmSourceProblem(source, config.sourceId);
+      if (sourceProblem) return fail('egress_denied', sourceProblem);
       const forbidden = request.inputs.filter((i) => !i.llmAllowed);
       if (forbidden.length > 0) {
         const sources = [...new Set(forbidden.map((i) => i.sourceId))].join(', ');
@@ -182,16 +202,21 @@ export function createLlmClient(deps: LlmClientDeps): LlmClient {
       if (response.provenance.bodyPersisted) record.responseBlob = response.provenance.body;
       if (response.status >= 400) return fail('http_error', `HTTP ${response.status}`);
 
-      let envelope: {
+      type Envelope = {
         model?: unknown;
         usage?: unknown;
         choices?: { message?: { content?: unknown }; finish_reason?: unknown }[];
       };
+      let parsed: unknown;
       try {
-        envelope = response.json();
+        parsed = response.json();
       } catch {
         return fail('invalid_json', 'the response is not JSON');
       }
+      if (typeof parsed !== 'object' || parsed === null || !Array.isArray((parsed as Envelope).choices)) {
+        return fail('invalid_json', 'the response is not a chat completion object');
+      }
+      const envelope = parsed as Envelope;
       if (typeof envelope.model === 'string') record.modelReported = envelope.model;
       if (envelope.usage && typeof envelope.usage === 'object')
         record.usage = envelope.usage as Record<string, unknown>;

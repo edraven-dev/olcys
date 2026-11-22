@@ -3,7 +3,14 @@ import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 import type { BlobStore, EgressClient, EgressRequest, EgressResponse, LlmCallRecord } from '@olcys/core';
 import { describe, expect, it } from 'vitest';
-import { buildLlmRequest, createLlmClient, definePrompt, llmConfigFromEnv, type LlmConfig } from '../src/index.ts';
+import {
+  buildLlmRequest,
+  createLlmClient,
+  definePrompt,
+  llmConfigFromEnv,
+  type LlmConfig,
+  type LlmSourceInfo,
+} from '../src/index.ts';
 
 const prompt = definePrompt({
   task: 'test-client',
@@ -27,6 +34,12 @@ const config: LlmConfig = {
   timeoutMs: 1000,
 };
 
+const LOCAL: LlmSourceInfo = {
+  id: 'local_llm',
+  kind: 'ai_model',
+  compliance: 'GREEN',
+  sendsIdentifiersExternally: false,
+};
 const sha = (c: string) => c.repeat(64);
 const completion = (content: string, extra: Record<string, unknown> = {}, finish = 'stop') => ({
   model: 'test-model-reported',
@@ -35,7 +48,11 @@ const completion = (content: string, extra: Record<string, unknown> = {}, finish
   ...extra,
 });
 
-function setup(respond: (req: EgressRequest) => EgressResponse | Promise<EgressResponse>, cfg: LlmConfig = config) {
+function setup(
+  respond: (req: EgressRequest) => EgressResponse | Promise<EgressResponse>,
+  cfg: LlmConfig = config,
+  source: LlmSourceInfo | null = LOCAL,
+) {
   const calls: EgressRequest[] = [];
   const rows: LlmCallRecord[] = [];
   const stored = new Map<string, Uint8Array>();
@@ -64,6 +81,7 @@ function setup(respond: (req: EgressRequest) => EgressResponse | Promise<EgressR
     log: { append: async (r) => void rows.push(r) },
     clock: { now: () => new Date('2026-11-22T10:00:00.000Z') },
     config: cfg,
+    source: source ?? undefined,
   });
   return { client, calls, rows };
 }
@@ -215,6 +233,30 @@ describe('LlmClient response', () => {
     expect(rows[0]).toMatchObject({ outcome: code, responseBlob: { sha256: sha('e') } });
   });
 
+  it.each([
+    ['null', 'null'],
+    ['an array', '[]'],
+    ['a number', '42'],
+    ['a string', '"x"'],
+  ])('maps %s as the answer to invalid_json and logs it', async (_name, text) => {
+    const { client, rows } = setup(() => reply(200, text));
+    expect(await client.complete(request())).toMatchObject({ ok: false, code: 'invalid_json' });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ outcome: 'invalid_json', httpStatus: 200 });
+  });
+
+  it.each([
+    ['an AMBER source', { ...LOCAL, compliance: 'AMBER' as const }],
+    ['a source that sends identifiers externally', { ...LOCAL, sendsIdentifiersExternally: true }],
+    ['a source of another kind', { ...LOCAL, kind: 'web' as const }],
+    ['no register entry', null],
+  ])('refuses %s before any network call', async (_name, source) => {
+    const { client, calls, rows } = setup(() => reply(200, {}), config, source);
+    expect(await client.complete(request())).toMatchObject({ ok: false, code: 'egress_denied' });
+    expect(calls).toHaveLength(0);
+    expect(rows[0]?.outcome).toBe('egress_denied');
+  });
+
   it('maps a non-JSON envelope to invalid_json', async () => {
     const { client } = setup(() => reply(200, '<html>nope</html>'));
     expect(await client.complete(request())).toMatchObject({ ok: false, code: 'invalid_json' });
@@ -251,6 +293,7 @@ describe('LlmClient response', () => {
       log: { append: async () => {} },
       clock: { now: () => new Date('2026-11-22T10:00:00.000Z') },
       config,
+      source: LOCAL,
     });
     await expect(blobFailure.complete(request())).rejects.toThrow(/blob store unavailable/);
 
@@ -264,6 +307,7 @@ describe('LlmClient response', () => {
       log: { append: async () => Promise.reject(new Error('call log unavailable')) },
       clock: { now: () => new Date('2026-11-22T10:00:00.000Z') },
       config,
+      source: LOCAL,
     });
     await expect(logFailure.complete(request())).rejects.toThrow(/call log unavailable/);
   });

@@ -6,7 +6,7 @@ import { InMemoryBlobStore } from '@olcys/evidence';
 import { buildLlmRequest, definePrompt, z } from '@olcys/llm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { loadConfig } from '../src/config.ts';
-import { createLlmRuntime } from '../src/llm.ts';
+import { createLlmRuntime, LlmConfigError } from '../src/llm.ts';
 
 const prompt = definePrompt({
   task: 'test-wiring',
@@ -139,5 +139,42 @@ describe('AI model wiring', () => {
         mode: 'offline',
       }),
     ).toThrow(/local_llm/);
+  });
+
+  it('refuses at start a source that is not a GREEN local model (AMBER, or one that sends identifiers out)', async () => {
+    const config = await loadConfig();
+    const local = config.sources.find((s) => s.id === 'local_llm')!;
+    const env = { LLM_ENABLED: 'true', LLM_BASE_URL: baseUrl, LLM_MODEL: 'm' };
+    for (const variant of [
+      { ...local, compliance: 'AMBER' as const, enabledByDefault: false },
+      { ...local, sendsIdentifiersExternally: true },
+    ]) {
+      const start = () =>
+        createLlmRuntime({
+          env,
+          repos: createMemoryRepositories(),
+          blobs: new InMemoryBlobStore(),
+          sources: [variant],
+          mode: 'offline',
+        });
+      expect(start).toThrow(LlmConfigError);
+      expect(start).toThrow(/needs case-scoped approval|sends identifiers externally/);
+      expect(start).toThrow(expect.objectContaining({ code: 'llm_source_not_allowed' }));
+    }
+  });
+
+  it('starts without the model store when the model is disabled, and needs it when enabled', async () => {
+    const config = await loadConfig();
+    const repos = createMemoryRepositories();
+    delete repos.llm;
+    const base = { repos, blobs: new InMemoryBlobStore(), sources: config.sources, mode: 'offline' as const };
+    const { client } = createLlmRuntime({ ...base, env: {} });
+    expect(client.enabled).toBe(false);
+    expect(
+      await client.complete(buildLlmRequest(prompt, { untrustedInput: 'x', inputs: [], containsIdentifier: false })),
+    ).toMatchObject({ ok: false, code: 'disabled' });
+    expect(() =>
+      createLlmRuntime({ ...base, env: { LLM_ENABLED: 'true', LLM_BASE_URL: baseUrl, LLM_MODEL: 'm' } }),
+    ).toThrow(/Repositories\.llm/);
   });
 });

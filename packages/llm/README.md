@@ -36,6 +36,11 @@ Klient modelu zgodny z API OpenAI, wersjonowany rejestr promptów, odpowiedzi zg
 
 ## Konfiguracja i zgodność
 
+Tekst sprawy może trafić tylko do źródła GREEN rodzaju `ai_model` z `sendsIdentifiersExternally: false`. Przy
+`LLM_ENABLED=true` inny wpis (np. AMBER) kończy start błędem `llm_source_not_allowed` (`LlmConfigError`), a klient
+sprawdza to samo przy każdym wywołaniu (`egress_denied`). Zdalne (AMBER) punkty końcowe modelu wymagają zatwierdzenia
+w zakresie sprawy z uzasadnieniem — poza zakresem MVP. Wyłączony model (`LLM_ENABLED=false`) nie wymaga magazynu wywołań.
+
 Punkt końcowy modelu to źródło `local_llm` w `config/sources.yaml` (rodzaj `ai_model`, GREEN, tylko hosty lokalne,
 `sendsIdentifiersExternally: false`). `apps/worker/src/llm.ts` buduje dla niego osobnego klienta wyjścia (lista
 dozwolonych hostów, limit zapytań, dziennik wyjścia, koperta pochodzenia) i zapisuje wywołania w `llm_call`. Domyślnie

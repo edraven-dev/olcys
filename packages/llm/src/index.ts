@@ -5,7 +5,14 @@
  * Contracts (types and ports) come from @olcys/core.
  */
 export const PACKAGE_NAME = '@olcys/llm';
-export { createLlmClient, type LlmCallLog, type LlmClientDeps, type LlmConfig } from './client.ts';
+export {
+  createLlmClient,
+  llmSourceProblem,
+  type LlmCallLog,
+  type LlmSourceInfo,
+  type LlmClientDeps,
+  type LlmConfig,
+} from './client.ts';
 export { DEFAULT_LLM_SOURCE_ID, DEFAULT_LLM_TIMEOUT_MS, llmConfigFromEnv } from './config.ts';
 export { sanitizeUntrusted, UNTRUSTED_CLOSE, UNTRUSTED_OPEN, wrapUntrusted, type WrappedInput } from './untrusted.ts';
 export * from './prompts/index.ts';
