@@ -157,6 +157,8 @@ wywoływać model. Odpowiedź, która nie jest użyteczna (zły JSON, naruszenie
 odrzucana bez zmiany statusu przebiegu. Ponowna ocena (`rescore`) nie wywołuje modelu.
 
 Potwierdzona przez analityka sugestia jest jedynym sposobem, w jaki rola od modelu wpływa na ocenę: przebieg ponownej
-oceny (`rescore`) przekazuje role potwierdzone przed jego zakolejkowaniem jako `AnalystCue` (`applyOverrides`, opcja
+oceny (`rescore`) zapisuje w migawce konfiguracji (`confirmedSuggestions`: id sugestii, czas decyzji, rola, kandydat i
+adres; etykieta `rulesVersions.confirmedSuggestions`) role potwierdzone przed jego zakolejkowaniem i przekazuje dokładnie
+te wpisy jako `AnalystCue` (`applyOverrides`, opcja
 `cues`; kandydaci są odnajdywani po zabezpieczeniu, adresie i pozycji). Oczekujące i odrzucone sugestie nigdy nie są
 sygnałem. Potwierdzenie nie zmienia wcześniej zapisanych ocen.

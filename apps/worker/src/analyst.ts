@@ -9,6 +9,7 @@ import type {
   AddressCandidate,
   AnalysisRun,
   AnalystOverride,
+  ConfirmedSuggestionRef,
   Id,
   Logger,
   Repositories,
@@ -29,21 +30,34 @@ type RunRef = Pick<AnalysisRun, 'id' | 'caseId' | 'trigger' | 'config'> &
   Partial<Pick<AnalysisRun, 'rescoreOfRunId' | 'queuedAt'>>;
 
 /**
- * The config snapshot of a new run. A rescore fixes the overrides it applies — those recorded until it was queued —
- * as their ids (`analystOverrides`) and a label (`rulesVersions.overrides = overrides@<count>:<last id>`).
+ * The config snapshot of a new run. A rescore fixes what it applies when it is queued: the overrides recorded until
+ * then (their ids as `analystOverrides`, labelled `rulesVersions.overrides = overrides@<count>:<last id>`) and the
+ * role suggestions an analyst confirmed until then (`confirmedSuggestions`, labelled `rulesVersions.confirmedSuggestions`).
  */
 export async function withOverridesSnapshot(
   repos: Repositories,
-  run: Pick<AnalysisRun, 'caseId' | 'trigger' | 'queuedAt'>,
+  run: Pick<AnalysisRun, 'caseId' | 'trigger' | 'queuedAt' | 'rescoreOfRunId'>,
   config: RunConfigSnapshot,
 ): Promise<RunConfigSnapshot> {
-  if (run.trigger !== 'rescore' || !repos.overrides) return config;
-  const overrides = overridesAt(await repos.overrides.listByCase(run.caseId), run.queuedAt);
-  return {
-    ...config,
-    rulesVersions: { ...config.rulesVersions, overrides: overridesVersion(overrides) },
-    analystOverrides: overrides.map((o) => o.id),
-  };
+  if (run.trigger !== 'rescore') return config;
+  let next = config;
+  if (repos.overrides) {
+    const overrides = overridesAt(await repos.overrides.listByCase(run.caseId), run.queuedAt);
+    next = {
+      ...next,
+      rulesVersions: { ...next.rulesVersions, overrides: overridesVersion(overrides) },
+      analystOverrides: overrides.map((o) => o.id),
+    };
+  }
+  const confirmed = await confirmedSuggestionRefs(repos, run);
+  if (confirmed.length > 0) {
+    next = {
+      ...next,
+      rulesVersions: { ...next.rulesVersions, confirmedSuggestions: `suggestions@${confirmed.length}` },
+      confirmedSuggestions: confirmed,
+    };
+  }
+  return next;
 }
 
 /**
@@ -84,24 +98,49 @@ async function namedCandidates(
 }
 
 /**
- * Role cues of the suggestions an analyst confirmed for the rescored run before this rescore was queued. Only a
- * confirmed suggestion is a cue (pending and rejected ones never are), and only a rescore applies it: a collecting run
- * never reads suggestions. The model's word alone never reaches the score.
+ * The role suggestions an analyst confirmed for the rescored run until the rescore was queued. Only a confirmed
+ * suggestion qualifies (pending and rejected ones never do). Called when the rescore is created; the result is stored
+ * in its config snapshot, so a later decision never changes that rescore.
  */
-async function confirmedCues(repos: Repositories, run: RunRef): Promise<AnalystCue[]> {
+async function confirmedSuggestionRefs(
+  repos: Repositories,
+  run: Pick<AnalysisRun, 'trigger' | 'queuedAt' | 'rescoreOfRunId'>,
+): Promise<ConfirmedSuggestionRef[]> {
   if (run.trigger !== 'rescore' || !run.rescoreOfRunId || !repos.llm) return [];
-  const limit = run.queuedAt ? Date.parse(run.queuedAt) : Number.POSITIVE_INFINITY;
-  return (await repos.llm.listSuggestionsByRun(run.rescoreOfRunId))
-    .filter(
-      (s) =>
-        s.task === ADDRESS_ROLE_TASK &&
-        s.status === 'confirmed' &&
-        s.target.candidateId !== undefined &&
-        ROLE_CUES.includes(s.label as RoleCue) &&
-        (s.decidedAt === undefined || Date.parse(s.decidedAt) <= limit),
-    )
-    .map((s) => ({ candidateId: s.target.candidateId as Id, cue: s.label as RoleCue, suggestionId: s.id }));
+  const limit = Date.parse(run.queuedAt);
+  const confirmed = (await repos.llm.listSuggestionsByRun(run.rescoreOfRunId)).filter(
+    (s) =>
+      s.task === ADDRESS_ROLE_TASK &&
+      s.status === 'confirmed' &&
+      s.target.candidateId !== undefined &&
+      ROLE_CUES.includes(s.label as RoleCue) &&
+      s.decidedAt !== undefined &&
+      Date.parse(s.decidedAt) <= limit,
+  );
+  if (confirmed.length === 0) return [];
+  const candidates = new Map((await repos.evidence.listCandidates(run.rescoreOfRunId)).map((c) => [c.id, c]));
+  return confirmed.map((s) => {
+    const candidateId = s.target.candidateId as Id;
+    const address = candidates.get(candidateId)?.address;
+    return {
+      suggestionId: s.id,
+      decidedAt: s.decidedAt as string,
+      role: s.label,
+      candidateId,
+      ...(address ? { address } : {}),
+    };
+  });
 }
+
+/** The cues a rescore applies: exactly the confirmed suggestions its config snapshot lists. */
+const cuesOf = (run: RunRef): AnalystCue[] =>
+  run.trigger !== 'rescore'
+    ? []
+    : (run.config.confirmedSuggestions ?? []).map((c) => ({
+        candidateId: c.candidateId,
+        cue: c.role as RoleCue,
+        suggestionId: c.suggestionId,
+      }));
 
 /** The scoring input of a run with the analyst overrides it applies; `applied` counts them. */
 export async function withAnalystOverrides(
@@ -111,7 +150,7 @@ export async function withAnalystOverrides(
   logger?: Logger,
 ): Promise<{ input: FeatureExtractionInput; applied: number }> {
   const overrides = await runOverrides(repos, run);
-  const cues = await confirmedCues(repos, run);
+  const cues = cuesOf(run);
   if (overrides.length === 0 && cues.length === 0) return { input, applied: 0 };
   const current = new Set(input.extractions.flatMap((e) => e.candidates.map((c) => c.id)));
   const named = await namedCandidates(repos, run.caseId, overrides, current);

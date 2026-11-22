@@ -261,4 +261,55 @@ describe('confirmed suggestions in a rescore', () => {
     const { input: plain } = await withAnalystOverrides(repos, manual, input as unknown as FeatureExtractionInput);
     expect(plain.analyst).toBeUndefined();
   });
+
+  it('records the confirmed suggestions in the rescore snapshot and ignores decisions made after it was queued', async () => {
+    const { repos, run, deps } = await setup({ wykop: 2, telegram: 0 });
+    await runPipeline(run.id, deps(createSuggestRolesStage({ sources: SOURCES, llm: fakeModel().client })));
+    const [first, second] = await repos.llm!.listSuggestionsByRun(run.id);
+    const decide = (id: string, decision: 'confirmed' | 'rejected') =>
+      repos.llm!.decide({
+        id: newId(),
+        suggestionId: id,
+        decision,
+        justification: 'Decyzja analityka w teście',
+        decidedBy: 'Analityk Testowy',
+        decidedAt: nowIso(),
+      });
+    await decide(first!.id, 'confirmed');
+    const rescore = await createRun(
+      repos,
+      { caseId: run.caseId, mode: 'offline', trigger: 'rescore', rescoreOfRunId: run.id },
+      CONFIG,
+    );
+    const listed = rescore.config.confirmedSuggestions;
+    expect(listed).toHaveLength(1);
+    expect(listed![0]).toMatchObject({
+      suggestionId: first!.id,
+      role: 'first_person_owner',
+      candidateId: first!.target.candidateId,
+    });
+    expect(listed![0]!.decidedAt).toMatch(/^\d{4}-/);
+    expect(listed![0]!.address?.chain).toBe('tron');
+    expect(rescore.config.rulesVersions['confirmedSuggestions']).toBe('suggestions@1');
+    // Decided after the rescore was queued: the rescore still applies exactly its snapshot.
+    await decide(second!.id, 'confirmed');
+    const stored = (await repos.runs.get(rescore.id))!;
+    const stored1 = await repos.evidence.listCandidates(run.id);
+    const input = {
+      extractions: [{ captureId: 'x', candidates: stored1, rejected: [], secrets: [], extractorVersion: 't' }],
+    };
+    const { input: applied } = await withAnalystOverrides(repos, stored, input as unknown as FeatureExtractionInput);
+    expect(applied.analyst?.cues.map((c) => c.suggestionId)).toEqual([first!.id]);
+    // A rescore queued now lists both.
+    const later = await createRun(
+      repos,
+      { caseId: run.caseId, mode: 'offline', trigger: 'rescore', rescoreOfRunId: run.id },
+      CONFIG,
+    );
+    expect(later.config.confirmedSuggestions).toHaveLength(2);
+    // Collecting runs record none.
+    expect(
+      (await createRun(repos, { caseId: run.caseId, mode: 'offline' }, CONFIG)).config.confirmedSuggestions,
+    ).toBeUndefined();
+  });
 });

@@ -51,6 +51,7 @@ export {
   MAX_CONSECUTIVE_FAILURES,
   type SuggestRolesOptions,
 } from './suggest-roles.ts';
+export {
   assertTsaAllowListed,
   createTrustedTimestamper,
   tsaSettings,
