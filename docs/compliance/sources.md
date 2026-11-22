@@ -28,6 +28,27 @@ preferować własne węzły, lokalne kopie zbiorów danych i dostawców z umową
 
 Szczegółowe uzasadnienie statusu każdego źródła znajduje się w polach `complianceNote` i `tosUrl` w `config/sources.yaml`.
 
+## Wyszukiwarki internetowe
+
+- **Demonstracja i testy:** wyłącznie wyszukiwarka testowa (`mock_search`, GREEN, `OLCYS_SEARCH_MODE=mock` — domyślnie).
+  Przeszukuje strony z mapy witryny strony testowej (z poszanowaniem robots.txt) i dopasowuje zapytania lokalnie, więc
+  żaden identyfikator nie opuszcza komputera.
+- **Brave Search API i Mojeek** (AMBER, płatne za zapytanie): tylko w trybie `OLCYS_SEARCH_MODE=external`, w przebiegach
+  `live` lub `replay`, z kluczem ze zmiennej środowiskowej i po włączeniu źródła w sprawie z uzasadnieniem. Każde
+  zapytanie ujawnia dostawcy identyfikator i jest odnotowane w dzienniku ruchu (`containsIdentifier: true`). Do produkcji
+  zalecany Mojeek z umową DPA (bez podprzetwarzających) i zerową retencją danych na żądanie; Brave oferuje zerową
+  retencję tylko w planie Enterprise.
+- **Przechowywanie wyników zgodnie z warunkami dostawców:** Brave — tylko w planie niestandardowym
+  (`BRAVE_SEARCH_STORAGE_RIGHTS=true`), Mojeek — w planach Business i Enterprise (`MOJEEK_PLAN`; Startup pozwala buforować
+  wyniki najwyżej godzinę). W pozostałych przypadkach odpowiedź dostawcy nie jest zapisywana ani nagrywana (tylko jej
+  skrót SHA-256 i rozmiar), a w przechwyceniu zostają tylko pozycje i adresy wyników. Czy taka lista adresów jako ślad
+  audytowy mieści się w warunkach dostawców, wymaga potwierdzenia prawnego przed wdrożeniem.
+- **Nie używamy:** Google Custom Search JSON API (zamknięte dla nowych klientów, koniec działania 2027-01-01), Bing Web
+  Search API (wycofane 2025-08-11), scraperów wyników Google (SerpApi, Serper), scrapowania DuckDuckGo (ddgs), silników
+  scrapujących SearXNG ani wyszukiwarek zwracających wyniki przez model językowy (Exa, Tavily).
+- Skuteczność wyszukiwania dokładnych ciągów adresów kryptowalut opisuje
+  [metodyka próby](../methodology/search-exact-address-spike.md) (jeszcze nieprzeprowadzonej).
+
 ## Dane łańcuchowe, kursy i ceny
 
 - **Dane łańcuchowe:** każde zapytanie o adres ujawnia ten adres dostawcy (`containsIdentifier: true` w dzienniku).
