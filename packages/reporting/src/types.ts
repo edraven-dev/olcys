@@ -2,6 +2,7 @@ import type {
   ActivityIndicators,
   AddressCandidate,
   AddressLabel,
+  AddressTypeClassification,
   AdmiraltyReliability,
   AnalysisRun,
   AnalystJudgement,
@@ -78,6 +79,8 @@ export interface ReportData {
   flows: FlowEdge[];
   links: LinkAssessment[];
   exclusions: ExclusionDecision[];
+  /** Address types of the chain analysis (computed, "as of the recorded chain tip"), when the store keeps them. */
+  addressTypes?: AddressTypeClassification[];
   labels: AddressLabel[];
   activity: ActivityIndicators[];
   cashOuts: CashOutEvent[];
