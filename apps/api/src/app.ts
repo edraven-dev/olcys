@@ -13,7 +13,16 @@ import type {
   SourceDescriptor,
 } from '@olcys/core';
 import { createSourceRegister, validateCaseScope, type ScopeViolation } from '@olcys/collectors';
-import { ContractError, CORE_CONTRACTS_VERSION, CreateCaseSchema, parse, StartRunSchema } from '@olcys/core';
+import {
+  ContractError,
+  CORE_CONTRACTS_VERSION,
+  CreateCaseSchema,
+  newId,
+  nowIso,
+  parse,
+  StartRunSchema,
+} from '@olcys/core';
+import { EXPORT_FILE_EXTENSIONS, EXPORT_KINDS, isExportKind } from '@olcys/reporting';
 import { evidenceRunIdOf, TOOL_VERSION } from '@olcys/worker';
 import Fastify, { type FastifyInstance, type FastifyReply } from 'fastify';
 import { DEFAULT_ANALYST, registerAnalystRoutes, supportsJudgements, withJudgements } from './analyst-routes.ts';
@@ -268,6 +277,39 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
       .header('content-type', report.mediaType)
       .header('content-security-policy', "default-src 'none'; style-src 'unsafe-inline'; img-src data:")
       .header('x-content-type-options', 'nosniff')
+      .send(Buffer.from(bytes));
+  });
+
+  // STIX, MISP and CSV exports of the run's latest report: a download that leaves the tool is a custody event.
+  app.get<{ Params: { runId: string; format: string } }>('/api/runs/:runId/exports/:format', async (request, reply) => {
+    const runId = idOf(request.params.runId);
+    const run = runId ? await repos.runs.get(runId) : undefined;
+    if (!run) return notFound(reply, 'run');
+    const { format } = request.params;
+    if (!isExportKind(format)) {
+      return reply.code(400).send({ error: 'invalid_input', message: `format is one of ${EXPORT_KINDS.join(', ')}` });
+    }
+    const stored = await repos.analysis.latestReport(run.id, format);
+    if (!stored) return notFound(reply, 'export');
+    const kase = await repos.cases.get(run.caseId);
+    await repos.custody?.add([
+      {
+        id: newId(),
+        at: nowIso(),
+        actor: analyst,
+        action: 'exported',
+        runId: run.id,
+        subject: { type: 'report', id: run.id },
+        detail: { format, blobSha256: stored.blobSha256, purpose: kase?.purpose ?? '' },
+      },
+    ]);
+    deps.logger?.info('report export downloaded', { runId: run.id, format, analyst });
+    const bytes = await deps.blobs.get(stored.blobSha256);
+    return reply
+      .header('content-type', stored.mediaType)
+      .header('content-disposition', `attachment; filename="olcys-${run.id}-${EXPORT_FILE_EXTENSIONS[format]}"`)
+      .header('x-content-type-options', 'nosniff')
+      .header('content-security-policy', "sandbox; default-src 'none'")
       .send(Buffer.from(bytes));
   });
 

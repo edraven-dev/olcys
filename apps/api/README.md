@@ -5,27 +5,28 @@ serwer deweloperski Vite (`/api`). W MVP uruchamia też potok analizy w tym samy
 
 ## Trasy
 
-| Metoda i ścieżka                                                    | Opis                                                                               |
-| ------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| `GET /api/health`                                                   | stan usługi i wersja kontraktów                                                    |
-| `GET /api/meta`                                                     | wersja, tryb, włączone funkcje (`features`), wersje wag i reguł                    |
-| `GET /api/sources`                                                  | rejestr źródeł ze statusem zgodności (GREEN/AMBER/RED)                             |
-| `GET /api/cases`, `POST /api/cases`, `GET /api/cases/:id`           | sprawy i ich identyfikatory (walidacja schematem `CreateCaseSchema`)               |
-| `GET /api/cases/:id/runs`, `POST /api/cases/:id/runs`               | przebiegi sprawy; `POST` tworzy przebieg i uruchamia potok (odpowiedź 202)         |
-| `GET /api/cases/:id/schedule`, `PUT /api/cases/:id/schedule`        | harmonogram analiz okresowych: cron (UTC), najbliższe terminy, wyzwolenia, zmiany  |
-| `GET /api/runs/:id`                                                 | status i postęp przebiegu                                                          |
-| `GET /api/runs/:id/{captures,observations,accounts,candidates}`     | dowody: przechwycenia stron, fakty, konta, kandydaci adresów                       |
-| `GET /api/runs/:id/extractions`                                     | wyniki ekstrakcji z dopasowaniami odrzuconymi przy weryfikacji (np. homoglify)     |
-| `GET /api/runs/:id/{links,exclusions,activity,cash-outs,transfers}` | wyniki: powiązania ze Wskaźnikiem Pewności, odrzucenia, aktywność, wyjścia do fiat |
-| `GET /api/runs/:id/address-types`                                   | typy adresów z analizy łańcuchowej (EOA, EIP-7702, Safe, ERC-4337, kontrakt…)      |
-| `GET /api/links/:linkId/judgements`, `POST …/judgements`            | oceny analityka przy powiązaniu (od najstarszej); nie zmieniają wyniku             |
-| `GET /api/cases/:id/overrides`, `POST /api/cases/:id/overrides`     | korekty analityka w sprawie; działają dopiero w ponownej ocenie (`rescore`)        |
-| `POST /api/runs/:id/report`                                         | nowa wersja raportu zakończonego przebiegu (z ocenami zapisanymi do tej chwili)    |
-| `GET /api/runs/:id/changes`                                         | zmiany względem poprzedniego przebiegu (m.in. podmiana portfela)                   |
-| `GET /api/runs/:id/egress`                                          | dziennik ruchu wychodzącego przebiegu                                              |
-| `GET /api/runs/:id/report`                                          | raport HTML przebiegu                                                              |
-| `GET /api/labels`                                                   | etykiety adresów z pochodzeniem (zbiór danych, URL, licencja, data zmiany)         |
-| `GET /api/captures/:id`, `GET /api/blobs/:sha256`                   | metadane przechwycenia; surowa treść dowodu wyłącznie jako plik do pobrania        |
+| Metoda i ścieżka                                                    | Opis                                                                                        |
+| ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `GET /api/health`                                                   | stan usługi i wersja kontraktów                                                             |
+| `GET /api/meta`                                                     | wersja, tryb, włączone funkcje (`features`), wersje wag i reguł                             |
+| `GET /api/sources`                                                  | rejestr źródeł ze statusem zgodności (GREEN/AMBER/RED)                                      |
+| `GET /api/cases`, `POST /api/cases`, `GET /api/cases/:id`           | sprawy i ich identyfikatory (walidacja schematem `CreateCaseSchema`)                        |
+| `GET /api/cases/:id/runs`, `POST /api/cases/:id/runs`               | przebiegi sprawy; `POST` tworzy przebieg i uruchamia potok (odpowiedź 202)                  |
+| `GET /api/cases/:id/schedule`, `PUT /api/cases/:id/schedule`        | harmonogram analiz okresowych: cron (UTC), najbliższe terminy, wyzwolenia, zmiany           |
+| `GET /api/runs/:id`                                                 | status i postęp przebiegu                                                                   |
+| `GET /api/runs/:id/{captures,observations,accounts,candidates}`     | dowody: przechwycenia stron, fakty, konta, kandydaci adresów                                |
+| `GET /api/runs/:id/extractions`                                     | wyniki ekstrakcji z dopasowaniami odrzuconymi przy weryfikacji (np. homoglify)              |
+| `GET /api/runs/:id/{links,exclusions,activity,cash-outs,transfers}` | wyniki: powiązania ze Wskaźnikiem Pewności, odrzucenia, aktywność, wyjścia do fiat          |
+| `GET /api/runs/:id/address-types`                                   | typy adresów z analizy łańcuchowej (EOA, EIP-7702, Safe, ERC-4337, kontrakt…)               |
+| `GET /api/links/:linkId/judgements`, `POST …/judgements`            | oceny analityka przy powiązaniu (od najstarszej); nie zmieniają wyniku                      |
+| `GET /api/cases/:id/overrides`, `POST /api/cases/:id/overrides`     | korekty analityka w sprawie; działają dopiero w ponownej ocenie (`rescore`)                 |
+| `POST /api/runs/:id/report`                                         | nowa wersja raportu zakończonego przebiegu (z ocenami zapisanymi do tej chwili)             |
+| `GET /api/runs/:id/changes`                                         | zmiany względem poprzedniego przebiegu (m.in. podmiana portfela)                            |
+| `GET /api/runs/:id/egress`                                          | dziennik ruchu wychodzącego przebiegu                                                       |
+| `GET /api/runs/:id/report`                                          | raport HTML przebiegu                                                                       |
+| `GET /api/runs/:id/exports/:format`                                 | eksport raportu: `stix`, `misp`, `csv_links`, `csv_evidence`, `csv_cash_out`, `csv_changes` |
+| `GET /api/labels`                                                   | etykiety adresów z pochodzeniem (zbiór danych, URL, licencja, data zmiany)                  |
+| `GET /api/captures/:id`, `GET /api/blobs/:sha256`                   | metadane przechwycenia; surowa treść dowodu wyłącznie jako plik do pobrania                 |
 
 Treść pobrana ze stron jest niezaufana: `/api/blobs` zwraca ją jako załącznik `application/octet-stream` z nagłówkami
 `nosniff` i `Content-Security-Policy: sandbox`, nigdy jako stronę w domenie konsoli.
@@ -88,3 +89,12 @@ Kody: `source_forbidden` (źródło RED), `unknown_source`, `amber_justification
 `justification_too_short` (uzasadnienie krótsze niż 20 znaków; `details[].minLength`), `orphan_justification` (uzasadnienie
 dla źródła niewłączonego lub spoza AMBER), `pivot_depth_out_of_range` (głębokość 0–3) i `unknown_chain`. Kolektory
 sprawdzają to samo ponownie przy zbieraniu.
+
+## Eksporty raportu
+
+`GET /api/runs/:id/exports/:format` zwraca najnowszy eksport przebiegu (STIX 2.1, MISP lub jedną z czterech tabel CSV —
+zob. `packages/reporting/README.md`) jako załącznik z nagłówkami `x-content-type-options: nosniff` i
+`content-security-policy: sandbox`. Każde pobranie zapisuje w łańcuchu dowodowym zdarzenie `exported` (podmiot: raport
+przebiegu; szczegóły: format, skrót SHA-256 pliku i cel sprawy), z analitykiem z konfiguracji serwera. Nieznany format to
+400, nieznany przebieg lub brak eksportu — 404. Znacznik TLP i nazwa producenta STIX pochodzą ze zmiennych
+`OLCYS_EXPORT_TLP` (domyślnie `amber`) i `OLCYS_STIX_PRODUCER_NAME`.
