@@ -110,12 +110,17 @@ export async function buildReportData(
   ]);
 
   // Analyst statements and inputs, kept apart from the computed results (optional ports of the store).
-  const [judgements, overrides] = await Promise.all([
+  const [judgements, overrides, suggestions] = await Promise.all([
     repos.judgements ? repos.judgements.listByRun(runId) : Promise.resolve([]),
     repos.overrides && run.trigger === 'rescore' && run.config.analystOverrides?.length
       ? repos.overrides.listByCase(run.caseId)
       : Promise.resolve([]),
+    repos.llm ? repos.llm.listSuggestionsByRun(runId) : Promise.resolve([]),
   ]);
+  // Address-mention roles proposed by the model: hypotheses of zero weight, listed with their status.
+  const roleSuggestions = suggestions
+    .filter((x) => x.task === 'address-role-classification')
+    .toSorted((a, b) => cmp(a.createdAt, b.createdAt) || cmp(a.id, b.id));
   const applied = appliedOverrides(plainRun(run), overrides);
 
   // Reasons the pipeline recorded so far (`markPartial`): sources or stages that could not deliver data.
@@ -211,6 +216,7 @@ export async function buildReportData(
     cashOuts: byId(cashOuts),
     changes: byId(changes),
     ...(judgements.length ? { judgements: byTime(judgements) } : {}),
+    ...(roleSuggestions.length ? { suggestions: roleSuggestions } : {}),
     ...(applied.length ? { overrides: applied } : {}),
   };
 }

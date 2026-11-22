@@ -18,6 +18,7 @@ import type {
   FlowEdge,
   Id,
   IsoDateTime,
+  LlmSuggestion,
   LinkAssessment,
   NormalizedTransfer,
   Observation,
@@ -96,6 +97,11 @@ export interface ReportData {
    * to the computed results, never part of them.
    */
   judgements?: AnalystJudgement[];
+  /**
+   * Model suggestions of the run (address-mention roles) with their status, for the inferences section: unverified
+   * AI hypotheses with zero score weight, never facts. Rejected ones are listed as rejected.
+   */
+  suggestions?: LlmSuggestion[];
   /** Analyst overrides this run applied (rescore runs: those recorded until it was queued), oldest first. */
   overrides?: AnalystOverride[];
 }

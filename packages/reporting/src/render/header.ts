@@ -9,6 +9,31 @@ import { addr, bandBadge, block, chainName, hash, kv, list, para, section, table
 import { cashOutMovements, counterpartyLabel, movementValue } from './chain.ts';
 import { isKycLead, uniqueRejected } from './links.ts';
 
+/** Model suggestions about address mentions: hypotheses with their status, never facts, zero score weight. */
+function aiRoleInferences(view: View): SafeHtml[] {
+  const candidates = new Map(view.data.candidates.map((c) => [c.id, c]));
+  return (view.data.suggestions ?? []).flatMap((s) => {
+    const candidate = s.target.candidateId ? candidates.get(s.target.candidateId) : undefined;
+    const output = (s.output ?? {}) as { evidenceSpan?: unknown };
+    if (!candidate || typeof output.evidenceSpan !== 'string') return [];
+    const status = t(pl.summary.aiStatus[s.status], {
+      analyst: s.decidedBy ?? '',
+      date: s.decidedAt ? formatLongDate(s.decidedAt) : '',
+    });
+    return [
+      t(pl.summary.inferenceAiRole, {
+        status,
+        address: addr(candidate.address.address),
+        url: view.captureById.get(candidate.captureId)?.url ?? '',
+        role: pl.summary.aiRoles[s.label] ?? s.label,
+        span: output.evidenceSpan,
+        model: s.model,
+        prompt: s.promptVersion,
+      }),
+    ];
+  });
+}
+
 export function metadataSection(view: View): SafeHtml {
   const { data } = view;
   const kase = data.case;
@@ -208,6 +233,7 @@ export function summarySection(view: View): SafeHtml {
         after: addr(s.after ?? ''),
       }),
     ),
+    ...aiRoleInferences(view),
   ];
 
   return section(

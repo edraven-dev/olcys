@@ -326,6 +326,24 @@ export const pl = {
     inferenceKyc:
       'Trop KYC: osoba sama opublikowała adres depozytowy giełdy ({address}) — giełda może na wniosek wskazać posiadacza konta.',
     inferenceSwap: 'Możliwa podmiana portfela: {where} — poprzednio {before}, obecnie {after}.',
+    inferenceAiRole:
+      'Sugestia AI — {status}: rola wzmianki o adresie {address} ({url}): {role} — „{span}”. Model: {model}, prompt {prompt}. Sugestia ma zerowy wpływ na Wskaźnik Pewności.',
+    aiStatus: {
+      pending: 'niezweryfikowana',
+      confirmed: 'potwierdzona przez analityka {analyst} ({date}); uwzględniana dopiero w ponownej ocenie (rescore)',
+      rejected: 'odrzucona przez analityka {analyst} ({date})',
+    },
+    aiRoles: {
+      first_person_owner: 'wypowiedź o własności w 1. osobie',
+      payment_request: 'prośba o płatność',
+      donation: 'darowizna',
+      scam_report: 'zgłoszenie oszustwa',
+      warning: 'ostrzeżenie',
+      quote: 'cytat',
+      exchange_deposit: 'wpłata na giełdę',
+      listing: 'lista adresów',
+      unclear: 'niejasne',
+    } as Record<string, string>,
     noInferences: 'Brak wniosków wymagających weryfikacji.',
     tableColumns: {
       identity: 'Identyfikator',
