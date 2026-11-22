@@ -210,7 +210,7 @@ describe('cash-out rules on the persona storyline', () => {
     ]);
     expect(indicators.serviceInteractions).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ category: 'defi_dex', direction: 'in', count: 1, pln: '18250.00' }),
+        expect.objectContaining({ category: 'defi_dex', direction: 'in', count: 1, pln: '18250.00', priced: 1 }),
         expect.objectContaining({
           category: 'exchange',
           entity: 'Giełda Testowa (SYNTHETIC)',

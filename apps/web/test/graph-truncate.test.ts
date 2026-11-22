@@ -1,5 +1,7 @@
 import type { OnlineAccount } from '@olcys/core';
+import cytoscape from 'cytoscape';
 import { describe, expect, it } from 'vitest';
+import { toElements } from '../src/features/graph/graph-style.ts';
 import { buildGraph, DEFAULT_GRAPH_OPTIONS, type GraphInput } from '../src/features/graph/build-elements.ts';
 import { pl } from '../src/i18n/pl.ts';
 import { plural, t } from '../src/i18n/t.ts';
@@ -98,5 +100,43 @@ describe('truncation guard', () => {
       max: 500,
     });
     expect(text).toBe('Graf ma 800 elementów — wyświetlono 500. Zawęź filtry.');
+  });
+});
+
+describe('truncation keeps complete paths', () => {
+  it('keeps every kept address connected to the subject when the main links alone exceed the limit', () => {
+    const base = generated();
+    const many = 250;
+    const accounts = Array.from({ length: many }, (_, i) => ({
+      ...base.accounts[0]!,
+      id: `many-acc-${i}`,
+      handle: `h${i}`,
+    }));
+    const links = accounts.map((account, i) => ({
+      ...btcLink,
+      id: `many-link-${i}`,
+      address: { chain: 'bitcoin' as const, address: `bc1qmany${String(i).padStart(4, '0')}` },
+      paths: [{ ...btcLink.paths[0]!, accountId: account.id }],
+    }));
+    const b = buildGraph(
+      { caseTitle: 'Sprawa', identifiers: [identity], accounts, links, exclusions: [] },
+      DEFAULT_GRAPH_OPTIONS,
+    );
+    expect(b.truncated).toBe(true);
+    expect(b.nodes.length + b.edges.length).toBeLessThanOrEqual(500);
+    const addresses = b.nodes.filter((n) => n.kind === 'address');
+    expect(addresses.length).toBeGreaterThan(100);
+    const cy = cytoscape({ headless: true, elements: toElements(b) });
+    const reachable = new Set(
+      cy
+        .$id('subject')
+        .successors()
+        .nodes()
+        .map((n) => n.id()),
+    );
+    expect(addresses.every((a) => reachable.has(a.id))).toBe(true);
+    // No dangling accounts either.
+    expect(b.nodes.filter((n) => n.kind === 'account').every((a) => reachable.has(a.id))).toBe(true);
+    cy.destroy();
   });
 });

@@ -411,6 +411,7 @@ export const pl = {
     },
     otherRelationFallback: 'relacja bez roszczenia własności',
     loading: 'Wczytywanie grafu…',
+    partialValuation: '(wycena niepełna: {priced} z {total})',
     flowCount: { one: '{count} transakcja', few: '{count} transakcje', many: '{count} transakcji' },
     rejectedSuffix: 'odrzucony',
     panel: {

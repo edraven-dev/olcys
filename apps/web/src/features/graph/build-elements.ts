@@ -118,6 +118,8 @@ const TIER_FLOW = 4;
 interface Draft {
   nodes: Map<string, { data: GraphNodeData; tier: number }>;
   edges: Map<string, { data: GraphEdgeData; tier: number }>;
+  /** Edges that must be kept together (a link's identifier → account → address path), in insertion order. */
+  bundles: Map<string, { tier: number; edges: string[] }>;
 }
 
 function addNode(draft: Draft, data: GraphNodeData, tier: number): GraphNodeData {
@@ -130,7 +132,10 @@ function addNode(draft: Draft, data: GraphNodeData, tier: number): GraphNodeData
   return data;
 }
 
-function addEdge(draft: Draft, data: GraphEdgeData, tier: number): void {
+function addEdge(draft: Draft, data: GraphEdgeData, tier: number, bundle = `edge:${data.id}`): void {
+  const group = draft.bundles.get(bundle) ?? { tier, edges: [] };
+  if (!group.edges.includes(data.id)) group.edges.push(data.id);
+  draft.bundles.set(bundle, group);
   const existing = draft.edges.get(data.id);
   if (existing) {
     existing.tier = Math.min(existing.tier, tier);
@@ -189,7 +194,7 @@ function identifierNodeData(identifier: Identifier): GraphNodeData {
 
 /** Builds the graph for the given filters; `truncated` is set when more than `maxElements` elements exist. */
 export function buildGraph(input: GraphInput, options: GraphOptions): GraphBuild {
-  const draft: Draft = { nodes: new Map(), edges: new Map() };
+  const draft: Draft = { nodes: new Map(), edges: new Map(), bundles: new Map() };
   const accounts = new Map(input.accounts.map((a) => [a.id, a]));
   const rejectingDecisions = input.exclusions.filter(isRejectingDecision);
   const excludedKeys = new Set(rejectingDecisions.map((d) => keyOf(d.address)));
@@ -235,13 +240,13 @@ export function buildGraph(input: GraphInput, options: GraphOptions): GraphBuild
     const kind = rejected ? rejectedKind(link, excludedKeys) : 'address_hop';
     if (paths.length === 0) {
       // No account in the path (a crypto-address input, or a third-party attribution without an account).
-      addEdge(draft, linkEdge(kind, identifierNode, addressNode.id, link, undefined), tier);
+      addEdge(draft, linkEdge(kind, identifierNode, addressNode.id, link, undefined), tier, link.id);
       continue;
     }
     for (const path of paths) {
       const account = path.accountId ? accounts.get(path.accountId) : undefined;
       if (path.accountId === undefined || !account) {
-        addEdge(draft, linkEdge(kind, identifierNode, addressNode.id, link, path), tier);
+        addEdge(draft, linkEdge(kind, identifierNode, addressNode.id, link, path), tier, link.id);
         continue;
       }
       const accountNode = addNode(
@@ -265,8 +270,9 @@ export function buildGraph(input: GraphInput, options: GraphOptions): GraphBuild
           label: t(anchor ? pl.graph.edgeLabel.anchor : pl.graph.edgeLabel.identityHop, { p: hopLabel(p) }),
         },
         tier,
+        link.id,
       );
-      addEdge(draft, linkEdge(kind, accountNode.id, addressNode.id, link, path), tier);
+      addEdge(draft, linkEdge(kind, accountNode.id, addressNode.id, link, path), tier, link.id);
     }
   }
 
@@ -359,7 +365,7 @@ function linkEdge(
 
 /** Flow overlay: address ⇄ service per direction, summed per pair; PLN when every interaction has a valuation. */
 function addFlows(draft: Draft, activity: readonly ActivityIndicators[]): void {
-  const groups = new Map<string, { from: string; to: string; count: number; pln: DecimalString[]; missing: boolean }>();
+  const groups = new Map<string, { from: string; to: string; count: number; priced: number; pln: DecimalString[] }>();
   for (const indicators of activity) {
     const addressId = nodeIds.address(indicators.address);
     if (!draft.nodes.has(addressId)) continue;
@@ -367,10 +373,13 @@ function addFlows(draft: Draft, activity: readonly ActivityIndicators[]): void {
       const entityId = nodeIds.entity(interaction.entity);
       const [from, to] = interaction.direction === 'out' ? [addressId, entityId] : [entityId, addressId];
       const id = `flow:${from}>${to}`;
-      const group = groups.get(id) ?? { from, to, count: 0, pln: [], missing: false };
+      const group = groups.get(id) ?? { from, to, count: 0, priced: 0, pln: [] };
       group.count += interaction.count;
-      if (interaction.pln === undefined) group.missing = true;
-      else group.pln.push(interaction.pln);
+      if (interaction.pln !== undefined) {
+        group.pln.push(interaction.pln);
+        // Older data has no `priced`: a present `pln` then covers every interaction.
+        group.priced += interaction.priced ?? interaction.count;
+      }
       groups.set(id, group);
       if (!draft.nodes.has(entityId)) {
         addNode(
@@ -382,10 +391,6 @@ function addFlows(draft: Draft, activity: readonly ActivityIndicators[]): void {
     }
   }
   for (const [id, group] of groups) {
-    const amount =
-      group.missing || group.pln.length === 0
-        ? plural(group.count, pl.graph.flowCount)
-        : formatPln(sumDecimals(group.pln));
     addEdge(
       draft,
       {
@@ -393,33 +398,64 @@ function addFlows(draft: Draft, activity: readonly ActivityIndicators[]): void {
         source: group.from,
         target: group.to,
         kind: 'flow',
-        label: t(pl.graph.edgeLabel.flow, { amount }),
+        label: t(pl.graph.edgeLabel.flow, { amount: flowAmount(group) }),
       },
       TIER_FLOW,
     );
   }
 }
 
-/** Keeps the lowest tiers first (subject, identifiers, main links, rejected, flows); edges need both ends. */
+/** PLN sum when every interaction is valued; a partial sum is flagged with how many were; no valuation: the count. */
+function flowAmount(group: { count: number; priced: number; pln: readonly DecimalString[] }): string {
+  if (group.pln.length === 0 || group.priced === 0) return plural(group.count, pl.graph.flowCount);
+  const sum = formatPln(sumDecimals(group.pln));
+  if (group.priced >= group.count) return sum;
+  return `${sum} ${t(pl.graph.partialValuation, { priced: group.priced, total: group.count })}`;
+}
+
+/**
+ * Keeps the lowest tiers first (subject, identifiers, main links, rejected, flows). Within a tier whole bundles (a
+ * link's identifier → account → address path with its edges) are kept before anything else, so a truncated graph never
+ * holds addresses cut off from the subject; an edge always has both of its ends.
+ */
 function truncate(draft: Draft, maxElements: number): GraphBuild {
   const total = draft.nodes.size + draft.edges.size;
   const nodes: GraphNodeData[] = [];
   const edges: GraphEdgeData[] = [];
-  const kept = new Set<string>();
+  const keptNodes = new Set<string>();
+  const keptEdges = new Set<string>();
   let budget = Math.max(0, maxElements);
+
+  const connected = new Set([...draft.edges.values()].flatMap((e) => [e.data.source, e.data.target]));
+  const takeNode = (id: string) => {
+    const node = draft.nodes.get(id);
+    if (!node || keptNodes.has(id)) return;
+    nodes.push(node.data);
+    keptNodes.add(id);
+    budget -= 1;
+  };
+  const takeBundle = (bundle: { tier: number; edges: string[] }) => {
+    const pending = bundle.edges.map((id) => draft.edges.get(id)).filter((e) => e && !keptEdges.has(e.data.id));
+    const ends = new Set(pending.flatMap((e) => (e ? [e.data.source, e.data.target] : [])));
+    // Subject and identifiers are only ever added by their own tiers.
+    const missing = [...ends].filter((id) => !keptNodes.has(id));
+    if (bundle.tier > TIER_IDENTIFIER && missing.some((id) => (draft.nodes.get(id)?.tier ?? 0) <= TIER_IDENTIFIER))
+      return;
+    if (missing.length + pending.length > budget) return;
+    for (const id of missing) takeNode(id);
+    for (const edge of pending) {
+      if (!edge) continue;
+      edges.push(edge.data);
+      keptEdges.add(edge.data.id);
+      budget -= 1;
+    }
+  };
+
   for (let tier = TIER_SUBJECT; tier <= TIER_FLOW; tier += 1) {
-    for (const { data, tier: nodeTier } of draft.nodes.values()) {
-      if (nodeTier !== tier || budget === 0) continue;
-      nodes.push(data);
-      kept.add(data.id);
-      budget -= 1;
-    }
-    for (const { data, tier: edgeTier } of draft.edges.values()) {
-      if (edgeTier !== tier || budget === 0) continue;
-      if (!kept.has(data.source) || !kept.has(data.target)) continue;
-      edges.push(data);
-      budget -= 1;
-    }
+    if (tier === TIER_SUBJECT && budget > 0) takeNode(SUBJECT_ID);
+    for (const bundle of draft.bundles.values()) if (bundle.tier === tier) takeBundle(bundle);
+    // Nodes that have no edge at all (e.g. an excluded address with no known entity); never a cut-off end of an edge.
+    for (const [id, node] of draft.nodes) if (node.tier === tier && budget > 0 && !connected.has(id)) takeNode(id);
   }
   return { nodes, edges, total, truncated: nodes.length + edges.length < total };
 }

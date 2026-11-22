@@ -89,6 +89,8 @@ export interface ActivityIndicators {
     direction: 'in' | 'out';
     count: number;
     pln?: DecimalString;
+    /** How many of the `count` interactions are valued in `pln`; absent in older data (then `pln` is complete). */
+    priced?: number;
   }[];
   swaps: SwapEvent[];
   stablecoinConversionPln?: DecimalString;

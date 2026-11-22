@@ -19,6 +19,7 @@ import {
   type GraphNodeData,
   type GraphOptions,
 } from './build-elements.ts';
+import { evidencePath } from './evidence-target.ts';
 import { CytoscapeGraph, type GraphLayout } from './CytoscapeGraph.tsx';
 
 type Selection = { type: 'node'; id: string } | { type: 'edge'; id: string } | null;
@@ -129,6 +130,7 @@ export function GraphTab({ scope }: { scope: RunScope }) {
           scope={scope}
           accounts={accounts.data ?? []}
           links={links.data}
+          exclusions={exclusions.data ?? []}
           onClose={() => setSelection(null)}
         />
       </div>
@@ -358,13 +360,14 @@ interface PanelProps {
   scope: RunScope;
   accounts: readonly OnlineAccount[];
   links: readonly LinkView[];
+  exclusions: readonly ExclusionView[];
   onClose(): void;
 }
 
-function SelectionPanel({ node, edge, build, scope, accounts, links, onClose }: PanelProps) {
+function SelectionPanel({ node, edge, build, scope, accounts, links, exclusions, onClose }: PanelProps) {
   const { run } = scope;
   const titleId = useId();
-  const runTab = (tab: 'links' | 'activity') => routePath({ name: 'run', caseId: run.caseId, runId: run.id, tab });
+  const runTab = (tab: 'activity') => routePath({ name: 'run', caseId: run.caseId, runId: run.id, tab });
   let body = <p className="muted">{pl.graph.panel.none}</p>;
   let title: string = pl.graph.panel.title;
 
@@ -407,7 +410,15 @@ function SelectionPanel({ node, edge, build, scope, accounts, links, onClose }: 
                     relation: lookup(pl.relations, link.relation) ?? link.relation,
                     score: link.score,
                   })}{' '}
-                  <Link to={`${runTab('links')}#link-${link.id}`}>{pl.graph.panel.openEvidence}</Link>
+                  <Link
+                    to={evidencePath(
+                      run,
+                      { linkId: link.id, address: node.address, rejected: node.rejected === true },
+                      exclusions,
+                    )}
+                  >
+                    {pl.graph.panel.openEvidence}
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -435,7 +446,21 @@ function SelectionPanel({ node, edge, build, scope, accounts, links, onClose }: 
           <br />
           {pl.graph.panel.to}: {labelOf(edge.target)}
         </p>
-        {edge.linkId ? <Link to={`${runTab('links')}#link-${edge.linkId}`}>{pl.graph.panel.openEvidence}</Link> : null}
+        {edge.linkId ? (
+          <Link
+            to={evidencePath(
+              run,
+              {
+                linkId: edge.linkId,
+                address: build.nodes.find((n) => n.id === edge.target)?.address,
+                rejected: edge.kind !== 'address_hop',
+              },
+              exclusions,
+            )}
+          >
+            {pl.graph.panel.openEvidence}
+          </Link>
+        ) : null}
       </div>
     );
   }

@@ -39,7 +39,7 @@ i nie korzysta z nowych tras API (`links`, `exclusions`, `accounts`, a przy wł�
   identyfikatory, konta, adresy, podmioty) i krawędzie: identyfikator wejściowy, etap tożsamości („P = …”, „kotwica”
   dla założenia analityka), etap adresu („P = … · poziom dowodu”), adres opublikowany przez konto, ale odrzucony jako
   majątek (np. trop KYC), przypisanie przez stronę trzecią, odrzucenie regułą A1–A8 i przepływ środków (suma w PLN,
-  gdy każda interakcja ma wycenę; kwoty sumowane dokładnie, bez liczb zmiennoprzecinkowych). Grubość krawędzi etapu
+  gdy każda interakcja ma wycenę — przy wycenie częściowej etykieta pokazuje sumę z dopiskiem „wycena niepełna: x z y”; kwoty sumowane dokładnie, bez liczb zmiennoprzecinkowych). Grubość krawędzi etapu
   to 1 + 5·P. Odrzucone adresy i strony trzecie nigdy nie są krawędziami własności.
 - **Rysowanie.** `CytoscapeGraph` używa biblioteki Cytoscape.js bezpośrednio (bez nakładki React): instancja jest
   tworzona w efekcie i niszczona przy odmontowaniu (bezpieczne w React StrictMode). Układy wbudowane, bez dodatkowych
@@ -48,14 +48,16 @@ i nie korzysta z nowych tras API (`links`, `exclusions`, `accounts`, a przy wł�
 - **Sterowanie.** „Pokaż odrzucone”, „Minimalny Wskaźnik Pewności” (filtr dotyczy powiązań z wynikiem; odrzucone nie mają
   wyniku i zostają), „Pokaż przepływy środków”, wybór układu, „Dopasuj do ekranu”.
 - **Panel szczegółów.** Wybór węzła lub krawędzi pokazuje szczegóły oraz odnośniki: „Pokaż dowody” (otwiera
-  uzasadnienie powiązania w zakładce „Powiązane adresy”) i „Pokaż aktywność on-chain” (zakładka aktywności z
+  uzasadnienie powiązania w zakładce „Powiązane adresy”, a dla odrzuconych adresów i powiązań bez roszczenia własności —
+  ich kartę w zakładce „Odrzucone adresy”) i „Pokaż aktywność on-chain” (zakładka aktywności z
   wybranym adresem).
 - **Dostępność.** Pojemnik grafu ma `role="img"` i opis z poprawnymi formami liczebników („14 węzłów i 15 krawędzi”,
   „2 węzły”). „Pokaż jako listę” zastępuje graf tabelami węzłów i krawędzi z tymi samymi etykietami, w pełni
   obsługiwanymi klawiaturą.
 - **Limit elementów.** Powyżej 500 elementów (węzły i krawędzie) graf jest obcinany w kolejności ważności: osoba
   badana, identyfikatory, konta i adresy powiązań z tabeli głównej, odrzucone i strony trzecie, na końcu przepływy;
-  baner podaje łączną liczbę elementów.
+  w obrębie poziomu zachowywane są całe ścieżki (identyfikator → konto → adres), więc obcięty graf nie zawiera
+  adresów odciętych od osoby badanej; baner podaje łączną liczbę elementów.
 - **Dane nie opuszczają przeglądarki.** Brak eksportu grafu; brak zdalnych zasobów.
 
 ## Zasady

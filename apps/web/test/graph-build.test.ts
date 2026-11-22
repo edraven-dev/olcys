@@ -130,6 +130,16 @@ describe('filters', () => {
     expect(flows[0]?.label).toBe(formatPln(sumDecimals(activity.serviceInteractions.map((s) => s.pln ?? '0'))));
   });
 
+  it('flags a partially valued flow instead of showing a sum that looks complete', () => {
+    const [first] = activity.serviceInteractions;
+    const partial = { ...activity, serviceInteractions: [{ ...first!, count: 3, priced: 2, pln: '100.00' }] };
+    const b = buildGraph({ ...graphInput, activity: [partial] }, { ...DEFAULT_GRAPH_OPTIONS, showFlows: true });
+    expect(edgesOf(b, 'flow')[0]?.label).toBe(`${formatPln('100.00')} (wycena niepełna: 2 z 3)`);
+    const none = { ...partial, serviceInteractions: [{ ...first!, count: 3, priced: 0, pln: undefined }] };
+    const b2 = buildGraph({ ...graphInput, activity: [none] }, { ...DEFAULT_GRAPH_OPTIONS, showFlows: true });
+    expect(edgesOf(b2, 'flow')[0]?.label).toBe('3 transakcje');
+  });
+
   it('flows of a hidden address are not drawn', () => {
     const b = build({ showFlows: true, showRejected: false });
     expect(edgesOf(b, 'flow')).toEqual([]);
