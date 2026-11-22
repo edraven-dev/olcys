@@ -89,7 +89,7 @@ Dane referencyjne (tylko publiczne adresy kontraktów ze źródłami):
 | A1     | rozstrzygająca etykieta usługi (każda kategoria poza `personal_smart_account`, `scam`, `sanctioned_entity`)                                                          | `excluded`, identyfikatory etykiet                         |
 | A2     | typ `contract` lub `token_contract` (kod kontraktu, który nie jest kontem Safe, kontem ERC-4337 ani delegacją EIP-7702)                                              | `excluded` (kontrakt nie jest majątkiem osoby)             |
 | A2     | typ z `keepAttributable` (`safe`, `erc4337_account`) — prywatne konto inteligentne                                                                                   | `kept`, z kontraktem bazowym lub EntryPoint w uzasadnieniu |
-| A3     | typ `delegated_eoa` (kod to delegacja EIP-7702: `0xef0100` + 20 bajtów)                                                                                              | `kept`, z adresem delegata (`recordDelegate`)              |
+| A3     | typ `delegated_eoa` (kod to delegacja EIP-7702: `0xef0100` + 20 bajtów)                                                                                              | `kept`, z adresem delegata, gdy `recordDelegate`           |
 | A3     | delegat z rejestru oznaczony jako `sweeper` (`flagKnownSweepers`) — konto prawdopodobnie przejęte                                                                    | `flagged` (ostrzeżenie, adres nie jest odrzucany)          |
 | A4     | adres przekazuje otrzymane środki na rozstrzygająco oznaczony portfel gorący giełdy (heurystyka adresu depozytowego)                                                 | `reclassified`, `CUSTODIAL_EXCHANGE`, `emitsCashOut: B1`   |
 

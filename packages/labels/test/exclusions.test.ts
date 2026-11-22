@@ -331,7 +331,7 @@ describe('exclusion rules on the synthetic persona', () => {
       { ...deps(), delegates: registry },
     );
     expect(kept.map((d) => [d.ruleId, d.outcome])).toEqual([['A3', 'kept']]);
-    expect(kept[0]?.reason).toContain('wallet implementation "Wallet X"');
+    expect(kept[0]?.reason).toContain(`the delegate ${implementation} (wallet implementation "Wallet X")`);
 
     // The rule file decides: no flag and no recorded delegate when switched off.
     const quiet = await evaluateExclusions(
@@ -340,6 +340,16 @@ describe('exclusion rules on the synthetic persona', () => {
     );
     expect(quiet.map((d) => [d.ruleId, d.outcome])).toEqual([['A3', 'kept']]);
     expect(quiet[0]?.evidence.delegate).toBeUndefined();
+    expect(quiet[0]?.evidence.delegateInfo).toBeUndefined();
+    expect(quiet[0]?.reason).not.toContain(sweeper?.address ?? '0x');
+    // Flagging without recording: the warning stands, the delegate is not named in the decision.
+    const unnamed = await evaluateExclusions(
+      { address, classification: drained, transfers: [], published: true },
+      { ...deps(), rules: { ...rules, a3: { recordDelegate: false, flagKnownSweepers: true } } },
+    );
+    expect(unnamed.map((d) => [d.ruleId, d.outcome])).toEqual([['A3', 'flagged']]);
+    expect(unnamed[0]?.reason).not.toContain(sweeper?.name ?? 'SWEEPER');
+    expect(unnamed[0]?.evidence).not.toHaveProperty('delegateInfo');
   });
 
   it('A8: the BIP-173 documentation vector D2, burn addresses and token contracts', async () => {

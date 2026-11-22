@@ -227,23 +227,29 @@ function codeEvidence(c: AddressTypeClassification): Pick<ExclusionDecision['evi
   };
 }
 
+/**
+ * A3: an EIP-7702 delegated account stays a person's account; a delegate the registry lists as a sweeper flags it.
+ * With `recordDelegate: false` the decision names neither the delegate nor its registry entry (the stored address type
+ * still holds the delegate).
+ */
 function a3(facts: AddressFacts, c: AddressTypeClassification, deps: ExclusionDeps): ExclusionDecision {
   const known = c.delegate && deps.delegates ? findDelegate(deps.delegates, c.address.chain, c.delegate) : undefined;
   const sweeper = known?.kind === 'sweeper' && deps.rules.a3.flagKnownSweepers;
-  const delegate = c.delegate ?? 'unknown';
+  const record = deps.rules.a3.recordDelegate;
   const named = known
     ? ` (${known.kind === 'sweeper' ? 'known sweeper' : 'wallet implementation'} "${known.name}")`
     : '';
+  const delegate = record ? `the delegate ${c.delegate ?? 'unknown'}${named}` : 'the delegate';
   return decision(deps, facts.address, 'A3', {
     outcome: sweeper ? 'flagged' : 'kept',
     reason: sweeper
-      ? `A3: EIP-7702 delegated account; the delegate ${delegate}${named} sweeps incoming funds to a third party — the account's key is likely compromised`
-      : `A3: EIP-7702 delegated account (delegate ${delegate}${named}); still a person's account`,
+      ? `A3: EIP-7702 delegated account; ${delegate} is listed as a sweeper that forwards incoming funds to a third party — the account's key is likely compromised`
+      : `A3: EIP-7702 delegated account (${delegate}); still a person's account`,
     evidence: {
       fetchIds: c.fetchIds,
       ...codeEvidence(c),
-      ...(deps.rules.a3.recordDelegate && c.delegate ? { delegate: c.delegate } : {}),
-      ...(known ? { delegateInfo: { kind: known.kind, name: known.name, source: known.source } } : {}),
+      ...(record && c.delegate ? { delegate: c.delegate } : {}),
+      ...(record && known ? { delegateInfo: { kind: known.kind, name: known.name, source: known.source } } : {}),
     },
   });
 }
