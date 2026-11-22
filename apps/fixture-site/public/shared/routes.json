@@ -838,6 +838,204 @@
         "content-type": "application/json; charset=utf-8"
       },
       "file": "ens-rpc/addr-none.json"
+    },
+    {
+      "path": "/farcaster-hub/v1/userNameProofByName",
+      "params": {
+        "name": "olcys-test-marek"
+      },
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "farcaster-hub/username-proof.json"
+    },
+    {
+      "path": "/farcaster-hub/v1/userNameProofByName",
+      "queryPrefix": "name=",
+      "status": 404,
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "farcaster-hub/not-found-name.json"
+    },
+    {
+      "path": "/farcaster-hub/v1/userDataByFid",
+      "params": {
+        "fid": "999999998"
+      },
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "farcaster-hub/user-data.json"
+    },
+    {
+      "path": "/farcaster-hub/v1/userDataByFid",
+      "queryPrefix": "fid=",
+      "status": 404,
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "farcaster-hub/not-found-fid.json"
+    },
+    {
+      "path": "/farcaster-hub/v1/verificationsByFid",
+      "params": {
+        "fid": "999999998"
+      },
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "farcaster-hub/verifications.json"
+    },
+    {
+      "path": "/farcaster-hub/v1/verificationsByFid",
+      "queryPrefix": "fid=",
+      "status": 404,
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "farcaster-hub/not-found-verifications.json"
+    },
+    {
+      "path": "/nostr/.well-known/nostr.json",
+      "params": {
+        "name": "olcys_test_nostr"
+      },
+      "headers": {
+        "content-type": "application/json; charset=utf-8",
+        "access-control-allow-origin": "*"
+      },
+      "file": "nostr/nip05-olcys_test_nostr.json"
+    },
+    {
+      "path": "/nostr/.well-known/nostr.json",
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "nostr/nip05-none.json"
+    },
+    {
+      "path": "/chain/solana-rpc",
+      "method": "POST",
+      "bodyIncludes": [
+        "\"getSlot\""
+      ],
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "chain/solana-rpc/get-slot.json"
+    },
+    {
+      "path": "/chain/solana-rpc",
+      "method": "POST",
+      "bodyIncludes": [
+        "\"getBlock\",\"params\":[380000000,"
+      ],
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "chain/solana-rpc/get-block-skipped.json"
+    },
+    {
+      "path": "/chain/solana-rpc",
+      "method": "POST",
+      "bodyIncludes": [
+        "\"getBlock\",\"params\":[379999999,"
+      ],
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "chain/solana-rpc/get-block.json"
+    },
+    {
+      "path": "/chain/solana-rpc",
+      "method": "POST",
+      "bodyIncludes": [
+        "\"getBalance\"",
+        "BJ6nPgVmKjkcCeCsT9pgPAWVHmvVtLRzy5y741S2aXkY"
+      ],
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "chain/solana-rpc/balance-subject.json"
+    },
+    {
+      "path": "/chain/solana-rpc",
+      "method": "POST",
+      "bodyIncludes": [
+        "\"getBalance\""
+      ],
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "chain/solana-rpc/balance-none.json"
+    },
+    {
+      "path": "/chain/solana-rpc",
+      "method": "POST",
+      "bodyIncludes": [
+        "\"getSignaturesForAddress\"",
+        "BJ6nPgVmKjkcCeCsT9pgPAWVHmvVtLRzy5y741S2aXkY"
+      ],
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "chain/solana-rpc/signatures-subject.json"
+    },
+    {
+      "path": "/chain/solana-rpc",
+      "method": "POST",
+      "bodyIncludes": [
+        "\"getSignaturesForAddress\""
+      ],
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "chain/solana-rpc/signatures-none.json"
+    },
+    {
+      "path": "/chain/solana-rpc",
+      "method": "POST",
+      "bodyIncludes": [
+        "\"getTransaction\",\"params\":[\"39xZY6VoB8DDyRciyTNU1QqbXj1LjMcLdJnLMmwzeKir\""
+      ],
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "chain/solana-rpc/tx-sol.json"
+    },
+    {
+      "path": "/chain/solana-rpc",
+      "method": "POST",
+      "bodyIncludes": [
+        "\"getTransaction\",\"params\":[\"Fn6KNSKRCPZusMc7EZoGYD89xhLtoDPPcPTzArKrA5mr\""
+      ],
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "chain/solana-rpc/tx-usdc.json"
+    },
+    {
+      "path": "/chain/solana-rpc",
+      "method": "POST",
+      "bodyIncludes": [
+        "\"getTransaction\",\"params\":[\"HuLpQccqUnto7SGP3Jowx14Yb5iwuy3rzEE4zRAe8BqA\""
+      ],
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "chain/solana-rpc/tx-cpi.json"
+    },
+    {
+      "path": "/chain/solana-rpc",
+      "method": "POST",
+      "bodyIncludes": [
+        "\"getTransaction\""
+      ],
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "chain/solana-rpc/tx-none.json"
     }
   ]
 }

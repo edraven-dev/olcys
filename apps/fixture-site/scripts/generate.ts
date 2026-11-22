@@ -13,6 +13,7 @@ import { parseArgs } from 'node:util';
 import type { PersonaManifest } from '../src/manifest.ts';
 import { SYNTHETIC_MARK } from './lib/chain.ts';
 import { identityFixtures } from './lib/identity.ts';
+import { moreIdentityFixtures } from './lib/more-identity.ts';
 import { chainFor, createWorld, labelsFor, routesFor, tokensFor, type World } from './lib/persona.ts';
 import { renderSitemap } from './lib/sitemap.ts';
 import { renderTemplate } from './lib/template.ts';
@@ -75,6 +76,9 @@ export async function renderSite(manifest: World['manifest']): Promise<Map<strin
   const chain = chainFor(manifest);
   for (const file of chain.files) files.set(`shared/${file.path}`, file.content);
   const identity = identityFixtures(manifest.seed);
+  const more = moreIdentityFixtures(manifest.seed);
+  identity.files.push(...more.files);
+  identity.routes.push(...more.routes);
   for (const file of identity.files) files.set(`shared/${file.path}`, file.content);
   files.set(
     'shared/routes.json',
