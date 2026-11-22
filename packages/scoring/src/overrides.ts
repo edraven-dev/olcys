@@ -54,6 +54,20 @@ export function latestJudgement(judgements: readonly AnalystJudgement[]): Analys
   return judgements.toSorted(byTime).at(-1);
 }
 
+/**
+ * One active item per (account, address, feature): saving the same evidence again replaces the earlier statement
+ * (the latest override wins, the history stays stored) instead of adding its weight a second time.
+ */
+function latestEvidence(items: readonly AnalystEvidence[]): AnalystEvidence[] {
+  const active = new Map<string, AnalystEvidence>();
+  for (const item of items) {
+    const key = [item.accountId ?? '', item.address ? addressKey(item.address) : '', item.feature].join('\u0000');
+    active.delete(key);
+    active.set(key, item);
+  }
+  return [...active.values()];
+}
+
 /** Canonical comparison form of an address (EVM addresses are case-insensitive). */
 function canonicalRef(ref: AddressRef): AddressRef {
   return ref.chain.startsWith('evm:') ? { chain: ref.chain, address: ref.address.toLowerCase() } : ref;
@@ -90,7 +104,7 @@ function candidateResolver(
 
 /**
  * Fills `input.analyst` from the case's overrides (any order; applied oldest first, so for one target the latest
- * wins). Overrides with a value or target their kind does not allow are ignored (the API refuses them):
+ * wins — also for analyst evidence: one active item per account, address and feature). Overrides with a value or target their kind does not allow are ignored (the API refuses them):
  * `reliability_grade` needs an A–E grade and one observation, candidate or source; `review_decision` a candidate and
  * `confirmed`/`rejected`; `add_evidence` an allowed feature, an account and — on the address hop — an address.
  * `candidates` are the stored candidates the overrides name (from any run of the case), used to find them again in a
@@ -147,7 +161,7 @@ export function applyOverrides(
   const analyst: AnalystInputs = {
     grades: [...(previous?.grades ?? []), ...grades],
     reviews: [...(previous?.reviews ?? []), ...reviews],
-    evidence: [...(previous?.evidence ?? []), ...evidence],
+    evidence: latestEvidence([...(previous?.evidence ?? []), ...evidence]),
     cues: [...(previous?.cues ?? [])],
   };
   return { ...input, analyst };

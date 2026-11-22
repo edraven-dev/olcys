@@ -57,6 +57,9 @@ function withRepairedWykopMention(opts: PersonaOptions = {}): FeatureExtractionI
 }
 
 const wykopPath = (l: LinkAssessment) => l.paths.find((p) => p.accountId === 'acc-wykop');
+/** Origin groups of the items of one feature in a hop. */
+const origins = (hop: LinkAssessment['paths'][number]['addressHop'], feature: string) =>
+  hop.contributions.filter((c) => c.feature === feature).map((c) => c.originGroup);
 const e1 = (l: LinkAssessment) =>
   l.paths[0]?.addressHop.contributions.find((c) => c.feature === 'e1_cryptographic_binding');
 const judgement = (id: string, at: string): AnalystJudgement => ({
@@ -213,6 +216,55 @@ describe('applyOverrides', () => {
     expect(after.score).toBeGreaterThan(before.score);
     // Relation and tier come from the collected evidence only.
     expect([after.relation, after.tier]).toEqual([before.relation, before.tier]);
+  });
+
+  it('counts one active analyst item per account, address and feature: the latest override wins', () => {
+    const input = personaInputs();
+    const tron1 = slot('TRON-1');
+    const first = override('add_evidence', 'second_independent_origin', { accountId: 'acc-wykop', address: tron1 });
+    const again = override('add_evidence', 'second_independent_origin', { accountId: 'acc-wykop', address: tron1 });
+    const contradicting = override('add_evidence', 'contradicting_attribute', { accountId: 'acc-wykop' });
+    const contradictingAgain = override('add_evidence', 'contradicting_attribute', { accountId: 'acc-wykop' });
+    const once = wykopPath(link(score(applyOverrides(input, [first, contradicting])).assessments, 'TRON-1'))!;
+    const repeated = wykopPath(
+      link(score(applyOverrides(input, [first, again, contradicting, contradictingAgain])).assessments, 'TRON-1'),
+    )!;
+    expect(origins(repeated.addressHop, 'second_independent_origin')).toEqual([`analyst:${again.id}`]);
+    expect(origins(repeated.identityHop, 'contradicting_attribute')).toEqual([`analyst:${contradictingAgain.id}`]);
+    // Saving the same evidence again adds no weight.
+    expect(repeated.addressHop.totalBits).toBeCloseTo(once.addressHop.totalBits, 10);
+    expect(repeated.identityHop.totalBits).toBeCloseTo(once.identityHop.totalBits, 10);
+    // The same feature on another account's path is another item.
+    const tablica = override('add_evidence', 'second_independent_origin', { accountId: 'acc-tablica', address: tron1 });
+    const both = link(score(applyOverrides(input, [first, tablica])).assessments, 'TRON-1');
+    const withItem = both.paths.filter((p) =>
+      p.addressHop.contributions.some((c) => c.feature === 'second_independent_origin'),
+    );
+    expect(withItem.map((p) => p.service)).toEqual(['tablica', 'wykop']);
+  });
+
+  it('a rejected match stays rejected: another page cannot confirm its observation', () => {
+    const input = personaInputs();
+    const field = input.observations.find((o) => o.property === 'profile.bitcoin_address')!;
+    const fieldItem = (l: LinkAssessment) =>
+      l.paths.flatMap((p) => p.addressHop.contributions).find((c) => c.evidence.observationId === field.id);
+    expect(fieldItem(link(score(input).assessments, 'BTC-1'))).toBeDefined();
+    // The profile page's match is rejected; the same address is still matched on the signed post's page.
+    const { assessments, notes } = scoreRun(
+      applyOverrides(input, [override('review_decision', 'rejected', { candidateId: 'cand-profile' })]),
+      w,
+      { clock, newId: idSequence() },
+    );
+    const btc1 = link(assessments, 'BTC-1');
+    expect(fieldItem(btc1)).toBeUndefined();
+    expect(btc1.paths[0]?.addressHop.contributions.find((c) => c.feature === 'e1_cryptographic_binding')).toMatchObject(
+      {
+        counted: true,
+      },
+    );
+    expect(notes).toContainEqual(
+      expect.objectContaining({ code: 'analyst_rejected_candidate', observationId: field.id }),
+    );
   });
 
   it('notes analyst evidence that matches no path of this run', () => {

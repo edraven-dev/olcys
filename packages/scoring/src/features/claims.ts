@@ -135,13 +135,15 @@ export function buildClaims(
   const authorship = buildAuthorship(i.captures, i.observations, index);
 
   const candidates = new Map<Id, AddressCandidate[]>();
+  // Rejected by an analyst: left out, and remembered so their page's observations do not borrow another page's match.
+  const rejected = new Map<Id, AddressCandidate[]>();
   for (const extraction of i.extractions) {
-    const valid = extraction.candidates
-      .filter((c) => c.checksum.valid)
-      .flatMap((c) => {
-        const decided = analyst.candidate(c);
-        return decided ? [decided] : [];
-      });
+    const valid: AddressCandidate[] = [];
+    for (const c of extraction.candidates.filter((x) => x.checksum.valid)) {
+      const decided = analyst.candidate(c);
+      if (decided) valid.push(decided);
+      else rejected.set(c.captureId, [...(rejected.get(c.captureId) ?? []), c]);
+    }
     candidates.set(extraction.captureId, [...(candidates.get(extraction.captureId) ?? []), ...valid]);
   }
   const evidence = collectAddressEvidence({
@@ -149,6 +151,7 @@ export function buildClaims(
     authorship,
     captures,
     candidates,
+    rejected,
     observations: i.observations,
     grade,
     note,
