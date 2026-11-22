@@ -50,6 +50,9 @@ const SYNTHETIC_IDENTIFIERS = [
   '0001234562',
   '001234562',
   '0009999901',
+  // The adapters' second synthetic identity (found by BitList, Keybase and ENS; unknown to the demo case).
+  'olcys_test_ewa',
+  'olcys-test-ewa.eth',
 ];
 
 const HOST_PREFIXES: Record<string, string> = {
@@ -59,6 +62,8 @@ const HOST_PREFIXES: Record<string, string> = {
   'raw.githubusercontent.com': '/github-raw',
   't.me': '/telegram',
   'keybase.io': '/keybase',
+  'api.ninjastic.space': '/bitlist-api',
+  'ens-rpc.example': '/ens-rpc',
   'archiwum.example': '/private/archiwum',
   'mempool.space/api': '/chain/esplora/api',
   'blockstream.info/api': '/chain/esplora/api',

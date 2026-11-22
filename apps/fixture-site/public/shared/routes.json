@@ -607,6 +607,237 @@
     {
       "path": "/chain/trongrid/wallet/getcontract",
       "file": "chain/trongrid/wallet/getcontract-none.json"
+    },
+    {
+      "path": "/bitlist-api/addresses",
+      "params": {
+        "author": "olcys_test_ewa"
+      },
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "bitlist-api/addresses-author-olcys_test_ewa.json"
+    },
+    {
+      "path": "/bitlist-api/addresses",
+      "params": {
+        "address": "bc1q0yd6lqvghmx2uuv0qlztcre8gjsrg8mmansfj2"
+      },
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "bitlist-api/addresses-address-btc.json"
+    },
+    {
+      "path": "/bitlist-api/addresses",
+      "params": {
+        "address": "0xC673a6e8B9c38297e8763C837ae50C34080D470F"
+      },
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "bitlist-api/addresses-address-eth.json"
+    },
+    {
+      "path": "/bitlist-api/posts",
+      "params": {
+        "author": "olcys_test_ewa"
+      },
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "bitlist-api/posts-author-olcys_test_ewa.json"
+    },
+    {
+      "path": "/bitlist-api/addresses",
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "bitlist-api/addresses-none.json"
+    },
+    {
+      "path": "/bitlist-api/posts",
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "bitlist-api/posts-none.json"
+    },
+    {
+      "path": "/keybase/_/api/1.0/user/lookup.json",
+      "params": {
+        "usernames": "olcys_test_ewa"
+      },
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "keybase/lookup-olcys_test_ewa.json"
+    },
+    {
+      "path": "/keybase/_/api/1.0/user/lookup.json",
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "keybase/lookup-none.json"
+    },
+    {
+      "path": "/ens-rpc/",
+      "method": "POST",
+      "bodyIncludes": [
+        "\"eth_blockNumber\""
+      ],
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "ens-rpc/block-number.json"
+    },
+    {
+      "path": "/ens-rpc/",
+      "method": "POST",
+      "bodyIncludes": [
+        "\"eth_getBlockByNumber\""
+      ],
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "ens-rpc/block.json"
+    },
+    {
+      "path": "/ens-rpc/",
+      "method": "POST",
+      "bodyIncludes": [
+        "5d78a217",
+        "c673a6e8b9c38297e8763c837ae50c34080d470f"
+      ],
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "ens-rpc/reverse-eth.json"
+    },
+    {
+      "path": "/ens-rpc/",
+      "method": "POST",
+      "bodyIncludes": [
+        "5d78a217",
+        "a8db6c36813a685e5279f851548de238c8aa5342"
+      ],
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "ens-rpc/reverse-impostor.json"
+    },
+    {
+      "path": "/ens-rpc/",
+      "method": "POST",
+      "bodyIncludes": [
+        "5d78a217"
+      ],
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "ens-rpc/reverse-none.json"
+    },
+    {
+      "path": "/ens-rpc/",
+      "method": "POST",
+      "bodyIncludes": [
+        "3b3b57dedaf0c545b25972f9db1e75e8b7b584fbebced594d5110aa6f34c3b923d8478e6"
+      ],
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "ens-rpc/addr-60.json"
+    },
+    {
+      "path": "/ens-rpc/",
+      "method": "POST",
+      "bodyIncludes": [
+        "f1cb7e06daf0c545b25972f9db1e75e8b7b584fbebced594d5110aa6f34c3b923d8478e60000000000000000000000000000000000000000000000000000000000000000"
+      ],
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "ens-rpc/addr-0.json"
+    },
+    {
+      "path": "/ens-rpc/",
+      "method": "POST",
+      "bodyIncludes": [
+        "59d1d43cdaf0c545b25972f9db1e75e8b7b584fbebced594d5110aa6f34c3b923d8478e6",
+        "636f6d2e676974687562"
+      ],
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "ens-rpc/text-com.github.json"
+    },
+    {
+      "path": "/ens-rpc/",
+      "method": "POST",
+      "bodyIncludes": [
+        "59d1d43cdaf0c545b25972f9db1e75e8b7b584fbebced594d5110aa6f34c3b923d8478e6",
+        "696f2e6b657962617365"
+      ],
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "ens-rpc/text-io.keybase.json"
+    },
+    {
+      "path": "/ens-rpc/",
+      "method": "POST",
+      "bodyIncludes": [
+        "59d1d43cdaf0c545b25972f9db1e75e8b7b584fbebced594d5110aa6f34c3b923d8478e6",
+        "646973706c6179"
+      ],
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "ens-rpc/text-display.json"
+    },
+    {
+      "path": "/ens-rpc/",
+      "method": "POST",
+      "bodyIncludes": [
+        "59d1d43cdaf0c545b25972f9db1e75e8b7b584fbebced594d5110aa6f34c3b923d8478e6",
+        "6465736372697074696f6e"
+      ],
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "ens-rpc/text-description.json"
+    },
+    {
+      "path": "/ens-rpc/",
+      "method": "POST",
+      "bodyIncludes": [
+        "59d1d43c"
+      ],
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "ens-rpc/text-none.json"
+    },
+    {
+      "path": "/ens-rpc/",
+      "method": "POST",
+      "bodyIncludes": [
+        "f1cb7e06"
+      ],
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "ens-rpc/addr-coin-none.json"
+    },
+    {
+      "path": "/ens-rpc/",
+      "method": "POST",
+      "bodyIncludes": [
+        "3b3b57de"
+      ],
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "ens-rpc/addr-none.json"
     }
   ]
 }

@@ -1,0 +1,9 @@
+{
+  "_synthetic": "SYNTHETIC TEST DATA (OŁCyŚ fixture)",
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "number": "0x12e94f0",
+    "hash": "0x23c9511cdb0fa9d6a9e1605685ed8854a50826265461bf2347717f4840112646"
+  }
+}

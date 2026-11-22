@@ -26,6 +26,8 @@ export interface FixtureRouteOut {
   query?: string;
   params?: Record<string, string>;
   queryPrefix?: string;
+  method?: 'GET' | 'POST';
+  bodyIncludes?: string[];
   status?: number;
   headers?: Record<string, string>;
   file?: string;
