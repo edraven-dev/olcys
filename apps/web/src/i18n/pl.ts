@@ -531,6 +531,8 @@ export const pl = {
         'graf przepływów środków przycięty limitem {limit} krawędzi (zapytań: {count}); część dalszych przepływów nie została pokazana',
       llm_unavailable:
         'model AI był niedostępny lub zawiódł dla {count} wzmianek o adresach: nie powstały dla nich sugestie ról (nie wpływa to na wyniki)',
+      pdf_unavailable:
+        'nie powstał raport PDF/A (usługa renderowania lub walidacja PDF/A zawiodła: {reason}); dostępny jest raport HTML i manifest (nie wpływa to na wyniki)',
     } as Record<string, string>,
     counters: 'Liczniki etapu',
     counterLabels: {

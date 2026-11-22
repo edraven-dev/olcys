@@ -14,6 +14,7 @@ export const PARTIAL_CODES = [
   'valuation_unavailable',
   'flow_graph_truncated',
   'llm_unavailable',
+  'pdf_unavailable',
 ] as const;
 export type PartialCode = (typeof PARTIAL_CODES)[number];
 

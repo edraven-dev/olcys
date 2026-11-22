@@ -123,7 +123,7 @@ export function renderReport(data: ReportData): string {
       reportId: data.reportId,
       at: formatUtc(data.generatedAt),
       template: data.templateVersion,
-    })}</footer>`,
+    })}<br>${pl.doc.signatureNote}</footer>`,
   ]);
   const head = markup`<head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${new SafeHtml(REPORT_CSP)}"><meta name="referrer" content="no-referrer"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${title}</title><style>${new SafeHtml(CSS)}</style></head>`;
   return `<!doctype html>\n<html lang="pl">${head.value}<body>${body.value}</body></html>\n`;
