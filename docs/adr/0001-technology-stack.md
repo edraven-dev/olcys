@@ -31,3 +31,10 @@
 - Narzędzia na licencjach AGPL/GPL (np. Browsertrix Crawler, mempool, Fulcrum) mogą działać tylko jako osobne,
   niemodyfikowane usługi.
 - Serwis w Pythonie jest wewnętrzną usługą HTTP; poza nim w systemie nie ma kodu w Pythonie.
+
+## Uzupełnienie (2026-11-22): domyślny serwer modelu
+
+Domyślnym lokalnym serwerem modelu jest **OVMS** (OpenVINO Model Server, Apache-2.0) z API zgodnym z OpenAI
+(`http://localhost:2140/v3`, model `qwen3.6-35b-ov`, myślenie wyłączone przez `chat_template_kwargs`). Klient
+(`@olcys/llm`) działa z dowolnym punktem końcowym zgodnym z OpenAI — zmiana to `LLM_BASE_URL` i `LLM_MODEL`.
+Ollama pozostaje opcjonalnym profilem compose `llm`; wiersz „Lokalny model AI” w tabeli powyżej opisuje pierwotną decyzję.

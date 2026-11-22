@@ -80,6 +80,10 @@ skrypt nazywa się `dev:doctor`.
 | `osint-py`     | 8090          | profil `osint`; czeka na fixture-site |
 | `ollama`       | 11434         | profil `llm`                          |
 
+Model AI domyślnie nie działa w compose: sugestie korzystają z OpenVINO Model Server uruchomionego na komputerze
+(`LLM_BASE_URL=http://localhost:2140/v3`, `LLM_MODEL=qwen3.6-35b-ov`; włączane przez `LLM_ENABLED=true`). Usługa
+`ollama` (profil `llm`) jest opcjonalną alternatywą — wtedy `LLM_BASE_URL=http://127.0.0.1:11434/v1`.
+
 Wszystkie porty są wiązane do `127.0.0.1` i konfigurowane w `.env`. Profile: `docker compose --profile osint --profile
 llm up -d --wait`. Poprawność pliku sprawdza `docker compose --profile osint --profile llm --profile sandbox config -q`.
 Zmienne ograniczające telemetrię (`.env.example`) zostają w każdej konfiguracji kontenerów.

@@ -592,3 +592,21 @@ providers:
     reliability: A
     rateLimit: { requests: 50, perSeconds: 1 }
     allowedHosts: [127.0.0.1, localhost, anvil]
+
+  # --- AI model (suggestions only; never part of the score) ---------------------------------------------
+  # A remote OpenAI-compatible endpoint needs its own AMBER entry (sendsIdentifiersExternally: true, its hosts, a
+  # per-case justification) before anything is sent to it; LLM_SOURCE_ID names the entry in use.
+  local_llm:
+    name: Local AI model (OpenAI-compatible server on this machine)
+    kind: ai_model
+    compliance: GREEN
+    complianceNote: 'OpenVINO Model Server (Apache-2.0) with an open-weight model (Qwen, Apache-2.0) on loopback or a compose host; prompts and answers never leave the machine. The model only suggests: suggestions carry zero score weight until an analyst confirms them. Content of sources with llmAllowed false is never sent. The tosUrl is the server licence.'
+    namePl: 'Lokalny model AI (serwer zgodny z API OpenAI na tym komputerze)'
+    complianceNotePl: 'OpenVINO Model Server (Apache-2.0) z modelem o otwartych wagach (Qwen, Apache-2.0) na pętli zwrotnej lub hoście compose; podpowiedzi i odpowiedzi nie opuszczają maszyny. Model tylko podpowiada: sugestie mają zerową wagę w ocenie, dopóki analityk ich nie potwierdzi. Treści ze źródeł z llmAllowed false nigdy nie są wysyłane. Link prowadzi do licencji serwera.'
+    tosUrl: https://github.com/openvinotoolkit/model_server/blob/main/LICENSE
+    enabledByDefault: true
+    requiresApiKey: false
+    sendsIdentifiersExternally: false
+    reliability: F
+    rateLimit: { requests: 2, perSeconds: 1 }
+    allowedHosts: [127.0.0.1, localhost, ollama]

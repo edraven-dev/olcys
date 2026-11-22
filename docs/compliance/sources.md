@@ -19,7 +19,7 @@ ręcznie. Przegląd statusów wykonano w listopadzie 2026 r.
 
 Poniższe tabele są generowane z `config/sources.yaml` i `config/forbidden-tools.yaml` poleceniem `pnpm compliance:sources` — nie edytuj ich ręcznie.
 
-Rejestr: `sources.v1`, SHA-256 `4ee3af0adda7e58798fe64fb591f7416e365dbbb733b12e7bd2b6aed82bfca29`.
+Rejestr: `sources.v1`, SHA-256 `450bd72883536e9d963357bcfb2fb8ab01e00593f7f1614a2f9eaea33fb11bf4`.
 
 ### Źródła GREEN
 
@@ -35,6 +35,7 @@ Używane domyślnie (lub po włączeniu w sprawie), bez dodatkowego uzasadnienia
 | FreeTSA – znakowanie czasem RFC 3161 (`freetsa`) | timestamping | tak | 1 / 1 s | nie | B | https://freetsa.org/freetsa.html | Poza system wychodzą wyłącznie skróty SHA-256. Tylko do demonstracji (to nie kwalifikowany podmiot); w produkcji kwalifikowany polski podmiot znakowania czasem. Link prowadzi do polityki użytkowania. |
 | Keybase – interfejs wyszukiwania (`keybase`) | identity_protocol | tak | 1 / 1 s | tak | A | https://keybase.io/docs/api/1.0/call/user/lookup | Publiczny interfejs wyszukiwania; podpisane adresy kryptowalutowe. Usługa jest tylko utrzymywana, dane głównie sprzed 2020 r. Link prowadzi do dokumentacji interfejsu, nie do regulaminu. |
 | KRS Open API (`krs`) | registry | tak | 1 / 1 s | tak | A | https://prs.ms.gov.pl/krs/openApi | Oficjalny interfejs (dane otwarte, CC0); wyszukiwanie wyłącznie po numerze KRS. Czasem zwraca stronę przerwy technicznej ze statusem 200 – zapisujemy to jako błąd, a nie jako pusty rejestr. Numery PESEL nigdy nie są odczytywane. Warunki są zawarte w oficjalnej dokumentacji interfejsu. |
+| Lokalny model AI (serwer zgodny z API OpenAI na tym komputerze) (`local_llm`) | ai_model | tak | 2 / 1 s | nie | F | https://github.com/openvinotoolkit/model_server/blob/main/LICENSE | OpenVINO Model Server (Apache-2.0) z modelem o otwartych wagach (Qwen, Apache-2.0) na pętli zwrotnej lub hoście compose; podpowiedzi i odpowiedzi nie opuszczają maszyny. Model tylko podpowiada: sugestie mają zerową wagę w ocenie, dopóki analityk ich nie potwierdzi. Treści ze źródeł z llmAllowed false nigdy nie są wysyłane. Link prowadzi do licencji serwera. |
 | mempool.space Esplora REST (Bitcoin) (`mempool_space`) | chain_data | tak | 1 / 1 s | tak | A | https://mempool.space/terms-of-service | Publiczny interfejs z nieujawnionymi limitami na adres IP; ok. 1 zapytania na sekundę. Ujawnia odpytywane adresy; w produkcji używamy własnego Esplora/electrs. |
 | Atrapa wyszukiwarki (dane testowe) (`mock_search`) | search | tak | 10 / 1 s | nie | C | brak opublikowanego regulaminu | Przeszukuje mapę witryny syntetycznej (tylko tryby z danymi testowymi, z poszanowaniem robots.txt). Zapytania są dopasowywane lokalnie, więc żaden identyfikator nie opuszcza komputera. Domyślne ustawienie demonstracji (OLCYS_SEARCH_MODE=mock). |
 | NBP Web API (kursy walut) (`nbp_api`) | price_fx | tak | 2 / 1 s | nie | A | https://api.nbp.pl/en.html | Bezpłatny interfejs bez klucza, tylko HTTPS; do 93 dni na zapytanie. Zapytania ujawniają wyłącznie daty i waluty. Zasady użycia są w oficjalnej instrukcji interfejsu. |

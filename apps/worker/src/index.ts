@@ -10,6 +10,7 @@ export {
   type StageContext,
   type StartRunInput,
 } from './pipeline.ts';
+export { createLlmRuntime, LlmConfigError, type LlmRuntime, type LlmRuntimeOptions } from './llm.ts';
 export { consoleLogger, createRuntime, type Runtime, type RuntimeOptions } from './runtime.ts';
 export {
   latestOccurrence,

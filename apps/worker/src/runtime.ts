@@ -3,11 +3,12 @@
  * The API process uses it to run analyses in-process (MVP); stages are registered by the caller.
  */
 import { join } from 'node:path';
-import type { FetchMode, Logger, Repositories, RunWithProgress, SourceDescriptor } from '@olcys/core';
+import type { FetchMode, LlmClient, Logger, Repositories, RunWithProgress, SourceDescriptor } from '@olcys/core';
 import { createDb, createMemoryRepositories, createSqlRepositories } from '@olcys/db';
 import { FileBlobStore, InMemoryBlobStore } from '@olcys/evidence';
 import type { BlobStore } from '@olcys/core';
 import { loadConfig, REPO_ROOT, type LoadedConfig } from './config.ts';
+import { createLlmRuntime } from './llm.ts';
 import { createRun, runPipeline, type Stage } from './pipeline.ts';
 
 export interface Runtime {
@@ -17,6 +18,8 @@ export interface Runtime {
   config: LoadedConfig;
   mode: FetchMode;
   logger: Logger;
+  /** The AI model (suggestions only); `enabled` is false unless `LLM_ENABLED=true`. */
+  llm: LlmClient;
   startRun(
     caseId: string,
     input: { trigger?: 'manual' | 'rescore'; rescoreOfRunId?: string },
@@ -33,7 +36,7 @@ export interface Runtime {
 
 export interface RuntimeOptions {
   env?: NodeJS.ProcessEnv;
-  stages?: (runtime: Pick<Runtime, 'repos' | 'blobs' | 'sources' | 'config' | 'mode' | 'logger'>) => Stage[];
+  stages?: (runtime: Pick<Runtime, 'repos' | 'blobs' | 'sources' | 'config' | 'mode' | 'logger' | 'llm'>) => Stage[];
   repos?: Repositories;
   blobs?: BlobStore;
   logger?: Logger;
@@ -81,7 +84,8 @@ export async function createRuntime(options: RuntimeOptions = {}): Promise<Runti
     options.blobs ??
     (env['OLCYS_BLOBS'] === 'memory' ? new InMemoryBlobStore() : new FileBlobStore(join(dataDir, 'blobs')));
 
-  const base = { repos, blobs, sources: config.sources, config, mode, logger };
+  const llm = createLlmRuntime({ env, repos, blobs, sources: config.sources, mode }).client;
+  const base = { repos, blobs, sources: config.sources, config, mode, logger, llm };
   const stages = options.stages?.(base) ?? [];
   const running = new Set<Promise<unknown>>();
   const launchRun = (runId: string): void => {
