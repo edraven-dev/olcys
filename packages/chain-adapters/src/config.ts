@@ -7,7 +7,7 @@ import type { ChainId, ComplianceStatus, SourceId } from '@olcys/core';
 import { isChainId } from '@olcys/core';
 import { parse as parseYaml } from 'yaml';
 
-export const CHAIN_PROVIDER_KINDS = ['esplora', 'etherscan', 'trongrid', 'otterscan'] as const;
+export const CHAIN_PROVIDER_KINDS = ['esplora', 'etherscan', 'trongrid', 'otterscan', 'solana_rpc'] as const;
 export type ChainProviderKind = (typeof CHAIN_PROVIDER_KINDS)[number];
 
 export interface ChainProviderConfig {

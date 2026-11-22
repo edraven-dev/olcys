@@ -105,6 +105,7 @@ export function fixtureEgress(): FakeEgressClient {
     const response = await fetch(request.url, {
       method: request.method ?? 'GET',
       ...(request.headers ? { headers: request.headers } : {}),
+      ...(request.body !== undefined ? { body: request.body } : {}),
     });
     return { status: response.status, body: await response.text() };
   });
