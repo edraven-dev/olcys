@@ -141,7 +141,23 @@ function parseConfig(yamlText: string): SourcesConfig {
   }
 }
 
-export function parseSourceRegistry(yamlText: string): SourceRegistry {
+/**
+ * Hosts a deployment supplies for sources whose register entry leaves `allowedHosts` empty (`OLCYS_SOURCE_HOSTS_<ID>`,
+ * comma-separated, e.g. the RPC host of the ENS source). A source with hosts in the register never takes more, and a
+ * RED source takes none.
+ */
+function hostOverlay(id: string, env: Readonly<Record<string, string | undefined>>): string[] {
+  const raw = env[`OLCYS_SOURCE_HOSTS_${id.toUpperCase()}`];
+  return (raw ?? '')
+    .split(',')
+    .map((host) => host.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+export function parseSourceRegistry(
+  yamlText: string,
+  env: Readonly<Record<string, string | undefined>> = {},
+): SourceRegistry {
   const config = parseConfig(yamlText);
   const descriptors: SourceDescriptor[] = [];
   const problems: string[] = [];
@@ -151,13 +167,18 @@ export function parseSourceRegistry(yamlText: string): SourceRegistry {
   ] as const) {
     for (const [id, entry] of Object.entries(entries)) {
       if (descriptors.some((d) => d.id === id)) problems.push(`${section}.${id}: id already used`);
-      descriptors.push({ id, ...entry } as SourceDescriptor);
+      const descriptor = { id, ...entry } as SourceDescriptor;
+      const extra = descriptor.compliance !== 'RED' && descriptor.allowedHosts.length === 0 ? hostOverlay(id, env) : [];
+      descriptors.push(extra.length ? { ...descriptor, allowedHosts: extra } : descriptor);
     }
   }
   if (problems.length) throw new SourceConfigError(problems);
   return createSourceRegistry(descriptors, { version: config.version, configSha256: sha256Hex(yamlText) });
 }
 
-export async function loadSourceRegistry(path: string = DEFAULT_SOURCES_PATH): Promise<SourceRegistry> {
-  return parseSourceRegistry(await readFile(path, 'utf8'));
+export async function loadSourceRegistry(
+  path: string = DEFAULT_SOURCES_PATH,
+  env: Readonly<Record<string, string | undefined>> = {},
+): Promise<SourceRegistry> {
+  return parseSourceRegistry(await readFile(path, 'utf8'), env);
 }

@@ -1,0 +1,18 @@
+{
+  "result": "success",
+  "message": null,
+  "data": [
+    {
+      "post_id": 65000301,
+      "topic_id": 5500301,
+      "author": "olcys_test_ewa",
+      "author_uid": 900201,
+      "title": "Syntetyczny post (array)",
+      "content": "Test bez adresu. SYNTHETIC TEST DATA",
+      "date": "2026-04-01T08:00:00.000Z",
+      "board_id": 142,
+      "board_name": "Polski",
+      "updated_at": null
+    }
+  ]
+}

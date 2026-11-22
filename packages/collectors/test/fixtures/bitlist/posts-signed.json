@@ -1,0 +1,21 @@
+{
+  "result": "success",
+  "message": null,
+  "data": {
+    "total_results": 1,
+    "posts": [
+      {
+        "post_id": 65000501,
+        "topic_id": 5500501,
+        "author": "olcys_test_ewa",
+        "author_uid": 900201,
+        "title": "Syntetyczny podpisany wpis",
+        "content": "Podpis testowy.<br /><br />-----BEGIN BITCOIN SIGNED MESSAGE-----<br />{{MESSAGE}}<br />-----BEGIN SIGNATURE-----<br />{{ADDRESS}}<br />{{SIGNATURE}}<br />-----END BITCOIN SIGNED MESSAGE-----",
+        "date": "2026-04-04T08:00:00.000Z",
+        "board_id": 142,
+        "board_name": "Polski",
+        "updated_at": null
+      }
+    ]
+  }
+}

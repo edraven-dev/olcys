@@ -19,6 +19,10 @@ export interface FixtureRoute {
   params?: Record<string, string>;
   /** Raw search starts with. */
   queryPrefix?: string;
+  /** HTTP method of the route (default `GET`, which also serves `HEAD`). */
+  method?: 'GET' | 'POST';
+  /** POST routes: every string must occur in the request body (case-insensitive); the first matching route wins. */
+  bodyIncludes?: string[];
   status?: number;
   headers?: Record<string, string>;
   /** Relative file, resolved in `public/<variant>` first, then `public/shared`. */
@@ -81,19 +85,25 @@ export async function resolveFile(
 
 const PATH_FALLBACKS = (p: string): string[] => [p, join(p, 'index.html'), `${p}.json`, join(p, 'index.json')];
 
-type Matcher = (route: FixtureRoute, search: string) => boolean;
+type Matcher = (route: FixtureRoute, search: string, body: string) => boolean;
 
-/** Match order: exact `query`, then `params`, then `queryPrefix`, then path-only routes. */
+/** Match order: `bodyIncludes`, exact `query`, then `params`, then `queryPrefix`, then path-only routes. */
 const MATCHERS: Matcher[] = [
-  (r, search) => r.query !== undefined && r.query === search,
+  (r, _search, body) =>
+    r.bodyIncludes !== undefined && r.bodyIncludes.every((part) => body.toLowerCase().includes(part.toLowerCase())),
+  (r, search) => r.bodyIncludes === undefined && r.query !== undefined && r.query === search,
   (r, search) => {
-    if (r.query !== undefined || !r.params) return false;
+    if (r.bodyIncludes !== undefined || r.query !== undefined || !r.params) return false;
     const params = new URLSearchParams(search);
     return Object.entries(r.params).every(([key, value]) => params.get(key)?.toLowerCase() === value.toLowerCase());
   },
   (r, search) =>
-    r.query === undefined && r.params === undefined && r.queryPrefix !== undefined && search.startsWith(r.queryPrefix),
-  (r) => r.query === undefined && r.params === undefined && r.queryPrefix === undefined,
+    r.bodyIncludes === undefined &&
+    r.query === undefined &&
+    r.params === undefined &&
+    r.queryPrefix !== undefined &&
+    search.startsWith(r.queryPrefix),
+  (r) => r.bodyIncludes === undefined && r.query === undefined && r.params === undefined && r.queryPrefix === undefined,
 ];
 
 export async function resolveRequest(
@@ -102,18 +112,23 @@ export async function resolveRequest(
   routes: readonly FixtureRoute[],
   pathname: string,
   search: string,
+  request: { method?: 'GET' | 'POST'; body?: string } = {},
 ): Promise<Resolved | undefined> {
+  const method = request.method ?? 'GET';
+  const body = request.body ?? '';
   let decoded: string;
   try {
     decoded = decodeURIComponent(pathname);
   } catch {
     return undefined;
   }
-  const candidates = routes.filter((r) =>
-    r.pathPrefix !== undefined ? decoded.startsWith(r.pathPrefix) : r.path === decoded,
+  const candidates = routes.filter(
+    (r) =>
+      (r.method ?? 'GET') === method &&
+      (r.pathPrefix !== undefined ? decoded.startsWith(r.pathPrefix) : r.path === decoded),
   );
   for (const matcher of MATCHERS) {
-    const route = candidates.find((r) => matcher(r, search));
+    const route = candidates.find((r) => matcher(r, search, body));
     if (!route) continue;
     const headers = route.headers ?? {};
     if (route.file === undefined) return { status: route.status ?? 200, headers };
@@ -122,6 +137,7 @@ export async function resolveRequest(
     const file = await resolveFile(root, variant, route.file);
     return file ? { file, status: route.status ?? 200, headers } : undefined;
   }
+  if (method !== 'GET') return undefined;
   const file = await resolveFile(root, variant, decoded, PATH_FALLBACKS);
   return file ? { file, status: 200, headers: {} } : undefined;
 }

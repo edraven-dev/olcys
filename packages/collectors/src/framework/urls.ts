@@ -13,6 +13,8 @@ export const DEFAULT_HOST_PREFIXES: Readonly<Record<string, string>> = {
   'raw.githubusercontent.com': '/github-raw',
   't.me': '/telegram',
   'keybase.io': '/keybase',
+  'api.ninjastic.space': '/bitlist-api',
+  'ens-rpc.example': '/ens-rpc',
   'archiwum.example': '/private/archiwum',
   'mempool.space/api': '/chain/esplora/api',
   'blockstream.info/api': '/chain/esplora/api',
@@ -156,6 +158,20 @@ const GITHUB_RESERVED = new Set([
   'topics',
   'trending',
 ]);
+const KEYBASE_RESERVED = new Set([
+  'api',
+  'blog',
+  'docs',
+  'download',
+  'install',
+  'jobs',
+  'login',
+  'press',
+  'privacy',
+  'signup',
+]);
+/** Keybase user names: lower-case letters, digits and underscore, 2–16 characters. */
+export const KEYBASE_USERNAME = /^[a-z0-9_]{2,16}$/;
 const TELEGRAM_RESERVED = new Set(['s', 'c', 'joinchat', 'addstickers', 'share', 'proxy', 'iv', 'socks', 'login']);
 export const TELEGRAM_CHANNEL = /^[A-Za-z][A-Za-z0-9_]{4,31}$/;
 export const GITHUB_LOGIN = /^[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}$/;
@@ -212,6 +228,11 @@ export function recogniseAccountUrl(url: string, mapping?: FixtureMapping): Reco
     if (!name || extra > 1 || TELEGRAM_RESERVED.has(name.toLowerCase()) || !TELEGRAM_CHANNEL.test(name))
       return undefined;
     return { platform: 'telegram', handle: name, logicalUrl: `https://t.me/s/${name}` };
+  }
+  if (host === 'keybase.io' && segments.length === 1 && segments[0]) {
+    const name = segments[0].toLowerCase();
+    if (KEYBASE_RESERVED.has(name) || !KEYBASE_USERNAME.test(name)) return undefined;
+    return { platform: 'keybase', handle: name, logicalUrl: `https://keybase.io/${name}` };
   }
   const red = RED_PLATFORMS[host];
   if (red && segments[0]) return { platform: red, handle: segments[0], logicalUrl: parsed.toString() };

@@ -1,0 +1,22 @@
+{
+  "_synthetic": "SYNTHETIC TEST DATA (OŁCyŚ fixture)",
+  "result": "success",
+  "message": null,
+  "data": {
+    "total_results": 1,
+    "addresses": [
+      {
+        "address": "bc1q0yd6lqvghmx2uuv0qlztcre8gjsrg8mmansfj2",
+        "coin": "BTC",
+        "post_id": 65000201,
+        "topic_id": 5500201,
+        "author": "olcys_test_ewa",
+        "author_uid": 900201,
+        "title": "Test: adres do darowizn (SYNTHETIC)",
+        "date": "2026-03-02T10:15:00.000Z",
+        "board_id": 142,
+        "board_name": "Polski"
+      }
+    ]
+  }
+}

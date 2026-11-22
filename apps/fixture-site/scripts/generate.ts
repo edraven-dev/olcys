@@ -12,6 +12,7 @@ import { dirname, join, relative, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import type { PersonaManifest } from '../src/manifest.ts';
 import { SYNTHETIC_MARK } from './lib/chain.ts';
+import { identityFixtures } from './lib/identity.ts';
 import { chainFor, createWorld, labelsFor, routesFor, tokensFor, type World } from './lib/persona.ts';
 import { renderSitemap } from './lib/sitemap.ts';
 import { renderTemplate } from './lib/template.ts';
@@ -73,7 +74,12 @@ export async function renderSite(manifest: World['manifest']): Promise<Map<strin
   for (const [path, content] of waybackFiles(files)) files.set(path, content);
   const chain = chainFor(manifest);
   for (const file of chain.files) files.set(`shared/${file.path}`, file.content);
-  files.set('shared/routes.json', json({ _synthetic: SYNTHETIC_MARK, routes: routesFor(chain.routes) }));
+  const identity = identityFixtures(manifest.seed);
+  for (const file of identity.files) files.set(`shared/${file.path}`, file.content);
+  files.set(
+    'shared/routes.json',
+    json({ _synthetic: SYNTHETIC_MARK, routes: routesFor([...chain.routes, ...identity.routes]) }),
+  );
   for (const variant of VARIANTS) files.set(`${variant}/sitemap.xml`, renderSitemap(manifest.pages, variant));
   return new Map([...files.entries()].toSorted(([a], [b]) => a.localeCompare(b)));
 }

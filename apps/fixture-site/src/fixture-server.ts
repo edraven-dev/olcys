@@ -80,21 +80,29 @@ export async function createFixtureServer(options: FixtureServerOptions): Promis
       variant = requested;
       return send(res, 204, {});
     }
-    if (method !== 'GET' && method !== 'HEAD')
-      return send(res, 405, { ...text, allow: 'GET, HEAD' }, 'method not allowed');
+    if (method !== 'GET' && method !== 'HEAD' && method !== 'POST')
+      return send(res, 405, { ...text, allow: 'GET, HEAD, POST' }, 'method not allowed');
     if (url.pathname === '/healthz') return send(res, 200, text, `ok ${variant}`);
 
     // One variant per request: a concurrent switch must not mix files of one variant with the header of another.
     const served = variant;
     const servedRoutes = routes;
+    // POST is served only by routes that declare it (synthetic JSON-RPC answers); everything else stays read-only.
+    const post = method === 'POST';
+    const requestBody = post ? await readSmallBody(req, 65_536) : '';
     const resolved = await resolveRequest(
       options.root,
       served,
       servedRoutes,
       url.pathname,
       url.search.replace(/^\?/, ''),
+      post ? { method: 'POST', body: requestBody } : {},
     );
-    if (!resolved) return send(res, 404, text, 'not found');
+    if (!resolved) {
+      return post
+        ? send(res, 405, { ...text, allow: 'GET, HEAD' }, 'method not allowed')
+        : send(res, 404, text, 'not found');
+    }
     if (!resolved.file) return send(res, resolved.status, resolved.headers, method === 'HEAD' ? undefined : '', served);
     const body = await readFile(resolved.file);
     const headers = {

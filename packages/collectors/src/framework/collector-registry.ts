@@ -32,6 +32,17 @@ export interface CollectorFactory {
    * the watch-list pages that matched, never third-party pages, and no collector pivots from its results.
    */
   readonly archiveHistory?: boolean;
+  /**
+   * True when the accounts of other platforms in its results are references found by a lookup (a Bitcointalk uid from
+   * a BitList author record, a proven GitHub account of a Keybase user), not pages it read: the planner then still
+   * hands them to the platform's own collector. Accounts it found from an address are third parties and are never
+   * pivoted.
+   */
+  readonly accountsAreReferences?: boolean;
+  /** Address families it looks up by themselves (rule I7): one task per crypto-address identifier of the family. */
+  readonly addressFamilies?: readonly ('evm' | 'bitcoin')[];
+  /** Name suffixes it looks up by themselves (rule I8), e.g. `.eth`: one task per identifier ending with one. */
+  readonly nameSuffixes?: readonly string[];
   /** Identifier kinds the source looks up by themselves (registries: a full name), one task per identifier (I6). */
   readonly identifierKinds?: readonly IdentifierKind[];
   create(descriptor: SourceDescriptor, deps: CollectorDeps): SourceCollector;
