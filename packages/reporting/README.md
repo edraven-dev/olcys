@@ -24,7 +24,9 @@ potoku `report.render`, który raport generuje i zapisuje.
    przy weryfikacji adresu (przykład z dokumentacji, homoglify). Wynik `flagged` jest ostrzeżeniem, a nie odrzuceniem.
    Przy decyzji widnieje typ adresu z analizy łańcuchowej (`ReportData.addressTypes`, „stan na zapisany szczyt
    łańcucha”): np. „kontrakt”, „konto Safe”, „EOA z delegacją EIP-7702” wraz z kodem, delegatem (i wpisem rejestru
-   delegatów), kontraktem bazowym Safe, EntryPoint lub implementacją proxy; nieudana sonda jest wskazana wprost.
+   delegatów), kontraktem bazowym Safe, EntryPoint lub implementacją proxy — także przy adresach zachowanych i
+   ostrzeżeniach; nieudana sonda jest wskazana wprost. Klasyfikacja pochodzi z sieci zapisanej w decyzji (`resolved`)
+   albo z zapytań, które decyzja cytuje, nigdy z kolejności listy.
    Trop KYC tylko wtedy, gdy analiza ustaliła autorstwo publikacji (`evidence.kycLead`); inne wzmianki są wymienione
    z autorami jako nieprzesądzające. Interakcje z giełdami są odnotowywane, a nie przypisywane osobie.
 5. Aktywność on-chain i przesłanki wyjścia do walut tradycyjnych — wartości w PLN z tabelą, datą i kursem NBP.

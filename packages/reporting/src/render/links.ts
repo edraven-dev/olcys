@@ -532,26 +532,26 @@ function labelFact(l: AddressLabel, other: boolean): SafeHtml {
 }
 
 /**
- * The address type the chain analysis determined for an address: on its own chain or — for a candidate whose EVM
- * network was not attributed (`evm:unknown`) — on the EVM network it was fetched on.
+ * The address type behind a decision: the classification of the address the decision's chain data was fetched on
+ * (`resolved` for a candidate without an attributed EVM network), else the one whose requests the decision cites
+ * (A2/A3 record the classification's fetch ids). Never chosen by list order: without either, no type is shown.
  */
-function addressTypeOf(view: View, ref: AddressRef): AddressTypeClassification | undefined {
+function addressTypeOf(view: View, e: ExclusionDecision): AddressTypeClassification | undefined {
   const types = view.data.addressTypes ?? [];
+  const ref = e.resolved ?? e.address;
   const exact = types.find((c) => sameRef(c.address, ref));
-  if (exact || ref.chain !== 'evm:unknown') return exact;
-  const address = ref.address.toLowerCase();
-  return types.find((c) => c.address.chain.startsWith('evm:') && c.address.address.toLowerCase() === address);
+  if (exact) return exact;
+  const cited = new Set(e.evidence?.fetchIds ?? []);
+  return cited.size ? types.find((c) => c.fetchIds.some((id) => cited.has(id))) : undefined;
 }
 
-/** The address type of a decision's address with what it rests on (code, delegate, Safe singleton, EntryPoint). */
-function addressTypeEntries(view: View, e: ExclusionDecision): SafeHtml[] {
-  const c = addressTypeOf(view, e.address);
-  if (!c) return [];
+/** What the address type rests on: code, delegate (with its registry entry), Safe singleton, EntryPoint, proxy. */
+function addressTypeDetails(c: AddressTypeClassification, e: ExclusionDecision): SafeHtml[] {
   const x = pl.addressType;
   const known = e.evidence?.delegateInfo;
-  const details = [
-    c.codeSize === 0 ? x.noCode : '',
-    c.codePrefix && c.codeSize ? t(x.code, { prefix: c.codePrefix, bytes: c.codeSize }) : '',
+  return [
+    c.codeSize === 0 ? t(x.noCode) : undefined,
+    c.codePrefix && c.codeSize ? t(x.code, { prefix: c.codePrefix, bytes: c.codeSize }) : undefined,
     c.delegate && known
       ? t(x.delegateKnown, {
           address: addr(c.delegate),
@@ -561,35 +561,37 @@ function addressTypeEntries(view: View, e: ExclusionDecision): SafeHtml[] {
         })
       : c.delegate
         ? t(x.delegate, { address: addr(c.delegate) })
-        : '',
-    c.safeMasterCopy ? t(x.safeMasterCopy, { address: addr(c.safeMasterCopy) }) : '',
-    c.entryPoint ? t(x.entryPoint, { address: addr(c.entryPoint) }) : '',
-    c.implementation ? t(x.implementation, { address: addr(c.implementation) }) : '',
-    c.scriptType ? t(x.scriptType, { script: c.scriptType.toUpperCase() }) : '',
-  ].filter((d) => d !== '');
+        : undefined,
+    c.safeMasterCopy ? t(x.safeMasterCopy, { address: addr(c.safeMasterCopy) }) : undefined,
+    c.entryPoint ? t(x.entryPoint, { address: addr(c.entryPoint) }) : undefined,
+    c.implementation ? t(x.implementation, { address: addr(c.implementation) }) : undefined,
+    c.scriptType ? t(x.scriptType, { script: c.scriptType.toUpperCase() }) : undefined,
+    c.failedProbe ? t(x.failedProbe, { probe: x.probes[c.failedProbe.probe] ?? c.failedProbe.probe }) : undefined,
+  ].filter((d): d is SafeHtml => d !== undefined);
+}
+
+/** The address type of a rejected address with what it rests on (an entry of the card's computed results). */
+function addressTypeEntries(view: View, e: ExclusionDecision): SafeHtml[] {
+  const c = addressTypeOf(view, e);
+  if (!c) return [];
+  const details = addressTypeDetails(c, e);
   return [
-    markup`${t(x.line, { type: markup`<strong>${pl.addressTypes[c.type] ?? c.type}</strong>` })}${
+    markup`${t(pl.addressType.line, { type: markup`<strong>${pl.addressTypes[c.type] ?? c.type}</strong>` })}${
       details.length ? markup`<br>${muted(join(details, '; '))}` : ''
     }`,
-    ...(c.failedProbe ? [t(x.failedProbe, { probe: x.probes[c.failedProbe.probe] ?? c.failedProbe.probe })] : []),
   ];
 }
 
-/** ` · typ adresu: …` (and a registered EIP-7702 delegate) after a decision in the lists of warnings and checks. */
+/**
+ * ` · typ adresu: …` with the same details after a decision in the lists of warnings and checked addresses, so a kept
+ * Safe or ERC-4337 account shows why it stayed attributable.
+ */
 function addressTypeSuffix(view: View, e: ExclusionDecision): SafeHtml {
-  const c = addressTypeOf(view, e.address);
+  const c = addressTypeOf(view, e);
   if (!c) return markup``;
-  const x = pl.addressType;
-  const known = e.evidence?.delegateInfo;
-  return markup` · ${t(x.short, { type: pl.addressTypes[c.type] ?? c.type })}${
-    c.delegate && known
-      ? markup` · ${t(x.delegateKnown, {
-          address: addr(c.delegate),
-          kind: x.delegateKinds[known.kind] ?? known.kind,
-          name: known.name,
-          source: known.source,
-        })}`
-      : ''
+  const details = addressTypeDetails(c, e);
+  return markup` · ${t(pl.addressType.short, { type: pl.addressTypes[c.type] ?? c.type })}${
+    details.length ? markup`<br>${muted(join(details, '; '))}` : ''
   }`;
 }
 
