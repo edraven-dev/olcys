@@ -89,6 +89,37 @@ export interface Capture {
   technical?: CaptureTechnicalReport;
 }
 
+const TIMESTAMP = /^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})$/;
+
+/**
+ * Snapshot time of an archived copy as the Wayback Machine writes it: `20240101123456` → `2024-01-01T12:34:56.000Z`.
+ * Only the full 14-digit form is accepted.
+ */
+export function waybackTimestampToIso(timestamp: string): IsoDateTime {
+  const m = TIMESTAMP.exec(timestamp);
+  if (!m) throw new Error(`not a 14-digit Wayback timestamp: ${timestamp}`);
+  const [year, month, day, hour, minute, second] = m.slice(1).map(Number) as [
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+  ];
+  const date = new Date(Date.UTC(year, month - 1, day, hour, minute, second));
+  if (
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() !== month - 1 ||
+    date.getUTCDate() !== day ||
+    date.getUTCHours() !== hour ||
+    date.getUTCMinutes() !== minute ||
+    date.getUTCSeconds() !== second
+  ) {
+    throw new Error(`not a valid Wayback timestamp: ${timestamp}`);
+  }
+  return date.toISOString();
+}
+
 export const ACCOUNT_DISCOVERY_METHODS = ['input', 'enumeration', 'cross_link', 'search', 'protocol_lookup'] as const;
 export type AccountDiscoveryMethod = (typeof ACCOUNT_DISCOVERY_METHODS)[number];
 

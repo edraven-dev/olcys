@@ -10,6 +10,7 @@ import { createMemoryRepositories } from '@olcys/db';
 import { InMemoryBlobStore, verifyCapture } from '@olcys/evidence';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createFixtureServer, type FixtureServer } from '../../fixture-site/src/fixture-server.ts';
+import { buildWaybackHistory } from '@olcys/collectors';
 import { createRuntime, defaultStages, type Runtime } from '../src/index.ts';
 
 const REPO = resolve(import.meta.dirname, '..', '..', '..');
@@ -83,6 +84,8 @@ describe('demo scenario on the synthetic persona', () => {
               'etherscan_v2',
               'trongrid',
               'nbp_api',
+              // GREEN: history of the persona's own profile from the (synthetic) Wayback Machine.
+              'wayback_cdx',
             ],
             amberJustifications: {
               bitcointalk: JUSTIFICATION,
@@ -251,6 +254,39 @@ describe('demo scenario on the synthetic persona', () => {
       expect(
         egress.filter((e) => ['ceidg', 'vat_whitelist'].includes(e.sourceId)).every((e) => e.containsIdentifier),
       ).toBe(true);
+      // Archive history: the older snapshots of the persona's forum profile are collected as archived copies, in the
+      // same origin group as the live page; they add history, never score (the scores above are unchanged).
+      expect(contacted).toContain('wayback_cdx');
+      const archived = captures.filter((c) => c.archive);
+      expect(archived.map((c) => c.archive?.snapshotTimestamp)).toEqual(['20240312101500', '20250102030405']);
+      expect(
+        archived.every((c) => c.archive?.originalUrl === 'https://bitcointalk.org/index.php?action=profile;u=900001'),
+      ).toBe(true);
+      expect(archived.every((c) => c.sourceId === 'wayback_cdx' && c.status === 'ok')).toBe(true);
+      const history = buildWaybackHistory(captures, observations);
+      expect(history.map((h) => [h.snapshotTimestamp, h.fetched, h.digestCheck])).toEqual([
+        ['20240312101500', true, 'match'],
+        ['20250102030405', true, 'match'],
+      ]);
+      // The older snapshot mentions BTC-1 (extraction finds it); no counted evidence item rests on an archived copy.
+      const archivedIds = new Set(archived.map((c) => c.id));
+      const archivedCandidates = extracted.filter((r) => archivedIds.has(r.captureId)).flatMap((r) => r.candidates);
+      expect(archivedCandidates.map((c) => c.address.address.toLowerCase())).toContain(addressOf('BTC-1'));
+      const countedFromArchive = links
+        .flatMap((l) => l.paths)
+        .flatMap((p) => p.addressHop.contributions)
+        .filter((c) => c.counted && c.evidence.captureId && archivedIds.has(c.evidence.captureId));
+      expect(countedFromArchive).toEqual([]);
+      // Nothing about the archive reaches a third party: only the persona's own forum profile was looked up.
+      // The archive's robots.txt is the one request without a subject-derived URL.
+      expect(
+        egress
+          .filter((e) => e.sourceId === 'wayback_cdx' && e.purpose !== 'robots.txt')
+          .every((e) => e.containsIdentifier && e.allowed),
+      ).toBe(true);
+      expect(egress.filter((e) => e.sourceId === 'wayback_cdx' && e.purpose === 'wayback availability')).toHaveLength(
+        1,
+      );
       const stored = new Set((await runtime.repos.labels.list()).map((l) => l.id));
       const used = exclusions.flatMap((d) => d.evidence.labelIds ?? []);
       expect(used.length).toBeGreaterThan(0);

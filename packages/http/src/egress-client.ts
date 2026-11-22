@@ -1,6 +1,6 @@
 /**
  * The only network client in OŁCyŚ. Every request is checked against the allow-list of the sources enabled for the
- * run (per redirect hop), rate-limited per host, logged (allowed, denied or failed, with `containsIdentifier`), stored
+ * run (per redirect hop), rate-limited per host and per source, logged (allowed, denied or failed, with `containsIdentifier`), stored
  * as raw bytes in the blob store and described by a provenance envelope. Modes: live, offline, replay (see docs).
  */
 import { createHash } from 'node:crypto';
@@ -213,7 +213,9 @@ export function createEgressClient(options: EgressClientOptions): EgressClient {
   const maxBodyBytes = options.maxBodyBytes ?? 25 * 1024 * 1024;
   const localHosts = new Set((options.localHosts ?? DEFAULT_LOCAL_HOSTS).map(normaliseHost));
   const sources = new Map(options.enabledSources.map((s) => [s.id, s]));
+  /** Next free request slot per host and per source: a source's declared rate holds across all its hosts. */
   const nextSlot = new Map<string, number>();
+  const nextSourceSlot = new Map<string, number>();
 
   const isLocal = (host: string): boolean => localHosts.has(host);
   // A `*.` pattern denies the domain and its subdomains, like a plain host does.
@@ -251,8 +253,9 @@ export function createEgressClient(options: EgressClientOptions): EgressClient {
     if (source.rateLimit.requests <= 0) return;
     const interval = (source.rateLimit.perSeconds * 1000) / source.rateLimit.requests;
     const now = clock.now().getTime();
-    const slot = Math.max(now, nextSlot.get(host) ?? 0);
+    const slot = Math.max(now, nextSlot.get(host) ?? 0, nextSourceSlot.get(source.id) ?? 0);
     nextSlot.set(host, slot + interval);
+    nextSourceSlot.set(source.id, slot + interval);
     const wait = slot - now;
     if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
   }
