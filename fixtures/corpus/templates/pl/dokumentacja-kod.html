@@ -1,0 +1,31 @@
+<!--
+title: Dokumentacja dla programistów z przykładami w blokach kodu i kluczem w konfiguracji
+renders: 15
+slots:
+  ex: { pool: evm.eip55, role: listing, chain: evm:1 }
+  tx: { neg: [tx_hash, txid_hex64] }
+  vec: { neg: [example] }
+-->
+<!doctype html>
+<html lang="pl">
+<head><meta charset="utf-8"><title>SDK Płatności — dokumentacja</title></head>
+<body>
+{{BANNER}}
+<main>
+<section>
+<h2>Przykład: wysyłka płatności</h2>
+<pre><code>// przykładowy odbiorca w sieci Ethereum
+const recipient = '{{ADDR:ex}}';
+const lastTransfer = '{{NEG:tx}}';
+</code></pre>
+<p>Przykładowy adres z dokumentacji (wektor testowy): <code>{{NEG:vec}}</code></p>
+</section>
+<section>
+<h2>Konfiguracja portfela testowego</h2>
+<pre><code>wallet:
+  privateKey: '{{SECRET:hex64_private_key_context:1}}'
+</code></pre>
+</section>
+</main>
+</body>
+</html>

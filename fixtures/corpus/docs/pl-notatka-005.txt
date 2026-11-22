@@ -1,0 +1,13 @@
+DANE SYNTETYCZNE — SYNTHETIC TEST DATA. Fikcyjne dane testowe OŁCyŚ.
+Notatki — portfele (2026-07-20)
+
+Mój portfel BCH: 3PL8CW3tm3ztrDbLiwGM1NvX3MK1jheaLm
+Mój adres Optimism: 0xf7cA4eB9278E
+9a38593386C12C
+91A701C3Acdb15
+
+Podejrzany adres z czatu: https://tronscan.org/#/address/TLnd8VxYFuFBqcY18Cic45kXDDNCPb79dL
+
+
+
+Stary portfel — klucz prywatny: {{SECRET:hex64_private_key_context:1}}

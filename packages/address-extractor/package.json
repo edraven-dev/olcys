@@ -7,6 +7,10 @@
   "exports": {
     ".": "./src/index.ts"
   },
+  "scripts": {
+    "corpus:generate": "node scripts/corpus/generate.ts",
+    "corpus:check": "node scripts/corpus/generate.ts --check"
+  },
   "dependencies": {
     "@noble/hashes": "2.4.0",
     "@olcys/core": "workspace:*",

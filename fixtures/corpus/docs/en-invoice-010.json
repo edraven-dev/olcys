@@ -1,0 +1,9 @@
+{
+  "note": "DANE SYNTETYCZNE — SYNTHETIC TEST DATA. Fikcyjne dane testowe OŁCyŚ.",
+  "invoice": "INV-714349",
+  "payment": {
+    "uri": "bitcoin:19JHqkkqoCG2g3sgEDNhh4KBnKYizaKAaP",
+    "evmUri": "ethereum:0xF65A109501DEC8D77A34E591C5B8EA65E0F3976A?value=544e15"
+  },
+  "status": "unpaid"
+}

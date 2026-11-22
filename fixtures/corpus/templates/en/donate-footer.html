@@ -1,0 +1,19 @@
+<!--
+title: English donation footer with a BIP-21 payment link
+renders: 10
+slots:
+  btc: { pool: bitcoin.bech32, role: donation }
+  eth: { pool: evm, role: donation, chain: evm:1 }
+-->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Open-source notes — about</title></head>
+<body>
+{{BANNER}}
+<main><p>This site has no ads and no trackers. It is maintained in spare time.</p></main>
+<footer>
+<p>Support us: <a href="{{URI:btc}}">{{ADDR:btc}}</a></p>
+<p>Ethereum: {{ADDR:eth}}</p>
+</footer>
+</body>
+</html>

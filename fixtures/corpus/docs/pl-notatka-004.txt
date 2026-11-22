@@ -1,0 +1,11 @@
+DANE SYNTETYCZNE — SYNTHETIC TEST DATA. Fikcyjne dane testowe OŁCyŚ.
+Notatki — portfele (2026-03-23)
+
+Mój portfel BTC: 3LzNsAhfa5RBYdjgLtjEWesxjSuumphrYR
+Mój adres Optimism: 0x766B903AcEB21841055763e1346346C764C98C7B
+
+Podejrzany adres z czatu: hxxps://tronscan[.]org/#/address/TE4yvNnoVcqHD81FxSZjBEwjDmQXy5jB9r
+
+
+
+Stary portfel — klucz prywatny: {{SECRET:hex64_private_key_context:1}}

@@ -1,0 +1,23 @@
+<!--
+title: English exchange deposit instructions with deposit addresses in a table and a memo
+renders: 10
+slots:
+  dep: { pool: evm, role: exchange_deposit, chain: net }
+  btc: { pool: bitcoin, role: exchange_deposit, chain: bitcoin }
+-->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Test Exchange — deposit</title></head>
+<body>
+{{BANNER}}
+<main>
+<h1>Deposit</h1>
+<table class="deposit">
+<tr><th>Network</th><th>Deposit address</th></tr>
+<tr><td>{{NET:dep}}</td><td>{{ADDR:dep}}</td></tr>
+<tr><td>Bitcoin</td><td>{{ADDR:btc}}</td></tr>
+</table>
+<p>Memo: {{NUM}} (required for some networks).</p>
+</main>
+</body>
+</html>

@@ -1,0 +1,19 @@
+<!--
+title: Notatka tekstowa (TXT) z adresami, odnośnikiem do eksploratora i kluczem prywatnym
+renders: 15
+slots:
+  a: { pool: bitcoin, role: first_person_owner, chain: net }
+  b: { pool: evm, role: first_person_owner, chain: net }
+  x: { pool: any, role: scam_report }
+-->
+{{BANNER}}
+Notatki — portfele ({{DATE}})
+
+Mój portfel {{NET:a}}: {{ADDR:a}}
+Mój adres {{NET:b}}: {{ADDR:b}}
+
+Podejrzany adres z czatu: {{EXPLORER:x}}
+
+
+
+Stary portfel — klucz prywatny: {{SECRET:hex64_private_key_context:1}}
