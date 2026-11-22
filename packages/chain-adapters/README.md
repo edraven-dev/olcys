@@ -68,9 +68,10 @@ Pojedyncze adaptery i funkcje czyste: `createEsploraProvider`, `createEtherscanP
   prezentacji danych; plany darmowe tylko do użytku osobistego/badawczego (prototyp).
 - **TRON (TronGrid):** przelewy TRC-20 (`/v1/accounts/{a}/transactions/trc20`, stronicowanie `fingerprint`) i saldo
   konta. Pozycje TRC-20 nie mają numeru bloku (`blockHeight: 0`, kolejność według czasu). Kod kontraktu z API węzła:
-  `wallet/getcontract?value={a}&visible=true` (`bytecode` → `0x…`; konto bez kontraktu odpowiada `{}` → `0x`; pole
-  `Error` → błąd dostawcy). TRON nie ma sond slotów ani wywołań — typ adresu to konto, kontrakt tokena (etykieta lub
-  rejestr aktywów) albo kontrakt.
+  `wallet/getcontract?value={a}&visible=true` (`bytecode` → `0x…`; tylko obiekt bez pól kontraktu — odpowiedź `{}` —
+  oznacza konto bez kontraktu → `0x`; pola błędu `Error`, `error` lub `success: false` → błąd dostawcy; każda inna
+  treść, np. `null`, tablica albo pola kontraktu bez kodu → `invalid_response`, nigdy konto). TRON nie ma sond slotów
+  ani wywołań — typ adresu to konto, kontrakt tokena (etykieta lub rejestr aktywów) albo kontrakt.
 - **`evm:unknown`:** adres bez wskazania sieci jest sprawdzany na łańcuchach z `unknownEvmChains` (domyślnie `evm:1`).
 
 ## Ograniczenia MVP

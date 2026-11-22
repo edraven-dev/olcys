@@ -17,7 +17,7 @@ import type {
   RunContext,
 } from '@olcys/core';
 import { apiKeyOf, type ChainProviderConfig, type ProviderDeps } from './config.ts';
-import { ChainProviderError } from './errors.ts';
+import { ChainProviderError, type ChainErrorKind } from './errors.ts';
 import { integerText, isRecord } from './json.ts';
 import { CircuitBreaker, requestJson, type ChainRequest } from './request.ts';
 import {
@@ -187,25 +187,43 @@ export function createTronGridProvider(config: ChainProviderConfig, deps: Provid
       };
     },
 
-    /** `wallet/getcontract`: the bytecode of a smart contract; an account without a contract answers `{}`. */
+    /**
+     * `wallet/getcontract`: the bytecode of a smart contract. Only an object without contract fields (the node's `{}`)
+     * means "no contract"; anything else without valid bytecode is an invalid response, never an account.
+     */
     async getCode(address: AddressRef, ctx: RunContext): Promise<{ code: string; fetchId: Id }> {
       assertChain(address.chain);
       const query = new URLSearchParams({ value: address.address, visible: 'true' });
-      const { data, fetchId } = await requestJson<unknown>(
+      const { data, fetchId } = await requestJson<Record<string, unknown>>(
         ctx,
         request(`/wallet/getcontract?${query.toString()}`, 'tron contract code (contract check)', true),
         { breaker, classify: classifyNode },
       );
-      const bytecode = isRecord(data) ? data['bytecode'] : undefined;
-      if (bytecode === undefined || bytecode === '') return { code: '0x', fetchId };
-      if (typeof bytecode !== 'string' || !/^(0x)?([0-9a-f]{2})+$/i.test(bytecode)) {
-        throw new ChainProviderError('invalid_response', config.id, 'unexpected getcontract body', { fetchId });
+      const invalid = (reason: string): never => {
+        throw new ChainProviderError('invalid_response', config.id, `unexpected getcontract body: ${reason}`, {
+          fetchId,
+        });
+      };
+      const bytecode = data['bytecode'];
+      if (bytecode === undefined) {
+        if (CONTRACT_FIELDS.some((field) => field in data)) invalid('contract fields without bytecode');
+        return { code: '0x', fetchId };
       }
-      return { code: `0x${bytecode.replace(/^0x/i, '').toLowerCase()}`, fetchId };
+      if (typeof bytecode !== 'string' || !/^(0x)?([0-9a-f]{2})+$/i.test(bytecode)) invalid('bytecode is not hex');
+      return { code: `0x${String(bytecode).replace(/^0x/i, '').toLowerCase()}`, fetchId };
     },
   };
 }
 
-/** The java-tron HTTP API reports failures as HTTP 200 with an `Error` field. */
-const classifyNode = (body: unknown): 'ok' | 'upstream_error' =>
-  isRecord(body) && typeof body['Error'] === 'string' ? 'upstream_error' : 'ok';
+/** Fields of a `wallet/getcontract` answer that describe a deployed contract. */
+const CONTRACT_FIELDS = ['contract_address', 'origin_address', 'abi', 'code_hash', 'name'] as const;
+
+/**
+ * Body check of the node API: the answer is a JSON object; java-tron reports failures as HTTP 200 with `Error`, a
+ * gateway with `success: false` or `error`.
+ */
+function classifyNode(body: unknown): 'ok' | ChainErrorKind {
+  if (!isRecord(body)) return 'invalid_response';
+  if (body['Error'] !== undefined || body['error'] !== undefined || body['success'] === false) return 'upstream_error';
+  return 'ok';
+}

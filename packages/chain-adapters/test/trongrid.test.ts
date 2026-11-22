@@ -97,6 +97,25 @@ describe('TronGrid provider', () => {
     expect(http.requests.every((r) => r.containsIdentifier)).toBe(true);
   });
 
+  it('reads "no contract" only from an object without contract fields; other bodies never become an account', async () => {
+    const provider = createTronGridProvider(config, { env: {} });
+    const codeFor = (body: unknown) =>
+      provider.getCode!({ chain: 'tron', address: ME }, testContext(new FakeEgressClient(() => ({ body }))));
+    expect((await codeFor({})).code).toBe('0x');
+    for (const body of ['null', '[]', '"0x"', '42']) {
+      // oxlint-disable-next-line no-await-in-loop
+      await expect(codeFor(body)).rejects.toMatchObject({ kind: 'invalid_response' });
+    }
+    for (const body of [{ success: false, error: 'limit exceeded' }, { error: 'bad request' }, { Error: 'boom' }]) {
+      // oxlint-disable-next-line no-await-in-loop
+      await expect(codeFor(body)).rejects.toMatchObject({ kind: 'upstream_error' });
+    }
+    for (const body of [{ contract_address: ME, name: 'Synthetic' }, { bytecode: '' }, { bytecode: 'xyz' }]) {
+      // oxlint-disable-next-line no-await-in-loop
+      await expect(codeFor(body)).rejects.toMatchObject({ kind: 'invalid_response' });
+    }
+  });
+
   it('reads the solidified tip and treats success:false as an upstream error', async () => {
     const http = new FakeEgressClient((r) =>
       r.url.endsWith('/walletsolidity/getnowblock')
