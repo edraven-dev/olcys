@@ -73,6 +73,8 @@ export interface EgressLogEntry {
   /** True when the request disclosed a case identifier (nick, e-mail, address, ...) to the host. */
   containsIdentifier: boolean;
   allowed: boolean;
+  /** Set when the request targeted a sandbox source (local test chain). */
+  sandbox?: boolean;
   denyReason?: string;
   mode: FetchMode;
   at: IsoDateTime;
