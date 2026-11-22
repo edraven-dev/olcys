@@ -12,6 +12,7 @@ import type {
   RunWithProgress,
   SourceDescriptor,
 } from '@olcys/core';
+import { createSourceRegister, validateCaseScope, type ScopeViolation } from '@olcys/collectors';
 import { ContractError, CORE_CONTRACTS_VERSION, CreateCaseSchema, parse, StartRunSchema } from '@olcys/core';
 import { evidenceRunIdOf, TOOL_VERSION } from '@olcys/worker';
 import Fastify, { type FastifyInstance, type FastifyReply } from 'fastify';
@@ -50,42 +51,27 @@ export interface ApiDeps {
   schedule?: { minIntervalMinutes?: number; analyst?: string; clock?: () => Date };
 }
 
+const describeViolation = (v: ScopeViolation): string => {
+  switch (v.code) {
+    case 'justification_too_short':
+      return `source ${v.sourceId}: the justification needs at least ${v.minLength} characters`;
+    case 'pivot_depth_out_of_range':
+      return `maxPivotDepth must be between ${v.min} and ${v.max}`;
+    case 'unknown_chain':
+      return `unknown chain ${v.chain}`;
+    default:
+      return `source ${v.sourceId}: ${v.code}`;
+  }
+};
+
 const notFound = (reply: FastifyReply, what: string) =>
   reply.code(404).send({ error: 'not_found', message: `${what} not found` });
-
-/** Minimum length of an AMBER justification (matches the collectors' scope lock). */
-export const MIN_AMBER_JUSTIFICATION = 20;
-
-/**
- * Server-side scope check (the console checks the same): RED sources are never enabled, AMBER sources need a
- * justification, unknown source ids are refused. The collectors refuse the same again at collection time.
- */
-export function scopeProblems(
-  scope: { enabledSources: readonly string[]; amberJustifications: Readonly<Record<string, string>> },
-  sources: readonly SourceDescriptor[],
-): string[] {
-  const byId = new Map(sources.map((s) => [s.id, s]));
-  const problems: string[] = [];
-  for (const id of scope.enabledSources) {
-    const source = byId.get(id);
-    if (!source) problems.push(`unknown source ${id}`);
-    else if (source.compliance === 'RED') problems.push(`source ${id} is RED and can never be enabled`);
-    else if (
-      source.compliance === 'AMBER' &&
-      (scope.amberJustifications[id] ?? '').trim().length < MIN_AMBER_JUSTIFICATION
-    ) {
-      problems.push(
-        `source ${id} is AMBER and needs a justification of at least ${MIN_AMBER_JUSTIFICATION} characters`,
-      );
-    }
-  }
-  return problems;
-}
 
 export function buildApp(deps: ApiDeps): FastifyInstance {
   const app = Fastify({ logger: deps.httpLog ?? false });
   const { repos } = deps;
   const analyst = deps.analyst ?? DEFAULT_ANALYST;
+  const sourceRegister = createSourceRegister(deps.sources);
 
   app.setErrorHandler((error, _request, reply) => {
     if (error instanceof ContractError) {
@@ -148,9 +134,16 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
 
   app.post('/api/cases', async (request, reply) => {
     const input = parse(CreateCaseSchema, request.body);
-    const problems = scopeProblems(input.scope, deps.sources);
-    if (problems.length)
-      return reply.code(400).send({ error: 'invalid_scope', message: problems.join('; '), problems });
+    // --- source register: scope validation (RED, AMBER justification, unknown ids, pivot depth, chains) ---
+    const violations = validateCaseScope(input.scope, sourceRegister);
+    const [first] = violations;
+    if (first) {
+      return reply.code(400).send({
+        error: first.code,
+        message: violations.map(describeViolation).join('; '),
+        details: violations,
+      });
+    }
     return reply.code(201).send(await repos.cases.create(input, analyst));
   });
 
