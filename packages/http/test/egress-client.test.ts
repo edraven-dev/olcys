@@ -402,6 +402,16 @@ describe('egress client — review hardening', () => {
     expect(logs[0]?.error).toMatch(/^cassette unreadable/);
   });
 
+  it('marks live responses of a sandbox source in provenance and the egress log', async () => {
+    const { client, envelopes, logs } = setup({
+      enabledSources: [source('api'), source('box', { sandbox: true, allowedHosts: ['127.0.0.1'] })],
+    });
+    await client.fetch(req('http://127.0.0.1:8545/', 'box'));
+    await client.fetch(req('https://api.example.test/x'));
+    expect(envelopes.map((e) => e.sandbox)).toEqual([true, undefined]);
+    expect(logs.map((l) => l.sandbox)).toEqual([true, undefined]);
+  });
+
   it('marks fixture-site responses as synthetic', async () => {
     const { client, envelopes } = setup({}, () => new Response('x', { headers: { 'x-olcys-synthetic': 'true' } }));
     await client.fetch(req('http://127.0.0.1:4100/page'));

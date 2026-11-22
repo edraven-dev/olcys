@@ -59,6 +59,8 @@ export interface SourceDescriptor {
   blockedHosts?: string[];
   /** Attribution text required by the provider's terms (e.g. "Powered by Etherscan.io APIs"). */
   attribution?: string;
+  /** True for a local sandbox chain (demo wallets only): every response from it is marked `sandbox` in provenance. */
+  sandbox?: boolean;
   enabledByDefault: boolean;
   requiresApiKey: boolean;
   /** True when a query to this source discloses a case identifier to a third party (logged per request). */
