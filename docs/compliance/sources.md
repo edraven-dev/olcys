@@ -235,3 +235,19 @@ muszą wymieniać blokowane hosty — nie są kontaktowane nawet jako „dodatko
 - **Otwarte pytanie prawne:** warunki korzystania z Internet Archive udzielają dostępu „dla celów naukowych i
   badawczych”. Czy obejmują one użycie przez organ administracji (KAS) w czynnościach urzędowych, wymaga opinii
   prawnej, zanim źródło zostanie włączone w sprawie prowadzonej na żywo.
+
+## Wyszukiwania tożsamości (Keybase, BitList, ENS)
+
+- **Keybase** (`keybase`, GREEN, wiarygodność A): publiczne `user/lookup` bez logowania, tylko pola `basics`, `profile`,
+  `proofs_summary`, `cryptocurrency_addresses`, jeden login na zapytanie, 1 zapytanie/s. Każde zapytanie ujawnia Keybase
+  login ze sprawy (dziennik: `containsIdentifier: true`). Usługa jest tylko utrzymywana, a dane pochodzą głównie sprzed
+  2020 r.; `sig_id` dowodzi podpisu kluczem konta Keybase, nie kluczem adresu.
+- **BitList** (`bitlist`, AMBER, wiarygodność B): archiwum Bitcointalk prowadzone przez osobę trzecią, bez opublikowanych
+  warunków i limitów; włączane tylko w sprawie z uzasadnieniem (≥ 20 znaków). Zapytania: autor → adresy i wpisy, adres →
+  autorzy; nigdy po dziale ani tekście swobodnym; 1 zapytanie na 2 s. Dane to kopia treści z forum (kontekst, nie dowód);
+  w produkcji lepsze są publiczne zrzuty danych, a zrzuty zbudowane z obejściem limitów forum są niedozwolone.
+- **ENS** (`ens`, GREEN, wiarygodność A): publiczne wpisy w łańcuchu bloków, odczytywane przez węzeł JSON-RPC wdrożenia.
+  Rejestr ma `allowedHosts: []`: **host węzła podaje wdrożenie** w `OLCYS_SOURCE_HOSTS_ENS` (razem z `ENS_RPC_URL` i
+  `ENS_UNIVERSAL_RESOLVER`); host spoza listy dozwolonych jest błędem konfiguracji przy starcie, a bez `ENS_RPC_URL` kolektor
+  nie jest rejestrowany. Zalecany własny węzeł: węzeł komercyjny widziałby każdy badany adres lub nazwę. Bez indeksatorów,
+  bramek CCIP-Read i bez pobierania awatarów; rekordy tekstowe są niezaufanymi danymi.
