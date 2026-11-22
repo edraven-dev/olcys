@@ -1,4 +1,5 @@
 /** Shared builders of the fund-flow tests: synthetic addresses, a valuator on a flat synthetic rate, edges. */
+import { dMul, dRound } from '@olcys/core';
 import type { AddressRef, FlowEdge, FxRateSource, PriceSource, RunContext, Valuation } from '@olcys/core';
 import { createAssetRegistry, createValuator, ValuationUnavailableError } from '../src/index.ts';
 
@@ -42,7 +43,7 @@ export function edge(
   const amount = options.amount ?? '100';
   const asset = options.asset ?? 'USDT';
   const ref = options.chain === 'evm:1' ? eth : tron;
-  const pln = options.pln === undefined ? (Number(amount) * 4).toFixed(2) : options.pln;
+  const pln = options.pln === undefined ? dRound(dMul(amount, '4'), 2) : options.pln;
   const valuation: Valuation | undefined =
     pln === null
       ? undefined

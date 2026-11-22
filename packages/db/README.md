@@ -38,11 +38,12 @@ Schemat PostgreSQL, migracje SQL i typowane repozytoria dla magazynu dowodów dz
   `previousSizes(caseId, ziarna, beforeRunId)` — rozmiary klastrów ziaren z najnowszego wcześniejszego przebiegu sprawy
   (współczynnik wzrostu reguły A7). Tabela tylko do dopisywania (`olcys_app`: SELECT i INSERT).
 - `chain.queryFlowEdges` i `queryFlowEdges(db, zapytanie)` (migracja `0008_fund_flows.sql`) — przepływy środków po
-  zapisanych transferach przebiegu: rekurencyjne CTE z `SEARCH BREADTH FIRST` i `CYCLE` (PostgreSQL ≥ 14, surowy SQL
-  przez `sql` Kysely). Ścieżki są monotoniczne w czasie, kończą się na adresach z `stopAt` (usługi z etykietą,
-  adresy wykluczone) i na ziarnach, mają ograniczoną głębokość (`maxHops`) i liczbę krawędzi (`limit`, wynik ma
-  `truncated`); transfer występuje raz, z najmniejszym |hop|. Magazyn w pamięci używa tej samej semantyki
-  (`traceFlows` z `@olcys/core`); oba są testowane na tych samych scenariuszach (`test/flow-cte.test.ts`).
+  zapisanych transferach przebiegu: przeszukiwanie wszerz na poziomie adresów (`walkFlows` z `@olcys/core`) z jednym
+  parametryzowanym zapytaniem SQL na skok (surowy SQL przez `sql` Kysely). Jeden wpis na adres i skok (najwcześniejszy
+  moment dotarcia) utrzymuje liniowy koszt; transfer występuje raz, w pierwszym skoku. Ścieżki kończą się na adresach
+  z `stopAt` (usługi z etykietą, adresy wykluczone), krawędź do adresu już odwiedzonego ma `isCycle`; głębokość
+  (`maxHops`) i liczba krawędzi (`limit`, wynik ma `truncated`) są ograniczone. Magazyn w pamięci używa tego samego
+  przeszukiwania (`traceFlows`); oba są testowane na tych samych scenariuszach (`test/flow-cte.test.ts`).
   `addTransfers(..., { expansionHop })` zapisuje także historie kontrahentów pobrane w rozszerzeniu (kolumna
   `chain_transfers.expansion_hop`); `listTransfers` zwraca tylko historie adresów analizowanych.
 - `analysis.addFlows` / `listFlows` (tabela `flow_edge`) i `addFlowViews` / `listFlowViews` (tabela `fund_flow_view`:

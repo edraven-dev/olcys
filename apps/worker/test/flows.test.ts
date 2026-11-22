@@ -6,7 +6,7 @@
 import type { ChainFetchResult } from '@olcys/chain-adapters';
 import { createAssetRegistry, type Valuator } from '@olcys/analytics';
 import type { AddressRef, NormalizedTransfer, RunContext, UtxoTransaction } from '@olcys/core';
-import { addressKey } from '@olcys/core';
+import { addressKey, dMul, dRound } from '@olcys/core';
 import { describe, expect, it } from 'vitest';
 import {
   computeFlowGraph,
@@ -31,7 +31,7 @@ const valuator: Valuator = {
         amount,
         asset: 'USDT',
         at: when,
-        pln: (Number(amount) * 4).toFixed(2),
+        pln: dRound(dMul(amount, '4'), 2),
         method: 'nbp_table_a_previous_business_day',
         nbp: { table: 'SYN001/A/NBP/2026', effectiveDate: '2026-01-01', currency: 'USD', rate: '4.0000' },
       },
@@ -380,7 +380,7 @@ describe('Bitcoin co-spenders', () => {
 
   it('finds the outgoing payment of a co-spender in the flow graph', async () => {
     const pool: TransferPool = { transfers: [payment], utxoTxs: [tx] };
-    const run = (seed: string) =>
+    const graphOf = (seed: string) =>
       computeFlowGraph({
         runId: 'run',
         seeds: [{ chain: 'bitcoin', address: seed }],
@@ -398,10 +398,10 @@ describe('Bitcoin co-spenders', () => {
         eventsOf: () => [],
         computedAt: '2026-11-21T12:00:00.000Z',
       });
-    expect((await run('bc1qsynthb')).edges.map((e) => `${e.from.address}>${e.to.address}@${e.hop}`)).toEqual([
+    expect((await graphOf('bc1qsynthb')).edges.map((e) => `${e.from.address}>${e.to.address}@${e.hop}`)).toEqual([
       'bc1qsynthb>bc1qsynthc@1',
     ]);
-    expect((await run('bc1qsyntha')).edges.map((e) => `${e.from.address}>${e.to.address}@${e.hop}`)).toEqual([
+    expect((await graphOf('bc1qsyntha')).edges.map((e) => `${e.from.address}>${e.to.address}@${e.hop}`)).toEqual([
       'bc1qsyntha>bc1qsynthc@1',
     ]);
   });

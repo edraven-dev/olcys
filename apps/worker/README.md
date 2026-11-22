@@ -113,6 +113,10 @@ podsumowania; adresy z co najmniej 1000 transakcji zostają „liśćmi” (bez 
 klienta ruchu wychodzącego (rejestrowane, z `containsIdentifier`) i tylko u dostawców włączonych w sprawie. Niepełna historia
 kontrahenta ustawia `partial` z kodem `counterparty_chain_incomplete`.
 
+Adresy pobrane wcześniej (np. odbiorcy z jednoskokowego rozszerzenia) nie są pobierane ponownie, ale kontynuują
+przeszukiwanie: ich kontrahenci trafiają do kolejnego skoku. Płatności Bitcoin są dopisywane do wszystkich adresów
+wejściowych transakcji (współwydający), tak aby wypływy współwydającego były widoczne w grafie.
+
 Z zapisanych transferów (analizowanych adresów i kontrahentów) etap liczy graf przepływów dla każdego adresu analizowanego
 (`computeFlowGraph`, w dół i w górę, do `maxHops`, ścieżki kończą się na usługach i adresach wykluczonych): krawędzie
 wyceniane w PLN, a dla adresu oś czasu i agregat Sankey. Zapisuje je w `analysis.addFlows` i `addFlowViews`. Przycięcie
