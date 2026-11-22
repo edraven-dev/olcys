@@ -185,31 +185,32 @@ describe('access log dedupe window', () => {
   });
 });
 
-describe('access log evidence identity, failures and purpose', () => {
-  const captureOf = (): Capture => ({
-    id: newId(),
-    runId,
-    sourceId: 'fixture_site',
-    url: 'https://forum.example.test/profile/fikcyjny_kacper',
-    finalUrl: 'https://forum.example.test/profile/fikcyjny_kacper',
-    collectedAt: '2026-11-21T10:00:00.000Z',
-    collector: 'test',
-    clockSynced: true,
-    toolVersion: '0.0.0',
-    userAgent: 'test',
-    httpStatus: 200,
-    status: 'ok',
-    artifacts: [],
-    manifestSha256: '0'.repeat(64),
-    fetchIds: [],
-  });
-  const tick = () => new Promise((resolve) => setTimeout(resolve, 20));
+const captureOf = (): Capture => ({
+  id: newId(),
+  runId,
+  sourceId: 'fixture_site',
+  url: 'https://forum.example.test/profile/fikcyjny_kacper',
+  finalUrl: 'https://forum.example.test/profile/fikcyjny_kacper',
+  collectedAt: '2026-11-21T10:00:00.000Z',
+  collector: 'test',
+  clockSynced: true,
+  toolVersion: '0.0.0',
+  userAgent: 'test',
+  httpStatus: 200,
+  status: 'ok',
+  artifacts: [],
+  manifestSha256: '0'.repeat(64),
+  fetchIds: [],
+});
+const tick = () => new Promise((resolve) => setTimeout(resolve, 20));
 
+describe('access log evidence identity, failures and purpose', () => {
   it('tells captures apart within the dedupe window and resolves their run and case', async () => {
     const [a, b] = [captureOf(), captureOf()] as [Capture, Capture];
     await runtime.repos.evidence.addCaptures([a, b]);
     const reader = buildApp({ ...runtime, analyst: 'capture-reader' });
-    for (const c of [a, b, a]) await reader.inject(`/api/captures/${c.id}`);
+    await Promise.all([a, b].map((c) => reader.inject(`/api/captures/${c.id}`)));
+    await reader.inject(`/api/captures/${a.id}`);
     await tick();
     const rows = await runtime.repos.accessLog!.list({ actor: 'capture-reader', limit: 50 });
     expect(rows).toHaveLength(2);

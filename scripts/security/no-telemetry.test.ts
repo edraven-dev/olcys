@@ -19,6 +19,11 @@ const tracked = (): string[] =>
     .split('\0')
     .filter((f) => f !== '');
 
+const expected = (where: string) => [
+  `${where}: DO_NOT_TRACK is 0, expected 1`,
+  `${where}: NPM_CONFIG_UPDATE_NOTIFIER is true, expected false`,
+];
+
 describe('telemetry opt-outs', () => {
   it('are in .env.example', () => {
     expect(envExampleProblems(read('.env.example'))).toEqual([]);
@@ -50,10 +55,6 @@ describe('telemetry opt-outs', () => {
   it('fail a variable set to the wrong value in every kind of file', () => {
     const wrong = { ...TELEMETRY_OFF_VALUES, DO_NOT_TRACK: '0', NPM_CONFIG_UPDATE_NOTIFIER: 'true' };
     const lines = (sep: string) => Object.entries(wrong).map(([k, v]) => `${k}${sep}${v}`);
-    const expected = (where: string) => [
-      `${where}: DO_NOT_TRACK is 0, expected 1`,
-      `${where}: NPM_CONFIG_UPDATE_NOTIFIER is true, expected false`,
-    ];
     const compose = `services:\n  temp:\n    image: x\n    environment: ${JSON.stringify(wrong)}\n`;
     expect(composeProblems(compose)).toEqual(expected('compose service temp'));
     expect(dockerfileProblems('Dockerfile', `FROM x\nENV ${lines('=').join(' \\\n    ')}\n`)).toEqual(
