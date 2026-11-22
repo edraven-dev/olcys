@@ -1,6 +1,8 @@
 import {
   addressKey,
   type AddressCandidate,
+  type AddressCluster,
+  type AddressRef,
   type AdmiraltyReliability,
   type Clock,
   type EvidenceFeature,
@@ -249,10 +251,55 @@ export function buildClaims(
     });
   }
 
+  claims.push(...clusterClaims(i.clusters ?? [], claims, base));
+
   claims.sort(
     (a, b) => compareText(addressKey(a.address), addressKey(b.address)) || compareText(a.relation, b.relation),
   );
   return { claims, notes: sortedNotes(notes) };
+}
+
+/** Relations that state the subject controls the address: only these seed a cluster-associated claim. */
+const OWNERSHIP_RELATIONS: ReadonlySet<Relation> = new Set(['SELF_DECLARED', 'PAYMENT_ENDPOINT', 'MENTION_UNCLEAR']);
+
+/**
+ * `CLUSTER_ASSOCIATED` claims: the other members of a co-spend cluster seeded by an address the subject claims. They
+ * carry no paths and no score (the heuristic is a lead, not ownership evidence); an address with a claim already, and
+ * a labelled service, never gets one.
+ */
+function clusterClaims(
+  clusters: readonly AddressCluster[],
+  claims: readonly ClaimInput[],
+  base: Pick<ClaimInput, 'runId' | 'identityId' | 'rulesVersion'>,
+): ClaimInput[] {
+  const claimed = new Set(claims.map((c) => addressKey(c.address)));
+  const seeded = new Set(
+    claims
+      .filter((c) => OWNERSHIP_RELATIONS.has(c.relation) && c.address.chain === 'bitcoin')
+      .map((c) => c.address.address),
+  );
+  const out: ClaimInput[] = [];
+  for (const cluster of clusters) {
+    if (cluster.chain !== 'bitcoin' || !cluster.seeds.some((seed) => seeded.has(seed))) continue;
+    for (const member of cluster.members) {
+      const address: AddressRef = { chain: cluster.chain, address: member };
+      const key = addressKey(address);
+      if (claimed.has(key)) continue;
+      claimed.add(key);
+      out.push({
+        ...base,
+        address,
+        relation: 'CLUSTER_ASSOCIATED',
+        tier: 'E4',
+        // Taken from chain data, not from text: there is no checksum to verify here.
+        checksum: { scheme: 'none', present: false, valid: true, bits: 0 },
+        paths: [],
+        exclusions: [],
+        reviewRequired: false,
+      });
+    }
+  }
+  return out;
 }
 
 /** Builds the claims of a run and scores each one with the two-hop engine. */

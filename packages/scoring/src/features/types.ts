@@ -1,4 +1,5 @@
 import type {
+  AddressCluster,
   AddressRef,
   AdmiraltyReliability,
   Capture,
@@ -66,6 +67,11 @@ export interface FeatureExtractionInput {
   sources: (id: SourceId) => SourceDescriptor | undefined;
   /** Exclusion decisions (labels, deposit, contract and deny-list rules); empty until that step has run. */
   exclusions: ExclusionDecision[];
+  /**
+   * Bitcoin co-spend clusters of the chain analysis (a heuristic): the members of a cluster seeded by an address the
+   * subject claims become `CLUSTER_ASSOCIATED` claims, which carry no score (never an ownership claim).
+   */
+  clusters?: AddressCluster[];
   /** Count of unconfirmed LLM suggestions; they are never features, the count is only reported as a gate. */
   llmSuggestionsExcluded?: number;
   /** Analyst overrides applied by a rescore run (`applyOverrides`); absent in every other run. */

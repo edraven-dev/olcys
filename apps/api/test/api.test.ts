@@ -148,6 +148,23 @@ describe('api', () => {
       },
     ];
     await runtime.repos.addressTypes!.add(collected, types);
+    const clusters = [
+      {
+        id: 'c_0123456789abcdef',
+        runId: collected,
+        chain: 'bitcoin' as const,
+        heuristic: 'co_spend' as const,
+        algorithmVersion: 'cospend.v1',
+        seeds: ['bc1q-seed'],
+        members: ['bc1q-partner', 'bc1q-seed'],
+        size: 2,
+        mergeEvidence: [{ address: 'bc1q-partner', txid: 'tx-1' }],
+        skipped: [],
+        serviceMembers: [],
+        flags: { serviceMerge: false, capped: false },
+      },
+    ];
+    await runtime.repos.clusters!.add(collected, clusters);
     const rescore = await app.inject({
       method: 'POST',
       url: `/api/cases/${caseId}/runs`,
@@ -163,6 +180,10 @@ describe('api', () => {
     expect((await app.inject(`/api/runs/${collected}/address-types`)).json().items).toEqual(types);
     expect((await app.inject(`/api/runs/${id}/address-types`)).json().items).toEqual(types);
     expect((await app.inject(`/api/runs/${newId()}/address-types`)).statusCode).toBe(404);
+    // Co-spend clusters (a heuristic) belong to the chain analysis: a rescore reads those of the run it rescored.
+    expect((await app.inject(`/api/runs/${collected}/clusters`)).json().items).toEqual(clusters);
+    expect((await app.inject(`/api/runs/${id}/clusters`)).json().items).toEqual(clusters);
+    expect((await app.inject(`/api/runs/${newId()}/clusters`)).statusCode).toBe(404);
   });
 
   it('marks a run failed when a stage throws', async () => {

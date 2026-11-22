@@ -11,6 +11,7 @@ import type {
   CaptureStatus,
   CashOutRuleId,
   ChangeKind,
+  ClusterSkipReason,
   ComplianceStatus,
   EntityCategory,
   EvidenceTier,
@@ -295,6 +296,8 @@ export const pl = {
       pages_unavailable: 'część stron była niedostępna',
       chain_incomplete: 'niepełna historia łańcucha dla {count} adresów ({items})',
       counterparty_chain_incomplete: 'niepełna historia łańcucha dla {count} adresów kontrahentów ({items})',
+      cluster_expansion_limited:
+        'rozszerzenie klastrów ograniczone limitem: nie pobrano historii {count} partnerów wspólnego wydatkowania, klastry mogą być niepełne',
       address_type_probes_failed: 'nie udało się ustalić typu adresu (sondy zakończone błędem): {count}',
       valuation_unavailable: 'brak wyceny w PLN dla {count} transferów (brak ceny lub kursu NBP)',
     } as Record<string, string>,
@@ -676,6 +679,30 @@ export const pl = {
     qr: 'kod QR',
     ocr: 'OCR',
   } satisfies Record<TextView, string>,
+  /** Bitcoin co-spend clusters (a heuristic), a subsection of chapter 5. */
+  clusters: {
+    title: 'Klastry adresów Bitcoin (heurystyka wspólnego wydatkowania)',
+    intro:
+      'Adresy wydane razem jako wejścia jednej transakcji są traktowane jako należące do jednego podmiotu (heurystyka wielu wejść). To wynik heurystyczny, a nie fakt: nie dowodzi własności i nie podnosi Wskaźnika Pewności. Nie stosowano heurystyki adresu reszty. Pomijane są transakcje wyglądające na CoinJoin lub wspólne (np. depozyty z wieloma uczestnikami); PayJoin nie jest wykrywalny. Klastry mogą się „zapadać” — jeden błędny związek z usługą łączy niepowiązane podmioty — dlatego rozmiar i wzrost klastra są ograniczane i zgłaszane.',
+    cardTitle: 'Klaster {id}',
+    sizeLine: 'Rozmiar: {size} · ziarna: {seeds}',
+    previous: 'Rozmiar w poprzednim uruchomieniu: {previous} (wzrost ×{factor})',
+    capped: 'Osiągnięto górny limit rozmiaru klastra — dalsze połączenia pominięto.',
+    serviceMerge:
+      'Adres osoby wydany razem z oznaczoną usługą ({services}) — adres usługi nie został dołączony do klastra, a jego inni kontrahenci nie są łączeni; wskazanie wymaga weryfikacji (reguła A7).',
+    membersLabel: 'Adresy klastra',
+    evidenceLabel: 'Dowody połączeń (pierwsza transakcja łącząca adres z klastrem)',
+    skippedLabel: 'Pominięte transakcje',
+    columns: { address: 'Adres', tx: 'Transakcja', reason: 'Powód' },
+    reasons: {
+      coinjoin_wasabi: 'CoinJoin typu Wasabi (co najmniej 11 równych wyjść)',
+      coinjoin_whirlpool: 'CoinJoin typu Whirlpool (5 wejść, 5 równych wyjść z tx0 lub mieszania)',
+      equal_outputs: 'wiele równych wyjść (wzorzec zbliżony do CoinJoin, np. JoinMarket)',
+      collaborative_escrow: 'transakcja wspólna (wejścia wielu adresów tworzą wyjście P2WSH lub multisig)',
+      cap_reached: 'osiągnięto limit rozmiaru klastra',
+    } satisfies Record<ClusterSkipReason, string>,
+    singletons: 'Pozostałe adresy ({count}) nie weszły w żaden klaster z innymi adresami.',
+  },
   activity: {
     intro:
       'Wartości w PLN według kursu średniego NBP (tabela A) z ostatniego dnia roboczego przed transakcją (art. 11a ustawy o PIT). Przesłanka nie jest dowodem — wymaga weryfikacji, np. wniosku do dostawcy usług w zakresie kryptoaktywów. Brak przesłanek w danych otwartych nie wyklucza wyjścia do walut tradycyjnych (bankomaty, P2P poza łańcuchem).',

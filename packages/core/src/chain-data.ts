@@ -36,7 +36,14 @@ export interface UtxoTransaction {
   txid: string;
   blockHeight?: number;
   blockTime?: IsoDateTime;
-  inputs: { address?: string; value: DecimalString; prevTxid: string; vout: number }[];
+  inputs: {
+    address?: string;
+    value: DecimalString;
+    prevTxid: string;
+    vout: number;
+    /** Script of the witness (P2WSH) the input revealed, e.g. `OP_2 … OP_2 OP_CHECKMULTISIG`; absent when unknown. */
+    witnessScriptAsm?: string;
+  }[];
   outputs: { address?: string; value: DecimalString; n: number; scriptType?: string }[];
   fee?: DecimalString;
   fetchId: Id;

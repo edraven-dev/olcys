@@ -36,11 +36,20 @@ rules:
   A6_coinjoin:
     wasabiMinEqualOutputs: 11 # "> 10 equal outputs"
     whirlpool: { inputs: 5, outputs: 5, requiresTx0: true }
+    # Whirlpool pools (satoshis); a tx0 premix output is a pool denomination plus a mining-fee share (at most +20 %).
+    whirlpoolPools: [50000, 100000, 1000000, 5000000, 50000000]
+    whirlpoolPremixMaxFeeShare: '0.2'
+    # JoinMarket-like pattern (inherent false positives, so skipping is the conservative choice): at least this many
+    # outputs of one value forming at least this share of all outputs.
+    equalOutputs: { minCount: 3, minShare: '0.5' }
     outcome: flagged
     disableCoSpendClustering: true
   A7_cluster_collapse:
     test: Cluster merges with a large service cluster or grows by orders of magnitude
     minChangeMergeProbability: 0.99
+    # Co-spend clustering (heuristic, no change-address heuristic): size cap and growth factor against the previous run.
+    maxClusterSize: 1000
+    minGrowthFactor: 100
     outcome: flagged
   A8_deny_list:
     test: BIP/EIP test vectors, documentation examples, burn addresses, major token contracts
