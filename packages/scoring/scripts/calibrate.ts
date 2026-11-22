@@ -44,8 +44,27 @@ export interface RunOptions {
   out?: string;
 }
 
+/** Parses a CLI integer strictly (digits only, within [min, max]); throws `Error` with a clear message otherwise. */
+export function parseInteger(name: string, text: string, min: number, max: number): number {
+  const value = /^\d+$/.test(text) ? Number(text) : Number.NaN;
+  if (!Number.isSafeInteger(value) || value < min || value > max) {
+    throw new Error(`--${name} must be an integer between ${min} and ${max}, got "${text}"`);
+  }
+  return value;
+}
+
+export const MAX_N = 1_000_000;
+export const MAX_SEED = 4_294_967_295;
+
+function checkNumber(name: string, value: number | undefined, min: number, max: number): void {
+  if (value !== undefined) parseInteger(name, String(value), min, max);
+}
+
 /** Runs the harness and writes its outputs; returns the output directory and the failed persona claims. */
 export async function run(o: RunOptions): Promise<{ dir: string; personaFailures: string[] }> {
+  checkNumber('n', o.n, 1, MAX_N);
+  checkNumber('seed', o.seed, 0, MAX_SEED);
+  checkNumber('corpus-limit', o.corpusLimit, 1, MAX_N);
   const w = await loadWeights(o.weights ? resolve(o.weights) : weightsPath());
   const seed = o.seed ?? DEFAULT_SEED;
   const n = o.n ?? DEFAULT_N;
@@ -77,7 +96,7 @@ export async function run(o: RunOptions): Promise<{ dir: string; personaFailures
     seed,
     mode: o.oracle ? 'oracle' : 'scenarios',
     persona,
-    ...(corpus ? { relationPairs: corpus.pairs, relationUnmatched: corpus.unmatched } : {}),
+    ...(corpus ? { relationPairs: corpus.pairs, relationUnmatched: corpus.unmatched, corpus: corpus.provenance } : {}),
   });
 
   const dir = join(
@@ -115,10 +134,12 @@ async function main(): Promise<void> {
     ...(values.weights ? { weights: values.weights } : {}),
     ...(values.scenarios ? { scenarios: values.scenarios } : {}),
     ...(values.oracle ? { oracle: true } : {}),
-    ...(values.n ? { n: Number(values.n) } : {}),
-    ...(values.seed ? { seed: Number(values.seed) } : {}),
+    ...(values.n !== undefined ? { n: parseInteger('n', values.n, 1, MAX_N) } : {}),
+    ...(values.seed !== undefined ? { seed: parseInteger('seed', values.seed, 0, MAX_SEED) } : {}),
     ...(values.corpus ? { corpus: values.corpus } : {}),
-    ...(values['corpus-limit'] ? { corpusLimit: Number(values['corpus-limit']) } : {}),
+    ...(values['corpus-limit'] !== undefined
+      ? { corpusLimit: parseInteger('corpus-limit', values['corpus-limit'], 1, MAX_N) }
+      : {}),
     ...(values.propose ? { propose: true } : {}),
     ...(values.out ? { out: values.out } : {}),
   });
@@ -129,4 +150,11 @@ async function main(): Promise<void> {
   }
 }
 
-if (import.meta.main) await main();
+if (import.meta.main) {
+  try {
+    await main();
+  } catch (error) {
+    console.error(`calibrate: ${error instanceof Error ? error.message : String(error)}`);
+    process.exitCode = 1;
+  }
+}

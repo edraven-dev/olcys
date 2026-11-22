@@ -3,12 +3,20 @@
  * address extractor, wrapped in a synthetic anchored account and turned into claims with `buildClaims`; the relation
  * of each labelled address is compared with the relation its truth role must lead to. Reads files only (no network).
  */
+import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { EXTRACTOR_VERSION, extractCapture, parseDenyList, type CaptureContent } from '@olcys/address-extractor';
 import { type ArtifactKind, type Capture, type Relation, type RoleCue } from '@olcys/core';
-import { buildClaims, expectedRelation, type RelationPair, type ScoringWeights } from '../../src/index.ts';
+import {
+  buildClaims,
+  expectedRelation,
+  sha256OfText,
+  type CorpusProvenance,
+  type RelationPair,
+  type ScoringWeights,
+} from '../../src/index.ts';
 
 interface TruthRow {
   docId: string;
@@ -21,7 +29,7 @@ export interface CorpusRelations {
   pairs: RelationPair[];
   /** Labelled addresses without a claim (not extracted, filtered or without an unambiguous truth role). */
   unmatched: number;
-  extractorVersion: string;
+  provenance: CorpusProvenance;
 }
 
 const MEDIA: Record<string, { kind: ArtifactKind; mediaType: string }> = {
@@ -29,6 +37,8 @@ const MEDIA: Record<string, { kind: ArtifactKind; mediaType: string }> = {
   txt: { kind: 'text', mediaType: 'text/plain; charset=utf-8' },
   json: { kind: 'json', mediaType: 'application/json' },
 };
+
+const hashBytes = (bytes: Uint8Array): string => createHash('sha256').update(bytes).digest('hex');
 
 const AT = '2026-11-21T10:00:00.000Z';
 const id = (prefix: string, n: number): string => `0190${prefix}0000-0000-7000-8000-${String(n).padStart(12, '0')}`;
@@ -49,7 +59,9 @@ export async function corpusRelations(
   options: { limit?: number } = {},
 ): Promise<CorpusRelations> {
   const denyList = parseDenyList(denyListYaml);
-  const rows = (await readFile(join(dir, 'ground-truth.jsonl'), 'utf8'))
+  const groundTruth = await readFile(join(dir, 'ground-truth.jsonl'), 'utf8');
+  const used = [`ground-truth.jsonl ${sha256OfText(groundTruth)}`];
+  const rows = groundTruth
     .split('\n')
     .filter((line) => line.length > 0)
     .map((line) => JSON.parse(line) as TruthRow);
@@ -73,7 +85,9 @@ export async function corpusRelations(
     if (truth.size === 0) continue;
 
     // oxlint-disable-next-line no-await-in-loop
-    const bytes = new Uint8Array(await readFile(join(dir, 'docs', file)));
+    const raw = await readFile(join(dir, 'docs', file));
+    used.push(`${file} ${hashBytes(raw)}`);
+    const bytes = new Uint8Array(raw);
     const captureId = id('c', index + 1);
     const url = `https://example.org/corpus/${docId}`;
     const content: CaptureContent = {
@@ -144,5 +158,16 @@ export async function corpusRelations(
       pairs.push({ truth: only, predicted: claim.relation });
     }
   }
-  return { pairs, unmatched, extractorVersion: EXTRACTOR_VERSION };
+  return {
+    pairs,
+    unmatched,
+    provenance: {
+      extractorVersion: EXTRACTOR_VERSION,
+      manifestSha256: sha256OfText(await readFile(join(dir, 'manifest.json'), 'utf8')),
+      usedFilesSha256: sha256OfText(used.join('\n')),
+      denyListSha256: sha256OfText(denyListYaml),
+      documents: files.length,
+      ...(options.limit === undefined ? {} : { limit: options.limit }),
+    },
+  };
 }

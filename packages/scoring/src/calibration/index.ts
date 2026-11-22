@@ -23,6 +23,7 @@ export {
   serialiseReport,
   type CalibrateOptions,
   type CalibrationReport,
+  type CorpusProvenance,
   type FeatureStats,
 } from './report.ts';
 export {

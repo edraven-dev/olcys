@@ -16,6 +16,7 @@ const significant = (value: number): number => Number(value.toPrecision(3));
  * is never applied by this code.
  */
 export function proposeWeights(report: CalibrationReport, w: ScoringWeights, minCount = 30): string {
+  const regraded: string[] = [];
   const features = (hop: 'identity' | 'address'): Record<string, unknown> => {
     const out: Record<string, unknown> = {};
     for (const f of w.features.values()) {
@@ -23,7 +24,11 @@ export function proposeWeights(report: CalibrationReport, w: ScoringWeights, min
       const stats = report.features[f.key];
       const rho = w.reliability[f.defaultGrade ?? 'A'] ?? 1;
       let bayesFactor = f.bayesFactor;
-      if (stats && stats.present1 >= minCount && stats.present0 >= minCount) {
+      const defaultGrade = f.defaultGrade ?? 'A';
+      if (stats && stats.grades.some((g) => g !== defaultGrade)) {
+        // The engine discounts by the emitted grade; inverting with the default grade would be wrong.
+        regraded.push(f.key);
+      } else if (stats && stats.present1 >= minCount && stats.present0 >= minCount) {
         const raw = (stats.empiricalLr - (1 - rho)) / rho;
         bayesFactor = significant(Math.min(MAX_BF, Math.max(MIN_BF, raw)));
       }
@@ -57,6 +62,9 @@ export function proposeWeights(report: CalibrationReport, w: ScoringWeights, min
     `# Źródło: ${w.version} (SHA-256 ${w.sha256}); zbiór danych ${report.datasetSha256}; ziarno ${report.seed}; n = ${report.n}; tryb ${report.mode}.`,
     `# Zmieniono tylko cechy z co najmniej ${minCount} wystąpieniami w obu klasach; pozostałe wartości skopiowano bez zmian.`,
     '# Plik nie jest stosowany automatycznie: zatwierdzenie jako nowej wersji wag to decyzja człowieka.',
+    ...(regraded.length === 0
+      ? []
+      : [`# Bez zmian (dane zawierają inny stopień wiarygodności niż domyślny): ${regraded.join(', ')}.`]),
     '',
   ].join('\n');
   return header + stringify(config, { lineWidth: 120 });

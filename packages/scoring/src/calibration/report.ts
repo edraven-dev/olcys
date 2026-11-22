@@ -25,7 +25,21 @@ export const OVERCONFIDENT_GAP = 0.1;
 export const OVERCONFIDENT_MIN_N = 200;
 export const SPARSE_BELOW = 30;
 
+/** Where the corpus results come from, so a saved report can be reproduced. */
+export interface CorpusProvenance {
+  extractorVersion: string;
+  manifestSha256: Sha256Hex;
+  /** SHA-256 over `<file> <sha256>` lines of the ground truth and every document used. */
+  usedFilesSha256: Sha256Hex;
+  denyListSha256: Sha256Hex;
+  documents: number;
+  /** Document cap, when one was set. */
+  limit?: number;
+}
+
 export interface FeatureStats {
+  /** Distinct grades the generated items of this feature carry (a proposal needs them equal to the default grade). */
+  grades: string[];
   /** Claims with the feature among the true class (hop truth when known, else the claim label). */
   present1: number;
   present0: number;
@@ -62,6 +76,7 @@ export interface CalibrationReport {
   features: Record<string, FeatureStats>;
   /** `n` pairs compared; `unmatched` truth addresses without a claim (not extracted or filtered), left out. */
   relationAccuracy?: RelationAccuracy & { n: number; unmatched: number };
+  corpus?: CorpusProvenance;
   persona?: PersonaResult[];
   warnings: string[];
 }
@@ -74,6 +89,7 @@ export interface CalibrateOptions {
   /** Relation predictions on the extraction corpus; absent → `corpus_missing`. */
   relationPairs?: readonly RelationPair[];
   relationUnmatched?: number;
+  corpus?: CorpusProvenance;
   persona?: readonly PersonaResult[];
 }
 
@@ -117,12 +133,15 @@ function featureTable(claims: readonly LabelledClaim[], w: ScoringWeights): Reco
     let present0 = 0;
     let total1 = 0;
     let total0 = 0;
+    const grades = new Set<string>();
     for (const { claim, label, hop } of claims) {
       const path = claim.paths[0];
       if (!path || (weight.hop === 'identity' && path.anchor)) continue;
       const truth = hop ? hop[weight.hop] : label;
       const items = weight.hop === 'identity' ? path.identity : path.address;
-      const present = items.some((item) => item.feature === key);
+      const own = items.filter((item) => item.feature === key);
+      for (const item of own) grades.add(item.reliability);
+      const present = own.length > 0;
       if (truth === 1) {
         total1 += 1;
         if (present) present1 += 1;
@@ -132,6 +151,7 @@ function featureTable(claims: readonly LabelledClaim[], w: ScoringWeights): Reco
       }
     }
     table[key] = {
+      grades: [...grades].toSorted(),
       present1,
       present0,
       total1,
@@ -210,6 +230,7 @@ export function calibrate(claims: readonly LabelledClaim[], w: ScoringWeights, o
     features,
     warnings: [],
   };
+  if (o.corpus) report.corpus = o.corpus;
   if (o.relationPairs)
     report.relationAccuracy = {
       ...relationAccuracy(o.relationPairs),
