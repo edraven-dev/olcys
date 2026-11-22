@@ -1,14 +1,16 @@
 /**
- * Builds the `Capture` record of one fetched resource: the stored body (as received, or with secrets redacted — the
- * technical report then keeps the original hash), the response headers as canonical JSON, collector identity, every fetch
- * of the redirect chain and a SHA-256 manifest over all of it. One module, so a sealing recorder can replace it.
+ * Hands one fetched resource to the capture recorder (`ctx.evidence`), which stores the artifacts and the capture
+ * manifest and returns the `Capture`: the body as stored by the egress client (as received, or with secrets redacted;
+ * the technical report then keeps the original hash) and the response headers as canonical JSON. Collectors never
+ * compute manifests, collector identity or clock status themselves.
  */
 import { createHash } from 'node:crypto';
 import type {
   ArtifactKind,
   BlobRef,
   Capture,
-  CaptureArtifact,
+  CaptureDraft,
+  CaptureProfile,
   CaptureStatus,
   CaptureTechnicalReport,
   EgressResponse,
@@ -16,10 +18,8 @@ import type {
   RunContext,
   SourceDescriptor,
 } from '@olcys/core';
-import { canonicalJson, newId } from '@olcys/core';
+import { canonicalJson } from '@olcys/core';
 import type { CollectorConfig } from './config.ts';
-
-export const CAPTURE_MANIFEST_SCHEMA = 'olcys.capture-manifest.v1';
 
 export function sha256Hex(bytes: Uint8Array | string): string {
   return createHash('sha256').update(bytes).digest('hex');
@@ -31,10 +31,11 @@ export function artifactKindFor(contentType: string): ArtifactKind {
   return 'text';
 }
 
-/** SHA-256 of the canonical JSON manifest of a capture (every field except the digest itself). */
-export function captureManifestSha256(capture: Omit<Capture, 'manifestSha256'>): string {
-  return sha256Hex(canonicalJson({ schema: CAPTURE_MANIFEST_SCHEMA, ...capture }));
-}
+const BODY_DESCRIPTIONS: Partial<Record<ArtifactKind, string>> = {
+  html: 'HTTP response body as stored (as received unless secrets were redacted)',
+  json: 'HTTP response body (JSON) as stored',
+  text: 'HTTP response body (text) as stored',
+};
 
 export async function buildCapture(args: {
   ctx: RunContext;
@@ -51,30 +52,38 @@ export async function buildCapture(args: {
   status: CaptureStatus;
   technical: CaptureTechnicalReport;
 }): Promise<Capture> {
-  const { ctx, response, config } = args;
-  const headersJson = canonicalJson({ status: response.status, headers: response.headers });
-  const headersBlob = await ctx.blobs.put(new TextEncoder().encode(headersJson), 'application/json');
-  const artifacts: CaptureArtifact[] = [
-    { kind: artifactKindFor(response.headers['content-type'] ?? ''), blob: args.body },
-    { kind: 'headers', blob: headersBlob },
-  ];
-  const capture: Omit<Capture, 'manifestSha256'> = {
-    id: newId(),
-    runId: ctx.runId,
+  const { ctx, response } = args;
+  if (!ctx.evidence) throw new Error('RunContext.evidence (the capture recorder) is not configured');
+  const bodyKind = artifactKindFor(response.headers['content-type'] ?? '');
+  // Plain HTTP collection: JSON endpoints are API responses, everything else a web page (without browser artifacts).
+  const profile: CaptureProfile = bodyKind === 'json' ? 'api_response' : 'web_page';
+  const endedAt = ctx.clock.now().toISOString();
+  const received = response.provenance.receivedAt;
+  const draft: CaptureDraft = {
     sourceId: args.descriptor.id,
+    profile,
+    userAgent: response.provenance.userAgent,
+    fetchIds: args.fetchIds,
     url: args.requestedUrl,
     finalUrl: args.finalUrl,
-    collectedAt: response.provenance.receivedAt,
-    collector: config.collectorName,
-    ...(config.collectorHost ? { collectorHost: config.collectorHost } : {}),
-    clockSynced: config.clockSynced,
-    toolVersion: response.provenance.toolVersion,
-    userAgent: response.provenance.userAgent,
+    startedAt: args.technical.startedAt,
+    collectedAt: received,
+    endedAt: endedAt > received ? endedAt : received,
     httpStatus: response.status,
     status: args.status,
-    artifacts,
-    fetchIds: args.fetchIds,
+    ...(response.provenance.remoteAddress ? { serverIp: response.provenance.remoteAddress } : {}),
+    responseHeaders: response.headers,
+    artifacts: [
+      { kind: bodyKind, blob: args.body, description: BODY_DESCRIPTIONS[bodyKind] ?? 'HTTP response body' },
+      {
+        kind: 'headers',
+        bytes: new TextEncoder().encode(canonicalJson({ status: response.status, headers: response.headers })),
+        mediaType: 'application/json',
+        description: 'HTTP status and kept response headers (canonical JSON)',
+      },
+    ],
+    transformations: args.technical.transformations,
     technical: args.technical,
   };
-  return { ...capture, manifestSha256: captureManifestSha256(capture) };
+  return ctx.evidence.record(draft, ctx);
 }

@@ -215,6 +215,12 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
       return { items: await load(scope === 'evidence' ? evidenceRunIdOf(run) : run.id) };
     });
   runList('captures', (id) => repos.evidence.listCaptures(id), 'evidence');
+  // Chain-of-custody events of the run's captures (empty when the store keeps none).
+  runList(
+    'custody',
+    async (id) => repos.custody?.listBySubjects((await repos.evidence.listCaptures(id)).map((c) => c.id)) ?? [],
+    'evidence',
+  );
   runList('observations', (id) => repos.evidence.listObservations(id), 'evidence');
   runList('accounts', (id) => repos.evidence.listAccounts(id), 'evidence');
   runList('candidates', (id) => repos.evidence.listCandidates(id));

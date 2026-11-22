@@ -23,6 +23,7 @@ import {
   identifier,
   MemoryBlobs,
   memoryLogger,
+  testRunId,
   startFixture,
   testConfig,
   TEST_REDACTOR,
@@ -65,10 +66,10 @@ function fakeSite(site = SITE) {
   });
 }
 
-function runContext(http: RunContext['http'], runId = 'run-mock'): RunContext {
+function runContext(http: RunContext['http'], label = '00000000-0000-7000-8000-000000000905'): RunContext {
   return {
-    runId,
-    caseId: 'case-1',
+    runId: testRunId(label),
+    caseId: '00000000-0000-7000-8000-000000000902',
     mode: 'offline',
     http,
     blobs: new MemoryBlobs(),
@@ -83,7 +84,8 @@ const paths = (requests: EgressRequest[]) => requests.map((r) => new URL(r.url).
 describe('mock search over a synthetic sitemap', () => {
   let egress: ReturnType<typeof fakeSite>;
   let run: SearchRun;
-  const fetchOf = (path: string) => `fetch-${paths(egress.requests).indexOf(path) + 1}`;
+  const fetchOf = (path: string) =>
+    `00000000-0000-7000-8000-${String(paths(egress.requests).indexOf(path) + 1).padStart(12, '0')}`;
   beforeAll(async () => {
     egress = fakeSite();
     const provider = createMockSearchProvider({

@@ -280,7 +280,7 @@ describe('search on the fixture site', () => {
       sourceId: 'mock_search',
       status: 'ok',
       url: `${server.url}/sitemap.xml`,
-      artifacts: [{ kind: 'json' }],
+      artifacts: [{ kind: 'json' }, { kind: 'headers' }],
     });
     expect(found.captures[0]?.fetchIds.length).toBeGreaterThan(5);
 

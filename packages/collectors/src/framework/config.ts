@@ -1,9 +1,8 @@
 /**
- * Collector configuration: fixture mapping (offline), collector identity for captures, the synthetic-identifier guard
+ * Collector configuration: fixture mapping (offline), the synthetic-identifier guard
  * (live) and the watch list of directory pages scanned for case identifiers.
  */
 import { readFile } from 'node:fs/promises';
-import { hostname } from 'node:os';
 import { resolve } from 'node:path';
 import type { FetchMode } from '@olcys/core';
 import { DEFAULT_HOST_PREFIXES, toLogicalUrl, usesFixtures, type FixtureMapping } from './urls.ts';
@@ -24,11 +23,6 @@ export interface WatchedPage {
 
 export interface CollectorConfig {
   fixture: FixtureMapping;
-  /** Analyst or service account recorded on every capture (`OLCYS_COLLECTOR_NAME`). */
-  collectorName: string;
-  collectorHost?: string;
-  /** False unless the deployment verifies the clock against NTP. */
-  clockSynced: boolean;
   toolVersion: string;
   /** Persona values that must never reach a real site (live mode guard). */
   syntheticIdentifiers: readonly string[];
@@ -99,9 +93,6 @@ export function createCollectorConfig(options: CollectorConfigOptions): Collecto
     : parseWatchPages(env['OLCYS_WATCH_PAGES']);
   return {
     fixture,
-    collectorName: env['OLCYS_COLLECTOR_NAME'] || 'olcys-worker',
-    collectorHost: hostname(),
-    clockSynced: env['OLCYS_CLOCK_SYNCED'] === '1',
     toolVersion: COLLECTORS_VERSION,
     syntheticIdentifiers: options.manifest?.syntheticIdentifiers ?? [],
     watchList,

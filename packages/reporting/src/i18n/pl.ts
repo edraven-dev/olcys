@@ -750,6 +750,8 @@ export const pl = {
   evidence: {
     intro:
       'Każdą stronę zabezpieczono w chwili pobrania: zapisano pełną treść, czas (UTC), adres URL i skrót SHA-256 manifestu obejmującego skróty wszystkich zapisanych plików. Adresy URL podano jako tekst — otwarcie ich z raportu ujawniłoby stronie trzeciej adres IP analityka.',
+    noScreenshot:
+      'Dla zabezpieczonych stron WWW nie zebrano zrzutów ekranu całych stron, ponieważ przechwytywanie w przeglądarce nie jest włączone w tym wdrożeniu.',
     none: 'Brak zabezpieczonych stron w tym uruchomieniu.',
     columns: {
       n: 'Nr',

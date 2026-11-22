@@ -7,13 +7,7 @@
  */
 export const PACKAGE_NAME = '@olcys/collectors';
 
-export {
-  CAPTURE_MANIFEST_SCHEMA,
-  artifactKindFor,
-  buildCapture,
-  captureManifestSha256,
-  sha256Hex,
-} from './framework/capture.ts';
+export { artifactKindFor, buildCapture, sha256Hex } from './framework/capture.ts';
 export {
   CollectorRegistry,
   runCollector,
