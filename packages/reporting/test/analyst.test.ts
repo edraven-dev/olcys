@@ -14,6 +14,9 @@ const judgement = (linkAssessmentId: string, value: AnalystJudgement['judgement'
   at,
 });
 
+/** A distinct synthetic justification, to count where it appears. */
+const text = (n: number) => `Uzasadnienie oceny numer ${n} (test syntetyczny)`;
+
 /** The card of one link in chapter 3. */
 function card(html: string, linkId: string): string {
   const start = html.indexOf(`<article class="card" id="powiazanie-${linkId}">`);
@@ -48,6 +51,32 @@ describe('analyst statements in the report', () => {
     expect(after).toContain('<span class="score">24/100</span>');
     // Links without judgements are untouched.
     expect(card(renderReport(data), 'link-btc1')).not.toContain('ocena-analityka');
+  });
+
+  it('shows judgements on rejected and third-party links too, each statement exactly once', () => {
+    const base = personaData();
+    const data: ReportData = {
+      ...base,
+      judgements: [
+        judgement('link-eth2', 'not_same', '2026-11-21T11:00:00.000Z', text(1)),
+        judgement('link-tron2', 'same', '2026-11-21T11:10:00.000Z', text(2)),
+        judgement('link-eth1', 'unsure', '2026-11-21T11:20:00.000Z', text(3)),
+      ],
+    };
+    const html = renderReport(data);
+    for (const n of [1, 2, 3]) expect(html.split(text(n)).length - 1).toBe(1);
+    // The third-party attribution has its own card in chapter 4.
+    const thirdParty = html.slice(html.indexOf('id="strona-trzecia-link-tron2"'));
+    expect(thirdParty.slice(0, thirdParty.indexOf('</article>'))).toContain(text(2));
+    // The exchange deposit (rejected by a rule) is covered by the block for links without a card of their own.
+    const rejected = html.slice(html.indexOf('<section class="report-section" id="odrzucone">'));
+    const other = rejected.slice(rejected.indexOf('<h3>Oceny analityka dotyczące odrzuconych powiązań</h3>'));
+    expect(other.startsWith('<h3>Oceny analityka dotyczące odrzuconych powiązań</h3>')).toBe(true);
+    expect(other).toContain(text(3));
+    expect(other).toContain(A.ETH1);
+    expect(renderReport({ ...base, judgements: [data.judgements![0]!] })).not.toContain(
+      'Oceny analityka dotyczące odrzuconych powiązań',
+    );
   });
 
   it('lists the overrides a rescore run applied', () => {
@@ -104,7 +133,12 @@ describe('analyst statements in the report', () => {
       queuedAt: '2026-11-21T12:00:00.000Z',
     });
     const manual = run('manual');
-    const rescore = { ...run('rescore'), rescoreOfRunId: manual.id };
+    // The rescore fixed its override set when it was queued (the worker records the ids in the snapshot).
+    const rescore = {
+      ...run('rescore'),
+      rescoreOfRunId: manual.id,
+      config: { ...base.run.config, analystOverrides: ['0190b000-0000-7000-8000-000000000011'] },
+    };
     delete manual.previousRunId;
     delete rescore.previousRunId;
     await repos.runs.create(manual);
@@ -132,6 +166,8 @@ describe('analyst statements in the report', () => {
     });
     const applied = at('2026-11-21T11:00:00.000Z', '0190b000-0000-7000-8000-000000000011');
     await repos.overrides!.add(at('2026-11-21T12:30:00.000Z', '0190b000-0000-7000-8000-000000000012'));
+    // Recorded before the queue time but not part of the run's fixed set (it landed after the run was queued).
+    await repos.overrides!.add(at('2026-11-21T11:30:00.000Z', '0190b000-0000-7000-8000-000000000013'));
     await repos.overrides!.add(applied);
 
     const data = await buildReportData(repos, rescore.id);

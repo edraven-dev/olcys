@@ -44,10 +44,10 @@ const byId = <T extends { id: string }>(items: readonly T[]): T[] => items.toSor
 const byTime = <T extends { at: string; id: string }>(items: readonly T[]): T[] =>
   items.toSorted((a, b) => timeOf(a.at) - timeOf(b.at) || cmp(a.id, b.id));
 
-/** The overrides a run applied: only a rescore applies them, those recorded until it was queued. */
+/** The overrides a run applied: only a rescore applies them — exactly the set its config snapshot fixed when queued. */
 function appliedOverrides(run: AnalysisRun, overrides: readonly AnalystOverride[]): AnalystOverride[] {
-  if (run.trigger !== 'rescore') return [];
-  return byTime(overrides.filter((o) => timeOf(o.at) <= timeOf(run.queuedAt)));
+  const ids = new Set(run.trigger === 'rescore' ? (run.config.analystOverrides ?? []) : []);
+  return byTime(overrides.filter((o) => ids.has(o.id)));
 }
 
 function toReportSource(s: SourceDescriptor): ReportSource {
@@ -108,7 +108,9 @@ export async function buildReportData(
   // Analyst statements and inputs, kept apart from the computed results (optional ports of the store).
   const [judgements, overrides] = await Promise.all([
     repos.judgements ? repos.judgements.listByRun(runId) : Promise.resolve([]),
-    repos.overrides && run.trigger === 'rescore' ? repos.overrides.listByCase(run.caseId) : Promise.resolve([]),
+    repos.overrides && run.trigger === 'rescore' && run.config.analystOverrides?.length
+      ? repos.overrides.listByCase(run.caseId)
+      : Promise.resolve([]),
   ]);
   const applied = appliedOverrides(plainRun(run), overrides);
 

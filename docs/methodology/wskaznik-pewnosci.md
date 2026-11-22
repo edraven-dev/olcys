@@ -29,9 +29,11 @@ Analityk może zapisać ocenę każdego powiązania (karta powiązania w zakład
   ICD 203, bramek, przedziału, ani zdarzeń `SCORE_CHANGED` porównania przebiegów. Nie uruchamia ponownych obliczeń.
 - Ocen może być kilka; aktualna jest najnowsza (według czasu, a przy równym czasie — identyfikatora). Wcześniejsze
   oceny pozostają zapisane i widoczne.
-- Raport pokazuje oceny jako osobny rodzaj stwierdzeń („Oceny analityka”) obok wyników obliczeń. Raport jest
-  dokumentem stałym: przycisk „Wygeneruj raport ponownie” (`POST /api/runs/:runId/report`) tworzy jego nową wersję
-  z ocenami zapisanymi do tej chwili; poprzednie wersje pozostają w magazynie.
+- Raport pokazuje oceny jako osobny rodzaj stwierdzeń („Oceny analityka”) obok wyników obliczeń — przy karcie
+  powiązania, przy karcie przypisania przez stronę trzecią albo, dla powiązań odrzuconych regułą, w osobnym bloku
+  rozdziału 4; każda ocena pojawia się dokładnie raz. Raport jest dokumentem stałym: przycisk „Wygeneruj raport
+  ponownie” (`POST /api/runs/:runId/report`) tworzy jego nową wersję z ocenami zapisanymi do tej chwili; poprzednie
+  wersje pozostają w magazynie.
 
 ### Korekty materiału dowodowego
 
@@ -48,9 +50,11 @@ Korekta analityka jest daną wejściową do obliczeń, a nie zmianą wyniku (`PO
   ocenionego powiązania); inne klucze przesłanek są odrzucane (`feature_not_allowed`).
 - Korekta niczego nie zmienia od razu. Uwzględnia ją dopiero **ponowna ocena zapisanych danych** (`rescore`: przycisk
   „Uruchom ponowną ocenę (rescore)” albo `POST /api/cases/:caseId/runs` z `{ "trigger": "rescore", "rescoreOfRunId" }`),
-  która stosuje korekty sprawy zapisane do chwili jej zlecenia. Ponowna ocena tworzy nowy, osobno wersjonowany wynik
-  i zapisuje w parametrach przebiegu, które korekty uwzględniła: `rulesVersions.overrides = overrides@<liczba>:<id
-  najnowszej>` (raport pokazuje je w metryce i w tabeli „Korekty analityka uwzględnione w tym przebiegu”).
+  która stosuje korekty sprawy zapisane do chwili jej zlecenia. Ich zbiór jest ustalany raz, przy zleceniu: parametry
+  przebiegu zapisują identyfikatory korekt (`analystOverrides`) i etykietę `rulesVersions.overrides =
+  overrides@<liczba>:<id najnowszej>`, a punktacja i raport korzystają dokładnie z tego zbioru — korekta zapisana
+  później nie zmienia już zleconego przebiegu. Ponowna ocena tworzy nowy, osobno wersjonowany wynik (raport pokazuje
+  korekty w metryce i w tabeli „Korekty analityka uwzględnione w tym przebiegu”).
 - Przebiegi zbierające dane (ręczne i z harmonogramu) korekt nie stosują — oceniają materiał w postaci zebranej.
 - Ponowna ocena wyodrębnia adresy ponownie, więc wykryty adres ma w niej nowy identyfikator; korekta odnajduje go po
   zabezpieczeniu strony i położeniu w tekście. Korekty dotyczą elementów materiału, które wskazują — nowy przebieg

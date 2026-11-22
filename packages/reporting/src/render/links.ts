@@ -16,7 +16,7 @@ import { formatBits, formatFactor, formatProbability, formatUtc, plural, shortHa
 import { codePoint, fill, join, markup, t, type Html, type SafeHtml } from '../html.ts';
 import { pl } from '../i18n/pl.ts';
 import type { RejectedCandidate, ReportData } from '../types.ts';
-import { cmp, icdTerm, linkBand, sameRef, type View } from '../view.ts';
+import { cmp, icdTerm, linkBand, refKey, sameRef, type View } from '../view.ts';
 import {
   addr,
   bandBadge,
@@ -222,12 +222,15 @@ function synergyText(view: View, link: LinkAssessment): SafeHtml {
   return para(t(pl.links.appearances, { sources: plural(sources.length, pl.counts.sourcesLoc), list: names }));
 }
 
+const judgementsOf = (view: View, link: LinkAssessment) =>
+  (view.data.judgements ?? []).filter((j) => j.linkAssessmentId === link.id);
+
 /**
  * The analyst's judgements on the link, oldest first, with the current (latest) one named: a separate statement next
- * to the computed score, which it never changes.
+ * to the computed score, which it never changes. `heading` names the link where no card of its own does.
  */
-function judgementsBlock(view: View, link: LinkAssessment): SafeHtml {
-  const own = (view.data.judgements ?? []).filter((j) => j.linkAssessmentId === link.id);
+function judgementsBlock(view: View, link: LinkAssessment, heading?: SafeHtml): SafeHtml {
+  const own = judgementsOf(view, link);
   const latest = own.at(-1);
   if (!latest) return markup``;
   const j = pl.judgements;
@@ -238,12 +241,41 @@ function judgementsBlock(view: View, link: LinkAssessment): SafeHtml {
   return block(
     'analyst',
     join([
+      heading ? para(heading) : '',
       para(t(j.current, { label: j.values[latest.judgement].label })),
       list(entries),
       para(j.notice, 'muted'),
       para(j.automationBias, 'muted'),
     ]),
   );
+}
+
+/**
+ * Judgements on links without a card of their own in chapters 3–4 (rejected by an exclusion rule or by a relation
+ * that is not ownership), so that every recorded analyst statement appears in the report exactly once.
+ */
+function otherJudgements(view: View): SafeHtml {
+  const carded = new Set([...view.linked, ...view.thirdParty].map((l) => l.id));
+  const others = view.data.links
+    .filter((l) => !carded.has(l.id) && judgementsOf(view, l).length > 0)
+    .toSorted((a, b) => cmp(refKey(a.address), refKey(b.address)) || cmp(a.relation, b.relation) || cmp(a.id, b.id));
+  if (!others.length) return markup``;
+  return join([
+    markup`<h3>${pl.judgements.otherTitle}</h3>`,
+    para(pl.judgements.otherIntro),
+    others.map((l) =>
+      judgementsBlock(
+        view,
+        l,
+        t(pl.judgements.otherLink, {
+          address: addr(l.address.address),
+          chain: chainName(l.address.chain),
+          relation: pl.relations[l.relation] ?? l.relation,
+          score: l.score,
+        }),
+      ),
+    ),
+  ]);
 }
 
 function overrideTarget(view: View, o: AnalystOverride): SafeHtml {
@@ -553,7 +585,7 @@ function thirdPartyCard(view: View, link: LinkAssessment): SafeHtml {
       para(t(pl.rejected.thirdPartyScore, { relation: pl.relations[link.relation] ?? link.relation })),
       para(pl.rejected.thirdPartyText),
     ]),
-  )}${block('inferences', para(pl.rejected.thirdPartyInference))}</article>`;
+  )}${judgementsBlock(view, link)}${block('inferences', para(pl.rejected.thirdPartyInference))}</article>`;
 }
 
 export function rejectedSection(view: View): SafeHtml {
@@ -611,6 +643,7 @@ export function rejectedSection(view: View): SafeHtml {
       view.thirdParty.length
         ? view.thirdParty.map((l) => thirdPartyCard(view, l))
         : para(pl.rejected.thirdPartyNone, 'empty'),
+      otherJudgements(view),
       markup`<h3>${pl.rejected.candidatesTitle}</h3>`,
       rejected.length
         ? join([

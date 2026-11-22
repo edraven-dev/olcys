@@ -60,6 +60,10 @@ export const pl = {
     justification: 'Uzasadnienie: „{text}”',
     notice: 'Ocena jest zapisywana obok wyniku i nie zmienia obliczonego Wskaźnika Pewności.',
     automationBias: 'Wynik wspiera ocenę analityka — nie zastępuje jej.',
+    otherTitle: 'Oceny analityka dotyczące odrzuconych powiązań',
+    otherIntro:
+      'Powiązania odrzucone regułą lub bez relacji własności, które analityk ocenił. Ocena nie zmienia ani wyniku, ani decyzji reguły.',
+    otherLink: 'Powiązanie: {address} ({chain}) · relacja: {relation} · wynik {score}/100',
     values: {
       same: {
         label: 'Powiązanie potwierdzone',
