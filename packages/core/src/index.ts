@@ -10,6 +10,7 @@ export * from './canonical-json.ts';
 export * from './case.ts';
 export * from './chain-data.ts';
 export * from './chains.ts';
+export * from './clusters.ts';
 export * from './changes.ts';
 export * from './common.ts';
 export * from './decimal.ts';
