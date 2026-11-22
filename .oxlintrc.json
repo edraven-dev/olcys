@@ -49,7 +49,14 @@
   },
   "overrides": [
     {
-      "files": ["packages/http/**", "**/test/**", "**/*.test.ts", "**/*.test.tsx", "scripts/lib/local-fetch.ts"],
+      "files": [
+        "packages/http/**",
+        "**/test/**",
+        "**/*.test.ts",
+        "**/*.test.tsx",
+        "scripts/lib/local-fetch.ts",
+        "scripts/demo/local-http.ts"
+      ],
       "rules": { "no-restricted-globals": "off", "no-restricted-imports": "off" }
     },
     {
