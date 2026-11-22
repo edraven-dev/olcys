@@ -4,6 +4,7 @@ import { sqlAddressTypeRepository } from './address-types.ts';
 import { sqlAnalysisRepository, sqlChainDataRepository, sqlLabelRepository } from './analysis.ts';
 import { sqlJudgementRepository, sqlOverrideRepository } from './analyst.ts';
 import { sqlCaseRepository } from './cases.ts';
+import { sqlCustodyRepository } from './custody.ts';
 import { sqlEvidenceRepository } from './evidence.ts';
 import { sqlRunRepository } from './runs.ts';
 import { sqlScheduleRepository } from './schedules.ts';
@@ -21,6 +22,7 @@ export function createSqlRepositories(db: Db): Repositories {
     schedules: sqlScheduleRepository(db),
     judgements: sqlJudgementRepository(db),
     overrides: sqlOverrideRepository(db),
+    custody: sqlCustodyRepository(db),
   };
 }
 
@@ -28,6 +30,7 @@ export { sqlAddressTypeRepository } from './address-types.ts';
 export { sqlAnalysisRepository, sqlChainDataRepository, sqlLabelRepository } from './analysis.ts';
 export { sqlJudgementRepository, sqlOverrideRepository } from './analyst.ts';
 export { sqlCaseRepository } from './cases.ts';
+export { sqlCustodyRepository } from './custody.ts';
 export { sqlEvidenceRepository } from './evidence.ts';
 export { sqlRunRepository } from './runs.ts';
 export { sqlScheduleRepository } from './schedules.ts';

@@ -16,10 +16,21 @@ import type {
   SecretRedactor,
   SourceDescriptor,
 } from '@olcys/core';
+import { createCaptureRecorder, injectedClockSync } from '@olcys/evidence';
 import { createEgressClient, RobotsCache } from '@olcys/http';
 import { createFixtureServer, type FixtureServer } from '../../../apps/fixture-site/src/fixture-server.ts';
 import { createCollectorConfig, loadFixtureManifest, type CollectorConfig } from '../src/framework/config.ts';
 import { loadSourceRegistry, type ResolvedScope, type SourceRegistry } from '../src/framework/source-registry.ts';
+
+/** A capture recorder like the worker's, with a fixed collector identity and an injected clock status. */
+export function testRecorder() {
+  const clock = { now: () => new Date() };
+  return createCaptureRecorder({
+    clockSync: injectedClockSync(true, clock),
+    collector: { name: 'test-analyst', host: 'test-host', ipSource: 'unknown' },
+    toolVersion: '0.1.0-test',
+  });
+}
 
 export const REPO = resolve(import.meta.dirname, '..', '..', '..');
 export const PUBLIC = resolve(REPO, 'apps', 'fixture-site', 'public');
@@ -124,12 +135,20 @@ export interface TestRunOptions {
   wrap?: (client: EgressClient) => EgressClient;
 }
 
+/** Run ids in tests are readable labels; manifests need UUIDs, so a label maps to a stable one. */
+export function testRunId(label: string): string {
+  return /^[0-9a-f]{8}-/.test(label)
+    ? label
+    : `00000000-0000-7000-8000-${createHash('sha256').update(label).digest('hex').slice(0, 12)}`;
+}
+
 export function createTestRun(
   scope: ResolvedScope,
   mode: FetchMode = 'offline',
-  runId = 'run-1',
+  runLabel = '00000000-0000-7000-8000-000000000901',
   options: TestRunOptions = {},
 ): TestRun {
+  const runId = testRunId(runLabel);
   const logs: EgressLogEntry[] = [];
   const envelopes: ProvenanceEnvelope[] = [];
   const blobs = new MemoryBlobs();
@@ -154,12 +173,13 @@ export function createTestRun(
   const logger = memoryLogger();
   const ctx: RunContext = {
     runId,
-    caseId: 'case-1',
+    caseId: '00000000-0000-7000-8000-000000000902',
     mode,
     http,
     blobs,
     clock: { now: () => new Date() },
     logger,
+    evidence: testRecorder(),
   };
   return { ctx, logs, envelopes, blobs, robots: new RobotsCache(http, USER_AGENT), logger };
 }
@@ -204,7 +224,7 @@ export function fakeEgress(
         text: () => answer.body ?? '',
         json: <T>() => JSON.parse(answer.body ?? 'null') as T,
         provenance: {
-          fetchId: `fetch-${requests.length}`,
+          fetchId: `00000000-0000-7000-8000-${String(requests.length).padStart(12, '0')}`,
           sourceId: request.sourceId,
           provider: 'fake',
           method: 'GET',

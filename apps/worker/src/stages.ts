@@ -4,6 +4,7 @@
  * provenance written to the store); page bodies are redacted before they are stored.
  */
 import { readFile } from 'node:fs/promises';
+import { hostname, networkInterfaces } from 'node:os';
 import { join } from 'node:path';
 import type {
   ActivityIndicators,
@@ -60,6 +61,13 @@ import {
   loadSourceRegistry,
   type SourceRegistry,
 } from '@olcys/collectors';
+import {
+  createCaptureRecorder,
+  createClockSyncCheck,
+  custodyCollected,
+  readDefaultRouteInterface,
+  resolveCollectorIdentity,
+} from '@olcys/evidence';
 import { createEgressClient, RobotsCache } from '@olcys/http';
 import { createReportStage } from '@olcys/reporting';
 import { loadWeights, scoreRun } from '@olcys/scoring';
@@ -96,6 +104,18 @@ export function createCollectStage(options: StageOptions): Stage {
   const registry = lazy<SourceRegistry>(() => loadSourceRegistry());
   const redactor = createSecretRedactor();
   const env = options.env ?? process.env;
+  // One clock check (cached 60 s) and one recorder per process; the collector identity is resolved from local state.
+  const maxOffsetMs = Number(env['OLCYS_CLOCK_MAX_OFFSET_MS']);
+  const collector = resolveCollectorIdentity({ ...env }, { hostname, networkInterfaces }, readDefaultRouteInterface());
+  const recorder = createCaptureRecorder({
+    clockSync: createClockSyncCheck({
+      clock: systemClock,
+      ...(Number.isFinite(maxOffsetMs) && maxOffsetMs > 0 ? { maxOffsetMs } : {}),
+    }),
+    collector,
+    toolVersion: TOOL_VERSION,
+    ...(env['OLCYS_GIT_COMMIT'] ? { gitCommit: env['OLCYS_GIT_COMMIT'] } : {}),
+  });
   // Platform collectors plus the web search collectors of OLCYS_SEARCH_MODE (keys from the environment only); built
   // once, so a misconfigured search mode stops the start-up instead of failing every run.
   const collectors = createDefaultCollectorRegistry({ mode: options.mode, env });
@@ -137,6 +157,7 @@ export function createCollectStage(options: StageOptions): Stage {
           blobs: ctx.blobs,
           clock: systemClock,
           logger: ctx.logger,
+          evidence: recorder,
         },
         config,
         robots: new RobotsCache(http, USER_AGENT),
@@ -145,7 +166,13 @@ export function createCollectStage(options: StageOptions): Stage {
         maxPivotDepth: ctx.case.scope.maxPivotDepth,
         onTask: (event) => ctx.progress({ tasksDone: event.done, tasksPlanned: event.planned }),
       });
-      await ctx.repos.evidence.addCaptures(result.captures);
+      // One transaction: a capture never exists without its `collected` custody event.
+      await ctx.repos.evidence.addCaptures(
+        result.captures,
+        ctx.repos.custody
+          ? result.captures.map((c) => ({ id: newId(), ...custodyCollected(c, collector.name) }))
+          : undefined,
+      );
       await ctx.repos.evidence.addAccounts(result.accounts);
       await ctx.repos.evidence.addObservations(result.observations);
       if (result.partial) {

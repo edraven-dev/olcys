@@ -151,6 +151,41 @@ pomijane (`skipped_overlap`); raport startowy planisty i dziennik wskazują taki
   osoba zbierająca, maszyna, czas zsynchronizowany z NTP, skrót w chwili zbierania), manifestem SHA-256 oraz
   znacznikiem czasu RFC 3161. Na zewnątrz wysyłane są wyłącznie skróty.
 - Surowe bajty trafiają do magazynu adresowanego treścią: `${OLCYS_DATA_DIR}/blobs/sha256/<aa>/<bb>/<skrót>`.
+- **Manifest przechwycenia (Protokół Berkeley ¶155, formularz z Aneksu IV).** Jeden moduł, `CaptureRecorder`
+  (`@olcys/evidence`), zamienia zebrane bajty w rekord dowodowy: zapisuje artefakty, buduje manifest w kanonicznym JSON
+  (RFC 8785), zapisuje go jako plik w magazynie (`application/vnd.olcys.capture-manifest+json`), a jego skrót SHA-256 staje
+  się `Capture.manifestSha256` — `blobs.get(manifestSha256)` zwraca dokładnie zhaszowane bajty. Kolektory nie liczą
+  manifestów; tożsamość kolektora, stan zegara i wersję narzędzia ustawia wyłącznie rejestrator.
+
+  | Protokół Berkeley                                                         | Pole manifestu                                                                                                                                                                                    |
+  | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+  | ¶155(a) adres URL                                                         | `target.url`, `target.finalUrl`                                                                                                                                                                   |
+  | ¶155(b) źródło HTML                                                       | artefakt `html` — treść odpowiedzi bajt w bajt (po ewentualnej redakcji sekretów, opisanej w `technical.redaction`)                                                                               |
+  | ¶155(c) zrzut całej strony                                                | artefakt `screenshot` (patrz niżej: w tym wdrożeniu nie jest tworzony)                                                                                                                            |
+  | ¶155(g) osoba zbierająca, adres IP maszyny, tożsamość wirtualna, czas NTP | `collector.name/host/ip/ipSource`, `collector.virtualIdentity` (zawsze `null`), `time.*` (`startedAt`/`endedAt` = czas rozpoczęcia i zakończenia z Aneksu IV, `time.clock` = stan synchronizacji) |
+  | ¶155(h) skrót w chwili zbierania                                          | `artifacts[].sha256` oraz skrót samego manifestu                                                                                                                                                  |
+  | Aneks IV: adres IP serwera                                                | `target.serverIp` (gdy znany)                                                                                                                                                                     |
+  | Aneks IV: użyte usługi                                                    | `tools`, `userAgent`, `collector.ipSource`, `time.clock`                                                                                                                                          |
+  | ¶154 przekształcenia                                                      | `transformations`                                                                                                                                                                                 |
+  | ¶156 raport techniczny                                                    | sam manifest (`technical`: przekierowania, robots.txt, bariera, redakcja)                                                                                                                         |
+
+  Kompletność: profil `web_page` wymaga `html` i `screenshot`, `api_response` — `headers` i jednego z `json`/`html`/`text`,
+  `archive_snapshot` — `html`. Brakujące rodzaje trafiają do `completeness.missing`, a przechwycenie i tak jest zachowane.
+  **Przechwytywanie w przeglądarce nie jest włączone**, więc każda strona WWW jest zapisywana bez zrzutu ekranu
+  (`completeness.missing: ['screenshot']`); ostrzeżenie trafia do dziennika raz na przebieg, a aneks dowodowy raportu
+  podaje tę informację po polsku. Typy `rendered_html` i `screenshot` istnieją w kontraktach na potrzeby przyszłego
+  przechwytywania w przeglądarce.
+
+- **Zegar.** Stan synchronizacji z NTP odczytywany jest wyłącznie z lokalnego stanu systemu (`chronyc -c tracking`, potem
+  `timedatectl show -p NTPSynchronized`, potem plik `/run/systemd/timesync/synchronized`; bez powłoki, limit 2 s, pamięć
+  podręczna 60 s) — nigdy z serwerów NTP, nagłówków `Date` ani usług zwracających adres IP. `Capture.clockSynced` jest
+  prawdą, gdy zegar jest zsynchronizowany, a przesunięcie nie przekracza `OLCYS_CLOCK_MAX_OFFSET_MS` (domyślnie 1000).
+  W kontenerze bez tych narzędzi wynik to `unknown` (`clockSynced: false`). Adres IP kolektora to `OLCYS_COLLECTOR_IP`
+  (adres wyjściowy wdrożenia) albo pierwszy zewnętrzny adres IPv4 interfejsu.
+- **Łańcuch dowodowy.** Każde zabezpieczenie zapisuje zdarzenie `collected` w tabeli `custody_event` (tylko do dopisywania:
+  rola `olcys_app` ma SELECT/INSERT); lista zdarzeń przebiegu: `GET /api/runs/:runId/custody`. Manifest zawiera nazwę
+  analityka i adres IP stanowiska — nie jest logowany, a paczki zabezpieczonego materiału należy traktować jako dane
+  o ograniczonym dostępie.
 - PostgreSQL jest systemem źródłowym. Rola aplikacji `olcys_app` ma na tabelach dowodowych tylko SELECT/INSERT
   (zob. `infra/postgres/init/01-roles.sh`); stan zmienny (status przebiegu, harmonogramy) ma jawne, opisane uprawnienia.
 
