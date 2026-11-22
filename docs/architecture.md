@@ -240,7 +240,7 @@ dla etapu:  W = log2(szanse a priori) + Σ log2(BF′),   BF′ = ρ·BF + (1 �
 
 - Poziomy dowodów: **E1** wiązanie kryptograficzne · **E2** deklaracja z uwierzytelnionego konta · **E3** wzmianka
   w kontekście · **E4** przypisanie przez stronę trzecią (tylko potwierdza) · **AUTH** listy urzędowe (służą odrzucaniu).
-- ρ wynika z oceny wiarygodności źródła w skali Admiralicji (A 0,95 … E 0,2; F wymaga oceny analityka).
+- ρ wynika z oceny wiarygodności źródła według Admiralty Code (A 0,95 … E 0,2; F wymaga oceny analityka).
 - Liczy się tylko najsilniejsza przesłanka danej rodziny cech w grupie o wspólnym pochodzeniu (repostów i kopii nie
   liczy się podwójnie).
 - Twarde bramki poza arytmetyką: błędna suma kontrolna → brak twierdzenia; reguły odrzucania → panel odrzuconych

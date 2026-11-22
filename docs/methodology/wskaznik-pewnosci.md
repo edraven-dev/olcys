@@ -2,7 +2,7 @@
 
 Wskaźnik Pewności (0–100) opisuje prawdopodobieństwo powiązania identyfikatora ze sprawy z adresem kryptowalutowym —
 nigdy osobę. Liczony jest dwuetapowo: (1) czy konto internetowe należy do osoby, (2) czy konto kontroluje adres; każda
-przesłanka ma iloraz wiarygodności (BF) osłabiany według wiarygodności źródła (ρ, skala Admiralicji). Wzory, poziomy
+przesłanka ma iloraz wiarygodności (BF) osłabiany według wiarygodności źródła (ρ, Admiralty Code). Wzory, poziomy
 dowodów, bramki i przykład obliczeń opisują [architektura](../architecture.md) (sekcja „Wskaźnik Pewności
 (podsumowanie)”) oraz [pakiet punktacji](../../packages/scoring/README.md); wagi są w `config/scoring/weights.v2.yaml`.
 

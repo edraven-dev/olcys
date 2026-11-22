@@ -32,8 +32,8 @@ Obowiązkowy scenariusz i odpowiadające mu funkcje:
    transakcji, przykłady z dokumentacji, homoglify) są wymienieni z powodem. Klucze prywatne i frazy odzyskiwania są
    usuwane z pamięci i nigdy nie są zapisywane.
 4. **Wskaźnik Pewności (0–100).** Dwuetapowy model ilorazów wiarygodności:
-   `P(tożsamość↔adres) = P(tożsamość↔konto) × P(konto↔adres)`, z osłabianiem przesłanek według wiarygodności źródła (skala
-   Admiralicji) i łączeniem niezależnych ścieżek (synergia śladów: ten sam adres w co najmniej dwóch źródłach o
+   `P(tożsamość↔adres) = P(tożsamość↔konto) × P(konto↔adres)`, z osłabianiem przesłanek według wiarygodności źródła (Admiralty Code,
+   system NATO) i łączeniem niezależnych ścieżek (synergia śladów: ten sam adres w co najmniej dwóch źródłach o
    niezależnym pochodzeniu podnosi wynik, powtórzenia w jednej usłudze nie). Przedziały: **80–100 bardzo wysokie,
    60–79 prawdopodobne, 40–59 średnie, 10–39 niskie (szum), 0 wykluczenie**. Każdy wynik ma pełną listę wkładów (wykres
    wodospadowy), termin prawdopodobieństwa wg ICD 203, osobną pewność analityczną i wersje wag. Wagi są nieskalibrowane,

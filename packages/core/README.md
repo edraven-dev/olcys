@@ -8,7 +8,7 @@ zarówno w Node.js, jak i w przeglądarce.
 | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `src/common.ts`     | `Id`, `IsoDateTime`, `Sha256Hex`, `DecimalString`                                                                                                                   |
 | `src/chains.ts`     | `ChainId` (`bitcoin`, `evm:<id>`, `tron`, …), `AddressRef`, `KNOWN_CHAINS`, `addressKey()`                                                                          |
-| `src/sources.ts`    | `SourceDescriptor`, status zgodności GREEN/AMBER/RED, ocena wiarygodności w skali Admiralicji                                                                       |
+| `src/sources.ts`    | `SourceDescriptor`, status zgodności GREEN/AMBER/RED, ocena wiarygodności według Admiralty Code                                                                     |
 | `src/case.ts`       | `Case`, `Identifier`, `AnalysisRun`, `RunConfigSnapshot`                                                                                                            |
 | `src/provenance.ts` | `ProvenanceEnvelope`, `EgressLogEntry`, `BlobRef`, `FetchMode`                                                                                                      |
 | `src/evidence.ts`   | `Capture` (pola Protokołu Berkeley), `CaptureManifest`/`CaptureDraft` (manifest przechwycenia), `ClockSyncStatus`, `CustodyEvent`, `OnlineAccount`, `Observation`   |
