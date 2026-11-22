@@ -143,19 +143,20 @@ describe('report view', () => {
   });
 });
 
+const stixPath = async () => {
+  const view = (await app.inject(`/api/runs/${runId}/report/view`)).json();
+  return view.files.find((f: { kind: string }) => f.kind === 'stix').path as string;
+};
+const tick = () => new Promise((resolve) => setTimeout(resolve, 20));
+
 describe('download purpose', () => {
   const purpose = 'Przekazanie do akt sprawy kontrolnej';
-  const stixPath = async () => {
-    const view = (await app.inject(`/api/runs/${runId}/report/view`)).json();
-    return view.files.find((f: { kind: string }) => f.kind === 'stix').path as string;
-  };
   beforeAll(async () => {
     await storeReport(
       runtime,
       await buildReportData(runtime.repos, runId, { generatedAt: '2026-11-23T08:00:00.000Z' }),
     );
   });
-  const tick = () => new Promise((resolve) => setTimeout(resolve, 20));
 
   it('records the stated purpose in the access log and the custody event, never deduplicating downloads', async () => {
     const path = await stixPath();
@@ -164,7 +165,8 @@ describe('download purpose', () => {
     expect((await app.inject({ url: path, headers })).statusCode).toBe(200);
     await tick();
     const rows =
-      (await runtime.repos.accessLog?.list({ limit: 500 }))?.filter((r) => r.resource.endsWith('#stix')) ?? [];
+      (await runtime.repos.accessLog?.list({ limit: 500 }))?.filter((r) => r.resource?.endsWith('#stix') === true) ??
+      [];
     expect(rows.filter((r) => r.purpose === purpose)).toHaveLength(2);
     expect(rows[0]).toMatchObject({ action: 'export.download', runId, outcome: 'ok' });
     const events = (await runtime.repos.custody?.listBySubjects([runId])) ?? [];
@@ -182,7 +184,7 @@ describe('download purpose', () => {
     const last = events.at(-1);
     expect(last?.detail?.['purpose']).not.toBe(purpose);
     const rows = (await runtime.repos.accessLog?.list({ limit: 500 })) ?? [];
-    expect(rows.some((r) => r.resource.endsWith('#html') && r.purpose === undefined)).toBe(true);
+    expect(rows.some((r) => r.resource?.endsWith('#html') === true && r.purpose === undefined)).toBe(true);
   });
 });
 
