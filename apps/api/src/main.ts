@@ -2,6 +2,7 @@
  * @olcys/api — HTTP API for the analyst console. Binds to 127.0.0.1; the web app reaches it through the Vite dev
  * proxy (`/api`). The MVP runs the analysis pipeline and the schedules of periodic re-runs in this process.
  */
+import { EXTRACTOR_VERSION } from '@olcys/address-extractor';
 import { createRuntime, createScheduler, schedulingSettings } from '@olcys/worker';
 import { analystName } from './analyst-routes.ts';
 import { buildApp } from './app.ts';
@@ -20,6 +21,16 @@ const app = buildApp({
   analyst: analystName(process.env),
   schedule: { minIntervalMinutes: settings.minIntervalMinutes },
   renderReport: reportRenderer(runtime),
+  // Read-only facts for the settings page; the API key is never read here.
+  settings: {
+    llm: {
+      baseUrl: process.env['LLM_BASE_URL'] || 'http://localhost:2140/v3',
+      model: process.env['LLM_MODEL'] || 'qwen3.6-35b-ov',
+      ...(process.env['LLM_MODEL_DIGEST'] ? { modelDigest: process.env['LLM_MODEL_DIGEST'] } : {}),
+    },
+    extractorVersion: EXTRACTOR_VERSION,
+    env: process.env,
+  },
 });
 const port = Number(process.env['API_PORT'] ?? 4000);
 await app.listen({ host: '127.0.0.1', port });

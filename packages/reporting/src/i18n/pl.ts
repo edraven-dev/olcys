@@ -977,6 +977,29 @@ export const pl = {
       identifiers: 'Ujawnia identyfikator sprawy',
     },
   },
+  /** Plain-text statements of the structured report model (`buildReportModel`), shown by the console. */
+  model: {
+    headlineIdentifiers: 'Analiza dotyczy: {identifiers}.',
+    likelihood:
+      'Powiązanie adresu {address} ({chain}) z identyfikatorem „{identity}”: {term} (Wskaźnik Pewności {score}/100, {band}).',
+    candidateQuote: 'Adres {address} wystąpił na stronie {url} ({source}).',
+    rejected: 'Dopasowanie „{raw}” nie przeszło walidacji adresu: {reason}.',
+    exclusion: 'Reguła {id} — {name}: {outcome}; adres {address} ({chain}).',
+    cashOut: 'Reguła {id} — {name} ({strength}): {amount} z adresu {address}; odbiorca {counterparty}.',
+    valuation: 'Wycena przepływu {amount}: {pln} (kurs NBP z dnia roboczego poprzedzającego transakcję).',
+    activity: 'Adres {address} ({chain}): {count} transakcji, kontrahentów: {counterparties}.',
+    indicatorPrefix: 'Wynik reguły (bez zapisu w danych blockchain): {text}',
+    judgement: 'Ocena analityka {analyst} ({at}): {label} — „{text}”.',
+    alternatives: {
+      link: [
+        'Adres należy do osoby trzeciej, która posługuje się podobnym identyfikatorem.',
+        'Adres opublikowano na koncie przejętym lub podszywającym się pod osobę.',
+      ],
+      kyc: ['Adres depozytowy należy do innego klienta giełdy niż badana osoba.'],
+      cashOut: ['Przepływ jest przelewem między własnymi portfelami lub rozliczeniem poza obrotem fiat.'],
+      swap: ['Osoba korzysta z obu portfeli jednocześnie lub profil zmieniła osoba trzecia.'],
+    },
+  },
 };
 
 export type Catalogue = typeof pl;

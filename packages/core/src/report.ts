@@ -26,8 +26,19 @@ export interface ReportModel {
     rulesVersions: Record<string, string>;
     modelDigests?: Record<string, string>;
     mode: FetchMode;
+    /** Calibration status of the weights (`uncalibrated` until calibrated on reference data). */
+    weightsStatus?: string;
+    /** SHA-256 of the source register file the run used. */
+    sourcesConfigSha256?: Sha256Hex;
+    /** SHA-256 of the canonical report data (the input of the HTML renderer). */
+    dataSha256?: Sha256Hex;
   };
   summary: { headline: string; likelihoodStatements: string[]; analyticConfidence: AnalyticConfidence };
+  /**
+   * Set when the analysis is incomplete (a source blocked, a login wall, a CAPTCHA, a fetch error, or a stage that
+   * reported missing data): which pages and why. Absent for a complete run.
+   */
+  coverage?: ReportCoverage;
   facts: ReportFact[];
   computed: ReportComputed[];
   inferences: ReportInference[];
@@ -40,7 +51,16 @@ export interface ReportModel {
     collectedAt: IsoDateTime;
     manifestSha256: Sha256Hex;
     timestamp?: TimestampToken;
+    /** Display name of the source (the register's Polish name when it has one). */
+    sourceName?: string;
   }[];
+}
+
+export interface ReportCoverage {
+  /** Polish sentences of the reasons the stages reported (`partialReasons` / `partialCodes`). */
+  reasons: string[];
+  /** Pages whose content could not be read; a block, login wall, CAPTCHA or error is not "page does not exist". */
+  unavailable: { sourceName: string; url: string; status: string }[];
 }
 
 export interface ReportFact {
