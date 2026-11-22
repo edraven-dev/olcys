@@ -140,12 +140,13 @@ Każdy `image:` z `compose.yml` i każde `FROM` z Dockerfile musi mieć wpis w `
 
 ## Komponenty spoza menedżerów pakietów (część ręczna)
 
-| Komponent                  | Wersja  | Licencja (SPDX) | Zastosowanie                                                                                  | Gdzie                                 |
-| -------------------------- | ------- | --------------- | --------------------------------------------------------------------------------------------- | ------------------------------------- |
-| Node.js                    | 26.13.1 | MIT             | środowisko uruchomieniowe                                                                     | host / `node:26.13.1-alpine`          |
-| pnpm                       | 12.22.0 | MIT             | menedżer pakietów                                                                             | host                                  |
-| Unicode TR39 (confusables) | —       | Unicode-3.0     | dane: ręcznie wybrana tabela homoglifów (cyrylica/greka)                                      | packages/address-extractor            |
-| SpiderFoot (regex)         | 4.0     | MIT             | linia bazowa benchmarku adresów: przepisane wyrażenia regularne `sfp_bitcoin`, `sfp_ethereum` | packages/address-extractor (`bench/`) |
+| Komponent                                 | Wersja     | Licencja (SPDX)         | Zastosowanie                                                                                                                                   | Gdzie                                   |
+| ----------------------------------------- | ---------- | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
+| Node.js                                   | 26.13.1    | MIT                     | środowisko uruchomieniowe                                                                                                                      | host / `node:26.13.1-alpine`            |
+| pnpm                                      | 12.22.0    | MIT                     | menedżer pakietów                                                                                                                              | host                                    |
+| Unicode TR39 (confusables)                | —          | Unicode-3.0             | dane: ręcznie wybrana tabela homoglifów (cyrylica/greka)                                                                                       | packages/address-extractor              |
+| SpiderFoot (regex)                        | 4.0        | MIT                     | linia bazowa benchmarku adresów: przepisane wyrażenia regularne `sfp_bitcoin`, `sfp_ethereum`                                                  | packages/address-extractor (`bench/`)   |
+| Dane MISP (misp-objects, misp-taxonomies) | 2026-11-22 | CC0-1.0 OR BSD-2-Clause | obiekt `coin-address` (v7) oraz taksonomie `estimative-language` (v5), `admiralty-scale` (v5), `tlp` (v10), dołączone dosłownie (eksport MISP) | packages/reporting (`src/export/misp/`) |
 
 Zbiory danych (etykiety, listy sankcyjne, archiwa cen) mają własne licencje; są one zapisywane przy każdej etykiecie
 i rekordzie ceny (`LabelProvenance.license`) i podsumowane w `docs/compliance/sources.md`. Demonstracyjne etykiety
@@ -155,3 +156,8 @@ Dane referencyjne klasyfikacji typu adresu: adresy EntryPoint ERC-4337 (`config/
 to fakty przepisane z notatek wydań eth-infinitism (kod tego repozytorium, objęty licencją GPL, nie jest używany),
 a rejestr delegatów EIP-7702 (`config/labels/eip7702-delegates.v1.yaml`) zawiera wyłącznie syntetyczny wpis
 demonstracyjny.
+
+Eksporty raportu (STIX 2.1, MISP, CSV) nie dodają żadnej zależności npm. Dane MISP (`packages/reporting/src/export/misp/`) to
+oficjalne pliki z repozytoriów MISP (adresy źródłowe i data pobrania: 2026-11-22 w `misp/README.md`) wraz z tekstami licencji; ich licencja (CC0 1.0 lub BSD-2-Clause) jest dozwolona. Schematów JSON
+OASIS `cti-stix2-json-schemas` nie dołączono do repozytorium: poprawność strukturalna pakietu STIX jest sprawdzana w
+testach własnymi asercjami (identyfikatory, znaczniki czasu, właściwości wymagane).

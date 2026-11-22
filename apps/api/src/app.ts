@@ -2,6 +2,7 @@
  * HTTP API for the analyst console. Reads the append-only store through the repository ports; starting a run hands
  * it to the pipeline (in-process in the MVP). Inputs are validated with the `@olcys/core` schemas.
  */
+import { createHash } from 'node:crypto';
 import type {
   ApiMeta,
   BlobStore,
@@ -13,7 +14,16 @@ import type {
   SourceDescriptor,
 } from '@olcys/core';
 import { createSourceRegister, validateCaseScope, type ScopeViolation } from '@olcys/collectors';
-import { ContractError, CORE_CONTRACTS_VERSION, CreateCaseSchema, parse, StartRunSchema } from '@olcys/core';
+import {
+  ContractError,
+  CORE_CONTRACTS_VERSION,
+  CreateCaseSchema,
+  newId,
+  nowIso,
+  parse,
+  StartRunSchema,
+} from '@olcys/core';
+import { EXPORT_FILE_EXTENSIONS, EXPORT_KINDS, findExportSet, isExportKind } from '@olcys/reporting';
 import { evidenceRunIdOf, TOOL_VERSION } from '@olcys/worker';
 import Fastify, { type FastifyInstance, type FastifyReply } from 'fastify';
 import { DEFAULT_ANALYST, registerAnalystRoutes, supportsJudgements, withJudgements } from './analyst-routes.ts';
@@ -270,6 +280,60 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
       .header('content-type', report.mediaType)
       .header('content-security-policy', "default-src 'none'; style-src 'unsafe-inline'; img-src data:")
       .header('x-content-type-options', 'nosniff')
+      .send(Buffer.from(bytes));
+  });
+
+  // Exports available for the run's current report (none for runs rendered before exports existed).
+  app.get<{ Params: { runId: string } }>('/api/runs/:runId/exports', async (request, reply) => {
+    const runId = idOf(request.params.runId);
+    const run = runId ? await repos.runs.get(runId) : undefined;
+    if (!run) return notFound(reply, 'run');
+    const set = await findExportSet(deps, run.id);
+    return {
+      items: EXPORT_KINDS.flatMap((format) => {
+        const e = set?.exports[format];
+        return e ? [{ format, mediaType: e.mediaType, sha256: e.sha256 }] : [];
+      }),
+    };
+  });
+
+  // STIX, MISP and CSV exports of the run's latest report: a download that leaves the tool is a custody event.
+  app.get<{ Params: { runId: string; format: string } }>('/api/runs/:runId/exports/:format', async (request, reply) => {
+    const runId = idOf(request.params.runId);
+    const run = runId ? await repos.runs.get(runId) : undefined;
+    if (!run) return notFound(reply, 'run');
+    const { format } = request.params;
+    if (!isExportKind(format)) {
+      return reply.code(400).send({ error: 'invalid_input', message: `format is one of ${EXPORT_KINDS.join(', ')}` });
+    }
+    // Only files of the current report version; a missing or damaged blob is never recorded as an export.
+    const stored = (await findExportSet(deps, run.id))?.exports[format];
+    if (!stored || !(await deps.blobs.has(stored.sha256))) return notFound(reply, 'export');
+    const bytes = await deps.blobs.get(stored.sha256);
+    if (createHash('sha256').update(bytes).digest('hex') !== stored.sha256) {
+      deps.logger?.error('stored export does not match its digest', { runId: run.id, format });
+      return reply.code(500).send({ error: 'integrity_error', message: 'stored export does not match its digest' });
+    }
+    if (request.method === 'GET') {
+      const kase = await repos.cases.get(run.caseId);
+      await repos.custody?.add([
+        {
+          id: newId(),
+          at: nowIso(),
+          actor: analyst,
+          action: 'exported',
+          runId: run.id,
+          subject: { type: 'report', id: run.id },
+          detail: { format, blobSha256: stored.sha256, purpose: kase?.purpose ?? '' },
+        },
+      ]);
+      deps.logger?.info('report export downloaded', { runId: run.id, format, analyst });
+    }
+    return reply
+      .header('content-type', stored.mediaType)
+      .header('content-disposition', `attachment; filename="olcys-${run.id}-${EXPORT_FILE_EXTENSIONS[format]}"`)
+      .header('x-content-type-options', 'nosniff')
+      .header('content-security-policy', "sandbox; default-src 'none'")
       .send(Buffer.from(bytes));
   });
 

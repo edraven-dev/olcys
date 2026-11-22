@@ -14,6 +14,7 @@ export function ReportTab({ scope }: { scope: RunScope }) {
   const path = apiPaths.report(run.id);
   const available = useResource<boolean>(done ? `${path}#head#${version}` : null, () => api.exists(path));
   const meta = useJson<ApiMeta>(apiPaths.meta);
+  const [regenerations, setRegenerations] = useState(0);
   return (
     <section aria-labelledby="report-title" className="stack">
       <h2 id="report-title">{pl.report.title}</h2>
@@ -34,13 +35,59 @@ export function ReportTab({ scope }: { scope: RunScope }) {
       ) : (
         <p className="notice">{pl.report.missing}</p>
       )}
-      {done && available.data && meta.data?.features.judgements ? <RegenerateReport runId={run.id} /> : null}
+      {done && available.data ? (
+        <Exports runId={run.id} version={exportsListingVersion(version, regenerations)} />
+      ) : null}
+      {done && available.data && meta.data?.features.judgements ? (
+        <RegenerateReport runId={run.id} onRegenerated={() => setRegenerations((n) => n + 1)} />
+      ) : null}
     </section>
   );
 }
 
+/** Cache key of the export listing: changes with the run and with every successful regeneration of the report. */
+export const exportsListingVersion = (runVersion: string, regenerations: number): string =>
+  `${runVersion}#regenerated-${regenerations}`;
+
+const EXPORT_FORMATS = ['stix', 'misp', 'csv_links', 'csv_evidence', 'csv_cash_out', 'csv_changes'] as const;
+
+/** Downloads of the exports the API lists for the current report; reports from before exports existed have none. */
+function Exports({ runId, version }: { runId: string; version: string }) {
+  const listing = useJson<{ items: { format: string }[] }>(`/api/runs/${encodeURIComponent(runId)}/exports`, {
+    version,
+  });
+  if (!listing.data) return null;
+  return <ExportLinks runId={runId} available={listing.data.items.map((i) => i.format)} />;
+}
+
+/** STIX, MISP and CSV downloads of the run's report; each download is recorded in the chain of custody. */
+export function ExportLinks({ runId, available }: { runId: string; available: readonly string[] }) {
+  const formats = EXPORT_FORMATS.filter((f) => available.includes(f));
+  return (
+    <div className="stack">
+      <h3>{pl.report.exports.title}</h3>
+      {formats.length === 0 ? (
+        <p className="notice">{pl.report.exports.none}</p>
+      ) : (
+        <>
+          <p className="hint">{pl.report.exports.hint}</p>
+          <ul>
+            {formats.map((format) => (
+              <li key={format}>
+                <a href={`/api/runs/${encodeURIComponent(runId)}/exports/${format}`} download>
+                  {pl.report.exports[format]}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </div>
+  );
+}
+
 /** A new version of the report, e.g. with the analyst judgements recorded since; earlier versions stay stored. */
-function RegenerateReport({ runId }: { runId: string }) {
+function RegenerateReport({ runId, onRegenerated }: { runId: string; onRegenerated: () => void }) {
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState<unknown>();
@@ -51,6 +98,7 @@ function RegenerateReport({ runId }: { runId: string }) {
     try {
       await api.post(apiPaths.report(runId), {});
       setDone(true);
+      onRegenerated();
     } catch (failure) {
       setError(failure);
     } finally {

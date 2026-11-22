@@ -91,3 +91,48 @@ export function defaultStages(runtime) {
 
 Potok wykonuje porównanie z poprzednim przebiegiem jako wbudowany krok `diff.previous`; krok `report.render` działa po
 nim, więc raport zawiera wykryte zmiany. `GET /api/runs/:id/report` zwraca najnowszy raport `html` przebiegu.
+
+## Eksporty: STIX 2.1, MISP i CSV
+
+Krok `report.render` zapisuje obok raportu HTML sześć eksportów, zbudowanych z tych samych danych (`ReportData`) co
+dokument. Wszystkie pliki (HTML, dane, sześć eksportów: `stix`, `misp`, `csv_links`, `csv_evidence`, `csv_cash_out`,
+`csv_changes`) są najpierw zapisywane w magazynie blobów, a dopiero potem rejestrowana jest jedna wersja raportu; ostatni
+wpis (`export_set`) wskazuje skrót HTML i skróty eksportów tej wersji. `findExportSet` zwraca eksporty tylko wtedy,
+gdy zestaw wskazuje najnowszy raport HTML — nowszy HTML bez eksportów (lub przebieg sprzed eksportów) daje „brak
+eksportów”, więc wersje nigdy się nie mieszają. Eksporty są deterministyczne: te same dane dają
+identyczne bajty. Zawierają wyłącznie fakty i wyniki obliczeń oraz oceny analityka; wnioski i sugestie modelu AI nie są
+eksportowane, więc nie mogą trafić do innego systemu. Domyślnie wyeksportowane są tylko przyjęte powiązania
+własnościowe; odrzucone (wykluczone regułą, przypisane przez stronę trzecią) trafiają do STIX i MISP tylko przy
+`includeRejected: true`, z adnotacją `x_olcys_rejected` i powodem.
+
+- **STIX 2.1** (`toStixBundle`, `application/stix+json;version=2.1`): tożsamość producenta (`OLCYS_STIX_PRODUCER_NAME`),
+  tożsamość osoby (imię i nazwisko ze sprawy, inaczej pierwszy identyfikator zakotwiczony), obserwabla
+  `cryptocurrency-wallet` na adres, relacje `related-to` z `confidence` równym Wskaźnikowi Pewności i opisem po polsku,
+  obiekty `opinion` z ocen analityka (`same` → `agree`, `not_same` → `disagree`, `unsure` → `neutral`), jeden `report`
+  oraz znacznik TLP (`OLCYS_EXPORT_TLP`, domyślnie AMBER) z definicją. Każda relacja ma `external_references` z adresem URL
+  i skrótem SHA-256 manifestu każdego zrzutu dowodowego. Uwaga: `cryptocurrency-wallet` nie należy do rdzenia STIX 2.1 —
+  to własny typ obserwabli OpenCTI. Identyfikatory obserwabli to UUIDv5 w przestrzeni nazw STIX (§ 2.9) z kanonicznego
+  JSON `{"value": adres}`, a pozostałych obiektów — UUIDv5 z identyfikatora raportu i klucza naturalnego. Ten sam adres
+  w kilku sieciach daje jedną obserwablę (`x_olcys_chains` wymienia sieci).
+- **MISP** (`toMispEvent`, `application/json`): zdarzenie nieopublikowane (`published: false`, `distribution: "0"`,
+  tag `tlp:…`), po jednym obiekcie `coin-address` na powiązanie. Tagi adresu: `admiralty-scale:source-reliability`
+  (najlepsza ocena wśród przesłanek, które się liczyły), `estimative-language:likelihood-probability` (z określenia
+  ICD 203) i `estimative-language:confidence-in-analytic-judgment` (z pewności analitycznej). Każdy adres URL dowodu to
+  atrybut `link` z kategorią „External analysis”, `to_ids: false` i skrótem SHA-256 w komentarzu. Obiekt i taksonomie to
+  oficjalne pliki MISP dołączone dosłownie w `src/export/misp/` (`template_uuid` i `template_version` pochodzą z
+  definicji, atrybuty: `address` dla Bitcoina, `address-xmr` dla Monero, `address-crypto` dla pozostałych sieci,
+  `symbol`, `first-seen`, `last-seen`, `text`); odwzorowanie ICD 203 → `likelihood-probability` opisano w `misp/README.md`.
+- **CSV** (`toCsv`): UTF-8 z BOM, separator przecinek, końce wierszy CRLF, cytowanie wg RFC 4180, angielskie nagłówki
+  snake_case (to dane, nie interfejs). Pliki: powiązania (posortowane malejąco wg wyniku; tylko przyjęte), materiał
+  dowodowy, wyjścia do walut tradycyjnych, zmiany. Komórki tekstowe zaczynające się od `=`, `+`, `-`, `@`, TAB lub CR
+  dostają przedrostek `'` (ochrona przed wstrzykiwaniem formuł); liczby i `DecimalString` są zapisywane dokładnie tak,
+  jak zapisano je w danych (bez liczb zmiennoprzecinkowych).
+
+Tabela `cash_out.csv` ma na końcu kolumnę `pln_synthetic` (`true`, gdy wartość PLN, także któregoś ze składników
+zdarzenia zagregowanego, opiera się na kursie syntetycznym; puste, gdy brak wyceny), aby kwoty demonstracyjne nie
+przechodziły za oficjalne wyceny NBP. STIX i MISP nie zawierają wartości PLN. Tag `admiralty-scale` uwzględnia tylko
+ścieżki, które się liczyły (`counted`).
+
+Zamiast osobnego zadania `report.export` eksporty powstają w kroku `report.render` (potok nie ma kolejki zadań), więc
+każde ponowne wygenerowanie raportu tworzy też nowe eksporty z aktualnymi ocenami analityka. Nic nie jest wysyłane do
+żadnego systemu zewnętrznego.
