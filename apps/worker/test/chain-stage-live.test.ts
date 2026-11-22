@@ -156,4 +156,46 @@ describe('missing valuations', () => {
     expect(tracked.unpricedNetTxs(address, [tx, tx])).toEqual(['bitcoin|tx-self', 'bitcoin|tx-self']);
     expect(new Set(tracked.unpricedNetTxs(address, [tx, tx])).size).toBe(1);
   });
+
+  it('counts an unpriced incoming Bitcoin payment once, and a self-send by its fee', async () => {
+    const address = { chain: 'bitcoin', address: 'bc1qme' } as const;
+    const blockTime = '2026-11-01T10:00:00.000Z';
+    const btc = { chain: 'bitcoin', symbol: 'BTC', decimals: 8 } as const;
+    const incoming = {
+      chain: 'bitcoin' as const,
+      txid: 'tx-in',
+      blockTime,
+      inputs: [{ address: 'bc1qother', value: '0.0020', prevTxid: 'p', vout: 0 }],
+      outputs: [{ address: address.address, value: '0.0019', n: 0 }],
+      fetchId: 'f',
+    };
+    const selfSend = {
+      chain: 'bitcoin' as const,
+      txid: 'tx-self',
+      blockTime,
+      inputs: [{ address: address.address, value: '0.0010', prevTxid: 'q', vout: 0 }],
+      outputs: [{ address: address.address, value: '0.0009', n: 0 }],
+      fetchId: 'f',
+    };
+    const transfer = {
+      chain: 'bitcoin' as const,
+      txHash: 'tx-in',
+      blockHeight: 1,
+      blockTime,
+      from: 'bc1qother',
+      to: address.address,
+      asset: btc,
+      amount: '0.0019',
+      kind: 'native' as const,
+      fetchId: 'f',
+    };
+    const tracked = trackUnpriced({ value: async () => ({ status: 'unpriced', reason: 'no_candle' }) as const });
+    await Promise.all(
+      ['0.0019', '0.0001'].map((amount) => tracked.valuator.value({ asset: btc, amount, at: blockTime }, {} as never)),
+    );
+    const utxo = [{ address, txs: [incoming] }];
+    expect(tracked.unpricedCount([transfer], utxo)).toBe(1);
+    expect(tracked.unpricedCount([], [{ address, txs: [selfSend] }])).toBe(1);
+    expect(tracked.unpricedCount([transfer], [{ address, txs: [incoming, selfSend] }])).toBe(2);
+  });
 });
