@@ -10,6 +10,7 @@ import type {
   BlobRef,
   BlobStore,
   Clock,
+  DelegatedRequestRecord,
   EgressClient,
   EgressLogEntry,
   EgressRequest,
@@ -83,8 +84,15 @@ const KEPT_HEADERS = [
 const KEYED_REQUEST_HEADERS: ReadonlySet<string> = new Set(['accept', 'accept-language', 'content-type']);
 /** Fetch spec "request-body-header names": dropped together with the body when a redirect switches to GET. */
 const BODY_HEADERS = ['content-length', 'content-type', 'content-encoding', 'content-language', 'content-location'];
-/** Source kinds that stay live in replay mode (when they target a local host). */
-const LIVE_IN_REPLAY: ReadonlySet<SourceKind> = new Set<SourceKind>(['internal_service', 'ai_model']);
+/**
+ * Source kinds that stay live in replay mode (when they target a local host): internal services, the local model and
+ * the username enumeration, whose only local call is the one to osint-py (it reads the fixture site, never a cassette).
+ */
+const LIVE_IN_REPLAY: ReadonlySet<SourceKind> = new Set<SourceKind>([
+  'internal_service',
+  'ai_model',
+  'username_enumeration',
+]);
 
 interface Cassette {
   request: { method: string; url: string };
@@ -419,7 +427,75 @@ export function createEgressClient(options: EgressClientOptions): EgressClient {
     }
   }
 
+  /** Merges the request log of an internal delegate into the egress log; no network I/O. */
+  async function recordDelegated(
+    input: Parameters<NonNullable<EgressClient['recordDelegated']>>[0],
+  ): Promise<{ egressLogId: string; provenance?: ProvenanceEnvelope }[]> {
+    const source = sources.get(input.sourceId);
+    if (!source || source.compliance === 'RED') {
+      throw new EgressDeniedError(input.delegate, source ? 'RED source' : 'source not enabled for this run');
+    }
+    const runId = input.runId ?? options.runId;
+    const out: { egressLogId: string; provenance?: ProvenanceEnvelope }[] = [];
+    for (const record of input.records) {
+      // Sequential on purpose: log rows keep the order of the delegate's own log.
+      // oxlint-disable-next-line no-await-in-loop
+      out.push(await recordDelegatedRequest(input, source, runId, record));
+    }
+    return out;
+  }
+
+  async function recordDelegatedRequest(
+    input: Parameters<NonNullable<EgressClient['recordDelegated']>>[0],
+    source: SourceDescriptor,
+    runId: string | undefined,
+    record: DelegatedRequestRecord,
+  ): Promise<{ egressLogId: string; provenance?: ProvenanceEnvelope }> {
+    const host = normaliseHost(new URL(record.url).hostname);
+    const urlRedacted = redactUrl(record.url);
+    const egressLogId = await log(runId, {
+      sourceId: input.sourceId,
+      host,
+      method: record.method,
+      urlRedacted,
+      purpose: record.purpose,
+      containsIdentifier: record.containsIdentifier,
+      allowed: record.allowed,
+      ...(record.denyReason === undefined ? {} : { denyReason: record.denyReason }),
+      ...(record.error === undefined ? {} : { error: record.error }),
+      ...(record.httpStatus === undefined ? {} : { httpStatus: record.httpStatus }),
+      ...(record.body === undefined ? {} : { bytes: record.body.byteLength }),
+      delegate: input.delegate,
+    });
+    if (!record.allowed || record.httpStatus === undefined || record.body === undefined) return { egressLogId };
+    const headers = record.responseHeaders ?? {};
+    const blob = await options.blobs.put(record.body, headers['content-type'] ?? 'application/octet-stream');
+    const envelope: ProvenanceEnvelope = {
+      fetchId: newId(),
+      ...(runId ? { runId } : {}),
+      sourceId: input.sourceId,
+      provider: source.name,
+      method: record.method,
+      url: urlRedacted,
+      requestedAt: record.requestedAt,
+      receivedAt: record.receivedAt ?? record.requestedAt,
+      httpStatus: record.httpStatus,
+      responseHeaders: redactHeaders(headers, record.url),
+      body: blob,
+      mode: options.mode,
+      toolVersion: input.toolVersion,
+      userAgent: record.userAgent,
+      egressLogId,
+      bodyPersisted: true,
+      delegatedVia: { delegate: input.delegate, fetchId: input.viaFetchId },
+      ...(isLocal(host) && headers['x-olcys-synthetic'] === 'true' ? { synthetic: true } : {}),
+    };
+    await options.sinks.provenance(envelope);
+    return { egressLogId, provenance: envelope };
+  }
+
   return {
+    recordDelegated,
     async fetch(request: EgressRequest): Promise<EgressResponse> {
       const method = request.method ?? 'GET';
       const runId = request.runId ?? options.runId;

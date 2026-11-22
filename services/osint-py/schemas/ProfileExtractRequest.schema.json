@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "html": {
+      "maxLength": 2000000,
+      "title": "Html",
+      "type": "string"
+    },
+    "url": {
+      "maxLength": 2048,
+      "title": "Url",
+      "type": "string"
+    }
+  },
+  "required": ["html", "url"],
+  "title": "ProfileExtractRequest",
+  "type": "object"
+}

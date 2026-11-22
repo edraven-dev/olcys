@@ -29,6 +29,7 @@ import { createVatWhitelistCollector } from '../registries/vat-whitelist.ts';
 import { createGithubCollector } from '../platforms/code-hosting.ts';
 import { createWykopCollector } from '../platforms/social-profile.ts';
 import { createTelegramCollector } from '../platforms/telegram.ts';
+import { maigretCollectorFactory, maigretOptionsFromEnv } from '../maigret/collector.ts';
 import { searchCollectorFactories } from '../search/mode.ts';
 import { createWaybackCollector } from '../wayback/collector.ts';
 import {
@@ -57,7 +58,8 @@ export function createDefaultCollectorRegistry(options: { mode?: FetchMode; env?
     .register(createClassifiedAdsCollector())
     .register(createVatWhitelistCollector())
     .register(createKrsCollector())
-    .register(createWaybackCollector());
+    .register(createWaybackCollector())
+    .register(maigretCollectorFactory(maigretOptionsFromEnv(options.mode ?? 'offline', options.env ?? {})));
   const ceidgToken = options.env?.['CEIDG_API_TOKEN']?.trim();
   if ((options.mode ?? 'offline') !== 'live' || ceidgToken) {
     registry.register(createCeidgCollector({ token: ceidgToken }));
@@ -66,6 +68,19 @@ export function createDefaultCollectorRegistry(options: { mode?: FetchMode; env?
     registry.register(factory);
   }
   return registry;
+}
+
+/** Hosts of the register sources that are not enabled for the run (never contacted by a delegate such as osint-py). */
+function hostsOfSourcesNotEnabled(sources: SourceRegistry, scope: ResolvedScope): string[] {
+  const hosts = new Set<string>();
+  for (const source of sources.list()) {
+    if (scope.isEnabled(source.id)) continue;
+    for (const host of [...source.allowedHosts, ...(source.blockedHosts ?? [])]) {
+      const clean = host.trim().toLowerCase().replace(/^\*\./, '');
+      if (clean) hosts.add(clean);
+    }
+  }
+  return [...hosts].toSorted();
 }
 
 export interface CollectCaseOptions {
@@ -132,6 +147,7 @@ export async function collectCase(options: CollectCaseOptions): Promise<CollectC
     robots: options.robots,
     breaker: new SourceCircuitBreaker(),
     redactor: options.redactor,
+    deniedHosts: hostsOfSourcesNotEnabled(options.sources, scope),
   };
   const planner: PlannerContext = {
     scope,

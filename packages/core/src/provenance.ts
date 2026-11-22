@@ -59,6 +59,11 @@ export interface ProvenanceEnvelope {
   synthetic?: boolean;
   /** Set when the response comes from a local sandbox chain. */
   sandbox?: boolean;
+  /**
+   * Set when the request was made by an internal delegate under its own allow-list (osint-py) and merged into the
+   * egress log afterwards: the delegate and the fetch (the call to the delegate) that triggered it.
+   */
+  delegatedVia?: { delegate: string; fetchId: Id };
 }
 
 /** One row per outbound request attempt, allowed or denied. Shown to the analyst. */
@@ -82,4 +87,31 @@ export interface EgressLogEntry {
   bytes?: number;
   /** Transport failure after the request was sent (timeout, connection error, body over the size cap). */
   error?: string;
+  /** Set when an internal delegate (e.g. `osint-py`) made the request itself; the row was merged from its own log. */
+  delegate?: string;
+}
+
+/**
+ * One request an internal delegate made under its own allow-list and request log (osint-py runs Maigret and has its
+ * own egress). The Node side merges these records into the egress log with `EgressClient.recordDelegated`.
+ */
+export interface DelegatedRequestRecord {
+  method: 'GET';
+  /** The URL actually requested (offline: on the fixture site). */
+  url: string;
+  /** The live URL the request stands for, when it differs from `url`. */
+  logicalUrl?: string;
+  purpose: string;
+  containsIdentifier: boolean;
+  allowed: boolean;
+  denyReason?: string;
+  /** Transport failure after the request was sent (timeout, connection error). */
+  error?: string;
+  requestedAt: IsoDateTime;
+  receivedAt?: IsoDateTime;
+  httpStatus?: number;
+  responseHeaders?: Record<string, string>;
+  /** Response body, only for the requests whose body the delegate kept (found profiles, barrier pages). */
+  body?: Uint8Array;
+  userAgent: string;
 }

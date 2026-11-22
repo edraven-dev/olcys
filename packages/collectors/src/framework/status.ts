@@ -35,6 +35,9 @@ export const NOTE_CODES = [
   'search_query_altered',
   'search_index_skipped',
   'search_results_not_stored',
+  'external_disabled',
+  'db_hash_mismatch',
+  'delegated_log_unavailable',
 ] as const;
 export type NoteCode = (typeof NOTE_CODES)[number];
 

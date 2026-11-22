@@ -40,12 +40,180 @@ npm:
 
 # Python packages of services/osint-py: normalised name -> reviewed SPDX licence + purpose (pl).
 python:
+  about-time:
+    licence: MIT
+    purpose: 'zależność alive-progress (Maigret); pasek postępu jest wyłączony'
+  aiodns:
+    licence: MIT
+    purpose: 'asynchroniczny resolver DNS wymagany przez Maigret (usługa używa resolvera systemowego)'
+  aiohappyeyeballs:
+    licence: PSF-2.0
+    purpose: 'zależność aiohttp (łączenie z hostami IPv4/IPv6)'
+  aiohttp:
+    licence: Apache-2.0 AND MIT
+    purpose: 'klient HTTP strażnika sieciowego usługi (jedyna ścieżka ruchu wychodzącego osint-py) i zależność Maigret'
+  aiosignal:
+    licence: Apache-2.0
+    purpose: 'zależność aiohttp'
+  alive-progress:
+    licence: MIT
+    purpose: 'zależność Maigret (pasek postępu, wyłączony)'
+  annotated-doc:
+    licence: MIT
+    purpose: 'zależność FastAPI (dokumentowanie typów)'
+  annotated-types:
+    licence: MIT
+    purpose: 'zależność pydantic'
+  anyio:
+    licence: MIT
+    purpose: 'zależność Starlette (asynchroniczność serwera)'
+  attrs:
+    licence: MIT
+    purpose: 'zależność aiohttp'
+  beautifulsoup4:
+    licence: MIT
+    purpose: 'zależność socid-extractor (parsowanie stron profili)'
+  certifi:
+    licence: MPL-2.0
+    purpose: 'zbiór certyfikatów głównych CA (weryfikacja TLS; używany bez zmian)'
+  cffi:
+    licence: MIT-0
+    purpose: 'zależność pycares (aiodns)'
+  charset-normalizer:
+    licence: MIT
+    purpose: 'zależność requests'
+  click:
+    licence: BSD-3-Clause
+    purpose: 'zależność uvicorn'
+  colorama:
+    licence: BSD-3-Clause
+    purpose: 'zależność Maigret (kolory w konsoli, nieużywane)'
   fastapi:
     licence: MIT
     purpose: 'API serwisu osint-py'
+  frozenlist:
+    licence: Apache-2.0
+    purpose: 'zależność aiohttp'
+  graphemeu:
+    licence: MIT
+    purpose: 'zależność alive-progress'
+  h11:
+    licence: MIT
+    purpose: 'zależność uvicorn i httpcore'
+  html5lib:
+    licence: MIT
+    purpose: 'zależność Maigret (parser HTML)'
+  httpcore:
+    licence: BSD-3-Clause
+    purpose: 'zależność httpx (tylko testy)'
+  httpx:
+    licence: BSD-3-Clause
+    purpose: 'klient testowy API (TestClient; tylko testy, grupa dev)'
+  idna:
+    licence: BSD-3-Clause
+    purpose: 'zależność requests, httpx i aiohttp'
+  iniconfig:
+    licence: MIT
+    purpose: 'zależność pytest'
+  jinja2:
+    licence: BSD-3-Clause
+    purpose: 'zależność Maigret (szablony raportów, nieużywane)'
+  lxml:
+    licence: BSD-3-Clause
+    purpose: 'parser HTML/XML używany przez socid-extractor i Maigret'
+  maigret:
+    licence: MIT
+    purpose: 'wyszukiwanie nazwy użytkownika w serwisach publicznych (jako biblioteka, z przypiętą bazą serwisów; bez proxy, Tor i obchodzenia zabezpieczeń)'
+  markupsafe:
+    licence: BSD-3-Clause
+    purpose: 'zależność jinja2'
+  multidict:
+    licence: Apache-2.0
+    purpose: 'zależność aiohttp i yarl'
+  opentelemetry-api:
+    licence: Apache-2.0
+    purpose: 'zależność FastAPI: wyłącznie interfejs (bez SDK i eksportera), nic nie opuszcza usługi'
+  packaging:
+    licence: Apache-2.0 OR BSD-2-Clause
+    purpose: 'zależność pytest'
+  platformdirs:
+    licence: MIT
+    purpose: 'zależność Maigret (ścieżki konfiguracji, nieużywane)'
+  pluggy:
+    licence: MIT
+    purpose: 'zależność pytest'
+  propcache:
+    licence: Apache-2.0
+    purpose: 'zależność aiohttp i yarl'
+  pycares:
+    licence: MIT
+    purpose: 'zależność aiodns'
+  pycparser:
+    licence: BSD-3-Clause
+    purpose: 'zależność cffi'
+  pydantic:
+    licence: MIT
+    purpose: 'modele i schematy żądań oraz odpowiedzi API'
+  pydantic-core:
+    licence: MIT
+    purpose: 'rdzeń pydantic'
+  pygments:
+    licence: BSD-2-Clause
+    purpose: 'zależność pytest (kolorowanie wyników)'
+  pytest:
+    licence: MIT
+    purpose: 'testy usługi (tylko grupa dev)'
+  pytest-asyncio:
+    licence: Apache-2.0
+    purpose: 'testy asynchroniczne (tylko grupa dev)'
+  pytest-socket:
+    licence: MIT
+    purpose: 'blokada sieci w testach: tylko 127.0.0.1 (tylko grupa dev)'
+  python-dateutil:
+    licence: Apache-2.0 OR BSD-3-Clause
+    purpose: 'zależność Maigret (daty)'
+  requests:
+    licence: Apache-2.0
+    purpose: 'zależność Maigret i socid-extractor; usługa nie wykonuje nim żadnych zapytań'
+  ruff:
+    licence: MIT
+    purpose: 'lint i formatowanie kodu Pythona (tylko grupa dev)'
+  six:
+    licence: MIT
+    purpose: 'zależność python-dateutil i html5lib'
+  socid-extractor:
+    licence: MIT
+    purpose: 'wyciąganie identyfikatorów i odnośników ze zrzutów stron profili (bez sieci i bez trybu AI)'
+  soupsieve:
+    licence: MIT
+    purpose: 'zależność beautifulsoup4'
+  starlette:
+    licence: BSD-3-Clause
+    purpose: 'zależność FastAPI'
+  typing-extensions:
+    licence: PSF-2.0
+    purpose: 'zależność pydantic, FastAPI i innych'
+  typing-inspection:
+    licence: MIT
+    purpose: 'zależność pydantic'
+  tzdata:
+    licence: Apache-2.0
+    purpose: 'dane stref czasowych (zależność Maigret)'
+  urllib3:
+    licence: MIT
+    purpose: 'zależność requests'
   uvicorn:
     licence: BSD-3-Clause
     purpose: 'serwer ASGI serwisu osint-py'
+  webencodings:
+    licence: BSD-3-Clause
+    purpose: 'zależność html5lib'
+  xmind:
+    licence: MIT
+    purpose: 'zależność Maigret (eksport raportu XMind, nieużywany)'
+  yarl:
+    licence: Apache-2.0
+    purpose: 'zależność aiohttp'
 
 # Container images (compose.yml `image:` and Dockerfile `FROM`): repository path without tag -> licence, purpose (pl).
 # `separateService: true` is required for copyleft (separateServiceOnly) licences: only unmodified, standalone services.
