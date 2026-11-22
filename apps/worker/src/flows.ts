@@ -31,7 +31,7 @@ import type {
   SwapEvent,
   UtxoTransaction,
 } from '@olcys/core';
-import { addressKey, DEFAULT_FLOW_EDGE_LIMIT, flowAddress, traceFlows } from '@olcys/core';
+import { addressKey, chainFamily, DEFAULT_FLOW_EDGE_LIMIT, flowAddress, transferKey, traceFlows } from '@olcys/core';
 import { canonicalAddress } from '@olcys/labels';
 import { transfersOf } from './chain-data.ts';
 
@@ -221,6 +221,35 @@ export async function expandFlowHops(args: HopExpansionArgs): Promise<HopExpansi
     sources = [...fetchedNow, ...carried.values()];
   }
   return result;
+}
+
+/**
+ * Bitcoin transfers name only the first input as sender, but a transaction leaves every address it spends: the same
+ * payment, attributed to each other input address (outputs back to an input are change and skipped). Flow queries start
+ * and continue paths from these rows too, so a co-spender's outgoing payments are found. Derived rows only serve flow
+ * queries (stored as expansion rows, never listed as the run's transfers).
+ */
+export function coSpendTransfers(
+  transfers: readonly NormalizedTransfer[],
+  utxoTxs: readonly UtxoTransaction[],
+): NormalizedTransfer[] {
+  const byTxid = new Map(utxoTxs.map((tx) => [`${tx.chain}|${tx.txid}`, tx]));
+  const known = new Set(transfers.map(transferKey));
+  const derived: NormalizedTransfer[] = [];
+  for (const t of transfers) {
+    if (chainFamily(t.chain) !== 'bitcoin') continue;
+    const tx = byTxid.get(`${t.chain}|${t.txHash}`);
+    if (!tx) continue;
+    for (const address of new Set(tx.inputs.flatMap((i) => (i.address ? [i.address] : [])))) {
+      if (address === t.from || address === t.to) continue;
+      const copy = Object.assign({}, t, { from: address });
+      const key = transferKey(copy);
+      if (known.has(key)) continue;
+      known.add(key);
+      derived.push(copy);
+    }
+  }
+  return derived;
 }
 
 export interface FlowGraphArgs {

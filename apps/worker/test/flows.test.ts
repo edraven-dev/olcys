@@ -5,11 +5,12 @@
  */
 import type { ChainFetchResult } from '@olcys/chain-adapters';
 import { createAssetRegistry, type Valuator } from '@olcys/analytics';
-import type { AddressRef, NormalizedTransfer, RunContext } from '@olcys/core';
+import type { AddressRef, NormalizedTransfer, RunContext, UtxoTransaction } from '@olcys/core';
 import { addressKey } from '@olcys/core';
 import { describe, expect, it } from 'vitest';
 import {
   computeFlowGraph,
+  coSpendTransfers,
   expandFlowHops,
   flowSettings,
   type EndpointClass,
@@ -339,5 +340,69 @@ describe('computeFlowGraph', () => {
     expect(graph.edges).toHaveLength(3);
     expect(graph.truncatedQueries).toBe(1);
     expect(graph.views[0]?.truncated).toBe(true);
+  });
+});
+
+describe('Bitcoin co-spenders', () => {
+  const payment: NormalizedTransfer = {
+    chain: 'bitcoin',
+    txHash: 'btc-tx-1',
+    index: 0,
+    blockHeight: 1,
+    blockTime: at(1),
+    from: 'bc1qsyntha', // the first input
+    to: 'bc1qsynthc',
+    asset: { chain: 'bitcoin', symbol: 'BTC', decimals: 8 },
+    amount: '0.5',
+    kind: 'native',
+    fetchId: 'f',
+  };
+  const tx: UtxoTransaction = {
+    chain: 'bitcoin',
+    txid: 'btc-tx-1',
+    inputs: [
+      { address: 'bc1qsyntha', value: '0.3', prevTxid: 'p1', vout: 0 },
+      { address: 'bc1qsynthb', value: '0.3', prevTxid: 'p2', vout: 0 },
+    ],
+    outputs: [
+      { address: 'bc1qsynthc', value: '0.5', n: 0 },
+      { address: 'bc1qsynthb', value: '0.09', n: 1 }, // change back to an input
+    ],
+    fetchId: 'f',
+  };
+
+  it('derives the payment for every other input address, never for change or twice', () => {
+    const derived = coSpendTransfers([payment], [tx]);
+    expect(derived.map((t) => [t.from, t.to])).toEqual([['bc1qsynthb', 'bc1qsynthc']]);
+    expect(coSpendTransfers([payment, ...derived], [tx])).toEqual([]);
+    expect(coSpendTransfers([{ ...payment, txHash: 'unknown' }], [tx])).toEqual([]);
+  });
+
+  it('finds the outgoing payment of a co-spender in the flow graph', async () => {
+    const pool: TransferPool = { transfers: [payment], utxoTxs: [tx] };
+    const run = (seed: string) =>
+      computeFlowGraph({
+        runId: 'run',
+        seeds: [{ chain: 'bitcoin', address: seed }],
+        settings: settings(),
+        pool: {
+          transfers: [...pool.transfers, ...coSpendTransfers(pool.transfers, pool.utxoTxs)],
+          utxoTxs: pool.utxoTxs,
+        },
+        assets,
+        valuator,
+        ctx,
+        classify: async () => ({ service: false, excluded: false }),
+        labelOf: async () => undefined,
+        swapsOf: () => [],
+        eventsOf: () => [],
+        computedAt: '2026-11-21T12:00:00.000Z',
+      });
+    expect((await run('bc1qsynthb')).edges.map((e) => `${e.from.address}>${e.to.address}@${e.hop}`)).toEqual([
+      'bc1qsynthb>bc1qsynthc@1',
+    ]);
+    expect((await run('bc1qsyntha')).edges.map((e) => `${e.from.address}>${e.to.address}@${e.hop}`)).toEqual([
+      'bc1qsyntha>bc1qsynthc@1',
+    ]);
   });
 });

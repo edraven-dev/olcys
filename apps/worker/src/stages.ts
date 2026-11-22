@@ -86,7 +86,7 @@ import { classifyFetched } from './address-types.ts';
 import { withAnalystOverrides } from './analyst.ts';
 import { CLUSTER_EXPANSION, clusterBitcoin } from './clusters.ts';
 import { describeGaps, historyGaps, isOwnStatement, transfersOf } from './chain-data.ts';
-import { computeFlowGraph, expandFlowHops, flowSettings, type EndpointClass } from './flows.ts';
+import { computeFlowGraph, coSpendTransfers, expandFlowHops, flowSettings, type EndpointClass } from './flows.ts';
 import { REPO_ROOT, TOOL_VERSION } from './config.ts';
 import type { Stage, StageContext } from './pipeline.ts';
 
@@ -833,6 +833,16 @@ export function createChainStage(options: StageOptions): Stage {
           { expansionHop: history.hop },
         );
       }
+      // Bitcoin co-spenders: a payment leaves every input address of its transaction, not only the first one.
+      const coSpend = coSpendTransfers(pool.transfers, pool.utxoTxs);
+      for (const t of coSpend) {
+        const key = transferKey(t);
+        if (stored.has(key)) continue;
+        stored.add(key);
+        // oxlint-disable-next-line no-await-in-loop
+        await ctx.repos.chain.addTransfers(runId, { chain: t.chain, address: t.from }, [t], { expansionHop: 1 });
+      }
+      pool.transfers.push(...coSpend);
       // 5. Flow graph: edges valued in PLN, a timeline and a Sankey aggregate per analysed address.
       const graph = await computeFlowGraph({
         runId,
