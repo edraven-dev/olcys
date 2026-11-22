@@ -54,6 +54,17 @@ export function currentJudgement(judgements: readonly AnalystJudgement[]): Analy
   return sortJudgements(judgements).at(-1);
 }
 
+/**
+ * The judgements to show: the latest list from the API merged by id with the ones saved in this view (until a
+ * refreshed list contains them), oldest first.
+ */
+export function mergeJudgements(
+  fetched: readonly AnalystJudgement[],
+  saved: readonly AnalystJudgement[],
+): AnalystJudgement[] {
+  return sortJudgements([...new Map([...fetched, ...saved].map((j) => [j.id, j])).values()]);
+}
+
 export interface AnalystLookups {
   accounts: ReadonlyMap<string, OnlineAccount>;
   captures: ReadonlyMap<string, Capture>;
@@ -129,7 +140,7 @@ export function overrideRequest(
   return { kind: form.kind, target, value: form.value, justification: form.justification.trim() };
 }
 
-/** Only a rescore applies overrides: those recorded until it was queued. */
-export function appliedIn(run: Pick<AnalysisRun, 'trigger' | 'queuedAt'>, override: Pick<AnalystOverride, 'at'>) {
-  return run.trigger === 'rescore' && Date.parse(override.at) <= Date.parse(run.queuedAt);
+/** Only a rescore applies overrides: exactly the set its config snapshot fixed when it was queued. */
+export function appliedIn(run: Pick<AnalysisRun, 'trigger' | 'config'>, override: Pick<AnalystOverride, 'id'>) {
+  return run.trigger === 'rescore' && (run.config.analystOverrides ?? []).includes(override.id);
 }

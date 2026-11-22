@@ -49,6 +49,8 @@ export interface AnalystScope {
   enabled: boolean;
   caseId: string;
   onOverrideSaved?: () => void;
+  /** Refreshes the links (and their judgements) after a judgement was saved. */
+  onJudgementSaved?: () => void;
 }
 
 interface LinkContext {
@@ -94,7 +96,12 @@ export function LinksTab({ scope }: { scope: RunScope }) {
     candidates: new Map((candidates.data ?? []).map((c) => [c.id, c])),
     sourceNames: new Map((sources.data ?? []).map((s) => [s.id, s.name])),
   };
-  const analyst: AnalystScope = { enabled: judgements, caseId: run.caseId, onOverrideSaved: overrides.reload };
+  const analyst: AnalystScope = {
+    enabled: judgements,
+    caseId: run.caseId,
+    onOverrideSaved: overrides.reload,
+    onJudgementSaved: links.reload,
+  };
 
   return (
     <section aria-labelledby="links-title" className="stack">
@@ -237,7 +244,11 @@ export function LinkCard({
           </p>
           <p className="muted small">{pl.score.confidenceHint}</p>
         </div>
-        <JudgementSection link={link} enabled={analyst?.enabled ?? false} />
+        <JudgementSection
+          link={link}
+          enabled={analyst?.enabled ?? false}
+          {...(analyst?.onJudgementSaved ? { onSaved: analyst.onJudgementSaved } : {})}
+        />
 
         <details className="explain">
           <summary>{pl.links.explain}</summary>

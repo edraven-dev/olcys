@@ -20,6 +20,7 @@ import {
   JUDGEMENT_OPTIONS,
   JUSTIFICATION,
   justificationError,
+  mergeJudgements,
   OVERRIDE_KINDS,
   overrideRequest,
   REVIEW_OPTIONS,
@@ -34,6 +35,13 @@ import type { Resource } from '../src/lib/use-api.ts';
 import { accounts, btcLink, capture, identity, RUN_ID, tronLink, TRON_1 } from './fixtures/persona.ts';
 
 const text = (html: string) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+const btcLinkConfig = {
+  toolVersion: '0.1.0',
+  sourcesConfigSha256: 'a'.repeat(64),
+  weightsVersion: 'weights.v2',
+  weightsSha256: 'c'.repeat(64),
+  rulesVersions: {},
+};
 
 const observation: Observation = {
   id: 'obs-wallet',
@@ -88,6 +96,8 @@ const graded: LinkView = {
         },
   ),
 };
+
+const config = (ids?: string[]) => ({ ...btcLinkConfig, ...(ids ? { analystOverrides: ids } : {}) });
 
 const ctx = {
   identities: new Map([[identity.id, identity]]),
@@ -166,6 +176,17 @@ describe('analyst helpers', () => {
     expect(currentJudgement([])).toBeUndefined();
   });
 
+  it('follows the refreshed judgements and keeps a judgement saved here until the refresh contains it', () => {
+    const a = judgement('j-1', 'same', '2026-11-21T10:00:00.000Z');
+    const saved = judgement('j-2', 'not_same', '2026-11-21T11:00:00.000Z');
+    const later = judgement('j-3', 'unsure', '2026-11-21T12:00:00.000Z');
+    // A stale (cached) list: the saved judgement still shows.
+    expect(mergeJudgements([a], [saved])).toEqual([a, saved]);
+    // The refreshed list contains it (and a newer one from elsewhere): shown once, in order.
+    expect(mergeJudgements([later, saved, a], [saved])).toEqual([a, saved, later]);
+    expect(mergeJudgements([], [])).toEqual([]);
+  });
+
   it('offers the observations, candidates, sources and accounts behind a link', () => {
     expect(gradeTargets(graded, ctx).map((o) => o.key)).toEqual([
       'observation:obs-wallet',
@@ -193,11 +214,11 @@ describe('analyst helpers', () => {
     });
   });
 
-  it('an override counts as applied only by a rescore queued after it', () => {
-    const at = { at: '2026-11-21T12:00:00.000Z' };
-    expect(appliedIn({ trigger: 'rescore', queuedAt: '2026-11-21T12:00:00.000Z' }, at)).toBe(true);
-    expect(appliedIn({ trigger: 'rescore', queuedAt: '2026-11-21T11:59:59.000Z' }, at)).toBe(false);
-    expect(appliedIn({ trigger: 'manual', queuedAt: '2026-11-21T13:00:00.000Z' }, at)).toBe(false);
+  it('an override counts as applied only when the rescore recorded it when it was queued', () => {
+    expect(appliedIn({ trigger: 'rescore', config: config(['o-1']) }, { id: 'o-1' })).toBe(true);
+    expect(appliedIn({ trigger: 'rescore', config: config(['o-1']) }, { id: 'o-2' })).toBe(false);
+    expect(appliedIn({ trigger: 'rescore', config: config() }, { id: 'o-1' })).toBe(false);
+    expect(appliedIn({ trigger: 'manual', config: config(['o-1']) }, { id: 'o-1' })).toBe(false);
   });
 });
 
@@ -248,6 +269,7 @@ describe('analyst forms', () => {
       trigger: 'rescore',
       status: 'succeeded',
       queuedAt: '2026-11-21T10:00:00.000Z',
+      config: { ...btcLinkConfig, analystOverrides: ['o-1'] },
     };
     const content = text(
       renderToStaticMarkup(<CaseOverrides run={run as RunWithProgress} overrides={resource} ctx={ctx} />),

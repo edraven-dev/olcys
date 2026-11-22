@@ -28,12 +28,12 @@ import {
   JUDGEMENT_OPTIONS,
   JUSTIFICATION,
   justificationError,
+  mergeJudgements,
   OVERRIDE_KINDS,
   overrideRequest,
   REVIEW_OPTIONS,
   reviewTargets,
   SETTABLE_GRADES,
-  sortJudgements,
   type AnalystLookups,
   type TargetOption,
 } from './analyst-model.ts';
@@ -84,15 +84,27 @@ function FormFeedback({ error, saved }: { error: string | undefined; saved: stri
   ) : null;
 }
 
-/** Judgements of one link (oldest first, the current one named) and, when enabled, the form to add one. */
-export function JudgementSection({ link, enabled }: { link: LinkView; enabled: boolean }) {
+/**
+ * Judgements of one link (oldest first, the current one named) and, when enabled, the form to add one. The list
+ * follows the link's refreshed judgements; a judgement saved here shows at once and `onSaved` refreshes the links.
+ */
+export function JudgementSection({
+  link,
+  enabled,
+  onSaved,
+}: {
+  link: LinkView;
+  enabled: boolean;
+  onSaved?: () => void;
+}) {
   const id = useId();
-  const [items, setItems] = useState<AnalystJudgement[]>(() => sortJudgements(link.judgements ?? []));
+  const [local, setLocal] = useState<AnalystJudgement[]>([]);
   const [value, setValue] = useState<JudgementValue>();
   const [justification, setJustification] = useState('');
   const [error, setError] = useState<string>();
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(false);
+  const items = mergeJudgements(link.judgements ?? [], local);
   if (!enabled && items.length === 0) return null;
   const current = items.at(-1);
 
@@ -111,9 +123,10 @@ export function JudgementSection({ link, enabled }: { link: LinkView; enabled: b
         judgement: value,
         justification: justification.trim(),
       });
-      setItems((list) => sortJudgements([...list, created]));
+      setLocal((list) => [...list, created]);
       setJustification('');
       setSaved(true);
+      onSaved?.();
     } catch (failure) {
       setError(analystError(failure));
     } finally {
