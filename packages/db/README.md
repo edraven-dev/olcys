@@ -14,7 +14,12 @@ Schemat PostgreSQL, migracje SQL i typowane repozytoria dla magazynu dowodów dz
 - `labels.upsert` pomija dokładny ponowny import etykiety; poprawiona wersja rekordu z tego samego zbioru danych jest
   zapisywana jako nowy wiersz, a `labels.list()` zwraca najnowszą wersję (wg `lastmod`) dla każdej kombinacji adresu,
   podmiotu i zbioru.
+- `judgements`, `overrides` (migracja `0003_analyst_overrides.sql`) — oceny analityka przy powiązaniach
+  (`analyst_judgements`) i korekty analityka w sprawie (`analyst_overrides`, cel korekty w `jsonb`); listy od
+  najstarszego wpisu (czas, id). Obie tabele i `link_assessments` są tylko do dopisywania (`olcys_app`: SELECT
+  i INSERT). `analysis.getLink(id)` zwraca jedno powiązanie dowolnego przebiegu.
 - `migrate(ownerUrl)` / `pnpm db:migrate` — migracje SQL z `migrations/` (z kontrolą skrótów SHA-256). Historię
   migracji (`schema_migrations`) może zapisywać wyłącznie właściciel schematu — `migrate()` odbiera prawa zapisu
-  pozostałym rolom.
+  pozostałym rolom. Równoczesne uruchomienia (np. równoległe pliki testów) czekają na blokadę doradczą, więc każda
+  migracja jest stosowana raz.
 - Testy integracyjne wymagają `OLCYS_TEST_DATABASE_URL` i `OLCYS_TEST_DATABASE_URL_OWNER`.

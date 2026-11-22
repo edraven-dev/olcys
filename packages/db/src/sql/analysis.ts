@@ -172,6 +172,11 @@ export function sqlAnalysisRepository(db: Db): AnalysisRepository {
       ).map((r) => r.record);
     },
 
+    async getLink(id) {
+      const row = await db.selectFrom('link_assessments').select('record').where('id', '=', id).executeTakeFirst();
+      return row?.record;
+    },
+
     async listChanges(runId) {
       return (await db.selectFrom('change_events').select('record').where('run_id', '=', runId).execute()).map(
         (r) => r.record,
