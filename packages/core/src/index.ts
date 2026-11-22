@@ -16,6 +16,7 @@ export * from './common.ts';
 export * from './decimal.ts';
 export * from './evidence.ts';
 export * from './extraction.ts';
+export * from './flows.ts';
 export * from './heuristics.ts';
 export * from './ids.ts';
 export * from './labels.ts';

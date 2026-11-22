@@ -106,6 +106,8 @@ export interface FlowEdge {
   asset: string;
   amount: DecimalString;
   txHash: string;
+  /** Log or trace index of the transfer within its transaction (distinguishes several transfers of one transaction). */
+  index?: number;
   at: IsoDateTime;
   /**
    * Downstream (destination of funds) `1…N`, the edge leaving an analysed address is `1`; upstream (source of funds)
