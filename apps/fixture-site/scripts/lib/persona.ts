@@ -58,6 +58,7 @@ const HOST_PREFIXES: Record<string, string> = {
   'github.com': '/github',
   'raw.githubusercontent.com': '/github-raw',
   't.me': '/telegram',
+  'keybase.io': '/keybase',
   'mempool.space/api': '/chain/esplora/api',
   'blockstream.info/api': '/chain/esplora/api',
   'api.etherscan.io/v2/api': '/chain/etherscan/v2/api',
@@ -631,6 +632,8 @@ export function routesFor(chainRoutes: readonly FixtureRouteOut[]): FixtureRoute
     ...topic('5500002', ['65000101', '65000102', '65000103', '65000104']),
     // SMF answers unknown members with an error page and HTTP 200.
     { path: BT, queryPrefix: 'action=profile;', file: 'bitcointalk/error-no-member.html' },
+    // Blocked-control page for username enumeration (Keybase-style): the tool must record the block and stop.
+    { path: '/keybase/fikcyjny_kacper', status: 403, file: 'keybase/fikcyjny_kacper/index.html' },
     { path: '/barriers/captcha', file: 'barriers/captcha.html' },
     { path: '/barriers/login', file: 'barriers/login.html' },
     { path: '/barriers/forbidden', status: 403, file: 'barriers/forbidden.html' },
