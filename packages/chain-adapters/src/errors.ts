@@ -18,6 +18,8 @@ export const CHAIN_ERROR_KINDS = [
   'budget_exceeded',
   /** A challenge or CAPTCHA page (e.g. `cf-mitigated: challenge`): never solved, the provider is stopped. */
   'captcha',
+  /** The provider is reachable but unusable (e.g. Otterscan API level too low): stopped for the run, not retried. */
+  'provider_unavailable',
 ] as const;
 export type ChainErrorKind = (typeof CHAIN_ERROR_KINDS)[number];
 

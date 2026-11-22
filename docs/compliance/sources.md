@@ -19,7 +19,7 @@ ręcznie. Przegląd statusów wykonano w listopadzie 2026 r.
 
 Poniższe tabele są generowane z `config/sources.yaml` i `config/forbidden-tools.yaml` poleceniem `pnpm compliance:sources` — nie edytuj ich ręcznie.
 
-Rejestr: `sources.v1`, SHA-256 `4ab2b4ae443515485d6786b5d06df102f02cc596d0758cc4fa1dba1a041d4b34`.
+Rejestr: `sources.v1`, SHA-256 `4ee3af0adda7e58798fe64fb591f7416e365dbbb733b12e7bd2b6aed82bfca29`.
 
 ### Źródła GREEN
 

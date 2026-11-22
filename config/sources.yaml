@@ -568,6 +568,7 @@ providers:
     complianceNote: Local regtest network in compose profile "sandbox"; demo wallets only, no public network. Allowed live in offline mode.
     namePl: 'Piaskownica: Bitcoin regtest (lokalny Esplora)'
     complianceNotePl: 'Lokalna sieć regtest w profilu compose „sandbox”; tylko portfele demonstracyjne, bez sieci publicznej. Dozwolona na żywo w trybie offline; nie łączy się z hostem zewnętrznym.'
+    sandbox: true
     tosUrl: null
     enabledByDefault: false
     requiresApiKey: false
@@ -583,6 +584,7 @@ providers:
     complianceNote: Local EVM chain in compose profile "sandbox" (chain id 1); demo wallets only, no public network. Allowed live in offline mode.
     namePl: 'Piaskownica: EVM (lokalny Anvil, API Otterscan)'
     complianceNotePl: 'Lokalny łańcuch EVM w profilu compose „sandbox” (chain id 1); tylko portfele demonstracyjne, bez sieci publicznej. Dozwolona na żywo w trybie offline; nie łączy się z hostem zewnętrznym.'
+    sandbox: true
     tosUrl: null
     enabledByDefault: false
     requiresApiKey: false

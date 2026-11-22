@@ -105,6 +105,7 @@ const FALLBACK_KINDS: ReadonlySet<ChainErrorKind> = new Set<ChainErrorKind>([
   'captcha',
   'rate_limited',
   'upstream_error',
+  'provider_unavailable',
 ]);
 const KIND_ORDER: Record<NormalizedTransfer['kind'], number> = { native: 0, internal: 1, token: 2 };
 /** Errors that end a listing early but keep what was read (`truncated` outcome). */
