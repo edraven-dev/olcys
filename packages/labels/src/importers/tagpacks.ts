@@ -94,6 +94,7 @@ export function parseTagPack(
   const rows: AddressLabel[] = [];
   const skippedCurrency = new Map<string, number>();
   const unknownConfidence = new Set<string>();
+  const unclassified = new Map<string, number>();
   for (const [i, tag] of (doc['tags'] as Record<string, unknown>[]).entries()) {
     const currency = (
       text(tag['network']) ??
@@ -115,8 +116,10 @@ export function parseTagPack(
     const actorId = text(tag['actor']) ?? text(doc['actor']);
     const actor = actorId ? deps.actors.get(actorId) : undefined;
     const categoryKey = text(tag['category']) ?? text(doc['category']) ?? '';
-    const category: EntityCategory =
-      actorId && P2P_ACTORS.has(actorId) ? 'p2p_exchange' : (CATEGORY[categoryKey] ?? 'unknown_service');
+    const mapped = actorId && P2P_ACTORS.has(actorId) ? 'p2p_exchange' : CATEGORY[categoryKey];
+    const category: EntityCategory = mapped ?? 'unknown_service';
+    // A tag without a known category must never decide an exclusion: `unknown_service` would exclude the address (A1).
+    if (!mapped) unclassified.set(categoryKey || '(none)', (unclassified.get(categoryKey || '(none)') ?? 0) + 1);
     const entity = actor?.label ?? text(tag['label']) ?? text(doc['label']) ?? actorId;
     if (!entity) {
       warnings.push(`tagpack ${title}: tags[${i}] has no label or actor, skipped`);
@@ -137,6 +140,7 @@ export function parseTagPack(
         entity,
         category,
         confidence,
+        ...(mapped ? {} : { deciding: false }),
         attributes: {
           ...(categoryKey === 'exchange' || categoryKey === 'wallet_service' ? { custodial: true } : {}),
           ...(actor?.endActivity ? { activeTo: actor.endActivity } : {}),
@@ -148,6 +152,9 @@ export function parseTagPack(
   }
   for (const [currency, count] of skippedCurrency) {
     warnings.push(`tagpack ${title}: ${count} tag(s) on unsupported currency ${currency} skipped`);
+  }
+  for (const [key, count] of unclassified) {
+    warnings.push(`tagpack ${title}: ${count} tag(s) with unknown category ${key} imported as non-deciding`);
   }
   for (const id of unknownConfidence) {
     warnings.push(`tagpack ${title}: unknown confidence ${id}, using ${UNKNOWN_CONFIDENCE}`);

@@ -42,6 +42,8 @@ export function makeLabel(
     category: EntityCategory;
     confidence: number;
     attributes?: AddressLabel['attributes'];
+    /** Lower the dataset's `deciding` for this label (never raises it). */
+    deciding?: boolean;
     lastmod?: IsoDateTime;
     url?: string;
   },
@@ -57,7 +59,7 @@ export function makeLabel(
       datasetId: ctx.datasetId,
       version: ctx.version,
       sourceType: ctx.sourceType,
-      deciding: ctx.deciding,
+      deciding: ctx.deciding && fields.deciding !== false,
       url: fields.url ?? ctx.url,
       license: ctx.license,
       lastmod: fields.lastmod ?? ctx.lastmod,

@@ -49,4 +49,15 @@ describe('GraphSense TagPacks', () => {
     const noSource = parseTagPack(yaml.replace(/source: .*\n/, ''), ctx, { actors: new Map(), confidence });
     expect(noSource.rows[0]?.provenance.url).toBe(ctx.url);
   });
+
+  it('keeps tags without a known category non-deciding', () => {
+    const yaml = `title: t\ncurrency: BTC\nconfidence: ownership\ntags:\n  - {address: bc1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq, label: A (SYNTHETIC), source: https://x.example}\n  - {address: bc1qppppppppppppppppppppppppppppppppppppp, label: B (SYNTHETIC), category: brand_new, source: https://x.example}\n  - {address: bc1qzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz, label: C (SYNTHETIC), category: exchange, source: https://x.example}\n`;
+    const { rows, warnings } = parseTagPack(yaml, ctx, { actors: new Map(), confidence });
+    expect(rows.map((r) => [r.category, r.provenance.deciding])).toEqual([
+      ['unknown_service', false],
+      ['unknown_service', false],
+      ['exchange', true],
+    ]);
+    expect(warnings).toHaveLength(2);
+  });
 });
