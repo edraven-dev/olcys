@@ -255,6 +255,8 @@ export {
   type VatWhitelistOptions,
 } from './registries/vat-whitelist.ts';
 
+export * from './wayback/index.ts';
+
 export { assertCollectorAllowed } from './compliance/guard.ts';
 export { SourceDescriptorMismatchError, SourceForbiddenError } from './compliance/errors.ts';
 export {

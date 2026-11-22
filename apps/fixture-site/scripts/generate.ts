@@ -15,6 +15,7 @@ import { SYNTHETIC_MARK } from './lib/chain.ts';
 import { chainFor, createWorld, labelsFor, routesFor, tokensFor, type World } from './lib/persona.ts';
 import { renderSitemap } from './lib/sitemap.ts';
 import { renderTemplate } from './lib/template.ts';
+import { waybackFiles } from './lib/wayback.ts';
 
 const APP = resolve(import.meta.dirname, '..');
 const REPO = resolve(APP, '..', '..');
@@ -69,6 +70,7 @@ export async function renderSite(manifest: World['manifest']): Promise<Map<strin
       files.set(`${variant}/${rel}`, renderTemplate(text, tokensFor(manifest, variant), rel));
     }
   }
+  for (const [path, content] of waybackFiles(files)) files.set(path, content);
   const chain = chainFor(manifest);
   for (const file of chain.files) files.set(`shared/${file.path}`, file.content);
   files.set('shared/routes.json', json({ _synthetic: SYNTHETIC_MARK, routes: routesFor(chain.routes) }));

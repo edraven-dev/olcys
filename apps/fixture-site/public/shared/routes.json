@@ -133,6 +133,50 @@
       "file": "registries/krs/not-found.json"
     },
     {
+      "path": "/wayback/cdx/search/cdx",
+      "params": {
+        "url": "https://bitcointalk.org/index.php?action=profile;u=900001"
+      },
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "wayback/cdx/profile-900001.json"
+    },
+    {
+      "path": "/wayback/cdx/search/cdx",
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "wayback/cdx/none.json"
+    },
+    {
+      "path": "/archive-org/wayback/available",
+      "params": {
+        "url": "https://bitcointalk.org/index.php?action=profile;u=900001"
+      },
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "wayback/available/profile-900001.json"
+    },
+    {
+      "path": "/archive-org/wayback/available",
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "wayback/available/none.json"
+    },
+    {
+      "path": "/wayback/web/20240312101500id_/https://bitcointalk.org/index.php",
+      "query": "action=profile;u=900001",
+      "file": "wayback/snapshots/profile-900001-20240312101500.html"
+    },
+    {
+      "path": "/wayback/web/20250102030405id_/https://bitcointalk.org/index.php",
+      "query": "action=profile;u=900001",
+      "file": "wayback/snapshots/profile-900001-20250102030405.html"
+    },
+    {
       "path": "/barriers/redirect-private",
       "status": 302,
       "headers": {

@@ -39,7 +39,9 @@
     "api.nbp.pl/api": "/nbp/api",
     "dane.biznes.gov.pl/api/ceidg/v3": "/registries/ceidg/v3",
     "wykazpodatnikowvat.mf.gov.pl/api": "/registries/vat-whitelist/api",
-    "api-krs.ms.gov.pl/api/krs": "/registries/krs/api"
+    "api-krs.ms.gov.pl/api/krs": "/registries/krs/api",
+    "web.archive.org": "/wayback",
+    "archive.org": "/archive-org"
   },
   "addresses": {
     "BTC-1": {
@@ -1379,10 +1381,16 @@
     "shared/registries/ceidg/v3/firmy.json": "1c72e5f65f05dab4b8b19388c17d75b8ccb87bbd79532c7a9e393af8b115acd3",
     "shared/registries/krs/not-found.json": "32e6eeefa45c87691221ad4f43475674bf648088a0f15c772564f600f4464ae5",
     "shared/registries/vat-whitelist/api/search/nip/0001234562.json": "1733c882b3610af640367e0d192a733532b8816e0ee32849a32fa8028f5c6384",
-    "shared/robots.txt": "a8c45e0f2927fc148d29acfa827d09268d578be9c78dbb1e401828ce7cd504e3",
-    "shared/routes.json": "9a919d33ceae50caa79ccf51fa667c4d184d5979bc67a325b29f20eeb2053710",
+    "shared/robots.txt": "91233360016c9f47bdfe628f848f303ace5f755844c500f8241259dde8faca0c",
+    "shared/routes.json": "5ab084780483323c6496eaf420aa8ddf20c749115cc56b3821c3d0041bd80ae4",
     "shared/tablica/ogloszenie/81000001/index.html": "db498d6cce7e8f0dda2d413b496e88ff37210317ec83ee07f12900f737a88f7f",
     "shared/telegram/s/olcys_test_ostrzezenia/index.html": "32d0b2e0d6c2f5e8e03f3d953c51e886c8350d6111c596a0bbe33e3a4bde5c6a",
+    "shared/wayback/available/none.json": "2c5051845ed4881d0debcb3fa726558b80cc9f44a34ce781cd4049c5024d097b",
+    "shared/wayback/available/profile-900001.json": "f8e667f39ea4277c7ade679f0344415fee19b5511d6b0c401c0f71c8c4d3153a",
+    "shared/wayback/cdx/none.json": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+    "shared/wayback/cdx/profile-900001.json": "6821e55e1af8cc1919d838d526f4971bc8c5fa663af877ab24a4af750f76b2f5",
+    "shared/wayback/snapshots/profile-900001-20240312101500.html": "717c764c388edbe3840c6e1b2c179f0f31f868fc5c6296c4322b759cb16101f4",
+    "shared/wayback/snapshots/profile-900001-20250102030405.html": "558c4bdbe63e2b5af5ec5ec083c73a75b44fc95a89bf3557bb70c201e15f49b1",
     "shared/wykop/ludzie/fikcyjny_kacper/index.html": "4633d3a7ab3befaa8d967e6d330fc6194db27974e7d2d2ae597e9984b5531653",
     "v1/bitcointalk/profile-900001.html": "55b87a5f5c6f68630e8035e8d8a9083b9764cb5f797976f4a65a4d02b2a838ac",
     "v1/sitemap.xml": "3c727770142859b341f9d26b142537b32ea930a00ef465cbcc39fa3a4aac69d7",

@@ -51,12 +51,14 @@ export async function buildCapture(args: {
   fetchIds: Id[];
   status: CaptureStatus;
   technical: CaptureTechnicalReport;
+  /** Set for an archived copy of a page (Wayback snapshot): the capture then has the `archive_snapshot` profile. */
+  archive?: CaptureDraft['archive'];
 }): Promise<Capture> {
   const { ctx, response } = args;
   if (!ctx.evidence) throw new Error('RunContext.evidence (the capture recorder) is not configured');
   const bodyKind = artifactKindFor(response.headers['content-type'] ?? '');
   // Plain HTTP collection: JSON endpoints are API responses, everything else a web page (without browser artifacts).
-  const profile: CaptureProfile = bodyKind === 'json' ? 'api_response' : 'web_page';
+  const profile: CaptureProfile = args.archive ? 'archive_snapshot' : bodyKind === 'json' ? 'api_response' : 'web_page';
   const endedAt = ctx.clock.now().toISOString();
   const received = response.provenance.receivedAt;
   const draft: CaptureDraft = {
@@ -82,6 +84,7 @@ export async function buildCapture(args: {
         description: 'HTTP status and kept response headers (canonical JSON)',
       },
     ],
+    ...(args.archive ? { archive: args.archive } : {}),
     transformations: args.technical.transformations,
     technical: args.technical,
   };
