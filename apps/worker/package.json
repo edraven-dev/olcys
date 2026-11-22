@@ -1,0 +1,31 @@
+{
+  "name": "@olcys/worker",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Job runner and composition root: wires packages behind @olcys/core ports and runs the analysis pipeline in-process (no job queue).",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "dev": "node --watch --env-file-if-exists=../../.env src/main.ts",
+    "start": "node src/main.ts",
+    "tsa:flush": "node --env-file-if-exists=../../.env src/tsa-flush.ts"
+  },
+  "dependencies": {
+    "@olcys/address-extractor": "workspace:*",
+    "@olcys/analytics": "workspace:*",
+    "@olcys/chain-adapters": "workspace:*",
+    "@olcys/collectors": "workspace:*",
+    "@olcys/core": "workspace:*",
+    "@olcys/db": "workspace:*",
+    "@olcys/evidence": "workspace:*",
+    "@olcys/http": "workspace:*",
+    "@olcys/labels": "workspace:*",
+    "@olcys/llm": "workspace:*",
+    "@olcys/reporting": "workspace:*",
+    "@olcys/scoring": "workspace:*",
+    "cron-parser": "5.10.6",
+    "yaml": "2.9.1"
+  }
+}

@@ -1,0 +1,21 @@
+<!--
+title: English scam alert with a warned address and a reported wallet behind an explorer link
+renders: 10
+slots:
+  scam: { pool: any, role: warning }
+  link: { pool: evm, role: scam_report }
+-->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Scam alert: fake support account</title></head>
+<body>
+{{BANNER}}
+<article>
+<h1>Scam alert</h1>
+<p>Do not send funds to {{ADDR:scam}} — it belongs to a fake support account.</p>
+</article>
+<article>
+<p>Reported wallet (phishing campaign): <a href="{{EXPLORER:link}}">{{ADDR:link}}</a></p>
+</article>
+</body>
+</html>

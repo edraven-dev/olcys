@@ -1,0 +1,20 @@
+<!--
+title: Wpis na blogu z odnośnikami płatności BIP-21 i EIP-681
+renders: 12
+slots:
+  btc: { pool: bitcoin.bech32, role: donation }
+  eth: { pool: evm, role: donation }
+-->
+<!doctype html>
+<html lang="pl">
+<head><meta charset="utf-8"><title>Dziękuję za lekturę — wpis {{NUM}}</title></head>
+<body>
+{{BANNER}}
+<article>
+<h1>Dziękuję za lekturę</h1>
+<p>Jeśli chcesz wesprzeć bloga, kliknij <a href="{{URI:btc}}">wsparcie w bitcoinach</a>
+albo <a href="{{URI:eth}}">wsparcie w tokenach</a>.</p>
+<p>Adres do wsparcia: {{ADDR:btc}}</p>
+</article>
+</body>
+</html>

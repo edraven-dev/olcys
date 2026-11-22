@@ -1,0 +1,17 @@
+<!--
+title: Strona pobierania z sumami kontrolnymi MD5, SHA-1 i SHA-256
+renders: 8
+slots:
+  h: { neg: [md5, sha1, sha256, txid_hex64] }
+-->
+<!doctype html>
+<html lang="pl">
+<head><meta charset="utf-8"><title>Pobieranie — wydania programu</title></head>
+<body>
+{{BANNER}}
+<table class="pliki">
+<tr><th>Plik</th><th>Suma kontrolna</th></tr>
+{{#ROWS:3-10}}<tr><td>wydanie-{{N}}.tar.gz</td><td>{{NEG:h}}</td></tr>
+{{/ROWS}}</table>
+</body>
+</html>

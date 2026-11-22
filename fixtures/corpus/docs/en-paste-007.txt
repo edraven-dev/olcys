@@ -1,0 +1,12 @@
+DANE SYNTETYCZNE — SYNTHETIC TEST DATA. Fikcyjne dane testowe OŁCyŚ.
+dump 2026-02-27 23:03
+session: xBMAGDSKHpyASxOsz7iR2leftv0trOVh5nu4jydD1Tf3pDfE
+build: backup_18.eth
+wallet_a = 1LD4Joq22bH9
+jd9gsopQU93
+B2RHVad1yYb
+wallet_b = 3NzcXnKLY3qF
+NGncGmUfzLF
+BiRe3RLyLPV
+
+words: {{SECRET:seed_phrase:1}}

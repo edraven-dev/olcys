@@ -1,0 +1,83 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "unicorn", "oxc", "import", "react", "jsx-a11y", "vitest", "promise", "node"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn",
+    "perf": "warn"
+  },
+  "rules": {
+    "import/no-cycle": "error",
+    "no-console": "off",
+    "react/react-in-jsx-scope": "off",
+    "no-restricted-globals": [
+      "error",
+      { "name": "fetch", "message": "Network I/O must go through @olcys/http (EgressClient)." },
+      { "name": "WebSocket", "message": "Network I/O must go through @olcys/http (EgressClient)." },
+      { "name": "EventSource", "message": "Network I/O must go through @olcys/http (EgressClient)." },
+      { "name": "XMLHttpRequest", "message": "Network I/O must go through @olcys/http (EgressClient)." }
+    ],
+    "no-restricted-imports": [
+      "error",
+      {
+        "paths": [
+          { "name": "undici", "message": "Network I/O must go through @olcys/http (EgressClient)." },
+          { "name": "axios", "message": "Network I/O must go through @olcys/http (EgressClient)." },
+          { "name": "got", "message": "Network I/O must go through @olcys/http (EgressClient)." },
+          { "name": "node-fetch", "message": "Network I/O must go through @olcys/http (EgressClient)." },
+          { "name": "ky", "message": "Network I/O must go through @olcys/http (EgressClient)." },
+          { "name": "ws", "message": "Network I/O must go through @olcys/http (EgressClient)." },
+          {
+            "name": "node:http",
+            "importNames": ["request", "get", "Agent"],
+            "message": "Use @olcys/http (EgressClient)."
+          },
+          {
+            "name": "node:https",
+            "importNames": ["request", "get", "Agent"],
+            "message": "Use @olcys/http (EgressClient)."
+          },
+          {
+            "name": "node:net",
+            "importNames": ["connect", "createConnection", "Socket"],
+            "message": "Use @olcys/http (EgressClient)."
+          },
+          { "name": "node:tls", "importNames": ["connect"], "message": "Use @olcys/http (EgressClient)." }
+        ]
+      }
+    ]
+  },
+  "overrides": [
+    {
+      "files": [
+        "packages/http/**",
+        "**/test/**",
+        "**/*.test.ts",
+        "**/*.test.tsx",
+        "scripts/lib/local-fetch.ts",
+        "scripts/demo/local-http.ts",
+        "e2e/**"
+      ],
+      "rules": { "no-restricted-globals": "off", "no-restricted-imports": "off" }
+    },
+    {
+      "files": ["e2e/**"],
+      "rules": {
+        "no-await-in-loop": "off",
+        "no-underscore-dangle": "off",
+        "unicorn/no-array-reverse": "off",
+        "unicorn/no-array-sort": "off"
+      }
+    },
+    {
+      "files": ["apps/web/src/**"],
+      "rules": { "no-restricted-globals": "off" }
+    }
+  ],
+  "env": {
+    "builtin": true,
+    "node": true,
+    "browser": true
+  },
+  "ignorePatterns": ["data/**", "e2e/.results/**", "e2e/.video/**", "**/dist/**", "**/node_modules/**"]
+}

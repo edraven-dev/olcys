@@ -1,0 +1,56 @@
+# Misattribution (exclusion) rules, version 1 — implemented in packages/labels.
+# Exclusion RECLASSIFIES instead of discarding: an exchange deposit address is not the person's holding,
+# but the person's transfer into it is a cash-out event (B1) and a published deposit address is a KYC lead.
+# Thresholds are uncalibrated starting values (no published standard for A5).
+
+version: exclusion.v1
+
+rules:
+  A1_labelled_service:
+    test: Exact match in an exchange proof-of-reserves file, GraphSense TagPack or OFAC list (eth-labels corroborates only)
+    trustOrder: [por_file, graphsense_tagpack, ofac, etherscan_derived]
+    outcome: excluded
+  A2_service_contract:
+    test: eth_getCode non-empty, NOT an EIP-7702 delegation, and labelled or behaving as DEX, bridge, token or exchange forwarder
+    keepAttributable: [safe, erc4337_account]
+    outcome: excluded
+  A3_delegated_eoa:
+    test: Code is exactly 23 bytes starting 0xef0100 (EIP-7702 delegation designator)
+    outcome: kept
+    recordDelegate: true
+    flagKnownSweepers: true
+  A4_exchange_deposit:
+    test: Forwards received funds to a labelled exchange hot wallet (Victor 2020 / Tutela heuristic)
+    tauBlocks: 3200 # ≈ 10.7 h on Ethereum
+    alphaMaxAmountDiff: 0.01
+    kappa: '1 − ½·|a_f − a_r|/α − ½·(t_f − t_r)/τ'
+    outcome: reclassified
+    relation: CUSTODIAL_EXCHANGE
+    emitsCashOut: B1
+  A5_behavioural_service:
+    test: Hundreds of unrelated counterparties, round-the-clock activity, sweeps
+    minDistinctCounterparties: 300
+    outcome: flagged
+    category: unknown_service
+    neverLinksPersons: true
+  A6_coinjoin:
+    wasabiMinEqualOutputs: 11 # "> 10 equal outputs"
+    whirlpool: { inputs: 5, outputs: 5, requiresTx0: true }
+    # Whirlpool pools (satoshis); a tx0 premix output is a pool denomination plus a mining-fee share (at most +20 %).
+    whirlpoolPools: [50000, 100000, 1000000, 5000000, 50000000]
+    whirlpoolPremixMaxFeeShare: '0.2'
+    # JoinMarket-like pattern (inherent false positives, so skipping is the conservative choice): at least this many
+    # outputs of one value forming at least this share of all outputs.
+    equalOutputs: { minCount: 3, minShare: '0.5' }
+    outcome: flagged
+    disableCoSpendClustering: true
+  A7_cluster_collapse:
+    test: Cluster merges with a large service cluster or grows by orders of magnitude
+    minChangeMergeProbability: 0.99
+    # Co-spend clustering (heuristic, no change-address heuristic): size cap and growth factor against the previous run.
+    maxClusterSize: 1000
+    minGrowthFactor: 100
+    outcome: flagged
+  A8_deny_list:
+    test: BIP/EIP test vectors, documentation examples, burn addresses, major token contracts
+    outcome: excluded

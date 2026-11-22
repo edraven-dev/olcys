@@ -1,0 +1,24 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "printWidth": 120,
+  "tabWidth": 2,
+  "useTabs": false,
+  "semi": true,
+  "singleQuote": true,
+  "trailingComma": "all",
+  "ignorePatterns": [
+    "data/**",
+    "pnpm-lock.yaml",
+    "apps/fixture-site/templates/**",
+    "apps/fixture-site/public/**",
+    "fixtures/persona/**",
+    "fixtures/labels/demo-curated.json",
+    "fixtures/cassettes/**",
+    "fixtures/corpus/addresses/**",
+    "fixtures/corpus/negatives/**",
+    "fixtures/corpus/templates/**",
+    "fixtures/corpus/docs/**",
+    "fixtures/corpus/manifest.json",
+    "fixtures/corpus/ground-truth.jsonl"
+  ]
+}

@@ -1,0 +1,18 @@
+# Column and network profiles of exchange proof-of-reserves files. The table starts at the first row that contains
+# the `address` column header (per-coin totals blocks come first). Every dated file is kept as its own version.
+version: por-profiles.v1
+
+profiles:
+  okx:
+    entity: OKX
+    category: exchange
+    confidence: 95
+    addressColumn: address
+    networkColumn: Network
+    networks:
+      BTC: bitcoin
+      ERC20: 'evm:1'
+      TRC20: tron
+      Polygon: 'evm:137'
+      Arbitrum One: 'evm:42161'
+      Solana: solana

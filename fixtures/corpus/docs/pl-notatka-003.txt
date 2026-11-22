@@ -1,0 +1,13 @@
+DANE SYNTETYCZNE — SYNTHETIC TEST DATA. Fikcyjne dane testowe OŁCyŚ.
+Notatki — portfele (2026-04-24)
+
+Mój portfel Bitcoin Cash (BCH): 14KEwJEvonev
+aaQYbWMKdWn
+NRkjMc3i9Mw
+Mój adres ETH (ERC20): 0xC5F9a6D349b1a6D9E3E39328a51ff582CF94f855
+
+Podejrzany adres z czatu: https://tronscan.org/#/address/TVRtdiGcmHT28Gtu626GRpzZA13dYWmBJa
+
+
+
+Stary portfel — klucz prywatny: {{SECRET:hex64_private_key_context:1}}

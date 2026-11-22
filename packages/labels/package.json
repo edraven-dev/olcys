@@ -1,0 +1,19 @@
+{
+  "name": "@olcys/labels",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Address labels with provenance, address-type classification (EOA/contract/EIP-7702/Safe) and misattribution rules A1-A8.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@olcys/core": "workspace:*",
+    "@safe-global/safe-deployments": "1.37.67",
+    "@scure/base": "2.4.0",
+    "yaml": "2.9.1"
+  },
+  "devDependencies": {
+    "@noble/hashes": "2.4.0"
+  }
+}

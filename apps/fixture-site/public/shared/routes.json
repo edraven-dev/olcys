@@ -1,0 +1,1041 @@
+{
+  "_synthetic": "SYNTHETIC TEST DATA (OŁCyŚ fixture)",
+  "routes": [
+    {
+      "path": "/bitcointalk/index.php",
+      "query": "action=profile;u=900001",
+      "file": "bitcointalk/profile-900001.html"
+    },
+    {
+      "path": "/bitcointalk/index.php",
+      "query": "action=profile;user=fikcyjny_kacper",
+      "file": "bitcointalk/profile-900001.html"
+    },
+    {
+      "path": "/bitcointalk/index.php",
+      "query": "action=profile;u=900001;sa=showPosts",
+      "file": "bitcointalk/showposts-900001.html"
+    },
+    {
+      "path": "/bitcointalk/index.php",
+      "query": "action=profile;u=900002",
+      "file": "bitcointalk/profile-900002.html"
+    },
+    {
+      "path": "/bitcointalk/index.php",
+      "query": "action=profile;u=900003",
+      "file": "bitcointalk/profile-900003.html"
+    },
+    {
+      "path": "/bitcointalk/index.php",
+      "query": "topic=5500001.0",
+      "file": "bitcointalk/topic-5500001.html"
+    },
+    {
+      "path": "/bitcointalk/index.php",
+      "query": "topic=5500001.msg65000001",
+      "file": "bitcointalk/topic-5500001.html"
+    },
+    {
+      "path": "/bitcointalk/index.php",
+      "query": "topic=5500001.msg65000002",
+      "file": "bitcointalk/topic-5500001.html"
+    },
+    {
+      "path": "/bitcointalk/index.php",
+      "query": "topic=5500002.0",
+      "file": "bitcointalk/topic-5500002.html"
+    },
+    {
+      "path": "/bitcointalk/index.php",
+      "query": "topic=5500002.msg65000101",
+      "file": "bitcointalk/topic-5500002.html"
+    },
+    {
+      "path": "/bitcointalk/index.php",
+      "query": "topic=5500002.msg65000102",
+      "file": "bitcointalk/topic-5500002.html"
+    },
+    {
+      "path": "/bitcointalk/index.php",
+      "query": "topic=5500002.msg65000103",
+      "file": "bitcointalk/topic-5500002.html"
+    },
+    {
+      "path": "/bitcointalk/index.php",
+      "query": "topic=5500002.msg65000104",
+      "file": "bitcointalk/topic-5500002.html"
+    },
+    {
+      "path": "/bitcointalk/index.php",
+      "queryPrefix": "action=profile;",
+      "file": "bitcointalk/error-no-member.html"
+    },
+    {
+      "path": "/keybase/fikcyjny_kacper",
+      "status": 403,
+      "file": "keybase/fikcyjny_kacper/index.html"
+    },
+    {
+      "path": "/barriers/captcha",
+      "file": "barriers/captcha.html"
+    },
+    {
+      "path": "/barriers/login",
+      "file": "barriers/login.html"
+    },
+    {
+      "path": "/barriers/forbidden",
+      "status": 403,
+      "file": "barriers/forbidden.html"
+    },
+    {
+      "path": "/barriers/rate-limited",
+      "status": 429,
+      "headers": {
+        "retry-after": "1"
+      },
+      "file": "barriers/rate-limited.html"
+    },
+    {
+      "path": "/barriers/challenge",
+      "status": 403,
+      "headers": {
+        "cf-mitigated": "challenge"
+      },
+      "file": "barriers/challenge.html"
+    },
+    {
+      "path": "/registries/ceidg/v3/firmy",
+      "params": {
+        "imie[]": "Kacper",
+        "nazwisko[]": "Fikcyjny"
+      },
+      "file": "registries/ceidg/v3/firmy.json"
+    },
+    {
+      "path": "/registries/ceidg/v3/firmy",
+      "params": {
+        "nip[]": "0001234562"
+      },
+      "file": "registries/ceidg/v3/firmy.json"
+    },
+    {
+      "path": "/registries/ceidg/v3/firmy",
+      "status": 204
+    },
+    {
+      "path": "/registries/ceidg/v3/firma/00000000-0000-4000-8000-000000000001",
+      "file": "registries/ceidg/v3/firma.json"
+    },
+    {
+      "path": "/registries/vat-whitelist/api/search/nip/0001234562",
+      "file": "registries/vat-whitelist/api/search/nip/0001234562.json"
+    },
+    {
+      "path": "/registries/krs/api/OdpisAktualny/0009999901",
+      "status": 404,
+      "file": "registries/krs/not-found.json"
+    },
+    {
+      "path": "/wayback/cdx/search/cdx",
+      "params": {
+        "url": "https://bitcointalk.org/index.php?action=profile;u=900001"
+      },
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "wayback/cdx/profile-900001.json"
+    },
+    {
+      "path": "/wayback/cdx/search/cdx",
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "wayback/cdx/none.json"
+    },
+    {
+      "path": "/archive-org/wayback/available",
+      "params": {
+        "url": "https://bitcointalk.org/index.php?action=profile;u=900001"
+      },
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "wayback/available/profile-900001.json"
+    },
+    {
+      "path": "/archive-org/wayback/available",
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "wayback/available/none.json"
+    },
+    {
+      "path": "/wayback/web/20240312101500id_/https://bitcointalk.org/index.php",
+      "query": "action=profile;u=900001",
+      "file": "wayback/snapshots/profile-900001-20240312101500.html"
+    },
+    {
+      "path": "/wayback/web/20250102030405id_/https://bitcointalk.org/index.php",
+      "query": "action=profile;u=900001",
+      "file": "wayback/snapshots/profile-900001-20250102030405.html"
+    },
+    {
+      "path": "/barriers/redirect-private",
+      "status": 302,
+      "headers": {
+        "location": "/private/"
+      }
+    },
+    {
+      "path": "/barriers/redirect-external",
+      "status": 302,
+      "headers": {
+        "location": "https://example.org/"
+      }
+    },
+    {
+      "path": "/nbp/api/exchangerates/rates/a/usd/2025-02-01/",
+      "pathPrefix": "/nbp/api/exchangerates/rates/a/usd/2025-02-01/",
+      "file": "nbp/api/exchangerates/rates/a/usd/2025-02.json"
+    },
+    {
+      "path": "/nbp/api/exchangerates/rates/a/usd/2025-03-01/",
+      "pathPrefix": "/nbp/api/exchangerates/rates/a/usd/2025-03-01/",
+      "file": "nbp/api/exchangerates/rates/a/usd/2025-03.json"
+    },
+    {
+      "path": "/nbp/api/exchangerates/rates/a/usd/2025-04-01/",
+      "pathPrefix": "/nbp/api/exchangerates/rates/a/usd/2025-04-01/",
+      "file": "nbp/api/exchangerates/rates/a/usd/2025-04.json"
+    },
+    {
+      "path": "/nbp/api/exchangerates/rates/a/usd/2025-05-01/",
+      "pathPrefix": "/nbp/api/exchangerates/rates/a/usd/2025-05-01/",
+      "file": "nbp/api/exchangerates/rates/a/usd/2025-05.json"
+    },
+    {
+      "path": "/nbp/api/exchangerates/rates/a/usd/2025-06-01/",
+      "pathPrefix": "/nbp/api/exchangerates/rates/a/usd/2025-06-01/",
+      "file": "nbp/api/exchangerates/rates/a/usd/2025-06.json"
+    },
+    {
+      "path": "/nbp/api/exchangerates/rates/a/usd/2025-07-01/",
+      "pathPrefix": "/nbp/api/exchangerates/rates/a/usd/2025-07-01/",
+      "file": "nbp/api/exchangerates/rates/a/usd/2025-07.json"
+    },
+    {
+      "path": "/nbp/api/exchangerates/rates/a/usd/2025-08-01/",
+      "pathPrefix": "/nbp/api/exchangerates/rates/a/usd/2025-08-01/",
+      "file": "nbp/api/exchangerates/rates/a/usd/2025-08.json"
+    },
+    {
+      "path": "/nbp/api/exchangerates/rates/a/usd/2025-09-01/",
+      "pathPrefix": "/nbp/api/exchangerates/rates/a/usd/2025-09-01/",
+      "file": "nbp/api/exchangerates/rates/a/usd/2025-09.json"
+    },
+    {
+      "path": "/nbp/api/exchangerates/rates/a/usd/2025-10-01/",
+      "pathPrefix": "/nbp/api/exchangerates/rates/a/usd/2025-10-01/",
+      "file": "nbp/api/exchangerates/rates/a/usd/2025-10.json"
+    },
+    {
+      "path": "/nbp/api/exchangerates/rates/a/usd/2025-11-01/",
+      "pathPrefix": "/nbp/api/exchangerates/rates/a/usd/2025-11-01/",
+      "file": "nbp/api/exchangerates/rates/a/usd/2025-11.json"
+    },
+    {
+      "path": "/nbp/api/exchangerates/rates/a/usd/2025-12-01/",
+      "pathPrefix": "/nbp/api/exchangerates/rates/a/usd/2025-12-01/",
+      "file": "nbp/api/exchangerates/rates/a/usd/2025-12.json"
+    },
+    {
+      "path": "/nbp/api/exchangerates/rates/a/usd/2026-01-01/",
+      "pathPrefix": "/nbp/api/exchangerates/rates/a/usd/2026-01-01/",
+      "file": "nbp/api/exchangerates/rates/a/usd/2026-01.json"
+    },
+    {
+      "path": "/nbp/api/exchangerates/rates/a/usd/2026-02-01/",
+      "pathPrefix": "/nbp/api/exchangerates/rates/a/usd/2026-02-01/",
+      "file": "nbp/api/exchangerates/rates/a/usd/2026-02.json"
+    },
+    {
+      "path": "/nbp/api/exchangerates/rates/a/usd/2026-03-01/",
+      "pathPrefix": "/nbp/api/exchangerates/rates/a/usd/2026-03-01/",
+      "file": "nbp/api/exchangerates/rates/a/usd/2026-03.json"
+    },
+    {
+      "path": "/nbp/api/exchangerates/rates/a/usd/2026-04-01/",
+      "pathPrefix": "/nbp/api/exchangerates/rates/a/usd/2026-04-01/",
+      "file": "nbp/api/exchangerates/rates/a/usd/2026-04.json"
+    },
+    {
+      "path": "/nbp/api/exchangerates/rates/a/usd/2026-05-01/",
+      "pathPrefix": "/nbp/api/exchangerates/rates/a/usd/2026-05-01/",
+      "file": "nbp/api/exchangerates/rates/a/usd/2026-05.json"
+    },
+    {
+      "path": "/nbp/api/exchangerates/rates/a/usd/2026-06-01/",
+      "pathPrefix": "/nbp/api/exchangerates/rates/a/usd/2026-06-01/",
+      "file": "nbp/api/exchangerates/rates/a/usd/2026-06.json"
+    },
+    {
+      "path": "/nbp/api/exchangerates/rates/a/usd/2026-07-01/",
+      "pathPrefix": "/nbp/api/exchangerates/rates/a/usd/2026-07-01/",
+      "file": "nbp/api/exchangerates/rates/a/usd/2026-07.json"
+    },
+    {
+      "path": "/nbp/api/exchangerates/rates/a/usd/2026-08-01/",
+      "pathPrefix": "/nbp/api/exchangerates/rates/a/usd/2026-08-01/",
+      "file": "nbp/api/exchangerates/rates/a/usd/2026-08.json"
+    },
+    {
+      "path": "/nbp/api/exchangerates/rates/a/usd/2026-09-01/",
+      "pathPrefix": "/nbp/api/exchangerates/rates/a/usd/2026-09-01/",
+      "file": "nbp/api/exchangerates/rates/a/usd/2026-09.json"
+    },
+    {
+      "path": "/nbp/api/exchangerates/rates/a/usd/2026-10-01/",
+      "pathPrefix": "/nbp/api/exchangerates/rates/a/usd/2026-10-01/",
+      "file": "nbp/api/exchangerates/rates/a/usd/2026-10.json"
+    },
+    {
+      "path": "/nbp/api/exchangerates/rates/a/usd/2026-11-01/",
+      "pathPrefix": "/nbp/api/exchangerates/rates/a/usd/2026-11-01/",
+      "file": "nbp/api/exchangerates/rates/a/usd/2026-11.json"
+    },
+    {
+      "path": "/chain/esplora/api/blocks/tip/height",
+      "file": "chain/esplora/api/blocks/tip/height.txt",
+      "headers": {
+        "content-type": "text/plain; charset=utf-8"
+      }
+    },
+    {
+      "path": "/chain/etherscan/v2/api",
+      "params": {
+        "chainid": "1",
+        "module": "account",
+        "action": "txlist",
+        "address": "0xcd5c1a91d6dfaafeb0807e3c9d6d00655a54617a"
+      },
+      "file": "chain/etherscan/0xcd5c1a91d6dfaafeb0807e3c9d6d00655a54617a/txlist.json"
+    },
+    {
+      "path": "/chain/etherscan/v2/api",
+      "params": {
+        "chainid": "1",
+        "module": "account",
+        "action": "balance",
+        "address": "0xcd5c1a91d6dfaafeb0807e3c9d6d00655a54617a"
+      },
+      "file": "chain/etherscan/0xcd5c1a91d6dfaafeb0807e3c9d6d00655a54617a/balance.json"
+    },
+    {
+      "path": "/chain/etherscan/v2/api",
+      "params": {
+        "chainid": "1",
+        "module": "account",
+        "action": "txlist",
+        "address": "0xc3436335b60f0fd74bf6c2638f7a8fa64ac53cd7"
+      },
+      "file": "chain/etherscan/0xc3436335b60f0fd74bf6c2638f7a8fa64ac53cd7/txlist.json"
+    },
+    {
+      "path": "/chain/etherscan/v2/api",
+      "params": {
+        "chainid": "1",
+        "module": "account",
+        "action": "balance",
+        "address": "0xc3436335b60f0fd74bf6c2638f7a8fa64ac53cd7"
+      },
+      "file": "chain/etherscan/0xc3436335b60f0fd74bf6c2638f7a8fa64ac53cd7/balance.json"
+    },
+    {
+      "path": "/chain/etherscan/v2/api",
+      "params": {
+        "chainid": "1",
+        "module": "account",
+        "action": "txlist",
+        "address": "0x473082f9bd1a611ab783ce9fe814d97b4a8f02b4"
+      },
+      "file": "chain/etherscan/0x473082f9bd1a611ab783ce9fe814d97b4a8f02b4/txlist.json"
+    },
+    {
+      "path": "/chain/etherscan/v2/api",
+      "params": {
+        "chainid": "1",
+        "module": "account",
+        "action": "balance",
+        "address": "0x473082f9bd1a611ab783ce9fe814d97b4a8f02b4"
+      },
+      "file": "chain/etherscan/0x473082f9bd1a611ab783ce9fe814d97b4a8f02b4/balance.json"
+    },
+    {
+      "path": "/chain/etherscan/v2/api",
+      "params": {
+        "chainid": "1",
+        "module": "account",
+        "action": "txlist",
+        "address": "0x959dc8ea38d76ccdd3765ac138d3167da615fe27"
+      },
+      "file": "chain/etherscan/0x959dc8ea38d76ccdd3765ac138d3167da615fe27/txlist.json"
+    },
+    {
+      "path": "/chain/etherscan/v2/api",
+      "params": {
+        "chainid": "1",
+        "module": "account",
+        "action": "balance",
+        "address": "0x959dc8ea38d76ccdd3765ac138d3167da615fe27"
+      },
+      "file": "chain/etherscan/0x959dc8ea38d76ccdd3765ac138d3167da615fe27/balance.json"
+    },
+    {
+      "path": "/chain/etherscan/v2/api",
+      "params": {
+        "chainid": "1",
+        "module": "account",
+        "action": "txlist",
+        "address": "0x1c9ba767260c864dce45901ca9bbe57743bee2fb"
+      },
+      "file": "chain/etherscan/0x1c9ba767260c864dce45901ca9bbe57743bee2fb/txlist.json"
+    },
+    {
+      "path": "/chain/etherscan/v2/api",
+      "params": {
+        "chainid": "1",
+        "module": "account",
+        "action": "balance",
+        "address": "0x1c9ba767260c864dce45901ca9bbe57743bee2fb"
+      },
+      "file": "chain/etherscan/0x1c9ba767260c864dce45901ca9bbe57743bee2fb/balance.json"
+    },
+    {
+      "path": "/chain/etherscan/v2/api",
+      "params": {
+        "chainid": "1",
+        "module": "account",
+        "action": "txlist",
+        "address": "0xc96c4f1cb6b9ce12fb368be816343034050deb0b"
+      },
+      "file": "chain/etherscan/0xc96c4f1cb6b9ce12fb368be816343034050deb0b/txlist.json"
+    },
+    {
+      "path": "/chain/etherscan/v2/api",
+      "params": {
+        "chainid": "1",
+        "module": "account",
+        "action": "balance",
+        "address": "0xc96c4f1cb6b9ce12fb368be816343034050deb0b"
+      },
+      "file": "chain/etherscan/0xc96c4f1cb6b9ce12fb368be816343034050deb0b/balance.json"
+    },
+    {
+      "path": "/chain/etherscan/v2/api",
+      "params": {
+        "chainid": "1",
+        "module": "account",
+        "action": "txlist",
+        "address": "0x6c9844ccfc4413e5b6bc130e210d1e94ec2a9ffb"
+      },
+      "file": "chain/etherscan/0x6c9844ccfc4413e5b6bc130e210d1e94ec2a9ffb/txlist.json"
+    },
+    {
+      "path": "/chain/etherscan/v2/api",
+      "params": {
+        "chainid": "1",
+        "module": "account",
+        "action": "balance",
+        "address": "0x6c9844ccfc4413e5b6bc130e210d1e94ec2a9ffb"
+      },
+      "file": "chain/etherscan/0x6c9844ccfc4413e5b6bc130e210d1e94ec2a9ffb/balance.json"
+    },
+    {
+      "path": "/chain/etherscan/v2/api",
+      "params": {
+        "chainid": "1",
+        "module": "account",
+        "action": "txlist",
+        "address": "0x7ade0cfdee4511f70e56eacc39a66f19277d2fc8"
+      },
+      "file": "chain/etherscan/0x7ade0cfdee4511f70e56eacc39a66f19277d2fc8/txlist.json"
+    },
+    {
+      "path": "/chain/etherscan/v2/api",
+      "params": {
+        "chainid": "1",
+        "module": "account",
+        "action": "balance",
+        "address": "0x7ade0cfdee4511f70e56eacc39a66f19277d2fc8"
+      },
+      "file": "chain/etherscan/0x7ade0cfdee4511f70e56eacc39a66f19277d2fc8/balance.json"
+    },
+    {
+      "path": "/chain/etherscan/v2/api",
+      "params": {
+        "chainid": "1",
+        "module": "account",
+        "action": "txlist",
+        "address": "0x8343ead0868158616567a6d63e4a16aceb67b88f"
+      },
+      "file": "chain/etherscan/0x8343ead0868158616567a6d63e4a16aceb67b88f/txlist.json"
+    },
+    {
+      "path": "/chain/etherscan/v2/api",
+      "params": {
+        "chainid": "1",
+        "module": "account",
+        "action": "balance",
+        "address": "0x8343ead0868158616567a6d63e4a16aceb67b88f"
+      },
+      "file": "chain/etherscan/0x8343ead0868158616567a6d63e4a16aceb67b88f/balance.json"
+    },
+    {
+      "path": "/chain/etherscan/v2/api",
+      "params": {
+        "chainid": "1",
+        "module": "account",
+        "action": "txlist",
+        "address": "0xda65eeafe22ab62348adb594251296bddf78b674"
+      },
+      "file": "chain/etherscan/0xda65eeafe22ab62348adb594251296bddf78b674/txlist.json"
+    },
+    {
+      "path": "/chain/etherscan/v2/api",
+      "params": {
+        "chainid": "1",
+        "module": "account",
+        "action": "balance",
+        "address": "0xda65eeafe22ab62348adb594251296bddf78b674"
+      },
+      "file": "chain/etherscan/0xda65eeafe22ab62348adb594251296bddf78b674/balance.json"
+    },
+    {
+      "path": "/chain/etherscan/v2/api",
+      "params": {
+        "chainid": "1",
+        "module": "proxy",
+        "action": "eth_getCode",
+        "address": "0x959dc8ea38d76ccdd3765ac138d3167da615fe27"
+      },
+      "file": "chain/etherscan/0x959dc8ea38d76ccdd3765ac138d3167da615fe27/code.json"
+    },
+    {
+      "path": "/chain/etherscan/v2/api",
+      "params": {
+        "chainid": "1",
+        "module": "proxy",
+        "action": "eth_call",
+        "to": "0x959dc8ea38d76ccdd3765ac138d3167da615fe27"
+      },
+      "file": "chain/etherscan/call-revert.json"
+    },
+    {
+      "path": "/chain/etherscan/v2/api",
+      "params": {
+        "chainid": "1",
+        "module": "account",
+        "action": "txlist"
+      },
+      "file": "chain/etherscan/empty-list.json"
+    },
+    {
+      "path": "/chain/etherscan/v2/api",
+      "params": {
+        "chainid": "1",
+        "module": "account",
+        "action": "txlistinternal"
+      },
+      "file": "chain/etherscan/empty-list.json"
+    },
+    {
+      "path": "/chain/etherscan/v2/api",
+      "params": {
+        "chainid": "1",
+        "module": "account",
+        "action": "tokentx"
+      },
+      "file": "chain/etherscan/empty-list.json"
+    },
+    {
+      "path": "/chain/etherscan/v2/api",
+      "params": {
+        "chainid": "1",
+        "module": "account",
+        "action": "balance"
+      },
+      "file": "chain/etherscan/zero-balance.json"
+    },
+    {
+      "path": "/chain/etherscan/v2/api",
+      "params": {
+        "chainid": "1",
+        "module": "proxy",
+        "action": "eth_getCode"
+      },
+      "file": "chain/etherscan/code-eoa.json"
+    },
+    {
+      "path": "/chain/etherscan/v2/api",
+      "params": {
+        "chainid": "1",
+        "module": "proxy",
+        "action": "eth_getStorageAt"
+      },
+      "file": "chain/etherscan/storage-zero.json"
+    },
+    {
+      "path": "/chain/etherscan/v2/api",
+      "params": {
+        "chainid": "1",
+        "module": "proxy",
+        "action": "eth_call"
+      },
+      "file": "chain/etherscan/call-empty.json"
+    },
+    {
+      "path": "/chain/etherscan/v2/api",
+      "params": {
+        "chainid": "1",
+        "module": "proxy",
+        "action": "eth_blockNumber"
+      },
+      "file": "chain/etherscan/block-number.json"
+    },
+    {
+      "path": "/chain/trongrid/wallet/getcontract",
+      "file": "chain/trongrid/wallet/getcontract-none.json"
+    },
+    {
+      "path": "/bitlist-api/addresses",
+      "params": {
+        "author": "olcys_test_ewa"
+      },
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "bitlist-api/addresses-author-olcys_test_ewa.json"
+    },
+    {
+      "path": "/bitlist-api/addresses",
+      "params": {
+        "address": "bc1q0yd6lqvghmx2uuv0qlztcre8gjsrg8mmansfj2"
+      },
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "bitlist-api/addresses-address-btc.json"
+    },
+    {
+      "path": "/bitlist-api/addresses",
+      "params": {
+        "address": "0xC673a6e8B9c38297e8763C837ae50C34080D470F"
+      },
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "bitlist-api/addresses-address-eth.json"
+    },
+    {
+      "path": "/bitlist-api/posts",
+      "params": {
+        "author": "olcys_test_ewa"
+      },
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "bitlist-api/posts-author-olcys_test_ewa.json"
+    },
+    {
+      "path": "/bitlist-api/addresses",
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "bitlist-api/addresses-none.json"
+    },
+    {
+      "path": "/bitlist-api/posts",
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "bitlist-api/posts-none.json"
+    },
+    {
+      "path": "/keybase/_/api/1.0/user/lookup.json",
+      "params": {
+        "usernames": "olcys_test_ewa"
+      },
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "keybase/lookup-olcys_test_ewa.json"
+    },
+    {
+      "path": "/keybase/_/api/1.0/user/lookup.json",
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "keybase/lookup-none.json"
+    },
+    {
+      "path": "/ens-rpc/",
+      "method": "POST",
+      "bodyIncludes": [
+        "\"eth_blockNumber\""
+      ],
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "ens-rpc/block-number.json"
+    },
+    {
+      "path": "/ens-rpc/",
+      "method": "POST",
+      "bodyIncludes": [
+        "\"eth_getBlockByNumber\""
+      ],
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "ens-rpc/block.json"
+    },
+    {
+      "path": "/ens-rpc/",
+      "method": "POST",
+      "bodyIncludes": [
+        "5d78a217",
+        "c673a6e8b9c38297e8763c837ae50c34080d470f"
+      ],
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "ens-rpc/reverse-eth.json"
+    },
+    {
+      "path": "/ens-rpc/",
+      "method": "POST",
+      "bodyIncludes": [
+        "5d78a217",
+        "a8db6c36813a685e5279f851548de238c8aa5342"
+      ],
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "ens-rpc/reverse-impostor.json"
+    },
+    {
+      "path": "/ens-rpc/",
+      "method": "POST",
+      "bodyIncludes": [
+        "5d78a217"
+      ],
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "ens-rpc/reverse-none.json"
+    },
+    {
+      "path": "/ens-rpc/",
+      "method": "POST",
+      "bodyIncludes": [
+        "3b3b57dedaf0c545b25972f9db1e75e8b7b584fbebced594d5110aa6f34c3b923d8478e6"
+      ],
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "ens-rpc/addr-60.json"
+    },
+    {
+      "path": "/ens-rpc/",
+      "method": "POST",
+      "bodyIncludes": [
+        "f1cb7e06daf0c545b25972f9db1e75e8b7b584fbebced594d5110aa6f34c3b923d8478e60000000000000000000000000000000000000000000000000000000000000000"
+      ],
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "ens-rpc/addr-0.json"
+    },
+    {
+      "path": "/ens-rpc/",
+      "method": "POST",
+      "bodyIncludes": [
+        "59d1d43cdaf0c545b25972f9db1e75e8b7b584fbebced594d5110aa6f34c3b923d8478e6",
+        "636f6d2e676974687562"
+      ],
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "ens-rpc/text-com.github.json"
+    },
+    {
+      "path": "/ens-rpc/",
+      "method": "POST",
+      "bodyIncludes": [
+        "59d1d43cdaf0c545b25972f9db1e75e8b7b584fbebced594d5110aa6f34c3b923d8478e6",
+        "696f2e6b657962617365"
+      ],
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "ens-rpc/text-io.keybase.json"
+    },
+    {
+      "path": "/ens-rpc/",
+      "method": "POST",
+      "bodyIncludes": [
+        "59d1d43cdaf0c545b25972f9db1e75e8b7b584fbebced594d5110aa6f34c3b923d8478e6",
+        "646973706c6179"
+      ],
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "ens-rpc/text-display.json"
+    },
+    {
+      "path": "/ens-rpc/",
+      "method": "POST",
+      "bodyIncludes": [
+        "59d1d43cdaf0c545b25972f9db1e75e8b7b584fbebced594d5110aa6f34c3b923d8478e6",
+        "6465736372697074696f6e"
+      ],
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "ens-rpc/text-description.json"
+    },
+    {
+      "path": "/ens-rpc/",
+      "method": "POST",
+      "bodyIncludes": [
+        "59d1d43c"
+      ],
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "ens-rpc/text-none.json"
+    },
+    {
+      "path": "/ens-rpc/",
+      "method": "POST",
+      "bodyIncludes": [
+        "f1cb7e06"
+      ],
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "ens-rpc/addr-coin-none.json"
+    },
+    {
+      "path": "/ens-rpc/",
+      "method": "POST",
+      "bodyIncludes": [
+        "3b3b57de"
+      ],
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "ens-rpc/addr-none.json"
+    },
+    {
+      "path": "/farcaster-hub/v1/userNameProofByName",
+      "params": {
+        "name": "olcys-test-marek"
+      },
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "farcaster-hub/username-proof.json"
+    },
+    {
+      "path": "/farcaster-hub/v1/userNameProofByName",
+      "queryPrefix": "name=",
+      "status": 404,
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "farcaster-hub/not-found-name.json"
+    },
+    {
+      "path": "/farcaster-hub/v1/userDataByFid",
+      "params": {
+        "fid": "999999998"
+      },
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "farcaster-hub/user-data.json"
+    },
+    {
+      "path": "/farcaster-hub/v1/userDataByFid",
+      "queryPrefix": "fid=",
+      "status": 404,
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "farcaster-hub/not-found-fid.json"
+    },
+    {
+      "path": "/farcaster-hub/v1/verificationsByFid",
+      "params": {
+        "fid": "999999998"
+      },
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "farcaster-hub/verifications.json"
+    },
+    {
+      "path": "/farcaster-hub/v1/verificationsByFid",
+      "queryPrefix": "fid=",
+      "status": 404,
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "farcaster-hub/not-found-verifications.json"
+    },
+    {
+      "path": "/nostr/.well-known/nostr.json",
+      "params": {
+        "name": "olcys_test_nostr"
+      },
+      "headers": {
+        "content-type": "application/json; charset=utf-8",
+        "access-control-allow-origin": "*"
+      },
+      "file": "nostr/nip05-olcys_test_nostr.json"
+    },
+    {
+      "path": "/nostr/.well-known/nostr.json",
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "nostr/nip05-none.json"
+    },
+    {
+      "path": "/chain/solana-rpc",
+      "method": "POST",
+      "bodyIncludes": [
+        "\"getSlot\""
+      ],
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "chain/solana-rpc/get-slot.json"
+    },
+    {
+      "path": "/chain/solana-rpc",
+      "method": "POST",
+      "bodyIncludes": [
+        "\"getBlock\",\"params\":[380000000,"
+      ],
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "chain/solana-rpc/get-block-skipped.json"
+    },
+    {
+      "path": "/chain/solana-rpc",
+      "method": "POST",
+      "bodyIncludes": [
+        "\"getBlock\",\"params\":[379999999,"
+      ],
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "chain/solana-rpc/get-block.json"
+    },
+    {
+      "path": "/chain/solana-rpc",
+      "method": "POST",
+      "bodyIncludes": [
+        "\"getBalance\"",
+        "BJ6nPgVmKjkcCeCsT9pgPAWVHmvVtLRzy5y741S2aXkY"
+      ],
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "chain/solana-rpc/balance-subject.json"
+    },
+    {
+      "path": "/chain/solana-rpc",
+      "method": "POST",
+      "bodyIncludes": [
+        "\"getBalance\""
+      ],
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "chain/solana-rpc/balance-none.json"
+    },
+    {
+      "path": "/chain/solana-rpc",
+      "method": "POST",
+      "bodyIncludes": [
+        "\"getSignaturesForAddress\"",
+        "BJ6nPgVmKjkcCeCsT9pgPAWVHmvVtLRzy5y741S2aXkY"
+      ],
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "chain/solana-rpc/signatures-subject.json"
+    },
+    {
+      "path": "/chain/solana-rpc",
+      "method": "POST",
+      "bodyIncludes": [
+        "\"getSignaturesForAddress\""
+      ],
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "chain/solana-rpc/signatures-none.json"
+    },
+    {
+      "path": "/chain/solana-rpc",
+      "method": "POST",
+      "bodyIncludes": [
+        "\"getTransaction\",\"params\":[\"39xZY6VoB8DDyRciyTNU1QqbXj1LjMcLdJnLMmwzeKir\""
+      ],
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "chain/solana-rpc/tx-sol.json"
+    },
+    {
+      "path": "/chain/solana-rpc",
+      "method": "POST",
+      "bodyIncludes": [
+        "\"getTransaction\",\"params\":[\"Fn6KNSKRCPZusMc7EZoGYD89xhLtoDPPcPTzArKrA5mr\""
+      ],
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "chain/solana-rpc/tx-usdc.json"
+    },
+    {
+      "path": "/chain/solana-rpc",
+      "method": "POST",
+      "bodyIncludes": [
+        "\"getTransaction\",\"params\":[\"HuLpQccqUnto7SGP3Jowx14Yb5iwuy3rzEE4zRAe8BqA\""
+      ],
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "chain/solana-rpc/tx-cpi.json"
+    },
+    {
+      "path": "/chain/solana-rpc",
+      "method": "POST",
+      "bodyIncludes": [
+        "\"getTransaction\""
+      ],
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "file": "chain/solana-rpc/tx-none.json"
+    }
+  ]
+}

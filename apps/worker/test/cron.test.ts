@@ -1,0 +1,113 @@
+import { describe, expect, it } from 'vitest';
+import { latestOccurrence, minIntervalFor, nextOccurrences, validateCron } from '../src/index.ts';
+
+const now = new Date('2026-11-21T10:00:00.000Z');
+const live = { mode: 'live', minIntervalMinutes: 60, now } as const;
+const offline = { mode: 'offline', minIntervalMinutes: 60, now } as const;
+
+describe('validateCron', () => {
+  it('accepts a daily schedule and previews the next three occurrences in UTC', () => {
+    expect(validateCron('0 3 * * *', live)).toEqual({
+      ok: true,
+      cron: '0 3 * * *',
+      nextRuns: ['2026-11-22T03:00:00.000Z', '2026-11-23T03:00:00.000Z', '2026-11-24T03:00:00.000Z'],
+    });
+  });
+
+  it('refuses anything but five plain cron fields', () => {
+    const refused = [
+      '61 * * * *',
+      '0 0 3 * * *',
+      '@reboot',
+      '@daily',
+      'H 3 * * *',
+      'H/15 * * * *',
+      '0 H * * *',
+      'FREQ=DAILY',
+      'RRULE:FREQ=DAILY;BYHOUR=3',
+      '0 3 1 * 1',
+      '0 3 30 2 *',
+      '',
+      '0 3 * *',
+    ];
+    for (const cron of refused) {
+      for (const options of [live, offline]) {
+        expect([cron, validateCron(cron, options)]).toEqual([cron, expect.objectContaining({ code: 'invalid_cron' })]);
+      }
+    }
+  });
+
+  it('accepts month and day names, ranges, steps and lists', () => {
+    for (const cron of ['0 3 * * THU', '30 2 * JAN-MAR MON-FRI', '0 */6 * * *', '15 3 1,15 * *', '0 3 L * *']) {
+      expect([cron, validateCron(cron, live).ok]).toEqual([cron, true]);
+    }
+  });
+
+  it('keeps the minimum interval in live mode only', () => {
+    expect(validateCron('*/5 * * * *', live)).toMatchObject({ ok: false, code: 'schedule_too_frequent' });
+    expect(validateCron('0,30 3 * * *', live)).toMatchObject({ ok: false, code: 'schedule_too_frequent' });
+    expect(validateCron('*/5 * * * *', offline)).toMatchObject({ ok: true });
+    expect(validateCron('*/2 * * * *', { ...offline, mode: 'replay' })).toMatchObject({ ok: true });
+    // Exactly the minimum is allowed.
+    expect(validateCron('0 * * * *', live)).toMatchObject({ ok: true });
+    expect(validateCron('*/5 * * * *', { ...live, minIntervalMinutes: 5 })).toMatchObject({ ok: true });
+    expect([minIntervalFor('live', 60), minIntervalFor('offline', 60), minIntervalFor('replay', 60)]).toEqual([
+      60, 1, 1,
+    ]);
+  });
+
+  it('checks the minimum exactly within a day and across midnight, whatever the time of the check', () => {
+    const strict = { ...live, minIntervalMinutes: 120 };
+    const beforeMidnight = { ...strict, now: new Date('2026-11-21T23:00:10.000Z') };
+    // 22:00 → 23:00 is beyond the next ten occurrences when checked at the start of the day.
+    for (const options of [strict, beforeMidnight]) {
+      expect(validateCron('0 */2,23 * * *', options)).toMatchObject({ ok: false, code: 'schedule_too_frequent' });
+    }
+    expect(validateCron('0 */2 * * *', strict)).toMatchObject({ ok: true });
+    const three = { ...live, minIntervalMinutes: 180 };
+    // 23:00 → 01:00 the next day.
+    expect(validateCron('0 1,23 * * *', three)).toMatchObject({ ok: false, code: 'schedule_too_frequent' });
+    expect(validateCron('0 1,23 1,2 * *', three)).toMatchObject({ ok: false, code: 'schedule_too_frequent' });
+    expect(validateCron('0 1,23 * * 6,0', three)).toMatchObject({ ok: false, code: 'schedule_too_frequent' });
+    // No two consecutive days match: the shortest interval is 22 hours.
+    expect(validateCron('0 1,23 * * 1,3,5', three)).toMatchObject({ ok: true });
+    expect(validateCron('0 1,23 1,15 * *', three)).toMatchObject({ ok: true });
+  });
+
+  it('knows which days of the allowed months are adjacent, across months and years', () => {
+    const three = { ...live, minIntervalMinutes: 180 };
+    // January 28 is not followed by January 1, and January 30 is not the last day of January.
+    for (const cron of ['0 1,23 1,28 1 *', '0 1,23 30,1 1,2 *', '0 1,23 1,15 1,2 *']) {
+      expect([cron, validateCron(cron, three).ok]).toEqual([cron, true]);
+    }
+    // The last day of a month, then the 1st of the next one: April 30, February 28 (29 in leap years), December 31.
+    for (const cron of ['0 1,23 30,1 4,5 *', '0 1,23 28,1 2,3 *', '0 1,23 29,1 2,3 *', '0 1,23 31,1 12,1 *']) {
+      expect([cron, validateCron(cron, three)]).toEqual([
+        cron,
+        expect.objectContaining({ code: 'schedule_too_frequent' }),
+      ]);
+    }
+    // February 28 and 29 are adjacent in leap years.
+    expect(validateCron('0 1,23 28,29 2 *', three)).toMatchObject({ ok: false, code: 'schedule_too_frequent' });
+  });
+
+  it('normalises the spacing of the stored expression', () => {
+    expect(validateCron('  0   3 *  * * ', live)).toMatchObject({ ok: true, cron: '0 3 * * *' });
+  });
+});
+
+describe('occurrences', () => {
+  it('finds the latest occurrence up to and including a time', () => {
+    expect(latestOccurrence('0 3 * * *', new Date('2026-11-22T03:00:00.000Z'))).toBe('2026-11-22T03:00:00.000Z');
+    expect(latestOccurrence('0 3 * * *', new Date('2026-11-22T02:59:59.999Z'))).toBe('2026-11-21T03:00:00.000Z');
+    expect(latestOccurrence('not a cron', now)).toBeUndefined();
+  });
+
+  it('lists the next occurrences strictly after a time', () => {
+    expect(nextOccurrences('*/2 * * * *', new Date('2026-11-21T10:00:00.000Z'), 2)).toEqual([
+      '2026-11-21T10:02:00.000Z',
+      '2026-11-21T10:04:00.000Z',
+    ]);
+    expect(nextOccurrences('@daily', now, 2)).toEqual([]);
+  });
+});

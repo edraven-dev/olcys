@@ -1,0 +1,384 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "DatabaseInfo": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "sha256": {
+          "title": "Sha256",
+          "type": "string"
+        },
+        "sitesTotal": {
+          "title": "Sitestotal",
+          "type": "integer"
+        },
+        "sitesSelected": {
+          "title": "Sitesselected",
+          "type": "integer"
+        },
+        "excludedByPolicy": {
+          "title": "Excludedbypolicy",
+          "type": "integer"
+        }
+      },
+      "required": ["id", "sha256", "sitesTotal", "sitesSelected", "excludedByPolicy"],
+      "title": "DatabaseInfo",
+      "type": "object"
+    },
+    "PolicyInfo": {
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "title": "Version",
+          "type": "string"
+        },
+        "allowExternal": {
+          "title": "Allowexternal",
+          "type": "boolean"
+        },
+        "tags": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Tags",
+          "type": "array"
+        },
+        "userAgent": {
+          "title": "Useragent",
+          "type": "string"
+        }
+      },
+      "required": ["version", "allowExternal", "tags", "userAgent"],
+      "title": "PolicyInfo",
+      "type": "object"
+    },
+    "RequestRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "method": {
+          "const": "GET",
+          "title": "Method",
+          "type": "string"
+        },
+        "url": {
+          "title": "Url",
+          "type": "string"
+        },
+        "logicalUrl": {
+          "title": "Logicalurl",
+          "type": "string"
+        },
+        "host": {
+          "title": "Host",
+          "type": "string"
+        },
+        "site": {
+          "title": "Site",
+          "type": "string"
+        },
+        "purpose": {
+          "title": "Purpose",
+          "type": "string"
+        },
+        "containsIdentifier": {
+          "title": "Containsidentifier",
+          "type": "boolean"
+        },
+        "allowed": {
+          "title": "Allowed",
+          "type": "boolean"
+        },
+        "denyReason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Denyreason"
+        },
+        "requestedAt": {
+          "title": "Requestedat",
+          "type": "string"
+        },
+        "receivedAt": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Receivedat"
+        },
+        "httpStatus": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Httpstatus"
+        },
+        "responseHeaders": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Responseheaders",
+          "type": "object"
+        },
+        "bodySha256": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Bodysha256"
+        },
+        "bodyBase64": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Bodybase64"
+        },
+        "bodyTruncated": {
+          "title": "Bodytruncated",
+          "type": "boolean"
+        },
+        "userAgent": {
+          "title": "Useragent",
+          "type": "string"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Error"
+        }
+      },
+      "required": [
+        "id",
+        "method",
+        "url",
+        "logicalUrl",
+        "host",
+        "site",
+        "purpose",
+        "containsIdentifier",
+        "allowed",
+        "denyReason",
+        "requestedAt",
+        "receivedAt",
+        "httpStatus",
+        "responseHeaders",
+        "bodySha256",
+        "bodyBase64",
+        "bodyTruncated",
+        "userAgent"
+      ],
+      "title": "RequestRecord",
+      "type": "object"
+    },
+    "ServiceInfo": {
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "title": "Version",
+          "type": "string"
+        },
+        "maigretVersion": {
+          "title": "Maigretversion",
+          "type": "string"
+        },
+        "socidExtractorVersion": {
+          "title": "Socidextractorversion",
+          "type": "string"
+        },
+        "python": {
+          "title": "Python",
+          "type": "string"
+        }
+      },
+      "required": ["version", "maigretVersion", "socidExtractorVersion", "python"],
+      "title": "ServiceInfo",
+      "type": "object"
+    },
+    "SiteResult": {
+      "additionalProperties": false,
+      "properties": {
+        "site": {
+          "title": "Site",
+          "type": "string"
+        },
+        "platform": {
+          "title": "Platform",
+          "type": "string"
+        },
+        "tags": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Tags",
+          "type": "array"
+        },
+        "profileUrl": {
+          "title": "Profileurl",
+          "type": "string"
+        },
+        "status": {
+          "enum": ["found", "not_found", "blocked", "login_wall", "captcha", "unknown", "illegal", "skipped"],
+          "title": "Status",
+          "type": "string"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Reason"
+        },
+        "httpStatus": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Httpstatus"
+        },
+        "requestIds": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Requestids",
+          "type": "array"
+        },
+        "ids": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Ids",
+          "type": "object"
+        },
+        "idsLinks": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Idslinks",
+          "type": "array"
+        }
+      },
+      "required": [
+        "site",
+        "platform",
+        "tags",
+        "profileUrl",
+        "status",
+        "reason",
+        "httpStatus",
+        "requestIds",
+        "ids",
+        "idsLinks"
+      ],
+      "title": "SiteResult",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "const": "usernames-search.v1",
+      "default": "usernames-search.v1",
+      "title": "Schemaversion",
+      "type": "string"
+    },
+    "service": {
+      "$ref": "#/$defs/ServiceInfo"
+    },
+    "username": {
+      "title": "Username",
+      "type": "string"
+    },
+    "database": {
+      "$ref": "#/$defs/DatabaseInfo"
+    },
+    "policy": {
+      "$ref": "#/$defs/PolicyInfo"
+    },
+    "startedAt": {
+      "title": "Startedat",
+      "type": "string"
+    },
+    "finishedAt": {
+      "title": "Finishedat",
+      "type": "string"
+    },
+    "results": {
+      "items": {
+        "$ref": "#/$defs/SiteResult"
+      },
+      "title": "Results",
+      "type": "array"
+    },
+    "requests": {
+      "items": {
+        "$ref": "#/$defs/RequestRecord"
+      },
+      "title": "Requests",
+      "type": "array"
+    },
+    "summary": {
+      "additionalProperties": {
+        "type": "integer"
+      },
+      "title": "Summary",
+      "type": "object"
+    }
+  },
+  "required": [
+    "service",
+    "username",
+    "database",
+    "policy",
+    "startedAt",
+    "finishedAt",
+    "results",
+    "requests",
+    "summary"
+  ],
+  "title": "UsernameSearchResponse",
+  "type": "object"
+}

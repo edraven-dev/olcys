@@ -1,0 +1,17 @@
+<!--
+title: English top-holders list in a preformatted block (TRON)
+renders: 1
+slots:
+  row: { pool: tron, role: listing, obf: none }
+-->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Top holders</title></head>
+<body>
+{{BANNER}}
+<h1>Top holders (rich list)</h1>
+<pre>
+{{#ROWS:60-60}}{{N}}  {{ADDR:row}}  {{AMOUNT}} TRX
+{{/ROWS}}</pre>
+</body>
+</html>

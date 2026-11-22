@@ -1,0 +1,4 @@
+{
+  "_synthetic": "SYNTHETIC TEST DATA: hand-written in the response shape this adapter documents for Mojeek (to be checked against the provider's API reference)",
+  "response": { "status": "ERROR: invalid API key" }
+}

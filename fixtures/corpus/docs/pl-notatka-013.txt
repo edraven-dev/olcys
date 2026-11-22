@@ -1,0 +1,11 @@
+DANE SYNTETYCZNE — SYNTHETIC TEST DATA. Fikcyjne dane testowe OŁCyŚ.
+Notatki — portfele (2026-01-06)
+
+Mój portfel Bitcoin Cash (BCH): 1KtQH92DZXKHJEXwPRR2QgwswtCrsGAcZP
+Mój adres BEP20 (BSC): 0x9f2284ad3a9e873f11f38932e4ea794e432e99e7
+
+Podejrzany adres z czatu: https://mempool.space/address/3CfHwCsgag6fWaCFap6v9Tv8Fv25Rnx37m
+
+
+
+Stary portfel — klucz prywatny: {{SECRET:hex64_private_key_context:1}}

@@ -1,0 +1,19 @@
+<!--
+title: Rozmowa na czacie z adresami przy znakach interpunkcyjnych, w cudzysłowach i nawiasach
+renders: 12
+slots:
+  a: { pool: any, role: first_person_owner }
+  b: { pool: any, role: payment_request }
+  c: { pool: bitcoin, role: payment_request }
+  d: { pool: evm, role: payment_request }
+-->
+<!doctype html>
+<html lang="pl">
+<head><meta charset="utf-8"><title>Czat grupy zakupowej</title></head>
+<body>
+{{BANNER}}
+<div class="message"><b>{{NICK}}:</b> Adres „{{ADDR:a}}” to mój portfel, nie pomylcie się.</div>
+<div class="message"><b>{{NICK}}:</b> Za zakup przelej (adres: {{ADDR:b}}), dzięki!</div>
+<div class="message"><b>{{NICK}}:</b> Wpłaciłem na {{ADDR:c}}, a resztę na {{ADDR:d}}.</div>
+</body>
+</html>

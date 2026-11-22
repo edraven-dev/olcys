@@ -1,0 +1,63 @@
+{
+  "_synthetic": "SYNTHETIC TEST DATA (OŁCyŚ fixture). Live URL templates; the guarded checker maps them onto the fixture site.",
+  "sites": {
+    "Wykop": {
+      "tags": ["pl", "social"],
+      "checkType": "status_code",
+      "urlMain": "https://wykop.pl/",
+      "url": "https://wykop.pl/ludzie/{username}",
+      "usernameClaimed": "fikcyjny_kacper",
+      "usernameUnclaimed": "olcys_test_brak_konta"
+    },
+    "GitHub": {
+      "tags": ["coding"],
+      "checkType": "status_code",
+      "urlMain": "https://github.com/",
+      "url": "https://github.com/{username}",
+      "usernameClaimed": "fikcyjny-kacper",
+      "usernameUnclaimed": "olcys-test-brak-konta"
+    },
+    "Keybase": {
+      "tags": ["crypto", "messaging"],
+      "checkType": "status_code",
+      "urlMain": "https://keybase.io/",
+      "url": "https://keybase.io/{username}",
+      "usernameClaimed": "fikcyjny_kacper",
+      "usernameUnclaimed": "olcys_test_brak_konta"
+    },
+    "Telegram": {
+      "tags": ["messaging", "social"],
+      "checkType": "status_code",
+      "urlMain": "https://t.me/",
+      "url": "https://t.me/{username}",
+      "usernameClaimed": "olcys_test_ostrzezenia",
+      "usernameUnclaimed": "olcys_test_brak_konta"
+    },
+    "Archiwum": {
+      "tags": ["pl", "social"],
+      "checkType": "status_code",
+      "urlMain": "https://archiwum.example/",
+      "url": "https://archiwum.example/{username}",
+      "usernameClaimed": "fikcyjny_kacper",
+      "usernameUnclaimed": "olcys_test_brak_konta"
+    },
+    "X": {
+      "tags": ["social"],
+      "checkType": "status_code",
+      "urlMain": "https://x.com/",
+      "url": "https://x.com/{username}",
+      "usernameClaimed": "olcys_test",
+      "usernameUnclaimed": "olcys_test_brak_konta"
+    },
+    "Randki": {
+      "tags": ["dating", "pl"],
+      "checkType": "status_code",
+      "urlMain": "https://randki.example.org/",
+      "url": "https://randki.example.org/profil/{username}",
+      "usernameClaimed": "olcys_test",
+      "usernameUnclaimed": "olcys_test_brak_konta"
+    }
+  },
+  "engines": {},
+  "tags": ["coding", "crypto", "dating", "messaging", "pl", "social"]
+}

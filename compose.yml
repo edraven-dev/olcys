@@ -1,0 +1,253 @@
+# OŁCyŚ — development dependencies.
+#
+#   docker compose up -d --wait                  # postgres + gotenberg + fixture-site
+#   docker compose --profile osint up -d --wait  # + Python OSINT worker (Maigret, socid-extractor, pyHanko)
+#   docker compose --profile llm up -d --wait    # + local LLM runtime (Ollama, OpenAI-compatible API)
+#
+# Podman: `podman compose` (or `docker compose` emulated by podman) runs this file unchanged. From a container, the
+# host is `host.docker.internal` (Docker) or `host.containers.internal` (Podman); nothing here needs either, because
+# the services reach each other by service name and the apps run on the host. See docs/development.md.
+#
+# App code (apps/api, apps/worker, apps/web) runs on the host with `pnpm dev`.
+# Every published port binds to 127.0.0.1 only. Versions are the newest stable releases at the time of
+# writing; bump them deliberately (see AGENTS.md "Dependency policy").
+
+name: olcys
+
+# Telemetry opt-outs, merged into the environment of every service (a test checks it stays that way) and mirrored in
+# .env.example, the Dockerfiles and the CI workflow.
+x-telemetry-off: &telemetry-off
+  DO_NOT_TRACK: '1'
+  HF_HUB_OFFLINE: '1'
+  HF_HUB_DISABLE_TELEMETRY: '1'
+  VLLM_NO_USAGE_STATS: '1'
+  OLLAMA_NO_CLOUD: '1'
+  NEXT_TELEMETRY_DISABLED: '1'
+  TURBO_TELEMETRY_DISABLED: '1'
+  DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+  NPM_CONFIG_UPDATE_NOTIFIER: 'false'
+
+# Container hardening shared by the services below. No new privileges, no capabilities unless a service adds some back.
+x-hardened: &hardened
+  security_opt: ['no-new-privileges:true']
+  cap_drop: [ALL]
+
+services:
+  postgres:
+    image: postgres:19.0-alpine3.24
+    restart: unless-stopped
+    <<: *hardened
+    # The entrypoint chowns the data directory and drops from root to postgres; nothing else is needed.
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETGID, SETUID]
+    environment:
+      <<: *telemetry-off
+      POSTGRES_DB: ${POSTGRES_DB:-olcys}
+      POSTGRES_USER: ${POSTGRES_USER:-olcys_owner}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-olcys_owner_dev}
+      # Consumed by infra/postgres/init/01-roles.sh (least-privilege application role).
+      OLCYS_APP_PASSWORD: ${OLCYS_APP_PASSWORD:-olcys_app_dev}
+      TZ: UTC
+      PGTZ: UTC
+    ports:
+      - '127.0.0.1:${POSTGRES_PORT:-5432}:5432'
+    volumes:
+      # PostgreSQL 18+ images keep PGDATA under /var/lib/postgresql/<major>/docker; mount the parent.
+      - postgres-data:/var/lib/postgresql
+      - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  # HTML -> PDF/A rendering for case reports (packages/reporting).
+  gotenberg:
+    image: gotenberg/gotenberg:9.9.1
+    restart: unless-stopped
+    <<: *hardened
+    environment:
+      <<: *telemetry-off
+      # Hardening: Chromium may only read the files uploaded with the request (they live under /tmp) and cannot fetch
+      # anything else. The patterns are anchored: an allow-list match bypasses the IP checks. Never set
+      # CHROMIUM_PROXY_SERVER (it switches off the DNS-rebinding pinning proxy).
+      CHROMIUM_ALLOW_LIST: '^file:///tmp/.*'
+      CHROMIUM_DENY_PUBLIC_IPS: 'true'
+      CHROMIUM_DENY_PRIVATE_IPS: 'true'
+      CHROMIUM_DISABLE_JAVASCRIPT: 'true'
+      API_DISABLE_DOWNLOAD_FROM: 'true'
+      WEBHOOK_DISABLE: 'true'
+      # No time-stamp authority is reachable from the PDF engine (stamps are requested by the worker, never by Gotenberg).
+      PDF_DENY_PUBLIC_IPS: 'true'
+      PDF_DENY_PRIVATE_IPS: 'true'
+      API_TIMEOUT: 60s
+    ports:
+      - '127.0.0.1:${GOTENBERG_PORT:-3100}:3000'
+    healthcheck:
+      # The official image ships curl; /health reports the chromium and libreoffice modules.
+      test: ['CMD-SHELL', 'curl --silent --fail http://127.0.0.1:3000/health || exit 1']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+
+  # Synthetic persona website used by demos and tests (apps/fixture-site).
+  # Runs the TypeScript source directly on Node 26 (type stripping); uses Node built-ins only.
+  fixture-site:
+    image: node:26.13.1-alpine
+    restart: unless-stopped
+    working_dir: /srv/fixture-site
+    command: ['node', 'src/server.ts']
+    <<: *hardened
+    user: node
+    read_only: true
+    tmpfs: [/tmp]
+    environment:
+      <<: *telemetry-off
+      FIXTURE_HOST: 0.0.0.0
+      FIXTURE_PORT: 4100
+      FIXTURE_VARIANT: ${FIXTURE_VARIANT:-v1}
+      # 1 enables POST /__fixture/variant (v1/v2 switch for the re-run demo); off by default.
+      FIXTURE_ALLOW_VARIANT_SWITCH: ${FIXTURE_ALLOW_VARIANT_SWITCH:-0}
+    volumes:
+      - ./apps/fixture-site:/srv/fixture-site:ro
+    ports:
+      - '127.0.0.1:${FIXTURE_PORT:-4100}:4100'
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1:4100/healthz']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # Python worker: Maigret + socid-extractor and PDF signing via pyHanko.
+  osint-py:
+    profiles: ['osint']
+    build:
+      context: ./services/osint-py
+    restart: unless-stopped
+    <<: *hardened
+    read_only: true
+    tmpfs: [/tmp]
+    volumes:
+      - signing-keys:/signing
+    environment:
+      <<: *telemetry-off
+      # The worker may reach the fixture site by default; real third-party sites only when enabled.
+      OLCYS_OSINT_ALLOW_EXTERNAL: ${OLCYS_OSINT_ALLOW_EXTERNAL:-false}
+      OLCYS_FIXTURE_BASE_URL: http://fixture-site:4100
+      # Demo signing identity (self-signed, not qualified): created on first use inside this volume, never committed.
+      OLCYS_SIGNING_DIR: /signing
+      # Telemetry stays off (no analytics or model-hub calls from the Python stack).
+      DO_NOT_TRACK: '1'
+      HF_HUB_OFFLINE: '1'
+    ports:
+      - '127.0.0.1:${OSINT_PY_PORT:-8090}:8000'
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'python',
+          '-c',
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=3)",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    depends_on:
+      fixture-site:
+        condition: service_healthy
+
+  # Local model runtime exposing an OpenAI-compatible API at /v1. Cloud features and telemetry are off; the weights are
+  # pulled once by hand (see packages/llm/README.md), never during an analysis.
+  ollama:
+    profiles: ['llm']
+    image: ollama/ollama:0.40.17
+    restart: unless-stopped
+    <<: *hardened
+    environment:
+      <<: *telemetry-off
+      OLLAMA_HOST: 0.0.0.0:11434
+      OLLAMA_KEEP_ALIVE: 30m
+      OLLAMA_CONTEXT_LENGTH: '8192'
+    volumes:
+      - ollama-models:/root/.ollama
+    ports:
+      - '127.0.0.1:${OLLAMA_PORT:-11434}:11434'
+    healthcheck:
+      # The image ships no curl.
+      test: ['CMD', 'ollama', 'list']
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+
+  # Alternative swap target: llama.cpp server (OpenAI-compatible at /v1, json_schema output). It has no telemetry.
+  # Needs a GGUF file in ./data/models (git-ignored): LLAMACPP_MODEL_FILE names it, LLAMACPP_ALIAS is the model id.
+  llamacpp:
+    profiles: ['llm-llamacpp']
+    image: ghcr.io/ggml-org/llama.cpp:server-b12602
+    restart: unless-stopped
+    <<: *hardened
+    environment:
+      <<: *telemetry-off
+    command:
+      [
+        '-m',
+        '/models/${LLAMACPP_MODEL_FILE:-model.gguf}',
+        '--host',
+        '0.0.0.0',
+        '--port',
+        '8080',
+        '--alias',
+        '${LLAMACPP_ALIAS:-bielik-11b-v3}',
+        '--jinja',
+        '-c',
+        '8192',
+      ]
+    volumes:
+      - ./data/models:/models:ro
+    ports:
+      - '127.0.0.1:${LLAMACPP_PORT:-8081}:8080'
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:8080/health']
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  # --- Sandbox chains for the demo (profile "sandbox") -------------------------------------------------------
+  # Demo wallets and transactions exist only in these local networks; nothing is ever sent to a public chain.
+
+  # Bitcoin regtest node + electrs + Esplora REST API (same API shape as the public Esplora/mempool.space).
+  esplora-regtest:
+    profiles: ['sandbox']
+    image: blockstream/esplora:v3.0.1
+    command: ['bash', '-c', '/srv/explorer/run.sh bitcoin-regtest explorer']
+    security_opt: ['no-new-privileges:true']
+    environment:
+      <<: *telemetry-off
+    volumes:
+      - esplora-regtest-data:/data
+    ports:
+      - '127.0.0.1:${SANDBOX_ESPLORA_PORT:-8094}:80'
+
+  # Local EVM chain (chain id 1 so persona addresses attribute to Ethereum); state persisted for reproducible demos.
+  anvil:
+    profiles: ['sandbox']
+    image: ghcr.io/foundry-rs/foundry:v1.10.0
+    command: ['anvil --host 0.0.0.0 --chain-id 1 --state /data/anvil-state.json']
+    security_opt: ['no-new-privileges:true']
+    environment:
+      <<: *telemetry-off
+    volumes:
+      - anvil-data:/data
+    ports:
+      - '127.0.0.1:${SANDBOX_ANVIL_PORT:-8545}:8545'
+
+volumes:
+  postgres-data:
+  ollama-models:
+  esplora-regtest-data:
+  anvil-data:
+  # Demo signing identity of osint-py (private key; never in the repository or an image).
+  signing-keys:

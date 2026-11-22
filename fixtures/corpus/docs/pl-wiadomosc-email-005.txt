@@ -1,0 +1,16 @@
+DANE SYNTETYCZNE — SYNTHETIC TEST DATA. Fikcyjne dane testowe OŁCyŚ.
+Od: fikcyjny_ola_42
+Temat: Faktura 199490 — płatność
+
+Dzień dobry,
+proszę o przelew 1,0895 BTC na adres (podzielony dla czytelności):
+bc1qdpgpkx9su4
+ppru2mhv49s96s
+da6zanuzcatdv6
+albo USDT (TRC20):
+TMgsMFppPFVg
+K2Sn31s1zrQ
+YY4THgGYZHr
+
+Poprzednia płatność: 77b5b3f033f4e581dda681c1e3173f2877517d0349647408500b72d824081ddc
+Pozdrawiam

@@ -1,0 +1,11 @@
+DANE SYNTETYCZNE — SYNTHETIC TEST DATA. Fikcyjne dane testowe OŁCyŚ.
+Notatki — portfele (2026-02-13)
+
+Mój portfel BTC: BC1PSN0F4XX9SCFMEPWHDH5RZSAA4VV2LSDUU8TV404DRHEH3R0SKU5SNMRVFZ
+Mój adres ETH (ERC20): 0xD0E58E49512A7388A17BE88192d55b9cbeD2F914
+
+Podejrzany adres z czatu: hxxps://blockchair[.]com/bitcoin/address/1MsR7wk8NkPhg2QDfidnpkNFsqkm4yxxe
+
+
+
+Stary portfel — klucz prywatny: {{SECRET:hex64_private_key_context:1}}

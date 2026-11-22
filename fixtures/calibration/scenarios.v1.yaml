@@ -1,0 +1,83 @@
+# Calibration scenarios (synthetic generator assumptions, NOT measurements of the real world).
+# Each scenario is a class of claims with a known truth: `label` is the probability that the claim is a true
+# ownership link (0 or 1 = fixed), `p` the probability that a feature is present, `weight` the share of the claims.
+# Ownership label: an exchange deposit is not a link to a privately held address (label 0), so the engine's gate
+# (score 0) is the correct answer. Third-party attributions are not assessed and never generated.
+version: scenarios.v1
+scenarios:
+  - id: owner_anchor_signed_post
+    label: 1
+    weight: 0.12
+    relation: SELF_DECLARED
+    anchor: true
+    address:
+      - { feature: e1_cryptographic_binding, p: 0.6, grade: A }
+      - { feature: e2_self_assertion, p: 0.7, grade: B }
+      - { feature: e3_ownership_cue, p: 0.4, grade: C }
+      - { feature: onchain_consistency, p: 0.3, grade: A }
+  - id: same_nick_profile_link_wallet_post
+    label: 0.5
+    weight: 0.14
+    relation: SELF_DECLARED
+    anchor: false
+    identity:
+      - { feature: profile_link_to_anchor, p: 1, grade: B }
+      - { feature: exact_username_or_name, p: 1, grade: A }
+    address:
+      - { feature: e3_ownership_cue, p: 1, grade: C }
+  - id: same_nick_stranger_with_proof
+    label: 0
+    weight: 0.1
+    relation: SELF_DECLARED
+    anchor: false
+    identity:
+      - { feature: exact_username_or_name, p: 1, grade: A }
+    address:
+      - { feature: e1_cryptographic_binding, p: 1, grade: A }
+  - id: quoted_address_of_another_author
+    label: 0
+    weight: 0.12
+    relation: MENTION_UNCLEAR
+    anchor: false
+    identity:
+      - { feature: exact_username_or_name, p: 0.6, grade: A }
+    address:
+      - { feature: quoted_or_reposted, p: 1, grade: A }
+      - { feature: e3_bare_mention, p: 0.7, grade: C }
+  - id: listing_or_documentation_mention
+    label: 0
+    weight: 0.12
+    relation: MENTION_UNCLEAR
+    anchor: false
+    identity:
+      - { feature: exact_username_or_name, p: 0.5, grade: A }
+    address:
+      - { feature: e3_bare_mention, p: 1, grade: C }
+      - { feature: listing_code_or_docs, p: 1, grade: A }
+  - id: donation_footer_of_subject
+    label: 1
+    weight: 0.1
+    relation: PAYMENT_ENDPOINT
+    anchor: false
+    identity:
+      - { feature: profile_link_to_anchor, p: 0.8, grade: B }
+      - { feature: exact_username_or_name, p: 1, grade: A }
+    address:
+      - { feature: e3_ownership_cue, p: 1, grade: C }
+      - { feature: second_independent_origin, p: 0.3 }
+  - id: exchange_deposit_mention
+    label: 0
+    weight: 0.1
+    relation: CUSTODIAL_EXCHANGE
+    anchor: true
+    address:
+      - { feature: e3_ownership_cue, p: 1, grade: C }
+  # One post mirrored on four sites: the copies share one origin group, so the engine counts them once. Label rate
+  # 0.56 is the probability the engine assigns to one ownership cue under an anchored identity (≈ 0.559).
+  - id: mirrored_duplicates
+    label: 0.56
+    weight: 0.2
+    relation: SELF_DECLARED
+    anchor: true
+    address:
+      - { feature: e3_ownership_cue, p: 1, grade: C, originGroups: 1, copies: 4 }

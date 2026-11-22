@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SYNTHETIC TEST DATA (OŁCyŚ fixture): persona pages of variant v1 for the mock search; locations relative to this file. -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>bitcointalk/index.php?action=profile;u=900001</loc></url>
+  <url><loc>bitcointalk/index.php?action=profile;u=900001;sa=showPosts</loc></url>
+  <url><loc>bitcointalk/index.php?topic=5500001.0</loc></url>
+  <url><loc>bitcointalk/index.php?topic=5500002.0</loc></url>
+  <url><loc>wykop/ludzie/fikcyjny_kacper/</loc></url>
+  <url><loc>tablica/ogloszenie/81000001/</loc></url>
+  <url><loc>github/fikcyjny-kacper/</loc></url>
+  <url><loc>github/fikcyjny-kacper/gas-tracker-cli/</loc></url>
+  <url><loc>github-raw/fikcyjny-kacper/gas-tracker-cli/HEAD/FUNDING.json</loc></url>
+  <url><loc>telegram/s/olcys_test_ostrzezenia/</loc></url>
+</urlset>

@@ -1,0 +1,19 @@
+<!--
+title: Ogłoszenie P2P — sprzedam USDT za PLN, własny portfel TRC20
+renders: 12
+slots:
+  own: { pool: tron, role: first_person_owner }
+  ref: { neg: [uuid, base58_random] }
+-->
+<!doctype html>
+<html lang="pl">
+<head><meta charset="utf-8"><title>Sprzedam USDT za PLN</title></head>
+<body>
+{{BANNER}}
+<article class="ogloszenie">
+<p>Sprzedam USDT za PLN, kurs {{KWOTA}} zł. Szybko i bez prowizji, rozliczenie BLIK albo przelewem.</p>
+<p>Mój portfel TRC20: {{ADDR:own}}</p>
+<p>Numer oferty w serwisie: {{NEG:ref}}</p>
+</article>
+</body>
+</html>

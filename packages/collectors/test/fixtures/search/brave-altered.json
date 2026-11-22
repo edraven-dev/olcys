@@ -1,0 +1,16 @@
+{
+  "_synthetic": "SYNTHETIC TEST DATA: hand-written in the documented Brave web search response shape",
+  "type": "search",
+  "query": { "original": "\"Kacpr Fikcyjny\"", "altered": "\"Kacper Fikcyjny\"", "show_strict_warning": false },
+  "web": {
+    "type": "search",
+    "results": [
+      {
+        "type": "search_result",
+        "title": "Kacper Fikcyjny — profil testowy",
+        "url": "https://example.org/profil/fikcyjny_kacper",
+        "description": "Wynik dla poprawionego zapytania."
+      }
+    ]
+  }
+}

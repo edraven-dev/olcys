@@ -1,0 +1,55 @@
+/* SYNTHETIC TEST DATA — OŁCyŚ fixture site. Plain styles; no remote fonts or assets. */
+body {
+  margin: 0;
+  font: 13px/1.4 verdana, sans-serif;
+  color: #000;
+  background: #e5e5e8;
+}
+.olcys-synthetic {
+  padding: 6px 12px;
+  font-weight: bold;
+  color: #5b0000;
+  background: #ffe9a8;
+  border-bottom: 2px solid #c08a00;
+}
+#bodyarea,
+main {
+  max-width: 980px;
+  margin: 12px auto;
+  padding: 0 12px;
+}
+.bordercolor,
+.tborder {
+  background: #c7c7d1;
+}
+.titlebg,
+.titlebg2 {
+  color: #fff;
+  background: #5b7bb1;
+}
+.windowbg {
+  background: #f0f0f0;
+}
+.windowbg2 {
+  background: #f8f8f8;
+}
+.smalltext {
+  font-size: 11px;
+}
+.code {
+  padding: 4px;
+  font-family: monospace;
+  background: #fff;
+  border: 1px solid #aaa;
+  overflow-x: auto;
+}
+.quote {
+  padding: 4px;
+  background: #eef;
+  border: 1px solid #aab;
+}
+.signature {
+  margin-top: 6px;
+  font-size: 11px;
+  border-top: 1px solid #aaa;
+}

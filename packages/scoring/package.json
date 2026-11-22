@@ -1,0 +1,23 @@
+{
+  "name": "@olcys/scoring",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Two-hop likelihood-ratio Confidence Score with explainable per-feature contributions.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "calibrate": "node scripts/calibrate.ts"
+  },
+  "dependencies": {
+    "@noble/curves": "2.4.0",
+    "@noble/hashes": "2.4.0",
+    "@olcys/core": "workspace:*",
+    "@scure/base": "2.4.0",
+    "yaml": "2.9.1"
+  },
+  "devDependencies": {
+    "@olcys/address-extractor": "workspace:*"
+  }
+}

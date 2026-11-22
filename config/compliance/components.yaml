@@ -1,0 +1,269 @@
+# Reviewed facts about the direct components (Polish purposes are rendered into docs/compliance/licenses.md by
+# `pnpm licenses:docs`). A direct npm dependency without a purpose, a Python package without a licence, or a container
+# image missing here makes the compliance checks fail. Licences of npm packages come from the installed packages.
+
+# Direct npm dependencies: package name -> purpose (pl).
+npm:
+  '@noble/curves': 'podpisy secp256k1 i weryfikacja BIP-137; generator danych syntetycznych'
+  '@noble/hashes': 'SHA-256, RIPEMD-160 i Keccak-256 (sumy kontrolne adresów, BIP-137, skrót wag); generator danych'
+  '@playwright/test': 'testy akceptacyjne E2E i nagranie filmu demonstracyjnego (lokalny Chromium, bez pobierania przeglądarek)'
+  '@safe-global/safe-deployments': 'adresy singletonów Safe (klasyfikacja typu adresu)'
+  '@scure/base': 'bech32/bech32m, base58check i base64 (adresy, BIP-137); generator danych'
+  '@scure/bip39': 'listy słów BIP-39 do wykrywania i maskowania fraz seed'
+  '@types/big.js': 'typy biblioteki big.js'
+  '@types/node': 'typy Node.js'
+  '@types/pg': 'typy sterownika PostgreSQL'
+  '@types/react': 'typy interfejsu (React)'
+  '@types/react-dom': 'typy interfejsu (React DOM)'
+  '@vitejs/plugin-react': 'wtyczka Vite do budowania interfejsu'
+  asn1js: 'kodowanie i dekodowanie ASN.1/DER (żądania i odpowiedzi znacznika czasu RFC 3161)'
+  big.js: 'dokładna arytmetyka dziesiętna (kwoty, PLN)'
+  cron-parser: 'wyrażenia cron harmonogramu analiz (UTC)'
+  cytoscape: 'graf powiązań (używany bezpośrednio, bez nakładki React; układy wbudowane)'
+  entities: 'dekodowanie encji HTML przy normalizacji'
+  fastify: 'API HTTP'
+  happy-dom: 'środowisko DOM w testach komponentów (tylko testy)'
+  kysely: 'typowany konstruktor zapytań SQL'
+  license-checker-rseidelsohn: 'kontrola licencji zależności npm'
+  linkedom: 'parsowanie HTML zebranych stron (DOM bez przeglądarki)'
+  oxfmt: 'formatowanie kodu'
+  oxlint: 'lint'
+  pkijs: 'struktury PKI/CMS: budowa i weryfikacja znaczników czasu RFC 3161 (podpis, łańcuch certyfikatów)'
+  parse5: 'parser HTML z pozycjami w źródle (widoki tekstu)'
+  pg: 'sterownik PostgreSQL (node-postgres)'
+  react: 'interfejs użytkownika'
+  react-dom: 'interfejs użytkownika (renderowanie w przeglądarce)'
+  typescript: 'kontrola typów (tsc, tylko noEmit)'
+  vite: 'budowanie i serwer deweloperski interfejsu'
+  vitest: 'testy'
+  yaml: 'odczyt plików konfiguracyjnych YAML (rejestr źródeł, reguły, wagi, dostawcy danych łańcuchowych)'
+  zod: 'walidacja danych wejściowych i konfiguracji'
+
+# Python packages of services/osint-py: normalised name -> reviewed SPDX licence + purpose (pl).
+python:
+  about-time:
+    licence: MIT
+    purpose: 'zależność alive-progress (Maigret); pasek postępu jest wyłączony'
+  aiodns:
+    licence: MIT
+    purpose: 'asynchroniczny resolver DNS wymagany przez Maigret (usługa używa resolvera systemowego)'
+  aiohappyeyeballs:
+    licence: PSF-2.0
+    purpose: 'zależność aiohttp (łączenie z hostami IPv4/IPv6)'
+  aiohttp:
+    licence: Apache-2.0 AND MIT
+    purpose: 'klient HTTP strażnika sieciowego usługi (jedyna ścieżka ruchu wychodzącego osint-py) i zależność Maigret'
+  aiosignal:
+    licence: Apache-2.0
+    purpose: 'zależność aiohttp'
+  alive-progress:
+    licence: MIT
+    purpose: 'zależność Maigret (pasek postępu, wyłączony)'
+  annotated-doc:
+    licence: MIT
+    purpose: 'zależność FastAPI (dokumentowanie typów)'
+  annotated-types:
+    licence: MIT
+    purpose: 'zależność pydantic'
+  anyio:
+    licence: MIT
+    purpose: 'zależność Starlette (asynchroniczność serwera)'
+  asn1crypto:
+    licence: MIT
+    purpose: 'zależność pyHanko (kodowanie ASN.1/DER podpisów PAdES)'
+  attrs:
+    licence: MIT
+    purpose: 'zależność aiohttp'
+  beautifulsoup4:
+    licence: MIT
+    purpose: 'zależność socid-extractor (parsowanie stron profili)'
+  certifi:
+    licence: MPL-2.0
+    purpose: 'zbiór certyfikatów głównych CA (weryfikacja TLS; używany bez zmian)'
+  cffi:
+    licence: MIT-0
+    purpose: 'zależność pycares (aiodns)'
+  charset-normalizer:
+    licence: MIT
+    purpose: 'zależność requests'
+  click:
+    licence: BSD-3-Clause
+    purpose: 'zależność uvicorn'
+  colorama:
+    licence: BSD-3-Clause
+    purpose: 'zależność Maigret (kolory w konsoli, nieużywane)'
+  cryptography:
+    licence: Apache-2.0 OR BSD-3-Clause
+    purpose: 'zależność pyHanko; klucz i certyfikat demonstracyjny, testowe urzędy certyfikacji'
+  fastapi:
+    licence: MIT
+    purpose: 'API serwisu osint-py'
+  frozenlist:
+    licence: Apache-2.0
+    purpose: 'zależność aiohttp'
+  graphemeu:
+    licence: MIT
+    purpose: 'zależność alive-progress'
+  h11:
+    licence: MIT
+    purpose: 'zależność uvicorn i httpcore'
+  html5lib:
+    licence: MIT
+    purpose: 'zależność Maigret (parser HTML)'
+  httpcore:
+    licence: BSD-3-Clause
+    purpose: 'zależność httpx (tylko testy)'
+  httpx:
+    licence: BSD-3-Clause
+    purpose: 'klient testowy API (TestClient; tylko testy, grupa dev)'
+  idna:
+    licence: BSD-3-Clause
+    purpose: 'zależność requests, httpx i aiohttp'
+  iniconfig:
+    licence: MIT
+    purpose: 'zależność pytest'
+  jinja2:
+    licence: BSD-3-Clause
+    purpose: 'zależność Maigret (szablony raportów, nieużywane)'
+  lxml:
+    licence: BSD-3-Clause
+    purpose: 'parser HTML/XML używany przez socid-extractor i Maigret'
+  maigret:
+    licence: MIT
+    purpose: 'wyszukiwanie nazwy użytkownika w serwisach publicznych (jako biblioteka, z przypiętą bazą serwisów; bez proxy, Tor i obchodzenia zabezpieczeń)'
+  markupsafe:
+    licence: BSD-3-Clause
+    purpose: 'zależność jinja2'
+  multidict:
+    licence: Apache-2.0
+    purpose: 'zależność aiohttp i yarl'
+  opentelemetry-api:
+    licence: Apache-2.0
+    purpose: 'zależność FastAPI: wyłącznie interfejs (bez SDK i eksportera), nic nie opuszcza usługi'
+  oscrypto:
+    licence: MIT
+    purpose: 'zależność pyhanko-certvalidator (operacje kryptograficzne)'
+  packaging:
+    licence: Apache-2.0 OR BSD-2-Clause
+    purpose: 'zależność pytest'
+  platformdirs:
+    licence: MIT
+    purpose: 'zależność Maigret (ścieżki konfiguracji, nieużywane)'
+  pluggy:
+    licence: MIT
+    purpose: 'zależność pytest'
+  propcache:
+    licence: Apache-2.0
+    purpose: 'zależność aiohttp i yarl'
+  pycares:
+    licence: MIT
+    purpose: 'zależność aiodns'
+  pycparser:
+    licence: BSD-3-Clause
+    purpose: 'zależność cffi'
+  pydantic:
+    licence: MIT
+    purpose: 'modele i schematy żądań oraz odpowiedzi API'
+  pydantic-core:
+    licence: MIT
+    purpose: 'rdzeń pydantic'
+  pygments:
+    licence: BSD-2-Clause
+    purpose: 'zależność pytest (kolorowanie wyników)'
+  pyhanko:
+    licence: MIT
+    purpose: 'podpis PDF w formacie PAdES (podpis przerwany: przygotowanie, znacznik czasu z Node, dokończenie); usługa nie łączy się z siecią'
+  pyhanko-certvalidator:
+    licence: MIT
+    purpose: 'zależność pyHanko (budowa i walidacja ścieżki certyfikacji)'
+  pytest:
+    licence: MIT
+    purpose: 'testy usługi (tylko grupa dev)'
+  pytest-asyncio:
+    licence: Apache-2.0
+    purpose: 'testy asynchroniczne (tylko grupa dev)'
+  pytest-socket:
+    licence: MIT
+    purpose: 'blokada sieci w testach: tylko 127.0.0.1 (tylko grupa dev)'
+  python-dateutil:
+    licence: Apache-2.0 OR BSD-3-Clause
+    purpose: 'zależność Maigret (daty)'
+  requests:
+    licence: Apache-2.0
+    purpose: 'zależność Maigret i socid-extractor; usługa nie wykonuje nim żadnych zapytań'
+  ruff:
+    licence: MIT
+    purpose: 'lint i formatowanie kodu Pythona (tylko grupa dev)'
+  six:
+    licence: MIT
+    purpose: 'zależność python-dateutil i html5lib'
+  socid-extractor:
+    licence: MIT
+    purpose: 'wyciąganie identyfikatorów i odnośników ze zrzutów stron profili (bez sieci i bez trybu AI)'
+  soupsieve:
+    licence: MIT
+    purpose: 'zależność beautifulsoup4'
+  starlette:
+    licence: BSD-3-Clause
+    purpose: 'zależność FastAPI'
+  typing-extensions:
+    licence: PSF-2.0
+    purpose: 'zależność pydantic, FastAPI i innych'
+  typing-inspection:
+    licence: MIT
+    purpose: 'zależność pydantic'
+  tzdata:
+    licence: Apache-2.0
+    purpose: 'dane stref czasowych (zależność Maigret)'
+  tzlocal:
+    licence: MIT
+    purpose: 'zależność pyHanko (strefy czasowe)'
+  uritools:
+    licence: MIT
+    purpose: 'zależność pyhanko-certvalidator (adresy URI)'
+  urllib3:
+    licence: MIT
+    purpose: 'zależność requests'
+  uvicorn:
+    licence: BSD-3-Clause
+    purpose: 'serwer ASGI serwisu osint-py'
+  webencodings:
+    licence: BSD-3-Clause
+    purpose: 'zależność html5lib'
+  xmind:
+    licence: MIT
+    purpose: 'zależność Maigret (eksport raportu XMind, nieużywany)'
+  yarl:
+    licence: Apache-2.0
+    purpose: 'zależność aiohttp'
+
+# Container images (compose.yml `image:` and Dockerfile `FROM`): repository path without tag -> licence, purpose (pl).
+# `separateService: true` is required for copyleft (separateServiceOnly) licences: only unmodified, standalone services.
+images:
+  postgres:
+    licence: PostgreSQL
+    purpose: 'baza danych'
+  gotenberg/gotenberg:
+    licence: MIT
+    purpose: 'HTML → PDF/A (raporty)'
+  node:
+    licence: MIT
+    purpose: 'środowisko uruchomieniowe serwisu strony testowej (fixture-site)'
+  ollama/ollama:
+    licence: MIT
+    purpose: 'lokalne środowisko modeli z API zgodnym z OpenAI (opcjonalne, profil llm)'
+  ghcr.io/ggml-org/llama.cpp:
+    licence: MIT
+    purpose: 'lokalny serwer modeli llama.cpp z API zgodnym z OpenAI (opcjonalny, profil llm-llamacpp)'
+  blockstream/esplora:
+    licence: MIT
+    purpose: 'lokalny węzeł Bitcoin regtest z API Esplora (profil sandbox, dane demonstracyjne)'
+  ghcr.io/foundry-rs/foundry:
+    licence: MIT OR Apache-2.0
+    purpose: 'lokalna sieć EVM (anvil; profil sandbox, dane demonstracyjne)'
+  python:
+    licence: PSF-2.0
+    purpose: 'środowisko serwisu OSINT (osint-py)'
+  ghcr.io/astral-sh/uv:
+    licence: MIT OR Apache-2.0
+    purpose: 'zarządzanie zależnościami Pythona (etap budowania obrazu osint-py)'

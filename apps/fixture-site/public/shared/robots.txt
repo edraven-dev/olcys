@@ -1,0 +1,8 @@
+# OŁCyŚ synthetic fixture site (SYNTHETIC TEST DATA). /private/ tests robots.txt handling; /wayback/web/ (synthetic archive replay, web.archive.org) is allowed.
+User-agent: OLCYS
+Disallow: /private/
+Allow: /wayback/web/
+
+User-agent: *
+Disallow: /private/
+Allow: /wayback/web/

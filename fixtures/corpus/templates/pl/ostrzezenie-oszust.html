@@ -1,0 +1,20 @@
+<!--
+title: Ostrzeżenia przed oszustami podającymi adresy USDT TRC20 i adresy w sieciach EVM
+renders: 8
+slots:
+  scam: { pool: tron, role: scam_report }
+  second: { pool: evm, role: scam_report, chain: net }
+-->
+<!doctype html>
+<html lang="pl">
+<head><meta charset="utf-8"><title>Uwaga na oszustów z grup sprzedażowych</title></head>
+<body>
+{{BANNER}}
+<h1>Uwaga! Oszuści na grupach sprzedażowych</h1>
+{{#ROWS:1-2}}<article>
+<p>Od tygodnia {{NICK}} „sprzedaje” konsole po okazyjnej cenie. Oszust podaje adres USDT TRC20: {{ADDR:scam}}.
+Zgłaszam sprawę na policję, nie dajcie się nabrać.</p>
+<p>Ten sam oszust używa też adresu {{NET:second}}: {{ADDR:second}}</p>
+</article>
+{{/ROWS}}</body>
+</html>

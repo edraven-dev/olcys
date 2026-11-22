@@ -1,0 +1,24 @@
+{
+  "_synthetic": "SYNTHETIC TEST DATA (OŁCyŚ fixture)",
+  "data": [
+    {
+      "transaction_id": "4df467883f91976fc81e05e2d397f164a9a72e04bf8c8ba0e451219a716974b0",
+      "token_info": {
+        "symbol": "USDT",
+        "address": "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
+        "decimals": 6,
+        "name": "Tether USD"
+      },
+      "block_timestamp": 1787227200000,
+      "from": "TD9bJtoDriXK66gCw6zCkQyXptz9VvMjB3",
+      "to": "TMVZLbhMuEYfsXYUzwWSarLmLPWJUmVPVk",
+      "type": "Transfer",
+      "value": "5000000000"
+    }
+  ],
+  "success": true,
+  "meta": {
+    "at": 1795219200000,
+    "page_size": 1
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "_synthetic": "SYNTHETIC TEST DATA (OŁCyŚ fixture)",
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "blockhash": "2Yy6Xij4B6WHXRdvEheUTULdcR7TtzfZQ2DLxbtM2pKF",
+    "blockHeight": 379999900,
+    "blockTime": 1792497600
+  }
+}

@@ -1,0 +1,65 @@
+{
+  "version": "maigret-policy.v1",
+  "tagsAllowed": ["crypto", "finance", "pl", "social", "coding", "messaging"],
+  "tagsDenied": [
+    "dating",
+    "porn",
+    "erotic",
+    "webcam",
+    "medicine",
+    "psychology",
+    "hacking",
+    "cybercriminal",
+    "religion",
+    "esoteric",
+    "firearms",
+    "parenting",
+    "gambling",
+    "torrent",
+    "military",
+    "tor",
+    "i2p"
+  ],
+  "excludedSites": ["Twitter", "X"],
+  "deniedHostSuffixes": [
+    "x.com",
+    "twitter.com",
+    "reddit.com",
+    "redd.it",
+    "discord.com",
+    "discord.gg",
+    "discordapp.com",
+    "youtube.com",
+    "youtu.be",
+    "youtube.googleapis.com",
+    "facebook.com",
+    "fb.com",
+    "instagram.com",
+    "threads.net",
+    "linkedin.com",
+    "linktr.ee",
+    "allegro.pl",
+    "allegrolokalnie.pl",
+    "olx.pl",
+    "gravatar.com"
+  ],
+  "limits": {
+    "requestsPerSecond": 4,
+    "hostIntervalSeconds": 1,
+    "connections": 4,
+    "maxRedirects": 5,
+    "maxBodyBytes": 1048576,
+    "maxResponseBytes": 16777216
+  },
+  "upstreamDatabase": {
+    "id": "maigret-0.6.6",
+    "sha256": "ef6ca66efa174209c10205ff86f7e975b591128681710639fdc786ff05e662da"
+  },
+  "fixtureHostPrefixes": {
+    "wykop.pl": "/wykop",
+    "github.com": "/github",
+    "t.me": "/telegram",
+    "keybase.io": "/keybase",
+    "archiwum.example": "/private/archiwum"
+  }
+}

@@ -1,0 +1,17 @@
+<!--
+title: English paste dump (TXT) with mixed identifiers, two addresses and a leaked mnemonic
+renders: 10
+slots:
+  a: { pool: any, role: none }
+  b: { pool: any, role: none }
+  n1: { neg: [jwt_like, token_generic, base64url_48, uuid] }
+  n2: { neg: [md5, sha1, git_sha, ipfs_cid_v0, ipfs_cid_v1, eth_filename] }
+-->
+{{BANNER}}
+dump {{DATE}} {{TIME}}
+session: {{NEG:n1}}
+build: {{NEG:n2}}
+wallet_a = {{ADDR:a}}
+wallet_b = {{ADDR:b}}
+
+words: {{SECRET:seed_phrase:1}}

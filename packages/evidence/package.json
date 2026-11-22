@@ -1,0 +1,15 @@
+{
+  "name": "@olcys/evidence",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Content-addressed blob store, SHA-256 manifests, Berkeley Protocol capture records, RFC 3161 timestamps and run-to-run diffing.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@olcys/core": "workspace:*",
+    "asn1js": "4.1.0",
+    "pkijs": "4.0.1"
+  }
+}

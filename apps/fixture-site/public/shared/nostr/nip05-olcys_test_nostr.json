@@ -1,0 +1,11 @@
+{
+  "_synthetic": "SYNTHETIC TEST DATA (OŁCyŚ fixture)",
+  "names": {
+    "olcys_test_nostr": "ad6b625ace92cdc21ba2b4ac03e2468f45211570370c991955ab2b6c46ee46d0"
+  },
+  "relays": {
+    "ad6b625ace92cdc21ba2b4ac03e2468f45211570370c991955ab2b6c46ee46d0": [
+      "wss://relay.example.org"
+    ]
+  }
+}

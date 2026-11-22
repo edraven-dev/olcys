@@ -1,0 +1,29 @@
+{
+  "_synthetic": "SYNTHETIC TEST DATA (OŁCyŚ fixture)",
+  "status": "1",
+  "message": "OK",
+  "result": [
+    {
+      "blockNumber": "26417725",
+      "timeStamp": "1793703900",
+      "hash": "0x7220ca292ebdc382dbc0b9c0de2f12b816aec775f6d1321055435a0f494d20db",
+      "nonce": "0",
+      "blockHash": "0xfae8fa37efa306cde3fb024fb60c5d4f729735c578a204219ff9d8cf85281096",
+      "transactionIndex": "45",
+      "from": "0x8343ead0868158616567a6d63e4a16aceb67b88f",
+      "to": "0x473082f9bd1a611ab783ce9fe814d97b4a8f02b4",
+      "value": "800000000000000000",
+      "gas": "21000",
+      "gasPrice": "20000000000",
+      "isError": "0",
+      "txreceipt_status": "1",
+      "input": "0x",
+      "contractAddress": "",
+      "cumulativeGasUsed": "1105000",
+      "gasUsed": "21000",
+      "confirmations": "126276",
+      "methodId": "0x",
+      "functionName": ""
+    }
+  ]
+}

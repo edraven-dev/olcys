@@ -1,0 +1,19 @@
+<!--
+title: Historia zmian repozytorium z pełnymi skrótami commitów
+renders: 6
+slots:
+  sha: { neg: [git_sha, sha1] }
+-->
+<!doctype html>
+<html lang="pl">
+<head><meta charset="utf-8"><title>Historia zmian — biblioteka testowa</title></head>
+<body>
+{{BANNER}}
+<main>
+<h1>Historia zmian</h1>
+<ul>
+{{#ROWS:4-12}}<li><code>{{NEG:sha}}</code> — poprawka nr {{N}} ({{DATE}})</li>
+{{/ROWS}}</ul>
+</main>
+</body>
+</html>

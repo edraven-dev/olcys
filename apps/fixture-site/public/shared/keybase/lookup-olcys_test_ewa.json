@@ -1,0 +1,56 @@
+{
+  "_synthetic": "SYNTHETIC TEST DATA (OŁCyŚ fixture)",
+  "status": {
+    "code": 0,
+    "name": "OK"
+  },
+  "them": [
+    {
+      "id": "fae6e17244aaed1f37cb19a00a146019",
+      "basics": {
+        "username": "olcys_test_ewa",
+        "ctime": 1388534400,
+        "mtime": 1577836800
+      },
+      "profile": {
+        "full_name": "Ewa Fikcyjna (SYNTHETIC)",
+        "location": "Testowo",
+        "bio": "Syntetyczne konto testowe OŁCyŚ."
+      },
+      "proofs_summary": {
+        "all": [
+          {
+            "proof_type": "github",
+            "nametag": "olcys-test-ewa",
+            "state": 1,
+            "sig_id": "012014f15cf4c864b2ad21ef150999bbb204e523a673879138a19a4153d880528ba20a",
+            "service_url": "https://github.com/olcys-test-ewa",
+            "proof_url": "https://gist.github.com/olcys-test-ewa/0000000000000000000000000000test1"
+          },
+          {
+            "proof_type": "twitter",
+            "nametag": "olcys_test_ewa",
+            "state": 2,
+            "sig_id": "0120ab37ec9a47a15416d16614e39340b60ae10759fe5adf17d5e3c217f581564d8e0a",
+            "service_url": "https://x.com/olcys_test_ewa",
+            "proof_url": "https://x.com/olcys_test_ewa/status/1000000000000000001"
+          }
+        ]
+      },
+      "cryptocurrency_addresses": {
+        "bitcoin": [
+          {
+            "address": "bc1q0yd6lqvghmx2uuv0qlztcre8gjsrg8mmansfj2",
+            "sig_id": "012032bf13321181b021638da6e6f5bb1bd75fb20d71bbe435730b9ce585cc9eac320a"
+          }
+        ],
+        "zcash": [
+          {
+            "address": "t1SYNTHETICzcashTESTaddr0000000000",
+            "sig_id": "01202aecda48ac8be5400ca513662799eeca81963204bb9f4f1c4d79daf8aecca7320a"
+          }
+        ]
+      }
+    }
+  ]
+}

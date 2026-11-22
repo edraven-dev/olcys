@@ -1,0 +1,355 @@
+/**
+ * Repository ports. The pipeline and the API depend only on these interfaces; the SQL implementations live in
+ * `@olcys/db` (`createSqlRepositories`) and are wired in the composition root. Evidence repositories are
+ * append-only: they add and read, never update or delete.
+ */
+import type { ActivityIndicators, CashOutEvent, FlowEdge } from './analytics.ts';
+import type { AnalysisRun, Case, CaseSchedule, Identifier } from './case.ts';
+import type { ChangeEvent } from './changes.ts';
+import type { NormalizedTransfer } from './chain-data.ts';
+import type { AddressRef } from './chains.ts';
+import type { AccessLogRepository } from './access-log.ts';
+import type { AddressCluster } from './clusters.ts';
+import type { Id, IsoDateTime } from './common.ts';
+import type {
+  Capture,
+  CustodyEvent,
+  Observation,
+  OnlineAccount,
+  TimestampSubject,
+  TimestampToken,
+} from './evidence.ts';
+import type { LlmCallRecord, LlmSuggestion, LlmSuggestionDecision, NewLlmSuggestion } from './llm.ts';
+import type { AddressCandidate, ExtractionResult } from './extraction.ts';
+import type { FlowQuery, FlowQueryResult, FundFlowView } from './flows.ts';
+import type { AddressLabel, AddressTypeClassification, ExclusionDecision } from './labels.ts';
+import type { EgressLogEntry, ProvenanceEnvelope } from './provenance.ts';
+import type { SourceId } from './sources.ts';
+import type { CaseScheduleChange, ScheduleTick, ScheduleTickOutcome } from './schedule.ts';
+import type { CreateCaseInput } from './schemas.ts';
+import type { AnalystJudgement, AnalystOverride, LinkAssessment } from './scoring.ts';
+
+export interface CaseWithIdentifiers extends Case {
+  identifiers: Identifier[];
+}
+
+export interface RunWithProgress extends AnalysisRun {
+  /** Per-step progress for the UI, e.g. `{ step: 'collect.source', done: 3, total: 5 }`. */
+  progress: Record<string, unknown>;
+  error?: string;
+}
+
+export interface RunPatch {
+  status?: AnalysisRun['status'];
+  progress?: Record<string, unknown>;
+  error?: string | null;
+  startedAt?: string;
+  finishedAt?: string;
+}
+
+export interface CaseRepository {
+  create(input: CreateCaseInput, createdBy: string): Promise<CaseWithIdentifiers>;
+  get(id: Id): Promise<CaseWithIdentifiers | undefined>;
+  list(): Promise<Case[]>;
+}
+
+export interface RunRepository {
+  create(run: AnalysisRun): Promise<void>;
+  /** Only lifecycle fields are mutable (status, progress, error, timestamps). */
+  update(id: Id, patch: RunPatch): Promise<void>;
+  get(id: Id): Promise<RunWithProgress | undefined>;
+  listByCase(caseId: Id): Promise<RunWithProgress[]>;
+  /** Latest `succeeded` or `partial` run of the case. */
+  latestCompleted(caseId: Id, excludeRunId?: Id): Promise<RunWithProgress | undefined>;
+}
+
+// --- scheduling ------------------------------------------------------------------------------------------------
+
+/** An open case with an enabled schedule, as the scheduler evaluates it. */
+export interface ActiveSchedule {
+  caseId: Id;
+  schedule: CaseSchedule;
+  /** When the current schedule was set (the latest change; the case's creation when no change is recorded). */
+  changedAt: IsoDateTime;
+  /** The occurrence handled by the case's latest tick. */
+  lastScheduledFor?: IsoDateTime;
+}
+
+/** What a tick decision sees, read while the case's schedule lock is held (schedule changes take the same lock). */
+export interface ScheduleTickContext {
+  case: Case;
+  /** When the current schedule was set (the latest change; the case's creation when no change is recorded). */
+  changedAt: IsoDateTime;
+  /** The latest occurrence already handled for the case. */
+  lastScheduledFor?: IsoDateTime;
+  /** Runs of the case that are `queued` or `running`. */
+  activeRunIds: Id[];
+  /** Latest `succeeded` or `partial` run of the case, any trigger. */
+  previousRunId?: Id;
+}
+
+export type ScheduleTickDecision =
+  | { outcome: Exclude<ScheduleTickOutcome, 'started'> }
+  | { outcome: 'started'; run: AnalysisRun }
+  /**
+   * Not due for the current schedule — it changed after the occurrence was picked, a later occurrence was handled, or
+   * this is not (yet) an occurrence of its cron: nothing is recorded.
+   */
+  | { outcome: 'not_due' };
+
+export type ScheduleChangeResult =
+  | { ok: true; change: CaseScheduleChange }
+  | { ok: false; error: 'case_not_found' | 'case_closed' };
+
+/** Schedules, their change log and ticks. Changes and ticks are append-only; only `cases.schedule` is replaced. */
+export interface ScheduleRepository {
+  /**
+   * Replaces the schedule of an open case and records the change (who, why, before, after) atomically, under the same
+   * per-case lock as `fire`, so a tick decision never interleaves with a change.
+   */
+  setSchedule(
+    caseId: Id,
+    schedule: CaseSchedule,
+    change: { changedBy: string; reason: string; at: IsoDateTime },
+  ): Promise<ScheduleChangeResult>;
+  /** Newest first. */
+  listChanges(caseId: Id, limit: number): Promise<CaseScheduleChange[]>;
+  /** Newest occurrence first. */
+  listTicks(caseId: Id, limit: number): Promise<ScheduleTick[]>;
+  /** Open cases with an enabled schedule. */
+  listActive(): Promise<ActiveSchedule[]>;
+  /**
+   * Handles one occurrence at most once. Serialised per case, also across processes. When `claim.jobId` already has a
+   * tick, returns it with `claimed: false` and decides nothing. Otherwise `decide` runs with the current state of the
+   * case, and its tick — with the run it starts, if any — is stored atomically (`claimed: true`). A `not_due` decision
+   * stores nothing and returns no tick.
+   */
+  fire(
+    claim: Pick<ScheduleTick, 'caseId' | 'jobId' | 'scheduledFor' | 'firedAt'>,
+    decide: (context: ScheduleTickContext) => ScheduleTickDecision,
+  ): Promise<{ tick?: ScheduleTick; claimed: boolean }>;
+}
+
+/** Collection and extraction artefacts. */
+export interface EvidenceRepository {
+  addEgressLog(entries: EgressLogEntry[]): Promise<void>;
+  addRawFetches(envelopes: ProvenanceEnvelope[]): Promise<void>;
+  /**
+   * Stores captures and, when given, their custody events in ONE transaction (both or neither), so a capture never
+   * exists without its `collected` event. Needs a store that keeps custody events (`Repositories.custody`).
+   */
+  addCaptures(captures: Capture[], custodyEvents?: CustodyEvent[]): Promise<void>;
+  addAccounts(accounts: OnlineAccount[]): Promise<void>;
+  addObservations(observations: Observation[]): Promise<void>;
+  /** Stores the result, its candidates and secret positions (never secret values). */
+  addExtraction(runId: Id, result: ExtractionResult): Promise<void>;
+  /** Stores several results all or nothing: when any write fails, none of them is stored. */
+  addExtractions?(runId: Id, results: readonly ExtractionResult[]): Promise<void>;
+  listEgressLog(runId: Id): Promise<EgressLogEntry[]>;
+  listCaptures(runId: Id): Promise<Capture[]>;
+  getCapture(id: Id): Promise<Capture | undefined>;
+  listAccounts(runId: Id): Promise<OnlineAccount[]>;
+  listObservations(runId: Id): Promise<Observation[]>;
+  listExtractionResults(runId: Id): Promise<ExtractionResult[]>;
+  listCandidates(runId: Id): Promise<AddressCandidate[]>;
+}
+
+export interface ChainDataRepository {
+  /**
+   * Stores the transfers fetched for an address. `expansionHop` marks transfers of counterparties fetched by the
+   * fund-flow expansion (hop 1…N): they only serve flow queries and are not part of `listTransfers`.
+   */
+  addTransfers(
+    runId: Id,
+    address: AddressRef,
+    transfers: NormalizedTransfer[],
+    options?: { expansionHop?: number },
+  ): Promise<void>;
+  /** The transfers of the analysed addresses (expansion transfers excluded), once per run. */
+  listTransfers(runId: Id): Promise<NormalizedTransfer[]>;
+  /**
+   * Fund flows over every stored transfer of the run (analysed and expansion): time-monotonic, bounded paths with cycle
+   * detection (`traceFlows`; PostgreSQL: recursive CTE). Both `@olcys/db` implementations provide it.
+   */
+  queryFlowEdges?(runId: Id, query: FlowQuery): Promise<FlowQueryResult>;
+}
+
+/** Address types the chain analysis determined (append-only; one classification per run and address). */
+export interface AddressTypeRepository {
+  /** Stores the run's classifications; an address already classified in the run is refused. */
+  add(runId: Id, classifications: AddressTypeClassification[]): Promise<void>;
+  /** Ordered by chain, then address. */
+  list(runId: Id): Promise<AddressTypeClassification[]>;
+}
+
+/** Bitcoin co-spend clusters of the chain analysis (append-only; a heuristic result, one cluster id per run). */
+export interface ClusterRepository {
+  /** Stores the run's clusters; a cluster id already stored for the run is refused. */
+  add(runId: Id, clusters: AddressCluster[]): Promise<void>;
+  /** Ordered by id. */
+  list(runId: Id): Promise<AddressCluster[]>;
+  /**
+   * Sizes of the clusters of the case's earlier runs for these seeds (the newest earlier run with a cluster of the
+   * seed wins), for the growth factor of rule A7. `beforeRunId` excludes that run and every later one.
+   */
+  previousSizes(caseId: Id, seeds: readonly string[], beforeRunId: Id): Promise<Map<string, number>>;
+}
+
+/** Computed results of a run. */
+export interface AnalysisRepository {
+  addExclusions(decisions: ExclusionDecision[]): Promise<void>;
+  addActivity(runId: Id, indicators: ActivityIndicators[]): Promise<void>;
+  addCashOuts(events: CashOutEvent[]): Promise<void>;
+  addLinks(links: LinkAssessment[]): Promise<void>;
+  addChanges(changes: ChangeEvent[]): Promise<void>;
+  addReport(report: { runId: Id; kind: string; blobSha256: string; mediaType: string }): Promise<void>;
+  listExclusions(runId: Id): Promise<ExclusionDecision[]>;
+  listActivity(runId: Id): Promise<ActivityIndicators[]>;
+  listCashOuts(runId: Id): Promise<CashOutEvent[]>;
+  listLinks(runId: Id): Promise<LinkAssessment[]>;
+  /** One stored assessment, whatever run it belongs to. */
+  getLink?(id: Id): Promise<LinkAssessment | undefined>;
+  listChanges(runId: Id): Promise<ChangeEvent[]>;
+  latestReport(
+    runId: Id,
+    kind: string,
+  ): Promise<{ blobSha256: string; mediaType: string; createdAt: string } | undefined>;
+  /**
+   * Fund-flow edges of the run (append-only; an edge already stored for the run — same transfer and hop — is kept once).
+   * Both `@olcys/db` implementations provide the flow methods.
+   */
+  addFlows?(runId: Id, edges: FlowEdge[]): Promise<void>;
+  /** Ordered by |hop|, time, transaction hash. */
+  listFlows?(runId: Id): Promise<FlowEdge[]>;
+  /** Fund-flow views (timeline and Sankey per analysed address); a view already stored for the run and address is kept. */
+  addFlowViews?(views: FundFlowView[]): Promise<void>;
+  listFlowViews?(runId: Id): Promise<FundFlowView[]>;
+}
+
+/** Reference data (labels are not run-scoped); re-importing the same dataset row is a no-op. */
+export interface LabelRepository {
+  upsert(labels: AddressLabel[]): Promise<void>;
+  list(): Promise<AddressLabel[]>;
+}
+
+/**
+ * Analyst statements about links, recorded next to the computed assessment (append-only: added and read, never
+ * updated or deleted). Lists are ordered oldest first by (`at`, `id`).
+ */
+export interface JudgementRepository {
+  add(judgement: AnalystJudgement): Promise<void>;
+  listByLink(linkAssessmentId: Id): Promise<AnalystJudgement[]>;
+  /** Judgements on the links of one run. */
+  listByRun(runId: Id): Promise<AnalystJudgement[]>;
+}
+
+/**
+ * Analyst inputs to a case's evidence (append-only). They take effect only in a later rescore run. Lists are ordered
+ * oldest first by (`at`, `id`).
+ */
+export interface OverrideRepository {
+  add(override: AnalystOverride): Promise<void>;
+  listByCase(caseId: Id): Promise<AnalystOverride[]>;
+}
+
+/**
+ * Chain-of-custody events (append-only: added and read, never updated or deleted). Lists are ordered oldest first by
+ * (`at`, `id`).
+ */
+export interface CustodyRepository {
+  add(events: CustodyEvent[]): Promise<void>;
+  listBySubjects(subjectIds: Id[]): Promise<CustodyEvent[]>;
+}
+
+export const TIMESTAMP_REQUEST_OUTCOMES = ['queued', 'granted', 'failed', 'rejected'] as const;
+export type TimestampRequestOutcome = (typeof TIMESTAMP_REQUEST_OUTCOMES)[number];
+
+/** One attempt to obtain a time-stamp token (an immutable record: a retry is a new request). */
+export interface TimestampRequestRecord {
+  id: Id;
+  subject: TimestampSubject;
+  tsaSourceId: SourceId;
+  tsaUrl: string;
+  policyOid?: string;
+  /** Absent for a request that was queued without contacting the TSA. */
+  nonce?: string;
+  outcome: TimestampRequestOutcome;
+  reason?: string;
+  httpStatus?: number;
+  fetchId?: Id;
+  at: IsoDateTime;
+}
+
+/** A verified token of a subject digest; at most one per (subject type, subject id, digest). */
+export interface TimestampTokenRecord {
+  id: Id;
+  subject: TimestampSubject;
+  requestId: Id;
+  token: TimestampToken;
+  /** The result of every verification check, as stored with the token. */
+  verification: unknown;
+  createdAt: IsoDateTime;
+}
+
+/**
+ * Time-stamp requests and tokens (append-only). A subject is pending when its latest request is `queued` or `failed`
+ * and it has no token.
+ */
+export interface TimestampRepository {
+  /**
+   * Stores one attempt in one transaction: the request, its token (when granted) and the custody events. When the
+   * subject already has a token the new token is not stored (and no custody event is written): `tokenStored` is false.
+   */
+  record(attempt: {
+    request: TimestampRequestRecord;
+    token?: TimestampTokenRecord;
+    custody?: CustodyEvent[];
+  }): Promise<{ tokenStored: boolean }>;
+  getToken(subject: Pick<TimestampSubject, 'type' | 'id' | 'digest'>): Promise<TimestampTokenRecord | undefined>;
+  /**
+   * Latest requests of subjects without a token whose latest request is `queued` or `failed`, oldest first.
+   * `subjectIds` restricts the subjects first; `limit` (default 100) then applies to the restricted list.
+   */
+  listPending(options?: { limit?: number; subjectIds?: Id[] }): Promise<TimestampRequestRecord[]>;
+  listRequests(subjectId: Id): Promise<TimestampRequestRecord[]>;
+}
+
+/**
+ * Model calls and suggestions (append-only). A suggestion's status is derived from its one decision; a decision is
+ * recorded at most once and never changes a stored score. Lists are ordered oldest first by (`createdAt`, `id`).
+ */
+export interface LlmRepository {
+  addCall(record: LlmCallRecord): Promise<void>;
+  addSuggestions(suggestions: NewLlmSuggestion[]): Promise<void>;
+  getSuggestion(id: Id): Promise<LlmSuggestion | undefined>;
+  listSuggestionsByRun(runId: Id): Promise<LlmSuggestion[]>;
+  /** Records the decision; false when the suggestion already has one (nothing is written). */
+  decide(decision: LlmSuggestionDecision): Promise<boolean>;
+}
+
+export interface Repositories {
+  cases: CaseRepository;
+  runs: RunRepository;
+  evidence: EvidenceRepository;
+  chain: ChainDataRepository;
+  /** Address-type classifications of the chain analysis (both `@olcys/db` implementations provide it). */
+  addressTypes?: AddressTypeRepository;
+  /** Co-spend clusters of the chain analysis (both `@olcys/db` implementations provide it). */
+  clusters?: ClusterRepository;
+  analysis: AnalysisRepository;
+  labels: LabelRepository;
+  /** Periodic re-runs (both `@olcys/db` implementations provide it; `ApiMeta.features.schedules`). */
+  schedules?: ScheduleRepository;
+  /** Present when the store keeps analyst judgements (`ApiMeta.features.judgements`). */
+  judgements?: JudgementRepository;
+  /** Present when the store keeps analyst overrides. */
+  overrides?: OverrideRepository;
+  /** Present when the store keeps chain-of-custody events. */
+  custody?: CustodyRepository;
+  /** Present when the store keeps the access log (both `@olcys/db` implementations provide it). */
+  accessLog?: AccessLogRepository;
+  /** Present when the store keeps RFC 3161 requests and tokens (`Capture.timestamp` is filled from it). */
+  timestamps?: TimestampRepository;
+  /** Present when the store keeps model calls and suggestions (`ApiMeta.features.suggestions` also needs the model). */
+  llm?: LlmRepository;
+}

@@ -1,0 +1,20 @@
+{
+  "extends": "./tsconfig.base.json",
+  "include": [
+    "packages/*/src/**/*",
+    "packages/*/test/**/*",
+    "packages/*/bench/**/*",
+    "packages/*/scripts/**/*",
+    "apps/api/src/**/*",
+    "apps/api/test/**/*",
+    "apps/worker/src/**/*",
+    "apps/worker/test/**/*",
+    "apps/fixture-site/src/**/*",
+    "apps/fixture-site/test/**/*",
+    "apps/fixture-site/scripts/**/*",
+    "scripts/**/*",
+    "e2e/**/*",
+    "playwright.config.ts",
+    "vitest.config.ts"
+  ]
+}

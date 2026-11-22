@@ -1,0 +1,15 @@
+<!--
+title: Plik konfiguracyjny portfela (JSON) z kluczem prywatnym i frazą seed
+renders: 15
+slots:
+  a: { pool: any, role: none }
+-->
+{
+  "_note": "{{BANNER}}",
+  "network": "mainnet",
+  "account": {
+    "address": "{{ADDR:a}}",
+    "privateKey": "{{SECRET:hex64_private_key_context:1}}",
+    "mnemonic": "{{SECRET:seed_phrase:1}}"
+  }
+}

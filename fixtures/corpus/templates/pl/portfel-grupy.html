@@ -1,0 +1,19 @@
+<!--
+title: Ekran portfela z adresem w grupach po 4 znaki i podzielonym adresem bez sumy kontrolnej
+renders: 12
+slots:
+  own: { pool: bitcoin, role: first_person_owner, obf: [spaces4, br_split] }
+  split: { neg: [split_unchecksummed] }
+-->
+<!doctype html>
+<html lang="pl">
+<head><meta charset="utf-8"><title>Portfel — odbierz środki</title></head>
+<body>
+{{BANNER}}
+<main class="portfel">
+<h1>Odbierz</h1>
+<p class="adres">Mój adres odbiorczy: {{ADDR:own}}</p>
+<p class="pomoc">Stary adres w sieci EVM (zapisany w grupach): {{NEG:split}}</p>
+</main>
+</body>
+</html>

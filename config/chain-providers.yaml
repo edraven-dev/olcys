@@ -1,0 +1,71 @@
+# Chain data providers — implemented in packages/chain-adapters.
+# Public APIs (demo) and self-hosted nodes (production) differ only in baseUrl: a deployment points baseUrl at its own
+# Esplora/electrs, Etherscan-compatible backend or java-tron indexer and registers that host in config/sources.yaml.
+# sourceId must exist under `providers:` in config/sources.yaml (compliance, hosts, rate limit); RED is refused.
+# API keys come only from the named environment variables and are redacted in logs and cassettes.
+# Offline/replay demo: base URLs are mapped to the fixture site with the manifest's hostPrefixes.
+
+version: chain-providers.v1
+
+providers:
+  - id: esplora-mempool
+    kind: esplora
+    sourceId: mempool_space
+    baseUrl: https://mempool.space/api
+    chains: [bitcoin]
+    priority: 1
+
+  - id: esplora-blockstream
+    kind: esplora
+    sourceId: blockstream_esplora
+    baseUrl: https://blockstream.info/api
+    chains: [bitcoin]
+    priority: 2
+
+  - id: etherscan-v2
+    kind: etherscan
+    sourceId: etherscan_v2
+    baseUrl: https://api.etherscan.io/v2/api
+    apiKeyEnv: ETHERSCAN_API_KEY
+    # Free-tier chains of Etherscan V2 among the known chains; paid-only chains are not configured.
+    chains: ['evm:1', 'evm:137', 'evm:42161', 'evm:59144']
+    priority: 1
+    options:
+      pageSize: 1000
+
+  - id: trongrid
+    kind: trongrid
+    sourceId: trongrid
+    baseUrl: https://api.trongrid.io
+    apiKeyEnv: TRONGRID_API_KEY
+    chains: [tron]
+    priority: 1
+
+  # Solana over JSON-RPC (getSignaturesForAddress + getTransaction). The public endpoint is not meant for production
+  # (AMBER, enabled per case); a self-hosted node or a contracted provider only changes baseUrl and its source entry.
+  - id: solana-rpc
+    kind: solana_rpc
+    sourceId: solana_public_rpc
+    baseUrl: https://api.mainnet-beta.solana.com
+    chains: [solana]
+    priority: 1
+    options:
+      maxTransactions: 500
+
+  # Self-hosted EVM node with the Otterscan API (ots_*, API level >= 8): Anvil in the demo sandbox
+  # (compose profile "sandbox"), an on-prem Erigon node in production. Used only when the case enables the
+  # `sandbox_anvil` source (enabledByDefault: false); priority 0 prefers it over Etherscan then.
+  # baseUrlEnv overrides baseUrl when set. Production: point SANDBOX_EVM_RPC_URL (or baseUrl) at the agency's Erigon
+  # node (e.g. http://erigon.internal:8545, started with `--http.api=eth,erigon,ots`), add its host to
+  # `allowedHosts` of a dedicated source entry in config/sources.yaml and reference that sourceId here.
+  # Never point it at a public RPC: Otterscan nodes are queried with analyst-supplied addresses.
+  - id: evm-otterscan
+    kind: otterscan
+    sourceId: sandbox_anvil
+    baseUrl: http://127.0.0.1:8545
+    baseUrlEnv: SANDBOX_EVM_RPC_URL
+    chains: ['evm:1']
+    priority: 0
+    options:
+      pageSize: 25
+      minApiLevel: 8

@@ -1,0 +1,38 @@
+{
+  "_synthetic": "SYNTHETIC TEST DATA (OŁCyŚ fixture)",
+  "data": [
+    {
+      "transaction_id": "b9cf160d4791cc15db21ee8109fb04841aae7596900612dbb22bddf3d5d6ba8b",
+      "token_info": {
+        "symbol": "USDT",
+        "address": "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
+        "decimals": 6,
+        "name": "Tether USD"
+      },
+      "block_timestamp": 1787398200000,
+      "from": "TKEFkP4ME4PPErzHLwSUcBD1jbLWq5mzTT",
+      "to": "TX212yJwTtj26g1JSVVkP9wC1CHhfF9NeA",
+      "type": "Transfer",
+      "value": "3000000000"
+    },
+    {
+      "transaction_id": "f79ea996b0f2e66442b47cf70c1d82afce92b25ab0806ba46ac1fcbe0f311742",
+      "token_info": {
+        "symbol": "USDT",
+        "address": "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
+        "decimals": 6,
+        "name": "Tether USD"
+      },
+      "block_timestamp": 1787389200000,
+      "from": "TMVZLbhMuEYfsXYUzwWSarLmLPWJUmVPVk",
+      "to": "TKEFkP4ME4PPErzHLwSUcBD1jbLWq5mzTT",
+      "type": "Transfer",
+      "value": "3000000000"
+    }
+  ],
+  "success": true,
+  "meta": {
+    "at": 1795219200000,
+    "page_size": 2
+  }
+}

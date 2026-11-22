@@ -1,0 +1,39 @@
+# Fiat cash-out indicator rules, version 1 — implemented in packages/analytics.
+# A separate cash-out score follows commercial practice: ownership vs direct-counterparty vs indirect exposure,
+# by direction; hop count alone is unreliable (TRM), so indirect exposure decays per hop.
+# Values in PLN use the NBP Table A rate of the last business day before the transaction (art. 11a).
+
+version: cashout.v1
+
+hopDecay: 0.5 # strength multiplier per extra hop (B6)
+maxHops: 3
+
+rules:
+  B1_exchange_deposit:
+    test: Transfer to a deposit address (rule A4) or hot wallet of a fiat-capable venue (ESMA service code c, or PL register crypto↔fiat service)
+    strength: strong
+  B2_payment_gateway:
+    test: Transfer to a per-order address that sweeps to MoonPay, Transak, Ramp, Banxa or Mercuryo wallets
+    strength: strong
+  B3_crypto_fiat_card:
+    test: Card settlement patterns (Gnosis Pay Safe→treasury EURe, MetaMask Card allowance pulls on Linea/Base, ether.fi Cash Safes, Holyheld top-ups, RedotPay deposit addresses)
+    strength: strong
+    aggregate: monthly
+  B4_stablecoin_swap_then_exit:
+    test: DEX swap into USDT/USDC/EURC/EURe followed by an exit (B1–B3) of a share of the proceeds
+    withinDays: 14 # N (tunable)
+    minShareOfProceeds: 0.5 # X (tunable)
+    strength: strong
+    swapAloneStrength: weak
+  B5_p2p:
+    test: Bisq 2-of-2 multisig with delayed payout; Hodl Hodl one-shot 2-of-3 P2SH-P2WSH escrow; repeated round-number USDT-TRC20 transfers to many unrelated addresses
+    minRoundTransfers: 5
+    roundUnit: 100 # a round amount is >= roundUnit and a multiple of it (stablecoin units)
+    windowDays: 30 # all transfers of one pattern fall within this window, to distinct unlabelled recipients
+    strength: medium
+  B6_chain_hop:
+    test: Bridge or instant-exchanger hop followed by B1–B3 on the destination chain
+    strength: inherit_decayed
+  B7_unlicensed_or_closed_venue:
+    test: Flows to venues without EU authorisation after 2026-07-01, or to closed venues (e.g. NoOnes after 2026-08-21)
+    strength: flag

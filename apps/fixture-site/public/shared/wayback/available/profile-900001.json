@@ -1,0 +1,12 @@
+{
+  "_synthetic": "SYNTHETIC TEST DATA (OŁCyŚ fixture)",
+  "url": "https://bitcointalk.org/index.php?action=profile;u=900001",
+  "archived_snapshots": {
+    "closest": {
+      "status": "200",
+      "available": true,
+      "url": "http://web.archive.org/web/20250102030405/https://bitcointalk.org/index.php?action=profile;u=900001",
+      "timestamp": "20250102030405"
+    }
+  }
+}

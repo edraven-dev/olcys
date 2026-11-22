@@ -1,0 +1,21 @@
+<!--
+title: Lista adresów-podróbek z kampanii „address poisoning” (różnią się kilkoma znakami)
+renders: 200
+fallback: true
+slots:
+  fake: { neg: [corrupt1, corrupt2, transpose, truncate, eip55_case_flip, bech32_mixed_case, homoglyph, evm_single_case_corruption] }
+-->
+<!doctype html>
+<html lang="pl">
+<head><meta charset="utf-8"><title>Podróbki adresów — porównujcie wszystkie znaki</title></head>
+<body>
+{{BANNER}}
+<main>
+<h1>Podrobione adresy z ostatniej kampanii</h1>
+<p>Oszuści wysyłają mikrotransakcje z adresów łudząco podobnych do prawdziwych. Zawsze porównujcie cały adres.</p>
+<ul>
+{{#ROWS:1-30}}<li>Podróbka {{N}}: {{NEG:fake}}</li>
+{{/ROWS}}</ul>
+</main>
+</body>
+</html>

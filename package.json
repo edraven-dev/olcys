@@ -1,0 +1,51 @@
+{
+  "name": "olcys",
+  "version": "0.1.0",
+  "private": true,
+  "description": "OŁCyŚ (Osintowy łapacz cyfrowych śladów): OSINT tool that links public web traces to crypto addresses and analyses their on-chain activity. HackNation 2026, KAS challenge.",
+  "type": "module",
+  "scripts": {
+    "dev:deps": "docker compose up -d --wait",
+    "signing:init": "docker compose --profile osint run --rm --no-deps osint-py python scripts/make_demo_signer.py /signing",
+    "dev:deps:down": "docker compose down",
+    "dev": "pnpm --parallel --filter \"./apps/*\" --filter \"!@olcys/fixture-site\" run dev",
+    "dev:fixture": "pnpm --filter @olcys/fixture-site run dev",
+    "typecheck": "tsc -p tsconfig.json && tsc -p apps/web/tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "oxlint --deny-warnings",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check",
+    "compliance:sources": "node packages/collectors/scripts/sources-doc.ts --check",
+    "licenses:check": "pnpm -r --include-workspace-root --no-bail exec license-checker-rseidelsohn --excludePrivatePackages --summary --onlyAllow \"$(node -p \"require('./config/licenses.json').allowed.join(';')\")\"",
+    "compliance:sbom": "node scripts/compliance/sbom.ts",
+    "licenses:docs": "node scripts/compliance/licenses-doc.ts",
+    "compliance:licences": "node scripts/compliance/check-licences.ts",
+    "compliance:images": "node scripts/compliance/check-images.ts",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm compliance:licences && pnpm compliance:images && pnpm compliance:sources && pnpm compliance:sbom --check && pnpm licenses:docs --check && pnpm test",
+    "db:migrate": "node --env-file-if-exists=.env packages/db/src/migrate.ts",
+    "db:reset": "node --env-file-if-exists=.env scripts/dev/db-reset.ts",
+    "demo": "node --env-file-if-exists=.env scripts/demo/run.ts",
+    "seed": "node --env-file-if-exists=.env scripts/dev/seed.ts",
+    "labels:import": "node --env-file-if-exists=.env scripts/labels/import.ts",
+    "llm:check": "node --env-file-if-exists=.env scripts/dev/llm-check.ts",
+    "dev:doctor": "node --env-file-if-exists=.env scripts/dev/doctor.ts",
+    "db:status": "node --env-file-if-exists=.env packages/db/src/migrate.ts --status",
+    "test:e2e": "node e2e/run.ts",
+    "demo:video": "node e2e/video/record.ts"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.65.1",
+    "@types/node": "26.6.6",
+    "license-checker-rseidelsohn": "5.0.1",
+    "oxfmt": "0.79.0",
+    "oxlint": "1.94.0",
+    "typescript": "7.0.2",
+    "vitest": "5.1.1",
+    "yaml": "2.9.1"
+  },
+  "engines": {
+    "node": ">=26.13.1"
+  },
+  "packageManager": "pnpm@12.22.0"
+}

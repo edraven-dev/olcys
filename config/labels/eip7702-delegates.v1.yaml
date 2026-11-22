@@ -1,0 +1,17 @@
+# EIP-7702 delegates — read by rule A3 in packages/labels (config/rules/exclusion.v1.yaml: recordDelegate,
+# flagKnownSweepers). A delegated EOA stays a person's account; a delegate listed as `sweeper` forwards incoming funds
+# to a third party (a drained, compromised account), so A3 flags the address for verification.
+#
+# Entry: { chain, address, kind: wallet_implementation | sweeper, name, source }. `chain: evm:unknown` applies to every
+# EVM network. A real delegate is added only with a primary-source URL (no open, evaluated list exists yet); only
+# synthetic demo entries (`synthetic: true`) may name another source.
+
+version: eip7702-delegates.v1
+
+delegates:
+  - chain: evm:1
+    address: '0x2B5712612396864A3B6dB2fD30c5A0169eC1E34B'
+    kind: sweeper
+    name: SWEEPER-1 (SYNTHETIC)
+    source: synthetic demo entry (OŁCyŚ), not a real contract
+    synthetic: true

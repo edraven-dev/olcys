@@ -1,0 +1,23 @@
+# SYNTHETIC TEST DATA
+title: Synthetic tagpack
+creator: OLCYS tests
+lastmod: 2026-11-10
+is_public: true
+currency: BTC
+category: exchange
+confidence: ownership
+tags:
+  - address: bc1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq
+    label: Giełda Syntetyczna (SYNTHETIC)
+    source: https://tagpacks.example/synthetic/1
+  - address: '0x1111111111111111111111111111111111111111'
+    label: Dex Syntetyczny (SYNTHETIC)
+    network: ETH
+    category: defi_dex
+    confidence: web_crawl
+    source: https://tagpacks.example/synthetic/2
+    lastmod: 2026-11-12
+  - address: t1SyntheticZecAddressNotSupported000000
+    label: Zec Syntetyczny (SYNTHETIC)
+    currency: ZEC
+    source: https://tagpacks.example/synthetic/3

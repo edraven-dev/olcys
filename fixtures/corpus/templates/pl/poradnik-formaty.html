@@ -1,0 +1,28 @@
+<!--
+title: Poradnik o formatach adresów z wektorami z dokumentacji i błędnymi kodowaniami
+renders: 15
+slots:
+  vec: { neg: [example] }
+  bad: { neg: [v1_in_bech32, v0_in_bech32m] }
+  mixed: { neg: [bech32_mixed_case] }
+  own: { pool: bitcoin.bech32, role: donation }
+-->
+<!doctype html>
+<html lang="pl">
+<head><meta charset="utf-8"><title>Formaty adresów — poradnik</title></head>
+<body>
+{{BANNER}}
+<main>
+<h1>Formaty adresów — poradnik</h1>
+<p>Przykład z dokumentacji: <code>{{NEG:vec}}</code></p>
+<p>Błędne kodowanie (niewłaściwy wariant sumy kontrolnej):</p>
+<ul>
+{{#ROWS:1-4}}<li><code>{{NEG:bad}}</code></li>
+{{/ROWS}}</ul>
+<p>Mieszana wielkość liter jest niedozwolona: <code>{{NEG:mixed}}</code></p>
+</main>
+<section>
+<p>Poradnik się przydał? Wesprzyj autora: {{ADDR:own}}</p>
+</section>
+</body>
+</html>

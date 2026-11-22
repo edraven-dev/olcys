@@ -1,0 +1,33 @@
+{
+  "result": "success",
+  "message": null,
+  "data": {
+    "total_results": 2,
+    "addresses": [
+      {
+        "address": "{{ADDRESS}}",
+        "coin": "BTC",
+        "post_id": 65000401,
+        "topic_id": 5500401,
+        "author": "olcys_test_ewa",
+        "author_uid": 900201,
+        "title": "Syntetyczny wpis",
+        "date": "2026-04-02T08:00:00.000Z",
+        "board_id": 142,
+        "board_name": "Polski"
+      },
+      {
+        "address": "bc1qsyntheticforeignaddressxxxxxxxxxxxxxxxx",
+        "coin": "BTC",
+        "post_id": 65000402,
+        "topic_id": 5500402,
+        "author": "olcys_test_obcy",
+        "author_uid": 900202,
+        "title": "Syntetyczny wpis obcego autora",
+        "date": "2026-04-03T08:00:00.000Z",
+        "board_id": 1,
+        "board_name": "Bitcoin Discussion"
+      }
+    ]
+  }
+}

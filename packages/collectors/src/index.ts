@@ -1,0 +1,357 @@
+/**
+ * @olcys/collectors — OSINT source collectors behind the SourceCollector port plus the pivot planner.
+ *
+ * Pipeline entry: `loadSourceRegistry()` → `registry.resolveScope(case.scope, mode)` → an egress client over
+ * `scope.egressSources` and a robots.txt cache over it → `loadCollectorConfig({ mode })` → `collectCase(...)`.
+ * Contracts (types and ports) come from @olcys/core; network I/O only through the injected EgressClient.
+ */
+export const PACKAGE_NAME = '@olcys/collectors';
+
+export { artifactKindFor, buildCapture, sha256Hex } from './framework/capture.ts';
+export {
+  CollectorRegistry,
+  runCollector,
+  type CollectorFactory,
+  type CollectorInstance,
+} from './framework/collector-registry.ts';
+export {
+  COLLECTORS_VERSION,
+  DEFAULT_FIXTURE_BASE_URL,
+  DEFAULT_MANIFEST_PATH,
+  createCollectorConfig,
+  loadCollectorConfig,
+  loadFixtureManifest,
+  parseWatchPages,
+  type CollectorConfig,
+  type CollectorConfigOptions,
+  type Env,
+  type FixtureManifestInfo,
+  type WatchedPage,
+} from './framework/config.ts';
+export {
+  NoFixtureError,
+  SourceConfigError,
+  SourceRefusedError,
+  SyntheticIdentifierError,
+  type RefusalReason,
+} from './framework/errors.ts';
+export {
+  SourceCircuitBreaker,
+  createSourceHttp,
+  findToken,
+  identifierTokens,
+  type CollectorDeps,
+  type RobotsPolicy,
+  type SourceHttp,
+  type SourceHttpRequest,
+} from './framework/http.ts';
+export { ResultBuilder, type PageOutcome } from './framework/result.ts';
+export {
+  DEFAULT_SOURCES_PATH,
+  FIXTURE_SOURCE_ID,
+  MIN_AMBER_JUSTIFICATION,
+  createSourceRegistry,
+  loadSourceRegistry,
+  parseSourceRegistry,
+  type ResolvedScope,
+  type ScopeRefusal,
+  type SourceRegistry,
+} from './framework/source-registry.ts';
+export {
+  BARRIER_STATUSES,
+  NOTE_CODES,
+  isBarrierStatus,
+  note,
+  noteCode,
+  rollupOutcomes,
+  rollupStatus,
+  statusFromHttp,
+  type BarrierStatus,
+  type CollectorStatus,
+  type NoteCode,
+} from './framework/status.ts';
+export {
+  DEFAULT_HOST_PREFIXES,
+  isFixtureUrl,
+  normaliseHandle,
+  recogniseAccountUrl,
+  resolveSourceUrl,
+  toFixtureUrl,
+  toLogicalUrl,
+  type FixtureMapping,
+  type RecognisedAccount,
+} from './framework/urls.ts';
+export * from './maigret/index.ts';
+export { detectAccessBarrier, type BarrierInput, type BarrierVerdict } from './html/barrier.ts';
+export { blockText, decodeBody, parseHtml } from './html/dom.ts';
+export { fetchPage, type PageRequest, type PageResult } from './html/page.ts';
+export {
+  BITCOINTALK_PARSER_VERSION,
+  bitcointalkUrl,
+  createBitcointalkCollector,
+  findSignedMessages,
+  parseBitcointalkPosts,
+  parseBitcointalkProfile,
+  parseSmfDate,
+  selectTopics,
+  type BitcointalkPost,
+  type BitcointalkProfile,
+  type SignedMessageBlock,
+} from './platforms/bitcointalk.ts';
+export {
+  TABLICA_PARSER_VERSION,
+  createClassifiedAdsCollector,
+  parseClassifiedAd,
+  type ClassifiedAd,
+} from './platforms/classified-ads.ts';
+export {
+  GITHUB_PARSER_VERSION,
+  createGithubCollector,
+  githubLogin,
+  parseFundingJson,
+  parseGithubProfile,
+  parseGithubRepository,
+} from './platforms/code-hosting.ts';
+export { foldText, matchIdentifiers, type IdentifierMatch } from './platforms/match.ts';
+export {
+  WYKOP_PARSER_VERSION,
+  createWykopCollector,
+  parseWykopProfile,
+  wykopHandle,
+  type SocialProfilePage,
+} from './platforms/social-profile.ts';
+export {
+  TELEGRAM_PARSER_VERSION,
+  createTelegramCollector,
+  parseTelegramPreview,
+  telegramChannel,
+  type ChannelPreview,
+} from './platforms/telegram.ts';
+export {
+  collectCase,
+  createDefaultCollectorRegistry,
+  type CollectCaseOptions,
+  type CollectCaseResult,
+  type SourceOutcome,
+  type TaskRecord,
+} from './pivot/collect-case.ts';
+export {
+  DEFAULT_MAX_TASKS,
+  PIVOT_REASONS,
+  PIVOT_RULES_VERSION,
+  SKIP_REASONS,
+  accountAliasKeys,
+  planExpansion,
+  planInitial,
+  referencesOnly,
+  searchSubject,
+  taskKey,
+  type PivotPlan,
+  type PivotProvenance,
+  type PivotReason,
+  type PlannedTask,
+  type PlannerContext,
+  type SkipReason,
+  type SkippedTask,
+} from './pivot/planner.ts';
+export {
+  BRAVE_ENDPOINT,
+  BRAVE_MAX_COUNT,
+  BRAVE_SEARCH_ID,
+  braveSearchUrl,
+  createBraveSearchProvider,
+  parseBraveResults,
+  type BraveSearchOptions,
+} from './search/brave.ts';
+export {
+  SEARCH_COLLECTOR_VERSION,
+  SEARCH_PLATFORM,
+  SEARCH_RESULTS_SCHEMA,
+  SEARCH_SOFTWARE_PREFIX,
+  createBraveSearchCollector,
+  createMockSearchCollector,
+  createMojeekSearchCollector,
+  createSearchCollector,
+  isSearchResultCapture,
+  searchSubjectKey,
+  type SearchCollectorOptions,
+} from './search/collector.ts';
+export {
+  DEFAULT_SITEMAP_PATH,
+  MOCK_SEARCH_ID,
+  createMockSearchProvider,
+  parseSitemap,
+  type MockSearchOptions,
+} from './search/mock.ts';
+export {
+  SEARCH_MODES,
+  braveStorageRightsFromEnv,
+  mojeekPlanFromEnv,
+  searchCollectorFactories,
+  searchModeFromEnv,
+  type SearchMode,
+} from './search/mode.ts';
+export {
+  MOJEEK_ENDPOINT,
+  MOJEEK_PLANS,
+  MOJEEK_SEARCH_ID,
+  createMojeekSearchProvider,
+  mojeekSearchUrl,
+  mojeekStoresResults,
+  parseMojeekResults,
+  type MojeekPlan,
+  type MojeekSearchOptions,
+} from './search/mojeek.ts';
+export { SearchFailedError, type SearchAdapter, type SearchRun, type SearchStatus } from './search/provider.ts';
+export {
+  DEFAULT_MAX_RESULTS,
+  MAX_PHRASE_CHARS,
+  MAX_PHRASE_WORDS,
+  SEARCH_IDENTIFIER_KINDS,
+  SEARCH_SUBJECTS,
+  buildSearchQuery,
+  exactPhrase,
+  normaliseQueryText,
+  type SearchSubject,
+  type SubjectSearchQuery,
+} from './search/query.ts';
+export {
+  CEIDG_BASE_URL,
+  CEIDG_DEFAULT_MAX_RESULTS,
+  CEIDG_PARSER_VERSION,
+  CEIDG_SOURCE_ID,
+  ceidgSearchKey,
+  ceidgSearchUrl,
+  createCeidgCollector,
+  formatCeidgAddress,
+  type CeidgOptions,
+} from './registries/ceidg.ts';
+export {
+  KRS_BASE_URL,
+  KRS_PARSER_VERSION,
+  KRS_SOURCE_ID,
+  createKrsCollector,
+  krsEntryName,
+  krsExtractUrl,
+  type KrsOptions,
+} from './registries/krs.ts';
+export {
+  buildNrb,
+  isValidNip,
+  isValidNrb,
+  isValidRegon,
+  normalizeKrs,
+  normalizeNip,
+  normalizeNrb,
+  nrbCheckDigits,
+  splitPolishFullName,
+  warsawDate,
+} from './registries/polish-ids.ts';
+export {
+  VAT_BASE_URL,
+  VAT_DEFAULT_MAX_SEARCH_CALLS,
+  VAT_PARSER_VERSION,
+  VAT_SOURCE_ID,
+  createVatWhitelistCollector,
+  vatSearchUrl,
+  type VatWhitelistOptions,
+} from './registries/vat-whitelist.ts';
+
+export * from './wayback/index.ts';
+export {
+  BITLIST_BASE_URL,
+  BITLIST_DEFAULT_LIMIT,
+  BITLIST_PARSER_VERSION,
+  bitlistProbeHandle,
+  bitlistUrl,
+  createBitlistCollector,
+  parseBitlistAddresses,
+  parseBitlistPosts,
+  type BitlistAddressHit,
+  type BitlistOptions,
+  type BitlistPost,
+} from './identity/bitlist.ts';
+export {
+  KEYBASE_FIELDS,
+  KEYBASE_PARSER_VERSION,
+  KEYBASE_PROOF_OK,
+  KEYBASE_USERNAME,
+  createKeybaseCollector,
+  keybaseLookupUrl,
+  keybaseProbeHandle,
+  parseKeybaseLookup,
+  proofProfileUrl,
+  type KeybaseLookup,
+  type KeybaseLookupUser,
+} from './identity/keybase.ts';
+export {
+  ENS_COIN_TYPES,
+  ENS_FIXTURE_RESOLVER,
+  ENS_FIXTURE_RPC_URL,
+  ENS_PARSER_VERSION,
+  ENS_SOURCE_ID,
+  ENS_TEXT_KEYS,
+  createEnsCollector,
+  looksLikeEnsName,
+  type EnsOptions,
+} from './identity/ens.ts';
+export { CcipReadDisabledError, EnsRpcFailure, createRpcEnsReader, type EnsReader } from './identity/ens-rpc.ts';
+export { decodeCoinAddress, normaliseEnsName } from './identity/ens-names.ts';
+export { namehash } from './identity/ens-abi.ts';
+
+export { assertCollectorAllowed } from './compliance/guard.ts';
+export { SourceDescriptorMismatchError, SourceForbiddenError } from './compliance/errors.ts';
+export {
+  createSourceRegister,
+  loadSourceRegister,
+  redBlockedHosts,
+  registerOf,
+  type SourceRegister,
+} from './compliance/register.ts';
+export {
+  MAX_PIVOT_DEPTH,
+  MIN_PIVOT_DEPTH,
+  allowListFor,
+  validateCaseScope,
+  type ScopeViolation,
+} from './compliance/scope.ts';
+export {
+  DEFAULT_DOC_PATH,
+  DOC_END,
+  DOC_START,
+  checkSourcesDoc,
+  renderSourcesDoc,
+  replaceGeneratedBlock,
+  writeSourcesDoc,
+  type DocLang,
+} from './compliance/doc.ts';
+export {
+  DEFAULT_FORBIDDEN_TOOLS_PATH,
+  FORBIDDEN_CATEGORIES,
+  describeForbiddenDependency,
+  loadForbiddenTools,
+  parseForbiddenTools,
+  scanForbiddenDependencies,
+  type FeatureRule,
+  type ForbiddenCategory,
+  type ForbiddenDependency,
+  type ForbiddenTool,
+  type ForbiddenTools,
+} from './compliance/forbidden-tools.ts';
+
+export {
+  FARCASTER_DEFAULT_HUB,
+  FARCASTER_PARSER_VERSION,
+  createFarcasterCollector,
+  type FarcasterOptions,
+} from './farcaster/collector.ts';
+export { claimDigest, decodeHubBytes, farcasterTimeToIso, verifyEthClaim, type EthClaim } from './farcaster/claim.ts';
+export {
+  parseUserData,
+  parseUserNameProof,
+  parseVerifications,
+  type ClaimCheck,
+  type FarcasterVerification,
+} from './farcaster/parse.ts';
+export { NOSTR_PARSER_VERSION, createNostrCollector, nip05Url, parseNip05Answer } from './nostr/collector.ts';
+export { npubDecode, npubEncode, parseNip05, type Nip05 } from './nostr/nip05.ts';

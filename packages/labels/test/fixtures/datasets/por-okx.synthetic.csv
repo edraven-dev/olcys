@@ -1,0 +1,10 @@
+Proof of reserves (SYNTHETIC),,,,,
+coin,total,,,,
+BTC,100,,,,
+ETH,2000,,,,
+
+coin,Network,Snapshot Height,address,amount,message,signature1,signature2,redeem script/public key
+BTC,BTC,900000,bc1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq,1.5,msg,sig,sig,key
+USDT,ERC20,21000000,0x3333333333333333333333333333333333333333,1000,msg,sig,,
+USDT,TRC20,70000000,TSyntheticTronPoRAddr1111111111111,500,msg,sig,,
+DOGE,Dogecoin,5000000,DSyntheticDogeAddress,20,msg,sig,,

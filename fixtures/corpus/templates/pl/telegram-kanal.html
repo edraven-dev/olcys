@@ -1,0 +1,30 @@
+<!--
+title: Podgląd kanału w stylu Telegrama — płatności, nowy adres do wpłat, przekazane ostrzeżenie
+renders: 8
+slots:
+  pay: { pool: tron, role: payment_request }
+  dep: { pool: evm, role: payment_request, chain: net }
+  warn: { pool: bitcoin, role: warning, chain: net }
+-->
+<!doctype html>
+<html lang="pl">
+<head><meta charset="utf-8"><title>olcys_test_kanal — podgląd kanału</title></head>
+<body>
+{{BANNER}}
+<section class="tgme_channel_history">
+{{#ROWS:1-2}}<div class="tgme_widget_message" data-post="olcys_test_kanal/{{NUM}}">
+<div class="tgme_widget_message_text">Sprzedam konto premium na rok. Płatność tylko USDT (TRC20) na: {{ADDR:pay}}</div>
+<div class="tgme_widget_message_date">{{DATE}} {{TIME}}</div>
+</div>
+<div class="tgme_widget_message" data-post="olcys_test_kanal/{{NUM}}">
+<div class="tgme_widget_message_text">Wpłacajcie na nowy adres {{NET:dep}}: {{ADDR:dep}}</div>
+<div class="tgme_widget_message_date">{{DATE}} {{TIME}}</div>
+</div>
+<div class="tgme_widget_message" data-post="olcys_test_kanal/{{NUM}}">
+<div class="tgme_widget_message_forwarded_from">Przekazano od olcys_test_ostrzezenia</div>
+<div class="tgme_widget_message_text">Uwaga, nie wysyłajcie nic na adres {{NET:warn}} {{ADDR:warn}}!</div>
+<div class="tgme_widget_message_date">{{DATE}} {{TIME}}</div>
+</div>
+{{/ROWS}}</section>
+</body>
+</html>

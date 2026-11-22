@@ -1,0 +1,1455 @@
+{
+  "schema": "olcys.persona-fixtures.v1",
+  "synthetic": true,
+  "seed": "ae8bc26060f85669507456b58ee5cfd0744a4bfa84517b212a8ba075a9cfce6c",
+  "generatedAt": "2026-11-21T19:21:30.440Z",
+  "persona": {
+    "fullName": "Kacper Fikcyjny",
+    "nick": "fikcyjny_kacper",
+    "email": "kacper.fikcyjny@example.org",
+    "bitcointalkUid": "900001",
+    "githubLogin": "fikcyjny-kacper"
+  },
+  "syntheticIdentifiers": [
+    "Kacper Fikcyjny",
+    "fikcyjny_kacper",
+    "fikcyjny-kacper",
+    "kacper.fikcyjny@example.org",
+    "@fikcyjny_kacper:example.org",
+    "900001",
+    "900002",
+    "900003",
+    "test_weryfikator",
+    "test_moderator",
+    "olcys_test_ostrzezenia",
+    "0001234562",
+    "001234562",
+    "0009999901",
+    "olcys_test_ewa",
+    "olcys-test-ewa.eth",
+    "olcys-test-marek",
+    "999999998",
+    "olcys_test_nostr@nostr.example.org",
+    "olcys_test_nostr"
+  ],
+  "hostPrefixes": {
+    "bitcointalk.org": "/bitcointalk",
+    "wykop.pl": "/wykop",
+    "github.com": "/github",
+    "raw.githubusercontent.com": "/github-raw",
+    "t.me": "/telegram",
+    "keybase.io": "/keybase",
+    "api.ninjastic.space": "/bitlist-api",
+    "ens-rpc.example": "/ens-rpc",
+    "archiwum.example": "/private/archiwum",
+    "mempool.space/api": "/chain/esplora/api",
+    "blockstream.info/api": "/chain/esplora/api",
+    "api.etherscan.io/v2/api": "/chain/etherscan/v2/api",
+    "api.trongrid.io": "/chain/trongrid",
+    "api.nbp.pl/api": "/nbp/api",
+    "dane.biznes.gov.pl/api/ceidg/v3": "/registries/ceidg/v3",
+    "wykazpodatnikowvat.mf.gov.pl/api": "/registries/vat-whitelist/api",
+    "api-krs.ms.gov.pl/api/krs": "/registries/krs/api",
+    "web.archive.org": "/wayback",
+    "archive.org": "/archive-org",
+    "haatz.quilibrium.com": "/farcaster-hub",
+    "nostr.example.org": "/nostr",
+    "api.mainnet-beta.solana.com": "/chain/solana-rpc"
+  },
+  "addresses": {
+    "BTC-1": {
+      "chain": "bitcoin",
+      "address": "bc1qqeyyk5qtdw97f384wus6nfy4muwa3qh67m9mt2",
+      "format": "p2wpkh",
+      "role": "persona_declared"
+    },
+    "BTC-2": {
+      "chain": "bitcoin",
+      "address": "bc1qgegxcs9wqknj3cnku7p3gqrkl67pmhljyeg6p3",
+      "format": "p2wpkh",
+      "role": "persona_declared_v2"
+    },
+    "BTC-HG": {
+      "chain": "bitcoin",
+      "address": "bc1qsyra8u0s8akk2qyh7kkqcfgrexw85n5aqmnhdv",
+      "format": "p2wpkh",
+      "role": "homoglyph_source"
+    },
+    "BTC-CANARY": {
+      "chain": "bitcoin",
+      "address": "bc1qs2d2mtjl94jc59frk6y5tyned33ywrq72776nx",
+      "format": "p2wpkh",
+      "role": "robots_canary",
+      "note": "only on the robots-disallowed page"
+    },
+    "ETH-1": {
+      "chain": "evm:1",
+      "address": "0xCd5C1A91d6dFAAfEb0807e3c9d6D00655A54617a",
+      "format": "eip55",
+      "role": "exchange_deposit"
+    },
+    "ETH-2": {
+      "chain": "evm:1",
+      "address": "0xc3436335B60F0fd74bF6C2638f7a8fA64ac53Cd7",
+      "format": "eip55",
+      "role": "unrelated_same_nick"
+    },
+    "HOT-1": {
+      "chain": "evm:1",
+      "address": "0x473082F9bd1a611AB783cE9Fe814d97b4a8f02B4",
+      "format": "eip55",
+      "role": "exchange_hot_wallet"
+    },
+    "CONTRACT-1": {
+      "chain": "evm:1",
+      "address": "0x959DC8EA38d76Ccdd3765ac138d3167dA615FE27",
+      "format": "eip55",
+      "role": "smart_contract"
+    },
+    "TRON-1": {
+      "chain": "tron",
+      "address": "TMVZLbhMuEYfsXYUzwWSarLmLPWJUmVPVk",
+      "format": "tron_base58",
+      "role": "persona_declared"
+    },
+    "TRON-2": {
+      "chain": "tron",
+      "address": "TEF4fy9kB3AMsif7YutQWnLo4JZ5TnUVtu",
+      "format": "tron_base58",
+      "role": "third_party_attribution"
+    },
+    "TX-DECOY": {
+      "chain": "evm:1",
+      "address": "0x49032b0b289a725fdf2b0d82ff1384f2366fe4792f18932b55ec828f24014700",
+      "format": "tx_hash",
+      "role": "decoy"
+    },
+    "D2": {
+      "chain": "bitcoin",
+      "address": "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
+      "format": "bip173_vector",
+      "role": "documentation_example"
+    },
+    "D3": {
+      "chain": "bitcoin",
+      "address": "bc1qsyrа8u0s8akk2qyh7kkqcfgrexw85n5aqmnhdv",
+      "format": "bech32_homoglyph",
+      "role": "decoy",
+      "foldsTo": "BTC-HG",
+      "note": "first \"a\" of BTC-HG replaced by Cyrillic U+0430"
+    },
+    "LISTING-01": {
+      "chain": "evm:1",
+      "address": "0x8B0B5F29E18ca59A0970bA905d2F1D8411Bd730b",
+      "format": "eip55",
+      "role": "exchange_listing"
+    },
+    "LISTING-02": {
+      "chain": "evm:1",
+      "address": "0x1F8E2aAB510eabA90b6c9Aa44C9109a4c6b56F83",
+      "format": "eip55",
+      "role": "exchange_listing"
+    },
+    "LISTING-03": {
+      "chain": "evm:1",
+      "address": "0xc5694D7B66490034B3ed851a819ce38638B696D6",
+      "format": "eip55",
+      "role": "exchange_listing"
+    },
+    "LISTING-04": {
+      "chain": "evm:1",
+      "address": "0x37c6D21f48f6acde323eBe9eA6baE404F7C91B83",
+      "format": "eip55",
+      "role": "exchange_listing"
+    },
+    "LISTING-05": {
+      "chain": "evm:1",
+      "address": "0x3d76eeeeF7cc695FD1F8BEB3014DeC6D393f3C89",
+      "format": "eip55",
+      "role": "exchange_listing"
+    },
+    "LISTING-06": {
+      "chain": "evm:1",
+      "address": "0x6248FC9cfe8514Cc9e640491d4de8D20c523C015",
+      "format": "eip55",
+      "role": "exchange_listing"
+    },
+    "LISTING-07": {
+      "chain": "evm:1",
+      "address": "0xEC112EdD49D4B61C30E16846A74c19fab0b0AA34",
+      "format": "eip55",
+      "role": "exchange_listing"
+    },
+    "LISTING-08": {
+      "chain": "evm:1",
+      "address": "0xd950C03d85685F8a75A8CE005a5A4C5cA213D915",
+      "format": "eip55",
+      "role": "exchange_listing"
+    },
+    "LISTING-09": {
+      "chain": "evm:1",
+      "address": "0xC0870D0E602089336eE707d7B691fFea0eE43443",
+      "format": "eip55",
+      "role": "exchange_listing"
+    },
+    "LISTING-10": {
+      "chain": "evm:1",
+      "address": "0xeE2BdB55cF126Efa98fcd59a1920d018395449FA",
+      "format": "eip55",
+      "role": "exchange_listing"
+    },
+    "LISTING-11": {
+      "chain": "evm:1",
+      "address": "0xEFA39Ca895ccbABf8AE743D1D611BEb0d5c86bD5",
+      "format": "eip55",
+      "role": "exchange_listing"
+    },
+    "LISTING-12": {
+      "chain": "evm:1",
+      "address": "0x1D9AB30e973c65f78F1695e0cb0432854097B685",
+      "format": "eip55",
+      "role": "exchange_listing"
+    },
+    "LISTING-13": {
+      "chain": "evm:1",
+      "address": "0xF0804781cc99A49266feb5dAAAfE3edDEEe67190",
+      "format": "eip55",
+      "role": "exchange_listing"
+    },
+    "LISTING-14": {
+      "chain": "evm:1",
+      "address": "0x75701b51e4f3f3c92a9CDa3bc19C9074E8C90802",
+      "format": "eip55",
+      "role": "exchange_listing"
+    },
+    "LISTING-15": {
+      "chain": "evm:1",
+      "address": "0x25F69C7a9713C9b046012093664c0aCfA4a3c2a2",
+      "format": "eip55",
+      "role": "exchange_listing"
+    },
+    "LISTING-16": {
+      "chain": "evm:1",
+      "address": "0x0f9A328DB72Ad71EC6F6202fe9095ACc456Af009",
+      "format": "eip55",
+      "role": "exchange_listing"
+    },
+    "LISTING-17": {
+      "chain": "evm:1",
+      "address": "0x58a18274cb5eD036EBCAe30ad48B3987CECDe35f",
+      "format": "eip55",
+      "role": "exchange_listing"
+    },
+    "LISTING-18": {
+      "chain": "evm:1",
+      "address": "0x1b5C141Fe0D1BE1EB99e80B3104A1b1DA0d20eEe",
+      "format": "eip55",
+      "role": "exchange_listing"
+    },
+    "LISTING-19": {
+      "chain": "evm:1",
+      "address": "0xaEbDe8a281634B28E59A903204e0a68c1D9fD133",
+      "format": "eip55",
+      "role": "exchange_listing"
+    },
+    "LISTING-20": {
+      "chain": "evm:1",
+      "address": "0x813a4EBC0258D090c8b4Ab1Cf2e237A77F6dbA53",
+      "format": "eip55",
+      "role": "exchange_listing"
+    },
+    "LISTING-21": {
+      "chain": "evm:1",
+      "address": "0x4e8D1DF0163958A7FF258e5afB6516771fb528Fe",
+      "format": "eip55",
+      "role": "exchange_listing"
+    },
+    "LISTING-22": {
+      "chain": "evm:1",
+      "address": "0xAE4349444080858D6ae0f2b08674bC531Ec0E77E",
+      "format": "eip55",
+      "role": "exchange_listing"
+    },
+    "LISTING-23": {
+      "chain": "evm:1",
+      "address": "0x11AF4141DEa45A88Efd61881079873a6e3a324F3",
+      "format": "eip55",
+      "role": "exchange_listing"
+    },
+    "LISTING-24": {
+      "chain": "evm:1",
+      "address": "0x7e0e68d4795A24795cE88E0Ff30A4003abFF72B0",
+      "format": "eip55",
+      "role": "exchange_listing"
+    },
+    "LISTING-25": {
+      "chain": "evm:1",
+      "address": "0x8a2771bC93C95F9DA6B75882163d8C81F92a25B1",
+      "format": "eip55",
+      "role": "exchange_listing"
+    },
+    "LISTING-26": {
+      "chain": "evm:1",
+      "address": "0x691A9A73412546CE88379Ce2ed40ce9aafc3bd5F",
+      "format": "eip55",
+      "role": "exchange_listing"
+    },
+    "LISTING-27": {
+      "chain": "evm:1",
+      "address": "0x817e3b237Faa093d693bf78a7B4b73567f8e5B05",
+      "format": "eip55",
+      "role": "exchange_listing"
+    },
+    "LISTING-28": {
+      "chain": "evm:1",
+      "address": "0xEFb202FA2A06a16Dc83ad47Ff4EaAc35fB70aFF4",
+      "format": "eip55",
+      "role": "exchange_listing"
+    },
+    "LISTING-29": {
+      "chain": "evm:1",
+      "address": "0x295a78bc4626c461014F123B1eDd9c30522a2737",
+      "format": "eip55",
+      "role": "exchange_listing"
+    },
+    "LISTING-30": {
+      "chain": "evm:1",
+      "address": "0xb1D742b250ce1F1D155aF7c8c568f3fDe57CDA14",
+      "format": "eip55",
+      "role": "exchange_listing"
+    },
+    "LISTING-31": {
+      "chain": "evm:1",
+      "address": "0x268A8612B00653201D31F4aD093310e8c0831d01",
+      "format": "eip55",
+      "role": "exchange_listing"
+    },
+    "LISTING-32": {
+      "chain": "evm:1",
+      "address": "0xC4b775Dc06AaA949E2eB1Ac62E85aE88437E0956",
+      "format": "eip55",
+      "role": "exchange_listing"
+    },
+    "LISTING-33": {
+      "chain": "evm:1",
+      "address": "0x8f4ADdd295F9d69433F465F69EfB83151afbDfd6",
+      "format": "eip55",
+      "role": "exchange_listing"
+    },
+    "LISTING-34": {
+      "chain": "evm:1",
+      "address": "0xba1307E1ff3d846558867E8905e48Ea70F48233a",
+      "format": "eip55",
+      "role": "exchange_listing"
+    },
+    "LISTING-35": {
+      "chain": "evm:1",
+      "address": "0x4f000c81950395b383a8335109D7EE3E2Ae1b453",
+      "format": "eip55",
+      "role": "exchange_listing"
+    },
+    "LISTING-36": {
+      "chain": "evm:1",
+      "address": "0xb5A3E60F089633f6CBA9B8cd925Fc52A6862aA9d",
+      "format": "eip55",
+      "role": "exchange_listing"
+    },
+    "LISTING-37": {
+      "chain": "evm:1",
+      "address": "0xE8Ea67797b9396a49800C779e8DfCe5f7Fbf46f7",
+      "format": "eip55",
+      "role": "exchange_listing"
+    },
+    "LISTING-38": {
+      "chain": "evm:1",
+      "address": "0x3F7F95591A69fF87fa55Bcf93f0F4f43d75CA356",
+      "format": "eip55",
+      "role": "exchange_listing"
+    },
+    "LISTING-39": {
+      "chain": "evm:1",
+      "address": "0x4725b37df960515807250066B6c776b1339b60Cc",
+      "format": "eip55",
+      "role": "exchange_listing"
+    },
+    "LISTING-40": {
+      "chain": "evm:1",
+      "address": "0x303a72B8039d5d58806BC0eaa4A250cF42a3Af74",
+      "format": "eip55",
+      "role": "exchange_listing"
+    },
+    "LISTING-41": {
+      "chain": "evm:1",
+      "address": "0xd6d037B607A8249B78733c24946A00F19cA03a7B",
+      "format": "eip55",
+      "role": "exchange_listing"
+    },
+    "LISTING-42": {
+      "chain": "evm:1",
+      "address": "0xd128a5cef10fed418e25630580049b4EC454B562",
+      "format": "eip55",
+      "role": "exchange_listing"
+    },
+    "LISTING-43": {
+      "chain": "evm:1",
+      "address": "0x7d2871f44418F00e29B820E537C5B140fbE26000",
+      "format": "eip55",
+      "role": "exchange_listing"
+    },
+    "LISTING-44": {
+      "chain": "evm:1",
+      "address": "0xF9262359635b9A70d9EC94Ae512332Ebdc1cd373",
+      "format": "eip55",
+      "role": "exchange_listing"
+    },
+    "LISTING-45": {
+      "chain": "evm:1",
+      "address": "0x862F56011310f5450332Feee08D7F3F86bb193F1",
+      "format": "eip55",
+      "role": "exchange_listing"
+    },
+    "LISTING-46": {
+      "chain": "evm:1",
+      "address": "0x1f919fF663Ba77D73cF483bb2332f62467A489c4",
+      "format": "eip55",
+      "role": "exchange_listing"
+    },
+    "LISTING-47": {
+      "chain": "evm:1",
+      "address": "0x5212b04DD1a2C47Bb75231d605Fd4AE4fB02E570",
+      "format": "eip55",
+      "role": "exchange_listing"
+    },
+    "LISTING-48": {
+      "chain": "evm:1",
+      "address": "0xF73855E69B6880Acf3a08F85341f0Bee74fDd7BB",
+      "format": "eip55",
+      "role": "exchange_listing"
+    },
+    "LISTING-49": {
+      "chain": "evm:1",
+      "address": "0x03D85B61E203b024540508690D8116C197F734ba",
+      "format": "eip55",
+      "role": "exchange_listing"
+    },
+    "LISTING-50": {
+      "chain": "evm:1",
+      "address": "0xb1B5A6133089949D472d7FC9085BfEFe4B25F4c3",
+      "format": "eip55",
+      "role": "exchange_listing"
+    },
+    "LISTING-51": {
+      "chain": "evm:1",
+      "address": "0x49377644FD856065e430F6Ce2FFCe4Fa032Eb35d",
+      "format": "eip55",
+      "role": "exchange_listing"
+    },
+    "LISTING-52": {
+      "chain": "evm:1",
+      "address": "0x7c5e67Affa116D016AA1a5743343d643f41E6725",
+      "format": "eip55",
+      "role": "exchange_listing"
+    },
+    "LISTING-53": {
+      "chain": "evm:1",
+      "address": "0x3EF8D9a79e9CB5B7ef1c51e5a6DAA9A00FEa9959",
+      "format": "eip55",
+      "role": "exchange_listing"
+    },
+    "LISTING-54": {
+      "chain": "evm:1",
+      "address": "0xb4bD2Ac78709DdbeC1461EEAcf33D8b47ea0F0aC",
+      "format": "eip55",
+      "role": "exchange_listing"
+    },
+    "BTC-SRC-1": {
+      "chain": "bitcoin",
+      "address": "bc1qmjp0z48a9zdqcrx42mq5h6eccgsend7cm3e2mu",
+      "format": "p2wpkh",
+      "role": "external_source"
+    },
+    "BTC-SRC-2": {
+      "chain": "bitcoin",
+      "address": "bc1qqgkeasxgczlk8edn6ljmwkafpavqz6yetj88hl",
+      "format": "p2wpkh",
+      "role": "external_source"
+    },
+    "BTC-CP-1": {
+      "chain": "bitcoin",
+      "address": "bc1qkxy9jwv3jlt2y6uvjas9lv7kw66t8a2rdm4q8j",
+      "format": "p2wpkh",
+      "role": "counterparty"
+    },
+    "BTC-CP-2": {
+      "chain": "bitcoin",
+      "address": "bc1qjmnzm594fhth03x3pmnfvxkcqxedjtcf8ux0dc",
+      "format": "p2wpkh",
+      "role": "counterparty"
+    },
+    "BTC-CP-3": {
+      "chain": "bitcoin",
+      "address": "bc1qy9y3pj7yy288wq50zd7qupvrmaqgvu5thtnhu2",
+      "format": "p2wpkh",
+      "role": "counterparty"
+    },
+    "ETH-CP-1": {
+      "chain": "evm:1",
+      "address": "0x1c9ba767260c864DCE45901cA9BbE57743Bee2Fb",
+      "format": "eip55",
+      "role": "persona_undisclosed_wallet"
+    },
+    "ETH-CP-2": {
+      "chain": "evm:1",
+      "address": "0xC96C4f1cb6b9cE12fB368bE816343034050Deb0b",
+      "format": "eip55",
+      "role": "donor"
+    },
+    "ETH-CP-3": {
+      "chain": "evm:1",
+      "address": "0x6C9844cCfC4413e5b6bC130E210d1e94EC2a9FFB",
+      "format": "eip55",
+      "role": "donor"
+    },
+    "ETH-CP-4": {
+      "chain": "evm:1",
+      "address": "0x7Ade0CfDEe4511f70e56eAcC39A66F19277D2fC8",
+      "format": "eip55",
+      "role": "donor"
+    },
+    "ETH-CP-5": {
+      "chain": "evm:1",
+      "address": "0x8343ead0868158616567a6d63e4a16AcEb67B88F",
+      "format": "eip55",
+      "role": "exchange_deposit_other_customer"
+    },
+    "ETH-CP-6": {
+      "chain": "evm:1",
+      "address": "0xDa65EEAFe22aB62348aDB594251296BDDF78B674",
+      "format": "eip55",
+      "role": "exchange_withdrawal_recipient"
+    },
+    "TRON-DEX": {
+      "chain": "tron",
+      "address": "TD9bJtoDriXK66gCw6zCkQyXptz9VvMjB3",
+      "format": "tron_base58",
+      "role": "dex_pair"
+    },
+    "TRON-DEP": {
+      "chain": "tron",
+      "address": "TKEFkP4ME4PPErzHLwSUcBD1jbLWq5mzTT",
+      "format": "tron_base58",
+      "role": "exchange_deposit"
+    },
+    "TRON-HOT": {
+      "chain": "tron",
+      "address": "TX212yJwTtj26g1JSVVkP9wC1CHhfF9NeA",
+      "format": "tron_base58",
+      "role": "exchange_hot_wallet"
+    },
+    "TRON-CP-1": {
+      "chain": "tron",
+      "address": "TPrW2wW1YL1XxGyYzagJ6r2SZvXdagnTUx",
+      "format": "tron_base58",
+      "role": "counterparty"
+    },
+    "TRON-CP-2": {
+      "chain": "tron",
+      "address": "TRWGyhCbZ6MowxkCwQqzrfdreL1pUsUVKa",
+      "format": "tron_base58",
+      "role": "scam_victim"
+    },
+    "TRON-CP-3": {
+      "chain": "tron",
+      "address": "TMaQBeXoJgufPrBAzMLkMinUkZm6hdwkgY",
+      "format": "tron_base58",
+      "role": "scam_victim"
+    },
+    "TRON-CP-4": {
+      "chain": "tron",
+      "address": "TNP9FDtGYYdj2MziyRA7er3ZrdFoU1KnJP",
+      "format": "tron_base58",
+      "role": "scam_victim"
+    },
+    "TRON-P2P-1": {
+      "chain": "tron",
+      "address": "TDdvDp5WtWBcbChtzgH56yaGFZBwZAbkZr",
+      "format": "tron_base58",
+      "role": "p2p_counterparty"
+    },
+    "TRON-P2P-2": {
+      "chain": "tron",
+      "address": "TULHnogQTyZE5XSQNHgJzba78udh1u8gNm",
+      "format": "tron_base58",
+      "role": "p2p_counterparty"
+    },
+    "TRON-P2P-3": {
+      "chain": "tron",
+      "address": "TM41qLET84Fmr2gYN7zU8suCLzbFA6wwdd",
+      "format": "tron_base58",
+      "role": "p2p_counterparty"
+    },
+    "TRON-P2P-4": {
+      "chain": "tron",
+      "address": "TQDheM1p77djptLBbxzcUtvRfxAVifCkyW",
+      "format": "tron_base58",
+      "role": "p2p_counterparty"
+    },
+    "TRON-P2P-5": {
+      "chain": "tron",
+      "address": "TGAreQ9qWyjn4w1rHVPp1Lv9VcthGeCasr",
+      "format": "tron_base58",
+      "role": "p2p_counterparty"
+    },
+    "TRON-P2P-6": {
+      "chain": "tron",
+      "address": "TXqfkJBvFFhv2DfNYDrJN3LftRJi9z1R2K",
+      "format": "tron_base58",
+      "role": "p2p_counterparty"
+    }
+  },
+  "listing": [
+    {
+      "line": 1,
+      "slot": "LISTING-01",
+      "text": "Giełda Testowa 01 (SYNTHETIC) — portfel: 0x8B0B5F29E18ca59A0970bA905d2F1D8411Bd730b"
+    },
+    {
+      "line": 2,
+      "slot": "LISTING-02",
+      "text": "Giełda Testowa 02 (SYNTHETIC) — portfel: 0x1F8E2aAB510eabA90b6c9Aa44C9109a4c6b56F83"
+    },
+    {
+      "line": 3,
+      "slot": "LISTING-03",
+      "text": "Giełda Testowa 03 (SYNTHETIC) — portfel: 0xc5694D7B66490034B3ed851a819ce38638B696D6"
+    },
+    {
+      "line": 4,
+      "slot": "LISTING-04",
+      "text": "Giełda Testowa 04 (SYNTHETIC) — portfel: 0x37c6D21f48f6acde323eBe9eA6baE404F7C91B83"
+    },
+    {
+      "line": 5,
+      "slot": "LISTING-05",
+      "text": "Giełda Testowa 05 (SYNTHETIC) — portfel: 0x3d76eeeeF7cc695FD1F8BEB3014DeC6D393f3C89"
+    },
+    {
+      "line": 6,
+      "slot": "LISTING-06",
+      "text": "Giełda Testowa 06 (SYNTHETIC) — portfel: 0x6248FC9cfe8514Cc9e640491d4de8D20c523C015"
+    },
+    {
+      "line": 7,
+      "slot": "LISTING-07",
+      "text": "Giełda Testowa 07 (SYNTHETIC) — portfel: 0xEC112EdD49D4B61C30E16846A74c19fab0b0AA34"
+    },
+    {
+      "line": 8,
+      "slot": "LISTING-08",
+      "text": "Giełda Testowa 08 (SYNTHETIC) — portfel: 0xd950C03d85685F8a75A8CE005a5A4C5cA213D915"
+    },
+    {
+      "line": 9,
+      "slot": "LISTING-09",
+      "text": "Giełda Testowa 09 (SYNTHETIC) — portfel: 0xC0870D0E602089336eE707d7B691fFea0eE43443"
+    },
+    {
+      "line": 10,
+      "slot": "LISTING-10",
+      "text": "Giełda Testowa 10 (SYNTHETIC) — portfel: 0xeE2BdB55cF126Efa98fcd59a1920d018395449FA"
+    },
+    {
+      "line": 11,
+      "slot": "LISTING-11",
+      "text": "Giełda Testowa 11 (SYNTHETIC) — portfel: 0xEFA39Ca895ccbABf8AE743D1D611BEb0d5c86bD5"
+    },
+    {
+      "line": 12,
+      "slot": "LISTING-12",
+      "text": "Giełda Testowa 12 (SYNTHETIC) — portfel: 0x1D9AB30e973c65f78F1695e0cb0432854097B685"
+    },
+    {
+      "line": 13,
+      "slot": "LISTING-13",
+      "text": "Giełda Testowa 13 (SYNTHETIC) — portfel: 0xF0804781cc99A49266feb5dAAAfE3edDEEe67190"
+    },
+    {
+      "line": 14,
+      "slot": "LISTING-14",
+      "text": "Giełda Testowa 14 (SYNTHETIC) — portfel: 0x75701b51e4f3f3c92a9CDa3bc19C9074E8C90802"
+    },
+    {
+      "line": 15,
+      "slot": "LISTING-15",
+      "text": "Giełda Testowa 15 (SYNTHETIC) — portfel: 0x25F69C7a9713C9b046012093664c0aCfA4a3c2a2"
+    },
+    {
+      "line": 16,
+      "slot": "LISTING-16",
+      "text": "Giełda Testowa 16 (SYNTHETIC) — portfel: 0x0f9A328DB72Ad71EC6F6202fe9095ACc456Af009"
+    },
+    {
+      "line": 17,
+      "slot": "LISTING-17",
+      "text": "Giełda Testowa 17 (SYNTHETIC) — portfel: 0x58a18274cb5eD036EBCAe30ad48B3987CECDe35f"
+    },
+    {
+      "line": 18,
+      "slot": "LISTING-18",
+      "text": "Giełda Testowa 18 (SYNTHETIC) — portfel: 0x1b5C141Fe0D1BE1EB99e80B3104A1b1DA0d20eEe"
+    },
+    {
+      "line": 19,
+      "slot": "LISTING-19",
+      "text": "Giełda Testowa 19 (SYNTHETIC) — portfel: 0xaEbDe8a281634B28E59A903204e0a68c1D9fD133"
+    },
+    {
+      "line": 20,
+      "slot": "LISTING-20",
+      "text": "Giełda Testowa 20 (SYNTHETIC) — portfel: 0x813a4EBC0258D090c8b4Ab1Cf2e237A77F6dbA53"
+    },
+    {
+      "line": 21,
+      "slot": "LISTING-21",
+      "text": "Giełda Testowa 21 (SYNTHETIC) — portfel: 0x4e8D1DF0163958A7FF258e5afB6516771fb528Fe"
+    },
+    {
+      "line": 22,
+      "slot": "LISTING-22",
+      "text": "Giełda Testowa 22 (SYNTHETIC) — portfel: 0xAE4349444080858D6ae0f2b08674bC531Ec0E77E"
+    },
+    {
+      "line": 23,
+      "slot": "LISTING-23",
+      "text": "Giełda Testowa 23 (SYNTHETIC) — portfel: 0x11AF4141DEa45A88Efd61881079873a6e3a324F3"
+    },
+    {
+      "line": 24,
+      "slot": "HOT-1",
+      "text": "Giełda Testowa (SYNTHETIC) — portfel gorący: 0x473082F9bd1a611AB783cE9Fe814d97b4a8f02B4"
+    },
+    {
+      "line": 25,
+      "slot": "LISTING-24",
+      "text": "Giełda Testowa 24 (SYNTHETIC) — portfel: 0x7e0e68d4795A24795cE88E0Ff30A4003abFF72B0"
+    },
+    {
+      "line": 26,
+      "slot": "LISTING-25",
+      "text": "Giełda Testowa 25 (SYNTHETIC) — portfel: 0x8a2771bC93C95F9DA6B75882163d8C81F92a25B1"
+    },
+    {
+      "line": 27,
+      "slot": "LISTING-26",
+      "text": "Giełda Testowa 26 (SYNTHETIC) — portfel: 0x691A9A73412546CE88379Ce2ed40ce9aafc3bd5F"
+    },
+    {
+      "line": 28,
+      "slot": "LISTING-27",
+      "text": "Giełda Testowa 27 (SYNTHETIC) — portfel: 0x817e3b237Faa093d693bf78a7B4b73567f8e5B05"
+    },
+    {
+      "line": 29,
+      "slot": "LISTING-28",
+      "text": "Giełda Testowa 28 (SYNTHETIC) — portfel: 0xEFb202FA2A06a16Dc83ad47Ff4EaAc35fB70aFF4"
+    },
+    {
+      "line": 30,
+      "slot": "LISTING-29",
+      "text": "Giełda Testowa 29 (SYNTHETIC) — portfel: 0x295a78bc4626c461014F123B1eDd9c30522a2737"
+    },
+    {
+      "line": 31,
+      "slot": "LISTING-30",
+      "text": "Giełda Testowa 30 (SYNTHETIC) — portfel: 0xb1D742b250ce1F1D155aF7c8c568f3fDe57CDA14"
+    },
+    {
+      "line": 32,
+      "slot": "LISTING-31",
+      "text": "Giełda Testowa 31 (SYNTHETIC) — portfel: 0x268A8612B00653201D31F4aD093310e8c0831d01"
+    },
+    {
+      "line": 33,
+      "slot": "LISTING-32",
+      "text": "Giełda Testowa 32 (SYNTHETIC) — portfel: 0xC4b775Dc06AaA949E2eB1Ac62E85aE88437E0956"
+    },
+    {
+      "line": 34,
+      "slot": "LISTING-33",
+      "text": "Giełda Testowa 33 (SYNTHETIC) — portfel: 0x8f4ADdd295F9d69433F465F69EfB83151afbDfd6"
+    },
+    {
+      "line": 35,
+      "slot": "LISTING-34",
+      "text": "Giełda Testowa 34 (SYNTHETIC) — portfel: 0xba1307E1ff3d846558867E8905e48Ea70F48233a"
+    },
+    {
+      "line": 36,
+      "slot": "LISTING-35",
+      "text": "Giełda Testowa 35 (SYNTHETIC) — portfel: 0x4f000c81950395b383a8335109D7EE3E2Ae1b453"
+    },
+    {
+      "line": 37,
+      "slot": "LISTING-36",
+      "text": "Giełda Testowa 36 (SYNTHETIC) — portfel: 0xb5A3E60F089633f6CBA9B8cd925Fc52A6862aA9d"
+    },
+    {
+      "line": 38,
+      "slot": "LISTING-37",
+      "text": "Giełda Testowa 37 (SYNTHETIC) — portfel: 0xE8Ea67797b9396a49800C779e8DfCe5f7Fbf46f7"
+    },
+    {
+      "line": 39,
+      "slot": "LISTING-38",
+      "text": "Giełda Testowa 38 (SYNTHETIC) — portfel: 0x3F7F95591A69fF87fa55Bcf93f0F4f43d75CA356"
+    },
+    {
+      "line": 40,
+      "slot": "LISTING-39",
+      "text": "Giełda Testowa 39 (SYNTHETIC) — portfel: 0x4725b37df960515807250066B6c776b1339b60Cc"
+    },
+    {
+      "line": 41,
+      "slot": "LISTING-40",
+      "text": "Giełda Testowa 40 (SYNTHETIC) — portfel: 0x303a72B8039d5d58806BC0eaa4A250cF42a3Af74"
+    },
+    {
+      "line": 42,
+      "slot": "LISTING-41",
+      "text": "Giełda Testowa 41 (SYNTHETIC) — portfel: 0xd6d037B607A8249B78733c24946A00F19cA03a7B"
+    },
+    {
+      "line": 43,
+      "slot": "LISTING-42",
+      "text": "Giełda Testowa 42 (SYNTHETIC) — portfel: 0xd128a5cef10fed418e25630580049b4EC454B562"
+    },
+    {
+      "line": 44,
+      "slot": "LISTING-43",
+      "text": "Giełda Testowa 43 (SYNTHETIC) — portfel: 0x7d2871f44418F00e29B820E537C5B140fbE26000"
+    },
+    {
+      "line": 45,
+      "slot": "LISTING-44",
+      "text": "Giełda Testowa 44 (SYNTHETIC) — portfel: 0xF9262359635b9A70d9EC94Ae512332Ebdc1cd373"
+    },
+    {
+      "line": 46,
+      "slot": "LISTING-45",
+      "text": "Giełda Testowa 45 (SYNTHETIC) — portfel: 0x862F56011310f5450332Feee08D7F3F86bb193F1"
+    },
+    {
+      "line": 47,
+      "slot": "LISTING-46",
+      "text": "Giełda Testowa 46 (SYNTHETIC) — portfel: 0x1f919fF663Ba77D73cF483bb2332f62467A489c4"
+    },
+    {
+      "line": 48,
+      "slot": "LISTING-47",
+      "text": "Giełda Testowa 47 (SYNTHETIC) — portfel: 0x5212b04DD1a2C47Bb75231d605Fd4AE4fB02E570"
+    },
+    {
+      "line": 49,
+      "slot": "LISTING-48",
+      "text": "Giełda Testowa 48 (SYNTHETIC) — portfel: 0xF73855E69B6880Acf3a08F85341f0Bee74fDd7BB"
+    },
+    {
+      "line": 50,
+      "slot": "LISTING-49",
+      "text": "Giełda Testowa 49 (SYNTHETIC) — portfel: 0x03D85B61E203b024540508690D8116C197F734ba"
+    },
+    {
+      "line": 51,
+      "slot": "LISTING-50",
+      "text": "Giełda Testowa 50 (SYNTHETIC) — portfel: 0xb1B5A6133089949D472d7FC9085BfEFe4B25F4c3"
+    },
+    {
+      "line": 52,
+      "slot": "LISTING-51",
+      "text": "Giełda Testowa 51 (SYNTHETIC) — portfel: 0x49377644FD856065e430F6Ce2FFCe4Fa032Eb35d"
+    },
+    {
+      "line": 53,
+      "slot": "LISTING-52",
+      "text": "Giełda Testowa 52 (SYNTHETIC) — portfel: 0x7c5e67Affa116D016AA1a5743343d643f41E6725"
+    },
+    {
+      "line": 54,
+      "slot": "LISTING-53",
+      "text": "Giełda Testowa 53 (SYNTHETIC) — portfel: 0x3EF8D9a79e9CB5B7ef1c51e5a6DAA9A00FEa9959"
+    },
+    {
+      "line": 55,
+      "slot": "LISTING-54",
+      "text": "Giełda Testowa 54 (SYNTHETIC) — portfel: 0xb4bD2Ac78709DdbeC1461EEAcf33D8b47ea0F0aC"
+    }
+  ],
+  "signedMessages": [
+    {
+      "id": "SIG-1",
+      "slot": "BTC-1",
+      "address": "bc1qqeyyk5qtdw97f384wus6nfy4muwa3qh67m9mt2",
+      "message": "I am fikcyjny_kacper (uid 900001) and I control bc1qqeyyk5qtdw97f384wus6nfy4muwa3qh67m9mt2. Date: 2026-11-01. SYNTHETIC TEST DATA - OLCYS fixture.",
+      "signature": "J624GOcOyQdbXVZySYxKEeDYkKYHP8ZlIa7fF1j4kPbjJb7oho3u999zmjRNXUr+WQCJHePce+z/LLBUwCh6c6c=",
+      "header": 39,
+      "scheme": "bip137:p2wpkh",
+      "locator": "bitcointalk:msg=65000001"
+    }
+  ],
+  "decoys": [
+    {
+      "id": "D1",
+      "slot": "TX-DECOY",
+      "kind": "transaction_hash",
+      "locator": "bitcointalk:msg=65000101",
+      "expected": "not an address candidate"
+    },
+    {
+      "id": "D2",
+      "slot": "D2",
+      "kind": "documentation_vector",
+      "locator": "bitcointalk:msg=65000103",
+      "expected": "rejected by A8"
+    },
+    {
+      "id": "D3",
+      "slot": "D3",
+      "kind": "homoglyph",
+      "locator": "telegram:olcys_test_ostrzezenia/102",
+      "expected": "no ownership claim; homoglyph detected (folds to BTC-HG)"
+    },
+    {
+      "id": "D4",
+      "slot": "HOT-1",
+      "kind": "exchange_listing",
+      "locator": "bitcointalk:msg=65000102",
+      "expected": "HOT-1 rejected by A1; listing attributed to test_moderator, not the persona"
+    },
+    {
+      "id": "D5",
+      "slot": "CONTRACT-1",
+      "kind": "smart_contract",
+      "locator": "bitcointalk:msg=65000104",
+      "expected": "rejected by A2"
+    }
+  ],
+  "pages": [
+    {
+      "path": "/bitcointalk/index.php?action=profile;u=900001",
+      "file": "bitcointalk/profile-900001.html",
+      "platform": "bitcointalk",
+      "sourceId": "fixture_site",
+      "variants": [
+        "v1",
+        "v2"
+      ],
+      "slots": [
+        "BTC-1",
+        "BTC-2"
+      ]
+    },
+    {
+      "path": "/bitcointalk/index.php?action=profile;u=900001;sa=showPosts",
+      "file": "bitcointalk/showposts-900001.html",
+      "platform": "bitcointalk",
+      "sourceId": "fixture_site",
+      "variants": [
+        "v1",
+        "v2"
+      ],
+      "slots": [
+        "BTC-1",
+        "ETH-1",
+        "TX-DECOY",
+        "D2",
+        "CONTRACT-1"
+      ]
+    },
+    {
+      "path": "/bitcointalk/index.php?topic=5500001.0",
+      "file": "bitcointalk/topic-5500001.html",
+      "platform": "bitcointalk",
+      "sourceId": "fixture_site",
+      "variants": [
+        "v1",
+        "v2"
+      ],
+      "slots": [
+        "BTC-1"
+      ]
+    },
+    {
+      "path": "/bitcointalk/index.php?topic=5500002.0",
+      "file": "bitcointalk/topic-5500002.html",
+      "platform": "bitcointalk",
+      "sourceId": "fixture_site",
+      "variants": [
+        "v1",
+        "v2"
+      ],
+      "slots": [
+        "ETH-1",
+        "TX-DECOY",
+        "HOT-1",
+        "LISTING-*",
+        "D2",
+        "CONTRACT-1"
+      ]
+    },
+    {
+      "path": "/wykop/ludzie/fikcyjny_kacper/",
+      "file": "wykop/ludzie/fikcyjny_kacper/index.html",
+      "platform": "wykop",
+      "sourceId": "fixture_site",
+      "variants": [
+        "v1",
+        "v2"
+      ],
+      "slots": [
+        "TRON-1"
+      ]
+    },
+    {
+      "path": "/tablica/ogloszenie/81000001/",
+      "file": "tablica/ogloszenie/81000001/index.html",
+      "platform": "tablica",
+      "sourceId": "fixture_site",
+      "variants": [
+        "v1",
+        "v2"
+      ],
+      "slots": [
+        "TRON-1"
+      ]
+    },
+    {
+      "path": "/github/fikcyjny-kacper/",
+      "file": "github/fikcyjny-kacper/index.html",
+      "platform": "github",
+      "sourceId": "fixture_site",
+      "variants": [
+        "v1",
+        "v2"
+      ],
+      "slots": []
+    },
+    {
+      "path": "/github/fikcyjny-kacper/gas-tracker-cli/",
+      "file": "github/fikcyjny-kacper/gas-tracker-cli/index.html",
+      "platform": "github",
+      "sourceId": "fixture_site",
+      "variants": [
+        "v1",
+        "v2"
+      ],
+      "slots": [
+        "ETH-2"
+      ]
+    },
+    {
+      "path": "/github-raw/fikcyjny-kacper/gas-tracker-cli/HEAD/FUNDING.json",
+      "file": "github-raw/fikcyjny-kacper/gas-tracker-cli/HEAD/FUNDING.json",
+      "platform": "github",
+      "sourceId": "fixture_site",
+      "variants": [
+        "v1",
+        "v2"
+      ],
+      "slots": [
+        "ETH-2"
+      ]
+    },
+    {
+      "path": "/telegram/s/olcys_test_ostrzezenia/",
+      "file": "telegram/s/olcys_test_ostrzezenia/index.html",
+      "platform": "telegram",
+      "sourceId": "fixture_site",
+      "variants": [
+        "v1",
+        "v2"
+      ],
+      "slots": [
+        "TRON-2",
+        "D3"
+      ]
+    },
+    {
+      "path": "/private/",
+      "file": "private/index.html",
+      "platform": "fixture",
+      "sourceId": "fixture_site",
+      "variants": [
+        "v1",
+        "v2"
+      ],
+      "slots": [
+        "BTC-CANARY"
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "platform": "bitcointalk",
+      "handle": "fikcyjny_kacper",
+      "uid": "900001",
+      "path": "/bitcointalk/index.php?action=profile;u=900001",
+      "role": "persona"
+    },
+    {
+      "platform": "wykop",
+      "handle": "fikcyjny_kacper",
+      "path": "/wykop/ludzie/fikcyjny_kacper/",
+      "role": "persona",
+      "linksTo": "bitcointalk:900001",
+      "note": "profile links to the forum profile"
+    },
+    {
+      "platform": "tablica",
+      "handle": "fikcyjny_kacper",
+      "path": "/tablica/ogloszenie/81000001/",
+      "role": "persona",
+      "note": "P2P classified ad with the full name and e-mail of the persona"
+    },
+    {
+      "platform": "github",
+      "handle": "fikcyjny-kacper",
+      "path": "/github/fikcyjny-kacper/",
+      "role": "unrelated_same_nick",
+      "note": "same nick, no name, bio or links: not the persona"
+    },
+    {
+      "platform": "telegram",
+      "handle": "olcys_test_ostrzezenia",
+      "path": "/telegram/s/olcys_test_ostrzezenia/",
+      "role": "third_party",
+      "note": "warning channel naming the persona"
+    },
+    {
+      "platform": "bitcointalk",
+      "handle": "test_weryfikator",
+      "uid": "900002",
+      "path": "/bitcointalk/index.php?action=profile;u=900002",
+      "role": "third_party"
+    },
+    {
+      "platform": "bitcointalk",
+      "handle": "test_moderator",
+      "uid": "900003",
+      "path": "/bitcointalk/index.php?action=profile;u=900003",
+      "role": "third_party"
+    }
+  ],
+  "expected": {
+    "weights": "weights.v2",
+    "v1": {
+      "links": [
+        {
+          "slot": "BTC-1",
+          "score": 99,
+          "basis": "roadmap",
+          "evidence": [
+            "profile \"Bitcoin address\" field",
+            "BIP-137 signed message"
+          ]
+        },
+        {
+          "slot": "TRON-1",
+          "score": 77,
+          "basis": "engine",
+          "evidence": [
+            "social-network post \"mój portfel\"",
+            "P2P classified ad with name and e-mail"
+          ],
+          "note": "two independent sources (trace synergy); the scoring engine fixes the value"
+        },
+        {
+          "slot": "ETH-2",
+          "score": 24,
+          "basis": "roadmap",
+          "note": "same nick on a code-hosting site, account unrelated"
+        }
+      ],
+      "rejected": [
+        {
+          "slot": "ETH-1",
+          "rule": "A4",
+          "relation": "CUSTODIAL_EXCHANGE",
+          "basis": "roadmap",
+          "note": "exchange deposit sweeping to HOT-1; interaction recorded"
+        },
+        {
+          "slot": "HOT-1",
+          "rule": "A1",
+          "basis": "derived",
+          "note": "labelled exchange hot wallet"
+        },
+        {
+          "slot": "D2",
+          "rule": "A8",
+          "basis": "derived",
+          "note": "BIP-173 documentation vector"
+        },
+        {
+          "slot": "CONTRACT-1",
+          "rule": "A2",
+          "basis": "derived",
+          "note": "eth_getCode returns bytecode"
+        }
+      ],
+      "noOwnershipClaim": [
+        {
+          "slot": "TRON-2",
+          "relation": "THIRD_PARTY_ATTRIBUTION",
+          "basis": "roadmap"
+        }
+      ],
+      "notCandidates": [
+        {
+          "slot": "TX-DECOY",
+          "reason": "transaction hash (64 hex digits)"
+        }
+      ],
+      "homoglyph": [
+        {
+          "slot": "D3",
+          "foldsTo": "BTC-HG",
+          "outcome": "homoglyph_detected or review_required",
+          "basis": "derived"
+        }
+      ],
+      "cashOut": [
+        {
+          "rule": "B1",
+          "slot": "ETH-1",
+          "note": "persona deposit of 1.5 ETH (tx D1) to an exchange deposit address",
+          "basis": "roadmap"
+        },
+        {
+          "rule": "B1",
+          "slot": "TRON-1",
+          "note": "3000 USDT to TRON-DEP, which sweeps to the labelled TRON-HOT",
+          "basis": "derived"
+        },
+        {
+          "rule": "B4",
+          "slot": "TRON-1",
+          "note": "5000 USDT from a DEX pair, 60 % sent to an exchange deposit within 2 days",
+          "basis": "derived"
+        },
+        {
+          "rule": "B5",
+          "slot": "TRON-1",
+          "note": "six round-number USDT transfers to unrelated addresses; matches the P2P ad",
+          "basis": "derived"
+        }
+      ]
+    },
+    "v2": {
+      "changes": [
+        {
+          "kind": "VALUE_CHANGED",
+          "locator": "bitcointalk:u=900001#profile.bitcoin_address",
+          "from": "BTC-1",
+          "to": "BTC-2",
+          "basis": "roadmap"
+        }
+      ],
+      "links": [
+        {
+          "slot": "BTC-2",
+          "score": 86,
+          "basis": "derived",
+          "note": "profile field only"
+        },
+        {
+          "slot": "BTC-1",
+          "score": 99,
+          "basis": "derived",
+          "note": "signed message remains"
+        }
+      ]
+    }
+  },
+  "chain": {
+    "now": "2026-11-21T00:00:00Z",
+    "usdtContract": "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
+    "contractCode": {
+      "CONTRACT-1": "0x608060405234801561001057600080fd5b503ae3b44f57ea30c45fa6432ece8fd389fc251035db1032642141789e947457d0"
+    }
+  },
+  "files": {
+    "shared/assets/avatar-900001.svg": "ad35982ad3b9b83a627f93bea3917220c1e27b3128da2030a4d2f6b3e889d2cf",
+    "shared/assets/fixture.css": "a5e056b6fa3c4749dda8ce857bbf45680722b15bf8c94347bc55186fbb538a33",
+    "shared/barriers/captcha.html": "42ac0ff7c4fd9c6d7313351f0c8bfcdde7eac5639b920e6faa1ea971e4a90db8",
+    "shared/barriers/challenge.html": "96ab3b237849c8e60c71e698e2eb2e50c3db4017a0f3c0b86358f3c481f807fe",
+    "shared/barriers/forbidden.html": "54b62f57c64666b3d93434b0d27fe841fc238f26aad4e21230c69b53e9bd20b2",
+    "shared/barriers/login.html": "db661fc4aba76605775a42d621746d7d16fff970603e53afcfb1ac18279e8424",
+    "shared/barriers/rate-limited.html": "3000d2722146518011e1b2cd3771d027f280685321d050d7feb7fe865b4cd0f9",
+    "shared/bitcointalk/error-no-member.html": "3279d1c8d19f0524ea2636c0cfb87e4ab19c092bc4e69cab3273f182e61bad3b",
+    "shared/bitcointalk/profile-900002.html": "28c1a9cb07462155b718e3243be45997dfd0ebb509b65f046bccbb384012a763",
+    "shared/bitcointalk/profile-900003.html": "e0c3dee94577c0d1bb35a703f1e8a9e092fa37b898ea1e25d222cfbce6637aec",
+    "shared/bitcointalk/showposts-900001.html": "98411843fd3977ff2fa49bc64461d448920140ca2c211fde450537ac5d99042a",
+    "shared/bitcointalk/topic-5500001.html": "990febbd11559b24da81e32be29a344bbd9ae5f5e28fb97b5a86fb9ae1abc6d3",
+    "shared/bitcointalk/topic-5500002.html": "924332a1f971fc947f4d95c71b416ecab9770fa9907c4750b1d3cb1ea97ceb5a",
+    "shared/bitlist-api/addresses-address-btc.json": "a1c00692d72224464bba780d8ac0979664e9ac5013881f2af5bba248da777a34",
+    "shared/bitlist-api/addresses-address-eth.json": "9ac0786b40dcd509231c9af9d16b76e7a838178c32a48f96f1881a62afdd1a18",
+    "shared/bitlist-api/addresses-author-olcys_test_ewa.json": "2c70ee16666ff8cd7c4718729c1770ce23638b12e783afc16ff228e38bf25400",
+    "shared/bitlist-api/addresses-none.json": "533db0ac1df90ab21f4fd56222b48b226bcb187e514d92e79e7d5643955a7c7e",
+    "shared/bitlist-api/posts-author-olcys_test_ewa.json": "f132c8c4f3fc2ca48da345dc47fb0320b3fad7be7179d8f300c7af0effbb631e",
+    "shared/bitlist-api/posts-none.json": "e8c7d0197b439707d8f128a9c95aaf1545d1b80029e5b46410d7fe51ab773b8d",
+    "shared/chain/esplora/api/address/bc1qgegxcs9wqknj3cnku7p3gqrkl67pmhljyeg6p3/index.json": "e6a0400d6bf96f0dcdb65f3b2d46eab4af720712c5438f2729cb0694dcde44b8",
+    "shared/chain/esplora/api/address/bc1qgegxcs9wqknj3cnku7p3gqrkl67pmhljyeg6p3/txs.json": "c3c411d6a553b756b7e351c14fb27642befbf311f6922fbd16f49c219d80de33",
+    "shared/chain/esplora/api/address/bc1qjmnzm594fhth03x3pmnfvxkcqxedjtcf8ux0dc/index.json": "690ee3e4a4a57974278eef25ba40b32842d3d2b22ffc206de6b7b07e00fba174",
+    "shared/chain/esplora/api/address/bc1qjmnzm594fhth03x3pmnfvxkcqxedjtcf8ux0dc/txs.json": "7e5f2d31867efdac82ccab56d992c4d127f09a76bc912b4beaef93080bb684ae",
+    "shared/chain/esplora/api/address/bc1qkxy9jwv3jlt2y6uvjas9lv7kw66t8a2rdm4q8j/index.json": "6f18ccdb2259602b4a87f4cb34872e578792cebc4eacf835bfaafc9b683049b8",
+    "shared/chain/esplora/api/address/bc1qkxy9jwv3jlt2y6uvjas9lv7kw66t8a2rdm4q8j/txs.json": "0188ef4e1331e2d305bf75b99ba45d9b80e4ad1604cf04aabc73f87fb3b6978e",
+    "shared/chain/esplora/api/address/bc1qqeyyk5qtdw97f384wus6nfy4muwa3qh67m9mt2/index.json": "84f878d963f16128d93521a2ec68e76790e609692ac85f04213b9a8b9400c34e",
+    "shared/chain/esplora/api/address/bc1qqeyyk5qtdw97f384wus6nfy4muwa3qh67m9mt2/txs.json": "0639f3db60605da555923e5ec40d2ea5c9337957136cef009dbfa1c77cb524a7",
+    "shared/chain/esplora/api/address/bc1qsyra8u0s8akk2qyh7kkqcfgrexw85n5aqmnhdv/index.json": "1e4a57b9cfedc7a19db718fd9225dfd1556a01fac4e75521da0485d6a0673207",
+    "shared/chain/esplora/api/address/bc1qsyra8u0s8akk2qyh7kkqcfgrexw85n5aqmnhdv/txs.json": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+    "shared/chain/esplora/api/address/bc1qy9y3pj7yy288wq50zd7qupvrmaqgvu5thtnhu2/index.json": "6e8c965832b592f2acd15b74a7951b31475642bebb6fa5c6006a47eb43c83772",
+    "shared/chain/esplora/api/address/bc1qy9y3pj7yy288wq50zd7qupvrmaqgvu5thtnhu2/txs.json": "1ee79f9d66751f71423358676612c03330077fd0cc9e2d16293daebd14f498f4",
+    "shared/chain/esplora/api/blocks/tip/height.txt": "4d13df38afca54cafde779c07e91e086f5bdbe17421adb98a7381c35fbed6e39",
+    "shared/chain/etherscan/0x1c9ba767260c864dce45901ca9bbe57743bee2fb/balance.json": "9cea79c92cadf12ee8c7f055c44c205b1852bbad663871041850d0e65af807ea",
+    "shared/chain/etherscan/0x1c9ba767260c864dce45901ca9bbe57743bee2fb/txlist.json": "38e738fb20429d903137d8a54fc1f95154db5ea62592732eb8684959bedbb743",
+    "shared/chain/etherscan/0x473082f9bd1a611ab783ce9fe814d97b4a8f02b4/balance.json": "0b8531258e4b9bea73a6758597511a160f540bab9c5a7e3848775a218d63ae20",
+    "shared/chain/etherscan/0x473082f9bd1a611ab783ce9fe814d97b4a8f02b4/txlist.json": "a00a04198a7a1782177f65d3be2a5aa90f839d9fc4d1f12e55f007798e8d7562",
+    "shared/chain/etherscan/0x6c9844ccfc4413e5b6bc130e210d1e94ec2a9ffb/balance.json": "0c45b35970f0e2b0699872f1ce43d1190353370d31b6eccbd182263ee755a18d",
+    "shared/chain/etherscan/0x6c9844ccfc4413e5b6bc130e210d1e94ec2a9ffb/txlist.json": "9abfe2b7998dada35d6677f7241443eca033fd36e82fcee98c687dbc9b5f5324",
+    "shared/chain/etherscan/0x7ade0cfdee4511f70e56eacc39a66f19277d2fc8/balance.json": "b72a022382ac88b9ca708b81ded195cbb67bad7e28f8cc44f9b1a4e5ccb5098f",
+    "shared/chain/etherscan/0x7ade0cfdee4511f70e56eacc39a66f19277d2fc8/txlist.json": "62169d5873e773cbf896eaa23c9242aaef37f4fa7d088b704a114e517c4ca318",
+    "shared/chain/etherscan/0x8343ead0868158616567a6d63e4a16aceb67b88f/balance.json": "820d7685beba54aac662892964304654578d0fb07936077d04b4ab41b0fe8ccb",
+    "shared/chain/etherscan/0x8343ead0868158616567a6d63e4a16aceb67b88f/txlist.json": "bd4a50c0c39f74e9dd4d079c47c58f5391005fe5023382efac884c2cfb3f915a",
+    "shared/chain/etherscan/0x959dc8ea38d76ccdd3765ac138d3167da615fe27/balance.json": "c6b66bc59509d1233f682cad897477106df07ed67389074cb7ef62787891a1b0",
+    "shared/chain/etherscan/0x959dc8ea38d76ccdd3765ac138d3167da615fe27/code.json": "5adb90d3dbbb3dfe96cb4f118a674ba6a8daefb641cc919a7bdede42b8d7fcce",
+    "shared/chain/etherscan/0x959dc8ea38d76ccdd3765ac138d3167da615fe27/txlist.json": "6abb551c2923ffc3fd296e7be413a2e9e25719599df5ce86f4d0c2dea10f266a",
+    "shared/chain/etherscan/0xc3436335b60f0fd74bf6c2638f7a8fa64ac53cd7/balance.json": "772e82088c8585d55861fbf75348555fe037aaae65d4bb74ac9a0c571d267287",
+    "shared/chain/etherscan/0xc3436335b60f0fd74bf6c2638f7a8fa64ac53cd7/txlist.json": "a6621d2e8fc8f2b0304e1b9d8656400afc007ced7846e9debc849a3e9e13c251",
+    "shared/chain/etherscan/0xc96c4f1cb6b9ce12fb368be816343034050deb0b/balance.json": "affb8e62038b2273b61d13ff443656615b617c74ae0e4131b05dcde2b8d68cc0",
+    "shared/chain/etherscan/0xc96c4f1cb6b9ce12fb368be816343034050deb0b/txlist.json": "edb2895a639b878b353389f40b7dffd35cc39cd723f13a6f3f161e66e135f011",
+    "shared/chain/etherscan/0xcd5c1a91d6dfaafeb0807e3c9d6d00655a54617a/balance.json": "c6b66bc59509d1233f682cad897477106df07ed67389074cb7ef62787891a1b0",
+    "shared/chain/etherscan/0xcd5c1a91d6dfaafeb0807e3c9d6d00655a54617a/txlist.json": "a63bb537b194cb8dc775f827d38313cae16643c2e7681763467cc0d5f9832525",
+    "shared/chain/etherscan/0xda65eeafe22ab62348adb594251296bddf78b674/balance.json": "1876822a09e8c29620cc21e5de78d2dd3bef63e79e7de20689fed96988e6a6c1",
+    "shared/chain/etherscan/0xda65eeafe22ab62348adb594251296bddf78b674/txlist.json": "2a13a6bac8e8c17519380af627d529f6f6c0f7792bd46df513ae9e8e34ba2f58",
+    "shared/chain/etherscan/block-number.json": "5b47ba7d678aa2b800252cca445232fd7f8de4d09e0fc38b7d899b886cb55a08",
+    "shared/chain/etherscan/call-empty.json": "ec1983670451c2a48999f4ea923f6c979292f0553293c1ffed7bb7fbd5a41ac8",
+    "shared/chain/etherscan/call-revert.json": "e992f5071adf2f40d29f81d83bf8ee832519700d8deb692456fac1f0f22e5bc3",
+    "shared/chain/etherscan/code-eoa.json": "ec1983670451c2a48999f4ea923f6c979292f0553293c1ffed7bb7fbd5a41ac8",
+    "shared/chain/etherscan/empty-list.json": "6abb551c2923ffc3fd296e7be413a2e9e25719599df5ce86f4d0c2dea10f266a",
+    "shared/chain/etherscan/storage-zero.json": "afa4bdafbade87bb31d47b3441515a9f40cb36641f2c96a75291ad562a8f14b0",
+    "shared/chain/etherscan/zero-balance.json": "c6b66bc59509d1233f682cad897477106df07ed67389074cb7ef62787891a1b0",
+    "shared/chain/solana-rpc/balance-none.json": "a9bea8d10fc23cbd29190245e6b38254b7d3756bddc0ef3227dc585d5d0e387d",
+    "shared/chain/solana-rpc/balance-subject.json": "0255c510f3cfa61261adc8a6095f37116ef70a1bb6887185a4b0110f2a822463",
+    "shared/chain/solana-rpc/get-block-skipped.json": "30da77eb1299bba6518f740025a980e4d60c7245aed9f6c684e602d477932b98",
+    "shared/chain/solana-rpc/get-block.json": "ef802578842b0be4035b3a5dad0740952fe747f004c25abe3fa7df526fa83222",
+    "shared/chain/solana-rpc/get-slot.json": "17688005ef2f21aaf779c64ae07d5003d94c2c4daf5245bec51b08815424bb50",
+    "shared/chain/solana-rpc/signatures-none.json": "0996e82d08089727ea42ade2a9743a9b7a8c411c722c0963ebcf104b815c6111",
+    "shared/chain/solana-rpc/signatures-subject.json": "5a53a7dca190c4cd7ce7458b35873584cce9b779135b5f0df3619a01e917e91b",
+    "shared/chain/solana-rpc/tx-cpi.json": "d6a9be2560310e48f596be4f9a343553c06f5b40078608be0652beba6ad28897",
+    "shared/chain/solana-rpc/tx-none.json": "ab8e91441aec1eafb98430fea7c13a7180189e48d620a1219f1d498a89c6fd40",
+    "shared/chain/solana-rpc/tx-sol.json": "cf279056da43015e4326694a8ac5f68ed33e3913441b6e8aaa6b7b6920a21689",
+    "shared/chain/solana-rpc/tx-usdc.json": "b9e9e6dc880b4844d9277f0f0fc86348caa5497f49f5cb5b653cc3412b432e86",
+    "shared/chain/trongrid/v1/accounts/TD9bJtoDriXK66gCw6zCkQyXptz9VvMjB3/index.json": "8cf21c699e2a0dd1c2e65eb19eaa7dfb11141d6bc8159b6701e974dbdc71a09e",
+    "shared/chain/trongrid/v1/accounts/TD9bJtoDriXK66gCw6zCkQyXptz9VvMjB3/transactions/trc20.json": "6c43b27b90fc3c18a1417bb09bd44d5848290981ff9f87b02c95bb48ab0ffb2b",
+    "shared/chain/trongrid/v1/accounts/TDdvDp5WtWBcbChtzgH56yaGFZBwZAbkZr/index.json": "e72c47229f5cac6bff9de35fd554a9bc31a55cd9117ca362912eb21b2e00afcc",
+    "shared/chain/trongrid/v1/accounts/TDdvDp5WtWBcbChtzgH56yaGFZBwZAbkZr/transactions/trc20.json": "01098259886fea36ba73adad8907b7319b96a8637f088474bf3707302d92a00e",
+    "shared/chain/trongrid/v1/accounts/TEF4fy9kB3AMsif7YutQWnLo4JZ5TnUVtu/index.json": "e7be309894762e61e3ab0d9f2d9796ea109ffb9b593e8231ee5a26e0cec31c95",
+    "shared/chain/trongrid/v1/accounts/TEF4fy9kB3AMsif7YutQWnLo4JZ5TnUVtu/transactions/trc20.json": "84004da42ea5a830dd6798d836bbeac604b37dd4ce55d28aed94fe418499cf65",
+    "shared/chain/trongrid/v1/accounts/TGAreQ9qWyjn4w1rHVPp1Lv9VcthGeCasr/index.json": "bfb9c96ef8d8e309d405c1004c18ad87be44b943391d2b29d1fc25f94842d5a5",
+    "shared/chain/trongrid/v1/accounts/TGAreQ9qWyjn4w1rHVPp1Lv9VcthGeCasr/transactions/trc20.json": "76dca3ed8ab14397a6f662b8f0b00be95a511c65d7cfd731d14c605630572f54",
+    "shared/chain/trongrid/v1/accounts/TKEFkP4ME4PPErzHLwSUcBD1jbLWq5mzTT/index.json": "56a1af3a41f4b1a188eff0ffa92c7be6a33b9358ec66fed1d04c3e05f5432c5f",
+    "shared/chain/trongrid/v1/accounts/TKEFkP4ME4PPErzHLwSUcBD1jbLWq5mzTT/transactions/trc20.json": "766336fd1452cbba8c1476542a526611a143d578923dad282d43f8f3662005ec",
+    "shared/chain/trongrid/v1/accounts/TM41qLET84Fmr2gYN7zU8suCLzbFA6wwdd/index.json": "a04e67c00907ca689579acb08fb667a3e13de8ada599dd9e195ec5a804fec114",
+    "shared/chain/trongrid/v1/accounts/TM41qLET84Fmr2gYN7zU8suCLzbFA6wwdd/transactions/trc20.json": "6e3b21a5232c6b36281cdfc4fc81d8d7dd6931caddb939a64017892d22d139e5",
+    "shared/chain/trongrid/v1/accounts/TMaQBeXoJgufPrBAzMLkMinUkZm6hdwkgY/index.json": "72e6a7a50903eea306636642ac0b0d6e3b038d167bdabba0c387a414b281bde6",
+    "shared/chain/trongrid/v1/accounts/TMaQBeXoJgufPrBAzMLkMinUkZm6hdwkgY/transactions/trc20.json": "75962b451beebbe6fc490d677e854015ba7bbbaabb7c0d4b0c99de5dab12f71f",
+    "shared/chain/trongrid/v1/accounts/TMVZLbhMuEYfsXYUzwWSarLmLPWJUmVPVk/index.json": "c4ab54661414757e8e05bc31ad222249d695dea988338d86f0c6c61a03daab7e",
+    "shared/chain/trongrid/v1/accounts/TMVZLbhMuEYfsXYUzwWSarLmLPWJUmVPVk/transactions/trc20.json": "913f5e69c5009ad74540ca7ef88f37a304d9502e0cc58ff02a607777ebb8b8e2",
+    "shared/chain/trongrid/v1/accounts/TNP9FDtGYYdj2MziyRA7er3ZrdFoU1KnJP/index.json": "3c1fdbe655832069653eba16f3717ef28defd74f2ef060cca97e8f40f13de56f",
+    "shared/chain/trongrid/v1/accounts/TNP9FDtGYYdj2MziyRA7er3ZrdFoU1KnJP/transactions/trc20.json": "0577644246f0eaa43c919fcbb00445ab85c3bdc5fa5f5fb0bd0a6e90ee927644",
+    "shared/chain/trongrid/v1/accounts/TPrW2wW1YL1XxGyYzagJ6r2SZvXdagnTUx/index.json": "d7880ee72239785e94158c0302eb7dc6cd4208f9079a04a9dfa6c6294469db7e",
+    "shared/chain/trongrid/v1/accounts/TPrW2wW1YL1XxGyYzagJ6r2SZvXdagnTUx/transactions/trc20.json": "ba72b9fb474524749fc498ca9b6aac61f9401c4430e72b56b5e3987baffb60e4",
+    "shared/chain/trongrid/v1/accounts/TQDheM1p77djptLBbxzcUtvRfxAVifCkyW/index.json": "373bec4a093dcfdb6018e5644ddc297c7b977c11d6d78e4f0bfd8e6146b32385",
+    "shared/chain/trongrid/v1/accounts/TQDheM1p77djptLBbxzcUtvRfxAVifCkyW/transactions/trc20.json": "b2aeb2fc0bd0631af03f7551550ecaf9fb954c943ca6e4780c920a3e658ce1d8",
+    "shared/chain/trongrid/v1/accounts/TRWGyhCbZ6MowxkCwQqzrfdreL1pUsUVKa/index.json": "67860b94dcc26b33dca3305b8c93b9c60d661f7830cfd7588184061f397c5c6c",
+    "shared/chain/trongrid/v1/accounts/TRWGyhCbZ6MowxkCwQqzrfdreL1pUsUVKa/transactions/trc20.json": "7bf83870b956f010fea74098846b86b488c1e4f3ade7fed3597da7084c5109a9",
+    "shared/chain/trongrid/v1/accounts/TULHnogQTyZE5XSQNHgJzba78udh1u8gNm/index.json": "784763adce0184a3b4482d4f48e8dcbacca099d463b1a36f7f9a6415392a188f",
+    "shared/chain/trongrid/v1/accounts/TULHnogQTyZE5XSQNHgJzba78udh1u8gNm/transactions/trc20.json": "194156c59d6e507baa53853dd8b5c35c0d1f07633af450bd7ebbe1c45ae01ffa",
+    "shared/chain/trongrid/v1/accounts/TX212yJwTtj26g1JSVVkP9wC1CHhfF9NeA/index.json": "41222e422e22cd601e776206814c36647777a1dcc15dd1b514f8c9933bf72074",
+    "shared/chain/trongrid/v1/accounts/TX212yJwTtj26g1JSVVkP9wC1CHhfF9NeA/transactions/trc20.json": "8c86f82fc434d9f29d2a0eb4fbccace3610913798e8e1f9f32188fb2b4f07dbd",
+    "shared/chain/trongrid/v1/accounts/TXqfkJBvFFhv2DfNYDrJN3LftRJi9z1R2K/index.json": "001551168aca353777f0ba766e66f129e12a21de924422dd0a9a6d9e1731b8e2",
+    "shared/chain/trongrid/v1/accounts/TXqfkJBvFFhv2DfNYDrJN3LftRJi9z1R2K/transactions/trc20.json": "3ed60855ea8f2ae850e2ad4b4f7b27b88abe77562ec55eb94d9c68457f8df30b",
+    "shared/chain/trongrid/wallet/getcontract-none.json": "6a75c7670d5cd7b4fa0a8af80a8ce67b659c1b71f1b8b3906eda21e43b93bafa",
+    "shared/ens-rpc/addr-0.json": "2b437f1db714bb10e5178ae520d12cdcf9a96572d8eff59cc0058fb14be1914a",
+    "shared/ens-rpc/addr-60.json": "06b8c08bc8e7457ba710bf6655394caa9c0a3ea8a223c4e5d6b30ec463bb2a29",
+    "shared/ens-rpc/addr-coin-none.json": "21eb470e61b2804ca209b88ef4500c2cca0669cb7bf55c8010a0b96f2e3b2c4b",
+    "shared/ens-rpc/addr-none.json": "4b241e29e73852cd64634c618863dee12708553edbe8313bd382cd9e12353efa",
+    "shared/ens-rpc/block-number.json": "772e8830b05ae69dddc3ada69cf7c1b7a099322572e84fef0666352c2dc42f3c",
+    "shared/ens-rpc/block.json": "a35210a824383f0dae2784e6059353a1074c8f4c622a64883fe0b0776ffde6f3",
+    "shared/ens-rpc/reverse-eth.json": "a5cad04d14b24923db50f1e48572182992eb019bd65fb9c185fdbf5124e5c792",
+    "shared/ens-rpc/reverse-impostor.json": "a5cad04d14b24923db50f1e48572182992eb019bd65fb9c185fdbf5124e5c792",
+    "shared/ens-rpc/reverse-none.json": "8e43800b8f171f78e4a61430e905f358408baf14cc7b672a3d3137b498357493",
+    "shared/ens-rpc/text-com.github.json": "62f40c7054ac18ddd201d31020740cf60e1bbdc19866a713728c7ca883f7d0aa",
+    "shared/ens-rpc/text-description.json": "e0a5fe7e805ed8ff1c4883859e83e8a475da7d24dcaf84f9847f6b7e84c68481",
+    "shared/ens-rpc/text-display.json": "885fdb997f532b7ce8f02c91ae4392f1d70d5a43c1016b8f5b2f87069e50c9c5",
+    "shared/ens-rpc/text-io.keybase.json": "817ed67361ed1c4c4d2bb3ce768dbd9ec2125cb533a9d97076c0be1f65d00adb",
+    "shared/ens-rpc/text-none.json": "21eb470e61b2804ca209b88ef4500c2cca0669cb7bf55c8010a0b96f2e3b2c4b",
+    "shared/farcaster-hub/not-found-fid.json": "5175c1c4770cf89319db82b5f6d77506a49a9e07eab43851709bd5e0e1e01437",
+    "shared/farcaster-hub/not-found-name.json": "d6d3b23f2df226c6c90c21a9756421d723f8be45cd8f325cdfc8b6a371f0a6ba",
+    "shared/farcaster-hub/not-found-verifications.json": "26c9083abcd40825ee8aeb308ca8913d5725d057068ca49dcf832aa91fb3276d",
+    "shared/farcaster-hub/user-data.json": "4bf13c67fd830fe3780ab3d91cfc7b76c99f049c6c6c00f6a87f1e59fc0857b6",
+    "shared/farcaster-hub/username-proof.json": "ad349be13847efa7d82dbe026ebc42b9fde351f7d5a3dd958f9580a8849db9a5",
+    "shared/farcaster-hub/verifications.json": "20da8bf5eb19a40b7e9d7b736753b6d28c18dccdf2d8c1eeb0c101dfc1b71b45",
+    "shared/github-raw/fikcyjny-kacper/gas-tracker-cli/HEAD/FUNDING.json": "daaab47d9a468011f396068df88fab190ee4e823c1778998d7d8cff9fe4fffa9",
+    "shared/github/fikcyjny-kacper/gas-tracker-cli/index.html": "206ae92a23403610b3c610eef7652ce6e8652a4441d676e87a99809f3be78e2f",
+    "shared/github/fikcyjny-kacper/index.html": "c03f133ab709974eda7bafaed44cf1f9e933836dee5676c4249886c97a00d93b",
+    "shared/index.html": "b22171333b30a8614a83f0ce2776d1c16a8f20b6226463a0b393186f8ffd486f",
+    "shared/keybase/fikcyjny_kacper/index.html": "045b5af319357d60169181d704f24978065d4d3907bad595d1a068fd86625311",
+    "shared/keybase/lookup-none.json": "1959750dfbbd4a246288ee759acb7f5300a0d2e141684fa96d0b9bf0ea5df41b",
+    "shared/keybase/lookup-olcys_test_ewa.json": "70454ed438c4f870d701bd7c119790d44a9d95da826ef32f52f2397df5884993",
+    "shared/nbp/api/exchangerates/rates/a/usd/2025-02.json": "172b41e80fe4b83cfbd2381a1212ad9c83a1205d1f30cfd71d914c3ce025de4c",
+    "shared/nbp/api/exchangerates/rates/a/usd/2025-03.json": "3dfe50867403dbd9ef791d6a9e90fef163b6255e0f455a52ed783a30df5486a5",
+    "shared/nbp/api/exchangerates/rates/a/usd/2025-04.json": "a1f1ae20c26231fbaebafa916d2415e7a8e4225a74c2da337f15fbcd230bfac3",
+    "shared/nbp/api/exchangerates/rates/a/usd/2025-05.json": "359d48cd96857b2fad85634ef4a588d9b0882669ead0a3f069ee7ed33a1a6a4f",
+    "shared/nbp/api/exchangerates/rates/a/usd/2025-06.json": "8a323c695b4f9d4ad3f7aaab3903614f6069fbc188512311f988c30144ec180f",
+    "shared/nbp/api/exchangerates/rates/a/usd/2025-07.json": "ff1573936a69c32f7d1ef354f95d423ed2a30f758b4e039d839603ff7803ac31",
+    "shared/nbp/api/exchangerates/rates/a/usd/2025-08.json": "1fc56ca474e5ef7bf21de1e4e524496156efff0a22173d26cfe81a2ec948385d",
+    "shared/nbp/api/exchangerates/rates/a/usd/2025-09.json": "225462486f6ead0dacd44d203a8ac6dddb88cb322dc37cc753c8db8c72333cbd",
+    "shared/nbp/api/exchangerates/rates/a/usd/2025-10.json": "bd2e60dff8609edf4c613ccaa2731205982801479c1a6a32d99dfa94cab4006d",
+    "shared/nbp/api/exchangerates/rates/a/usd/2025-11.json": "a55832c252cbee29475623e150b55f1471e66c69868180db426f2019641531aa",
+    "shared/nbp/api/exchangerates/rates/a/usd/2025-12.json": "1109745d12a4170e7cdc7847842d67ea1d99d121ad1d7b276916150079fb10f7",
+    "shared/nbp/api/exchangerates/rates/a/usd/2026-01.json": "e3f0128bde5a33b879e5de5e548d840823c450485b49187c2450d21118284671",
+    "shared/nbp/api/exchangerates/rates/a/usd/2026-02.json": "6aa909b1a1c84dc43c459a7bec804b384634a8a7036ea317f3993c075b250bc5",
+    "shared/nbp/api/exchangerates/rates/a/usd/2026-03.json": "8dfe2601c8ba7c023b4c6711e8799f0be570de5bb3f8b637f3ef0e98a4e14f58",
+    "shared/nbp/api/exchangerates/rates/a/usd/2026-04.json": "aea38400a0f073d8acd86ce7bf05ccb9edd709d7a7386d66d699dbfb603df18b",
+    "shared/nbp/api/exchangerates/rates/a/usd/2026-05.json": "95816ae3408899dd24dd88182819037621fc839a81e1747b0403f8db64a4422e",
+    "shared/nbp/api/exchangerates/rates/a/usd/2026-06.json": "87774fe083a0cf96df2e6c650f474d6d5808d59445789524ca7d50893c6e9c39",
+    "shared/nbp/api/exchangerates/rates/a/usd/2026-07.json": "fa15a39c050f53f9933284e3875c022cfb0112b57c75218ebccb0004cf2118b8",
+    "shared/nbp/api/exchangerates/rates/a/usd/2026-08.json": "7e95f77fad63f2124217468152d30367bca64ce796b82c3b85beef91f8fccd54",
+    "shared/nbp/api/exchangerates/rates/a/usd/2026-09.json": "18bbf7e494eb8e233c95ad239bd84127ca4421b53fbdddbe4577ae86d22b2b0e",
+    "shared/nbp/api/exchangerates/rates/a/usd/2026-10.json": "b0811d8ef704b26c0547b3582ee96fcf82d7d091c8ddc96c2ecb6ffee3c39d5a",
+    "shared/nbp/api/exchangerates/rates/a/usd/2026-11.json": "b00dd193548dfb6147c3419ee0f3ef5a1691cc517618fdbf966831fe98389feb",
+    "shared/nostr/nip05-none.json": "08823965aa63e5e2a99d5ab492ecdcd66996ade2edb2b6c4ba0d7e2426db1059",
+    "shared/nostr/nip05-olcys_test_nostr.json": "ef1f42f87506671743c584bd81209e75511514d9b16a1f1cb1ffece21d0267bd",
+    "shared/private/index.html": "2147bc9dc9d5fb2f294833fe79ec9e1ac75ddd55d74b2f492ec59190be62ecfc",
+    "shared/registries/ceidg/v3/firma.json": "00d63d23d2a7af4c4e760d3c1202769b4a4078af6b2e40ab74bf04f9702d2c78",
+    "shared/registries/ceidg/v3/firmy.json": "1c72e5f65f05dab4b8b19388c17d75b8ccb87bbd79532c7a9e393af8b115acd3",
+    "shared/registries/krs/not-found.json": "32e6eeefa45c87691221ad4f43475674bf648088a0f15c772564f600f4464ae5",
+    "shared/registries/vat-whitelist/api/search/nip/0001234562.json": "1733c882b3610af640367e0d192a733532b8816e0ee32849a32fa8028f5c6384",
+    "shared/robots.txt": "91233360016c9f47bdfe628f848f303ace5f755844c500f8241259dde8faca0c",
+    "shared/routes.json": "a32d90b9bcc0a3ced5ed8a708414b575d50ced52e9fbe56fb0a98b8fbbf2791f",
+    "shared/tablica/ogloszenie/81000001/index.html": "db498d6cce7e8f0dda2d413b496e88ff37210317ec83ee07f12900f737a88f7f",
+    "shared/telegram/s/olcys_test_ostrzezenia/index.html": "32d0b2e0d6c2f5e8e03f3d953c51e886c8350d6111c596a0bbe33e3a4bde5c6a",
+    "shared/wayback/available/none.json": "2c5051845ed4881d0debcb3fa726558b80cc9f44a34ce781cd4049c5024d097b",
+    "shared/wayback/available/profile-900001.json": "f8e667f39ea4277c7ade679f0344415fee19b5511d6b0c401c0f71c8c4d3153a",
+    "shared/wayback/cdx/none.json": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+    "shared/wayback/cdx/profile-900001.json": "6821e55e1af8cc1919d838d526f4971bc8c5fa663af877ab24a4af750f76b2f5",
+    "shared/wayback/snapshots/profile-900001-20240312101500.html": "717c764c388edbe3840c6e1b2c179f0f31f868fc5c6296c4322b759cb16101f4",
+    "shared/wayback/snapshots/profile-900001-20250102030405.html": "558c4bdbe63e2b5af5ec5ec083c73a75b44fc95a89bf3557bb70c201e15f49b1",
+    "shared/wykop/ludzie/fikcyjny_kacper/index.html": "4633d3a7ab3befaa8d967e6d330fc6194db27974e7d2d2ae597e9984b5531653",
+    "v1/bitcointalk/profile-900001.html": "55b87a5f5c6f68630e8035e8d8a9083b9764cb5f797976f4a65a4d02b2a838ac",
+    "v1/sitemap.xml": "3c727770142859b341f9d26b142537b32ea930a00ef465cbcc39fa3a4aac69d7",
+    "v2/bitcointalk/profile-900001.html": "5c69a47bc800ebb3b0e43e41520627b3183c698baba72351ea93b8cb8ea14b87",
+    "v2/sitemap.xml": "e8af26ab627684973359ded76eaf5c2e49b32ac10e4afb7e964a2b6ba731054a"
+  }
+}

@@ -1,0 +1,24 @@
+<!--
+title: Strona zbiórki z danymi strukturalnymi JSON-LD (DonateAction) — adresy tylko w JSON-LD
+renders: 12
+slots:
+  don: { pool: bitcoin.bech32, role: donation }
+  eth: { pool: evm, role: donation, chain: evm:1 }
+-->
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<title>Zbiórka na schronisko</title>
+<script type="application/ld+json">
+{"@context": "https://schema.org", "@type": "DonateAction", "name": "Zbiórka na schronisko {{NUM}}", "recipient": {"@type": "NGO", "name": "Fundacja Testowa"}, "bitcoinAddress": "{{ADDR:don}}", "ethereumAddress": "{{ADDR:eth}}"}
+</script>
+</head>
+<body>
+{{BANNER}}
+<main>
+<h1>Zbiórka na schronisko</h1>
+<p>Dane do wpłat znajdziesz w aplikacji fundacji. Dziękujemy za każdą pomoc!</p>
+</main>
+</body>
+</html>
