@@ -212,7 +212,7 @@ describe('draft inferences route', () => {
     expect(requests[0]?.untrustedInput).not.toContain('olcys_test');
     const [stored] = await drafts();
     expect(stored).toMatchObject({ status: 'pending', label: 'draft', model: 'fake-model' });
-    expect((stored?.output as { basedOn: string[] }).basedOn).toEqual([wykopFact]);
+    expect((stored?.output as { basedOn: string[] } | undefined)?.basedOn).toEqual([wykopFact]);
     expect((await post(`/api/runs/${runId}/report/drafts`)).json()).toEqual({
       status: 'skipped',
       reason: 'pending_drafts',

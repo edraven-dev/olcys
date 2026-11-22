@@ -124,7 +124,7 @@ describe('report data of a run with drafts', () => {
     const llm = repos.llm!;
     const { status: _s, ...stored } = draft('x');
     await llm.addSuggestions(
-      ['d-pending', 'd-rejected', 'd-late', 'd-early'].map((id) => ({ ...stored, id, runId: 'run-d' })),
+      ['d-pending', 'd-rejected', 'd-late', 'd-early'].map((id) => Object.assign({}, stored, { id, runId: 'run-d' })),
     );
     const decide = (id: string, decision: 'confirmed' | 'rejected', decidedAt: string) =>
       llm.decide({

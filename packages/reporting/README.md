@@ -55,6 +55,19 @@ ocenie, tabela korekt analityka ze zbioru ustalonego przy zleceniu (`config.anal
 portów `judgements` i `overrides`; raport zakończonego przebiegu można wygenerować ponownie (nowa wersja z ocenami
 zapisanymi do tej chwili, poprzednie pozostają w magazynie).
 
+### Szkice wniosków AI w sekcji C
+
+Sekcja C („Wnioski wymagające weryfikacji”) może zawierać szkice przygotowane przez model lokalny na prośbę analityka
+(zadanie `report-inference-draft`, `packages/llm/README.md`). `buildReportData` dołącza do `ReportData.inferenceDrafts`
+wyłącznie szkice **potwierdzone** przez analityka (z poprawionym tekstem lub bez), od najwcześniejszej decyzji;
+oczekujące i odrzucone nigdy nie trafiają ani do danych, ani do HTML, ani do modelu raportu — widzi je tylko interfejs
+jako „Sugestia AI — niezweryfikowana”. Potwierdzony szkic jest wnioskiem (`origin: 'ai_suggestion'`, pole `ai` z
+analitykiem, czasem decyzji, modelem i wersją promptu; `review: 'edited'` i `draftStatement` przy poprawionym tekście)
+z etykietą „Wspomagane AI, zatwierdzone przez analityka: {analityk} ({data})”, powołanymi identyfikatorami faktów i
+wyników (w HTML z odwołaniem do rejestru dowodów), wyjaśnieniami alternatywnymi i krokami weryfikacji. Szkic nie zmienia
+wyników obliczeń, Wskaźnika Pewności ani podsumowania; bez potwierdzonych szkiców HTML jest identyczny jak bez modelu.
+Decyzja zleca ponowne wygenerowanie raportu przez tę samą, szeregowaną ścieżkę co każda decyzja o sugestii.
+
 ## Bezpieczeństwo i jakość dokumentu
 
 - Każda wartość wstawiana do HTML jest escapowana (`html`, `t()`); znaki niewidoczne i sterujące kierunkiem tekstu są

@@ -35,10 +35,12 @@ export function resultMessage(result: DraftInferencesResult): string {
   if (result.status === 'drafted') {
     const dropped = result.dropped.unknownBasis + result.dropped.restatesScore;
     const template = result.created > 0 ? pl.drafts.result.drafted : pl.drafts.result.none;
-    return t(template, { created: result.created, dropped });
+    return t(template ?? '', { created: result.created, dropped });
   }
-  if (result.status === 'skipped') return pl.drafts.result[result.reason] ?? result.reason;
-  return t(pl.drafts.result.failed, { reason: lookup(pl.drafts.failures, result.reason) ?? result.reason });
+  if (result.status === 'skipped') return lookup(pl.drafts.result, result.reason) ?? result.reason;
+  return t(lookup(pl.drafts.result, 'failed') ?? '', {
+    reason: lookup(pl.drafts.failures, result.reason) ?? result.reason,
+  });
 }
 
 export function DraftInferences({

@@ -170,10 +170,11 @@ describe('draftInferences', () => {
   });
 });
 
+const parse = (drafts: unknown) => inferenceDraftPromptV1.schema.safeParse({ drafts }).success;
+
 describe('report-inference-draft prompt', () => {
   it('is registered with a schema that enforces the bounds', () => {
     expect(getPrompt(INFERENCE_DRAFT_TASK, 'v1')).toBe(inferenceDraftPromptV1);
-    const parse = (drafts: unknown) => inferenceDraftPromptV1.schema.safeParse({ drafts }).success;
     expect(parse([draft()])).toBe(true);
     expect(parse(Array.from({ length: 7 }, () => draft()))).toBe(false);
     expect(parse([draft({ basedOn: [] })])).toBe(false);
