@@ -2,12 +2,14 @@
  * EVM chains over the Etherscan-compatible `module/action` API (Etherscan V2: one key + `chainid`). A self-hosted
  * Etherscan-compatible backend only changes `baseUrl`. Listing streams native (`txlist`), internal
  * (`txlistinternal`) and ERC-20 (`tokentx`) transfers in ascending block order; list endpoints stop at 10 000 rows
- * per window, so a full 10th page opens a new window at the last block. Terms: "Powered by Etherscan.io APIs" must
- * be shown with the data; free plans are for personal and research use (prototype only).
+ * per window, so a full 10th page opens a new window at the last block. State reads of the proxy module
+ * (`eth_getCode`, `eth_getStorageAt`, `eth_call`) use `tag=latest`: the address-type probes. Terms: "Powered by
+ * Etherscan.io APIs" must be shown with the data; free plans are for personal and research use (prototype only).
  */
 import type {
   AddressRef,
   AddressSummary,
+  ChainCallResult,
   ChainId,
   DecimalString,
   ChainProvider,
@@ -196,7 +198,7 @@ export function createEtherscanProvider(config: ChainProviderConfig, deps: Provi
     return chain.slice(4);
   };
 
-  function call(
+  function apiRequest(
     chain: ChainId,
     params: Record<string, string>,
     purpose: string,
@@ -223,7 +225,7 @@ export function createEtherscanProvider(config: ChainProviderConfig, deps: Provi
   ): Promise<{ result: string; fetchId: Id }> {
     const { data, fetchId } = await requestJson<{ result: string }>(
       ctx,
-      call(chain, { module: 'proxy', ...params }, purpose, identifying),
+      apiRequest(chain, { module: 'proxy', ...params }, purpose, identifying),
       { classify: classifyEtherscan, breaker, ...(sleep ? { sleep } : {}) },
     );
     return { result: data.result, fetchId };
@@ -245,7 +247,7 @@ export function createEtherscanProvider(config: ChainProviderConfig, deps: Provi
       const params = { module: 'account', action: 'balance', address: address.address, tag: 'latest' };
       const { data, fetchId } = await requestJson<{ result: string }>(
         ctx,
-        call(address.chain, params, 'evm address balance', true),
+        apiRequest(address.chain, params, 'evm address balance', true),
         { classify: classifyEtherscan, breaker, ...(sleep ? { sleep } : {}) },
       );
       // The transaction count is derived from the listing by the fetch runner.
@@ -278,7 +280,7 @@ export function createEtherscanProvider(config: ChainProviderConfig, deps: Provi
       };
       const { data, fetchId } = await requestJson<{ result: unknown }>(
         ctx,
-        call(address.chain, params, `evm ${ACTION[cursor.stream]} history`, true),
+        apiRequest(address.chain, params, `evm ${ACTION[cursor.stream]} history`, true),
         { classify: classifyEtherscan, breaker, ...(sleep ? { sleep } : {}) },
       );
       if (!Array.isArray(data.result)) {
@@ -326,5 +328,50 @@ export function createEtherscanProvider(config: ChainProviderConfig, deps: Provi
       );
       return { code: result.toLowerCase(), fetchId };
     },
+
+    async getStorageAt(address: AddressRef, slot: string, ctx: RunContext): Promise<{ value: string; fetchId: Id }> {
+      const { result, fetchId } = await rpcResult(
+        ctx,
+        address.chain,
+        { action: 'eth_getStorageAt', address: address.address, position: slot, tag: 'latest' },
+        'evm storage slot (address type probe)',
+        true,
+      );
+      if (!HEX.test(result))
+        throw new ChainProviderError('invalid_response', config.id, 'bad storage word', { fetchId });
+      return { value: result.toLowerCase(), fetchId };
+    },
+
+    async call(address: AddressRef, data: string, ctx: RunContext): Promise<ChainCallResult> {
+      const { data: body, fetchId } = await requestJson<{ result?: unknown; error?: unknown }>(
+        ctx,
+        apiRequest(
+          address.chain,
+          { module: 'proxy', action: 'eth_call', to: address.address, data, tag: 'latest' },
+          'evm contract call (address type probe)',
+          true,
+        ),
+        { classify: classifyEthCall, breaker, ...(sleep ? { sleep } : {}) },
+      );
+      if (isRevert(body.error)) return { status: 'reverted', fetchId };
+      if (typeof body.result !== 'string' || !HEX.test(body.result)) {
+        throw new ChainProviderError('invalid_response', config.id, 'bad call result', { fetchId });
+      }
+      return { status: 'ok', data: body.result.toLowerCase(), fetchId };
+    },
   };
+}
+
+const HEX = /^0x[0-9a-f]*$/i;
+
+/** A JSON-RPC error that reports a revert (code 3, or "execution reverted"): the call answered "no". */
+function isRevert(error: unknown): boolean {
+  if (!isRecord(error)) return false;
+  return error['code'] === 3 || /revert/i.test(String(error['message'] ?? ''));
+}
+
+/** `eth_call` answers a revert with a JSON-RPC error body; that is a result, every other body as `classifyEtherscan`. */
+export function classifyEthCall(body: unknown): 'ok' | ChainErrorKind {
+  if (isRecord(body) && 'jsonrpc' in body && isRevert(body['error'])) return 'ok';
+  return classifyEtherscan(body);
 }

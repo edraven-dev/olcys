@@ -21,7 +21,7 @@ import type { ChainProviderRegistry } from './registry.ts';
 
 export interface ChainFetchPlanItem {
   address: AddressRef;
-  /** Defaults: summary and transfers always, UTXO transactions for Bitcoin, contract code for EVM. */
+  /** Defaults: summary and transfers always, UTXO transactions for Bitcoin, contract code for EVM and TRON. */
   want?: { summary?: boolean; transfers?: boolean; utxo?: boolean; code?: boolean };
   maxPages?: number;
 }
@@ -57,7 +57,8 @@ export interface ChainFetchResult {
   summaries: AddressSummary[];
   transfers: NormalizedTransfer[];
   utxoTxs: UtxoTransaction[];
-  codes: { address: AddressRef; code: string; fetchId: Id }[];
+  /** Contract code per fetched address, with the provider that served it (the address-type probes use the same). */
+  codes: { address: AddressRef; code: string; fetchId: Id; providerId: string }[];
   outcomes: ChainFetchOutcome[];
   /** `evm:unknown` addresses and the concrete EVM chains they were fetched on. */
   resolved: { requested: AddressRef; resolved: AddressRef }[];
@@ -231,7 +232,7 @@ export async function runChainFetch(
       summary: item.want?.summary ?? true,
       transfers: item.want?.transfers ?? true,
       utxo: item.want?.utxo ?? family === 'bitcoin',
-      code: item.want?.code ?? family === 'evm',
+      code: item.want?.code ?? (family === 'evm' || family === 'tron'),
     };
     for (const chain of chains) {
       const address: AddressRef = {
@@ -287,7 +288,7 @@ export async function runChainFetch(
           result.utxoTxs.push(tx);
           kept += 1;
         }
-        if (fetched.code) result.codes.push({ address, ...fetched.code });
+        if (fetched.code) result.codes.push({ address, ...fetched.code, providerId: provider.id });
         if (fetched.summary) {
           result.summaries.push(
             deriveSummary(fetched.summary, address, transfers, utxoTxs, fetched.truncated || !want.transfers),

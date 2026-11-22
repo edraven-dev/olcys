@@ -125,7 +125,10 @@ describe('runChainFetch', () => {
     // duplicate removed, the item above the tip (block 2000 > 1000) dropped, address lower-cased
     expect(result.transfers).toHaveLength(1);
     expect(result.summaries[0]).toMatchObject({ txCount: 1, firstSeen: '2026-11-01T00:00:00.000Z' });
-    expect(result.codes).toEqual([{ address: { chain: 'evm:1', address: '0xaa' }, code: '0x', fetchId: 'f' }]);
+    // the code is recorded with the provider that served it (the address-type probes use the same one)
+    expect(result.codes).toEqual([
+      { address: { chain: 'evm:1', address: '0xaa' }, code: '0x', fetchId: 'f', providerId: 'b' },
+    ]);
     // a disabled source is never used
     expect(registry.forChain('evm:1', ['src_b'])).toEqual([b]);
   });

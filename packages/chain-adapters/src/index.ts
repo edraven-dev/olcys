@@ -25,6 +25,7 @@ export {
   type EsploraVout,
 } from './esplora.ts';
 export {
+  classifyEthCall,
   classifyEtherscan,
   createEtherscanProvider,
   ETHERSCAN_ATTRIBUTION,

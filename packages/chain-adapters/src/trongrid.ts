@@ -2,7 +2,9 @@
  * TRON over TronGrid's v1 REST API: TRC-20 transfers (USDT-TRC20, the dominant P2P/card settlement medium) with
  * fingerprint paging, and account balances. A self-hosted java-tron + TRC-20 indexer serving the same shape only
  * changes `baseUrl`. TRC-20 items carry no block number: `blockHeight` is `0` (unknown) and ordering uses
- * `blockTime`. Native TRX transfers and contract detection are not fetched yet.
+ * `blockTime`. Contract code comes from the node API (`wallet/getcontract`); TRON has no storage or call probes
+ * here, so a TRON address is an account, a token contract (by label or asset registry) or a contract. Native TRX
+ * transfers are not fetched yet.
  */
 import type {
   AddressRef,
@@ -10,6 +12,7 @@ import type {
   ChainId,
   ChainProvider,
   ChainTip,
+  Id,
   NormalizedTransfer,
   RunContext,
 } from '@olcys/core';
@@ -183,5 +186,26 @@ export function createTronGridProvider(config: ChainProviderConfig, deps: Provid
         ...(fingerprint ? { nextCursor: encodeCursor(config.id, { stream: 'trc20', fingerprint }) } : {}),
       };
     },
+
+    /** `wallet/getcontract`: the bytecode of a smart contract; an account without a contract answers `{}`. */
+    async getCode(address: AddressRef, ctx: RunContext): Promise<{ code: string; fetchId: Id }> {
+      assertChain(address.chain);
+      const query = new URLSearchParams({ value: address.address, visible: 'true' });
+      const { data, fetchId } = await requestJson<unknown>(
+        ctx,
+        request(`/wallet/getcontract?${query.toString()}`, 'tron contract code (contract check)', true),
+        { breaker, classify: classifyNode },
+      );
+      const bytecode = isRecord(data) ? data['bytecode'] : undefined;
+      if (bytecode === undefined || bytecode === '') return { code: '0x', fetchId };
+      if (typeof bytecode !== 'string' || !/^(0x)?([0-9a-f]{2})+$/i.test(bytecode)) {
+        throw new ChainProviderError('invalid_response', config.id, 'unexpected getcontract body', { fetchId });
+      }
+      return { code: `0x${bytecode.replace(/^0x/i, '').toLowerCase()}`, fetchId };
+    },
   };
 }
+
+/** The java-tron HTTP API reports failures as HTTP 200 with an `Error` field. */
+const classifyNode = (body: unknown): 'ok' | 'upstream_error' =>
+  isRecord(body) && typeof body['Error'] === 'string' ? 'upstream_error' : 'ok';
