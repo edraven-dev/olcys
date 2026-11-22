@@ -171,6 +171,22 @@ describe('buildPropertyTimelines', () => {
     expect(pageOnly(input({ captures }))[0]!.points.filter((p) => p.provenance === 'live')).toHaveLength(2);
   });
 
+  it('AC5: a capture an account was discovered from stands for the account profile page', () => {
+    // The live profile was requested under another URL (by nickname) than the canonical page the archive lists.
+    const captures = fixture.captures.map((c: { id: string }) =>
+      c.id.startsWith('l') ? { ...c, url: 'https://forum.example.org/profile?user=fikcyjny_kacper' } : c,
+    );
+    expect(pageOnly(input({ captures }))[0]!.points.filter((p) => p.provenance === 'live')).toEqual([]);
+    const accounts = ['l1', 'l2'].map((captureId) => ({
+      profileUrl: PAGE,
+      discoveredVia: { sourceId: 'forum_example', method: 'direct_fetch', captureId },
+    })) as unknown as TimelineInput['accounts'];
+    const [t] = pageOnly(input({ captures, accounts }));
+    expect(t!.points.map((p) => p.provenance)).toEqual(['archive', 'archive', 'archive', 'live', 'live']);
+    expect(t!.changes).toHaveLength(2);
+    expect(t!.changes[1]).toMatchObject({ lastSeenBefore: { captureId: 'l1' }, firstSeenAfter: { captureId: 'l2' } });
+  });
+
   it('AC6: live property observations form their own timeline; walletOnly drops non-wallet keys', () => {
     const all = buildPropertyTimelines(input());
     const bitcoin = all.find((t) => t.key.property === 'profile.bitcoin_address')!;

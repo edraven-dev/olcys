@@ -12,6 +12,7 @@ import type {
   Id,
   IsoDateTime,
   Observation,
+  OnlineAccount,
   PropertyTimeline,
   TimelineChange,
   TimelineInterval,
@@ -41,6 +42,12 @@ export interface TimelineInput {
   archive: ArchiveSnapshotEntry[];
   /** Live property-level observations (e.g. `profile.bitcoin_address`). */
   observations?: Observation[];
+  /**
+   * Accounts the collectors found. A capture an account was discovered from stands for the account's canonical profile
+   * page (e.g. a profile fetched by nickname is the page `…profile;u=<id>` the archive lists), whatever URL it was
+   * requested under.
+   */
+  accounts?: Pick<OnlineAccount, 'profileUrl' | 'discoveredVia'>[];
 }
 
 export interface TimelineFilter {
@@ -88,8 +95,18 @@ const sameValues = (a: readonly string[], b: readonly string[]): boolean =>
 
 const sortedUnique = (values: Iterable<string>): string[] => [...new Set(values)].toSorted();
 
-/** The page a live capture stands for: its logical URL in offline mode, else the requested URL. */
-const liveUrl = (c: TimelineCapture): string => normalisePageUrl(c.technical?.logicalUrl ?? c.url);
+/**
+ * The page a live capture stands for: the canonical profile page of the account discovered from it, else its logical
+ * URL (offline mode) or the requested URL.
+ */
+function pageResolver(input: TimelineInput): (c: TimelineCapture) => string {
+  const profiles = new Map<Id, string>();
+  for (const account of input.accounts ?? []) {
+    const captureId = account.discoveredVia.captureId;
+    if (captureId && !profiles.has(captureId)) profiles.set(captureId, normalisePageUrl(account.profileUrl));
+  }
+  return (c) => profiles.get(c.id) ?? normalisePageUrl(c.technical?.logicalUrl ?? c.url);
+}
 
 function sortPoints(raws: Raw[]): TimelinePoint[] {
   return raws
@@ -142,6 +159,7 @@ function livePoint(capture: TimelineCapture, values: string[]): Raw {
 }
 
 function pageTimelines(input: TimelineInput, options: TimelineOptions): { url: string; timeline: PropertyTimeline }[] {
+  const liveUrl = pageResolver(input);
   const byId = new Map(input.captures.map((c) => [c.id, c]));
   const valuesOf = new Map<Id, Set<string>>();
   for (const c of input.candidates) {
@@ -214,6 +232,7 @@ function pageTimelines(input: TimelineInput, options: TimelineOptions): { url: s
 }
 
 function propertyTimelines(input: TimelineInput): { url: string; timeline: PropertyTimeline }[] {
+  const liveUrl = pageResolver(input);
   const live = input.captures.filter((c) => !c.archive);
   const byId = new Map(live.map((c) => [c.id, c]));
   const groups = new Map<string, { key: ChangeEvent['key']; byCapture: Map<Id, Set<string>> }>();

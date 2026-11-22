@@ -309,9 +309,9 @@ describe('demo scenario on the synthetic persona', () => {
         after: manifest.addresses['BTC-2']?.address,
       });
 
-      // History timelines (wallets only): the archived copies of the forum profile come first (2024 without a wallet,
-      // 2025 with BTC-1), then the live runs' own timeline of the profile's Bitcoin address (BTC-1, then the swap). The
-      // live profile is fetched by nickname, the archive lists the canonical member URL, so they are two timelines.
+      // Page timeline (wallets only) of the persona's forum profile: the live profile is fetched by nickname, but its
+      // account is the canonical member page the archive lists, so archived copies and runs form one timeline: 2024
+      // without a wallet, 2025 with BTC-1, run 1 with BTC-1, run 2 with the swapped wallet.
       const runIds = [first.id, second.id];
       const load = async <T>(read: (runId: string) => Promise<T[]>): Promise<T[]> =>
         (await Promise.all(runIds.map(read))).flat();
@@ -323,28 +323,34 @@ describe('demo scenario on the synthetic persona', () => {
           candidates: await load((id) => runtime.repos.evidence.listCandidates(id)),
           archive: buildWaybackHistory(timelineCaptures, timelineObservations),
           observations: timelineObservations,
+          accounts: await load((id) => runtime.repos.evidence.listAccounts(id)),
         },
         { walletOnly: true },
       );
-      const profile = timelines[0];
-      const live = timelines.find((t) => t.key.property === 'profile.bitcoin_address');
+      const profile = timelines.find((t) => t.key.property === 'page.address');
       expect(profile?.key.locator).toBe('web:https://bitcointalk.org/index.php?action=profile;u=900001#page.address');
       expect(profile?.points.map((p) => [p.provenance, p.archive?.snapshotTimestamp, p.values?.length])).toEqual([
         ['archive', '20240312101500', 0],
         ['archive', '20250102030405', 1],
+        ['live', undefined, 1],
+        ['live', undefined, 1],
       ]);
-      expect(profile?.changes).toEqual([
-        expect.objectContaining({
-          before: [],
-          wallet: true,
-          lastSeenBefore: expect.objectContaining({ observedAt: '2024-03-12T10:15:00.000Z' }),
-          firstSeenAfter: expect.objectContaining({ observedAt: '2025-01-02T03:04:05.000Z' }),
-        }),
-      ]);
-      expect(live?.key.property).toBe('profile.bitcoin_address');
-      expect(live?.points.every((p) => p.provenance === 'live')).toBe(true);
-      expect(live?.points[0]?.observedAt.localeCompare(profile!.points.at(-1)!.observedAt)).toBe(1);
-      expect(live?.changes).toEqual([
+      expect(profile?.points.filter((p) => p.provenance === 'live').map((p) => p.runId)).toEqual([first.id, second.id]);
+      expect(profile?.changes).toHaveLength(2);
+      expect(profile?.changes.every((c) => c.wallet)).toBe(true);
+      expect(profile?.changes[0]).toMatchObject({
+        before: [],
+        lastSeenBefore: { provenance: 'archive', observedAt: '2024-03-12T10:15:00.000Z' },
+        firstSeenAfter: { provenance: 'archive', observedAt: '2025-01-02T03:04:05.000Z' },
+      });
+      expect(profile?.changes[1]).toMatchObject({
+        lastSeenBefore: { provenance: 'live', runId: first.id },
+        firstSeenAfter: { provenance: 'live', runId: second.id },
+      });
+      // The live property timeline of the profile's Bitcoin address stays separate.
+      const field = timelines.find((t) => t.key.property === 'profile.bitcoin_address');
+      expect(field?.points.every((p) => p.provenance === 'live')).toBe(true);
+      expect(field?.changes).toEqual([
         expect.objectContaining({
           before: [manifest.addresses['BTC-1']?.address],
           after: [manifest.addresses['BTC-2']?.address],

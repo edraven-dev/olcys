@@ -192,9 +192,10 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
     const filter = parse(TimelineQuerySchema, request.query);
     const runs = await repos.runs.listByCase(caseId);
     const evidenceRunIds = [...new Set(runs.map((run) => evidenceRunIdOf(run)))];
-    const [captures, observations, candidates] = await Promise.all([
+    const [captures, observations, accounts, candidates] = await Promise.all([
       Promise.all(evidenceRunIds.map((id) => repos.evidence.listCaptures(id))),
       Promise.all(evidenceRunIds.map((id) => repos.evidence.listObservations(id))),
+      Promise.all(evidenceRunIds.map((id) => repos.evidence.listAccounts(id))),
       Promise.all(runs.map((run) => repos.evidence.listCandidates(run.id))),
     ]);
     const allCaptures = unique(captures);
@@ -205,6 +206,7 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
         candidates: unique(candidates),
         archive: buildWaybackHistory(allCaptures, allObservations),
         observations: allObservations,
+        accounts: unique(accounts),
       },
       {
         ...(filter.url !== undefined ? { url: filter.url } : {}),
