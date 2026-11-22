@@ -106,7 +106,7 @@ export function registerAccessLog(app: FastifyInstance, options: AccessLogOption
         runId = idOf(params.runId ?? '');
         caseId = runId ? (await repos.runs.get(runId))?.caseId : undefined;
       }
-      const purpose = statedPurpose(request) ?? (caseId ? (await repos.cases.get(caseId))?.purpose : undefined);
+      const purpose = statedPurpose(request);
       await log.add({
         id: newId(),
         at: nowIso(),

@@ -55,7 +55,7 @@ describe('production build', () => {
       const text = readFileSync(join(out, f), 'utf8');
       for (const m of text.matchAll(/(?:https?:\/\/|["'`(]\/\/)([A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+)/g))
         hosts.add(m[1] ?? '');
-      expect(text, f).not.toMatch(/@import\s+(?:url\()?["']?(?:https?:)?\/\//i);
+      expect(text).not.toMatch(/@import\s+(?:url\()?["']?(?:https?:)?\/\//i);
     }
     expect([...hosts].filter((h) => !INERT_HOSTS.has(h))).toEqual([]);
   });

@@ -103,7 +103,8 @@ describe('access log', () => {
     const actions = items.map((e: { action: string }) => e.action);
     expect(actions).toEqual(expect.arrayContaining(['case.view', 'report.view']));
     const caseView = items.find((e: { action: string }) => e.action === 'case.view');
-    expect(caseView).toMatchObject({ actor: ANALYST, caseId, outcome: 'ok', purpose: newCase.purpose });
+    expect(caseView).toMatchObject({ actor: ANALYST, caseId, outcome: 'ok' });
+    expect(caseView.purpose).toBeUndefined();
     const report = items.find((e: { action: string }) => e.action === 'report.view');
     expect(report).toMatchObject({ runId, caseId, outcome: 'ok' });
     const exp = items.find((e: { action: string }) => e.action === 'export.download');
@@ -142,5 +143,16 @@ describe('request log', () => {
     expect(text).not.toContain('sekret-token-123');
     expect(text).not.toContain('sekret-cookie-456');
     expect(text).not.toContain('fikcyjny_kacper');
+  });
+});
+
+describe('access log actor', () => {
+  it('is the fixed local actor when no analyst is configured', async () => {
+    const plain = buildApp({ ...runtime });
+    await plain.inject(`/api/cases/${caseId}`);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    const [latest] = await runtime.repos.accessLog!.list({ caseId, limit: 1 });
+    expect(latest).toMatchObject({ actor: 'local', action: 'case.view' });
+    await plain.close();
   });
 });

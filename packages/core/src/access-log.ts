@@ -20,14 +20,14 @@ export type AccessOutcome = (typeof ACCESS_OUTCOMES)[number];
 export interface AccessLogEntry {
   id: Id;
   at: IsoDateTime;
-  /** The analyst identity of the API (never taken from a request). */
+  /** The analyst label of the API (as recorded with judgements), else `local`; never taken from a request. */
   actor: string;
   action: AccessAction;
   caseId?: Id;
   runId?: Id;
   /** What was read: the route pattern, or the export format / blob digest. */
   resource?: string;
-  /** Stated purpose of the access: the `X-Olcys-Purpose` request header, else the purpose recorded with the case. */
+  /** Stated purpose of the access, only where the client sent one (never asked for before viewing). */
   purpose?: string;
   outcome: AccessOutcome;
   ip: string;

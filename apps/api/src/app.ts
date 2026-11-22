@@ -98,7 +98,8 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
   registerSecurityHeaders(app, { hsts: deps.hsts ?? false });
   registerAccessLog(app, {
     repos,
-    analyst,
+    // The analyst label recorded with judgements when configured, otherwise a fixed local actor.
+    analyst: deps.analyst ?? 'local',
     onError: (error) => app.log.error({ err: error }, 'access log write failed'),
   });
 
