@@ -2,7 +2,7 @@
   "name": "@olcys/worker",
   "version": "0.0.0",
   "private": true,
-  "description": "Job runner and composition root: wires packages behind @olcys/core ports and runs the analysis pipeline on pg-boss.",
+  "description": "Job runner and composition root: wires packages behind @olcys/core ports and runs the analysis pipeline in-process (no job queue).",
   "type": "module",
   "exports": {
     ".": "./src/index.ts"
