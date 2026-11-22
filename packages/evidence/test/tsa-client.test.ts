@@ -1,0 +1,116 @@
+import { beforeAll, describe, expect, it } from 'vitest';
+import type { FetchMode, TimestampSubject } from '@olcys/core';
+import * as pkijs from 'pkijs';
+import { createRfc3161Client, InMemoryBlobStore, type Rfc3161Config } from '../src/index.ts';
+import { createFakeTsa, createFakeTsaEgress, type FakeTsa } from './support/fake-tsa.ts';
+
+const subject: TimestampSubject = {
+  type: 'capture_manifest',
+  id: '0190a000-0000-7000-8000-0000000000a1',
+  digest: 'ef'.repeat(32),
+  referenceTime: '2026-11-21T12:00:00.000Z',
+};
+let tsa: FakeTsa;
+beforeAll(async () => {
+  tsa = await createFakeTsa();
+});
+
+const config = (): Rfc3161Config => ({
+  tsaUrl: 'https://freetsa.org/tsr',
+  sourceId: 'freetsa',
+  qualified: false,
+  trustAnchorsPem: [tsa.caPem],
+  timeoutMs: 10_000,
+  maxClockSkewSeconds: 120,
+});
+const ctx = (http: ReturnType<typeof createFakeTsaEgress>['client'], mode: FetchMode = 'live') => ({
+  http,
+  blobs: new InMemoryBlobStore(),
+  clock: { now: () => new Date('2026-11-21T12:00:00.000Z') },
+  mode,
+});
+
+describe('Rfc3161Client', () => {
+  it('AC2: live mode makes exactly one POST with the request DER and stores the verified reply', async () => {
+    const egress = createFakeTsaEgress(tsa);
+    const context = ctx(egress.client);
+    const attempt = await createRfc3161Client(config(), () => 4242n).request(subject, context);
+    expect(egress.calls).toHaveLength(1);
+    const call = egress.calls[0]!;
+    expect(call).toMatchObject({
+      url: 'https://freetsa.org/tsr',
+      method: 'POST',
+      sourceId: 'freetsa',
+      containsIdentifier: false,
+      headers: { 'content-type': 'application/timestamp-query' },
+    });
+    const req = pkijs.TimeStampReq.fromBER(Uint8Array.from(call.body as Uint8Array));
+    expect(Buffer.from(req.messageImprint.hashedMessage.valueBlock.valueHexView).toString('hex')).toBe(subject.digest);
+    expect(attempt.nonce).toBe(4242n);
+    expect(attempt.outcome.status).toBe('granted');
+    if (attempt.outcome.status !== 'granted') return;
+    const { token } = attempt.outcome;
+    expect(token).toMatchObject({
+      tsaUrl: 'https://freetsa.org/tsr',
+      genTime: '2026-11-21T12:00:05.000Z',
+      hashAlgorithm: 'sha256',
+      messageImprint: subject.digest,
+      qualified: false,
+      skewSeconds: 5,
+    });
+    expect(token.token.mediaType).toBe('application/timestamp-reply');
+    expect(await context.blobs.get(token.token.sha256)).toEqual(attempt.outcome.tokenDer);
+  });
+
+  it('AC6: skew is reported in seconds', async () => {
+    const egress = createFakeTsaEgress(tsa, [{ genTime: new Date('2026-11-21T12:10:00.000Z') }]);
+    const attempt = await createRfc3161Client(config()).request(subject, ctx(egress.client));
+    expect(attempt.outcome.status === 'granted' && attempt.outcome.token.skewSeconds).toBe(600);
+  });
+
+  it.each<FetchMode>(['offline', 'replay'])('AC4: %s mode queues without any egress call', async (mode) => {
+    const egress = createFakeTsaEgress(tsa);
+    const attempt = await createRfc3161Client(config()).request(subject, ctx(egress.client, mode));
+    expect(attempt.outcome).toEqual({ status: 'queued', reason: 'offline' });
+    expect(egress.calls).toHaveLength(0);
+  });
+
+  it('AC5: 429 and 5xx are transient; other HTTP errors are rejections', async () => {
+    const egress = createFakeTsaEgress(tsa, [503, 429, 403]);
+    const client = createRfc3161Client(config());
+    const first = await client.request(subject, ctx(egress.client));
+    expect(first).toMatchObject({ outcome: { status: 'queued', reason: 'transient_failure' }, httpStatus: 503 });
+    expect((await client.request(subject, ctx(egress.client))).outcome).toEqual({
+      status: 'queued',
+      reason: 'transient_failure',
+    });
+    expect((await client.request(subject, ctx(egress.client))).outcome).toEqual({
+      status: 'rejected',
+      reason: 'http_403',
+    });
+  });
+
+  it('treats a network error as transient and a denied host as a bug', async () => {
+    const down = createFakeTsaEgress(tsa, [
+      () => {
+        throw new Error('connect ECONNREFUSED');
+      },
+    ]);
+    const attempt = await createRfc3161Client(config()).request(subject, ctx(down.client));
+    expect(attempt).toMatchObject({ outcome: { reason: 'transient_failure' }, error: 'connect ECONNREFUSED' });
+    const denied = createFakeTsaEgress(tsa, [
+      () => {
+        throw Object.assign(new Error('egress denied'), { name: 'EgressDeniedError' });
+      },
+    ]);
+    await expect(createRfc3161Client(config()).request(subject, ctx(denied.client))).rejects.toThrow('egress denied');
+  });
+
+  it('AC3: a tampered reply is rejected naming the failed check and stores no blob', async () => {
+    const egress = createFakeTsaEgress(tsa, [{ wrongNonce: true }]);
+    const context = ctx(egress.client);
+    const attempt = await createRfc3161Client(config()).request(subject, context);
+    expect(attempt.outcome).toEqual({ status: 'rejected', reason: 'verification_failed: nonce' });
+    expect(attempt.verification?.ok).toBe(false);
+  });
+});

@@ -10,10 +10,18 @@ import type { NormalizedTransfer } from './chain-data.ts';
 import type { AddressRef } from './chains.ts';
 import type { AddressCluster } from './clusters.ts';
 import type { Id, IsoDateTime } from './common.ts';
-import type { Capture, CustodyEvent, Observation, OnlineAccount } from './evidence.ts';
+import type {
+  Capture,
+  CustodyEvent,
+  Observation,
+  OnlineAccount,
+  TimestampSubject,
+  TimestampToken,
+} from './evidence.ts';
 import type { AddressCandidate, ExtractionResult } from './extraction.ts';
 import type { AddressLabel, AddressTypeClassification, ExclusionDecision } from './labels.ts';
 import type { EgressLogEntry, ProvenanceEnvelope } from './provenance.ts';
+import type { SourceId } from './sources.ts';
 import type { CaseScheduleChange, ScheduleTick, ScheduleTickOutcome } from './schedule.ts';
 import type { CreateCaseInput } from './schemas.ts';
 import type { AnalystJudgement, AnalystOverride, LinkAssessment } from './scoring.ts';
@@ -223,6 +231,56 @@ export interface CustodyRepository {
   listBySubjects(subjectIds: Id[]): Promise<CustodyEvent[]>;
 }
 
+export const TIMESTAMP_REQUEST_OUTCOMES = ['queued', 'granted', 'failed', 'rejected'] as const;
+export type TimestampRequestOutcome = (typeof TIMESTAMP_REQUEST_OUTCOMES)[number];
+
+/** One attempt to obtain a time-stamp token (an immutable record: a retry is a new request). */
+export interface TimestampRequestRecord {
+  id: Id;
+  subject: TimestampSubject;
+  tsaSourceId: SourceId;
+  tsaUrl: string;
+  policyOid?: string;
+  /** Absent for a request that was queued without contacting the TSA. */
+  nonce?: string;
+  outcome: TimestampRequestOutcome;
+  reason?: string;
+  httpStatus?: number;
+  fetchId?: Id;
+  at: IsoDateTime;
+}
+
+/** A verified token of a subject digest; at most one per (subject type, subject id, digest). */
+export interface TimestampTokenRecord {
+  id: Id;
+  subject: TimestampSubject;
+  requestId: Id;
+  token: TimestampToken;
+  /** The result of every verification check, as stored with the token. */
+  verification: unknown;
+  createdAt: IsoDateTime;
+}
+
+/**
+ * Time-stamp requests and tokens (append-only). A subject is pending when its latest request is `queued` or `failed`
+ * and it has no token.
+ */
+export interface TimestampRepository {
+  /**
+   * Stores one attempt in one transaction: the request, its token (when granted) and the custody events. When the
+   * subject already has a token the new token is not stored (and no custody event is written): `tokenStored` is false.
+   */
+  record(attempt: {
+    request: TimestampRequestRecord;
+    token?: TimestampTokenRecord;
+    custody?: CustodyEvent[];
+  }): Promise<{ tokenStored: boolean }>;
+  getToken(subject: Pick<TimestampSubject, 'type' | 'id' | 'digest'>): Promise<TimestampTokenRecord | undefined>;
+  /** Latest requests of subjects without a token whose latest request is `queued` or `failed`, oldest first. */
+  listPending(limit?: number): Promise<TimestampRequestRecord[]>;
+  listRequests(subjectId: Id): Promise<TimestampRequestRecord[]>;
+}
+
 export interface Repositories {
   cases: CaseRepository;
   runs: RunRepository;
@@ -242,4 +300,6 @@ export interface Repositories {
   overrides?: OverrideRepository;
   /** Present when the store keeps chain-of-custody events. */
   custody?: CustodyRepository;
+  /** Present when the store keeps RFC 3161 requests and tokens (`Capture.timestamp` is filled from it). */
+  timestamps?: TimestampRepository;
 }
