@@ -152,19 +152,19 @@ sources:
     name: CEIDG API v3
     kind: registry
     compliance: GREEN
-    complianceNote: Official API; the only one that searches by first and last name. Token required (application).
+    complianceNote: Official API; the only one that searches by first and last name (namesakes are possible - a NIP is followed only for a single match). Token required (own application, CEIDG_API_TOKEN, header only, never logged). Published limits 50 requests / 3 min and 1000 / h, kept at 1 request / 4 s; quota errors are never retried.
     enabledByDefault: false
     requiresApiKey: true
     sendsIdentifiersExternally: true
     reliability: A
-    rateLimit: { requests: 1, perSeconds: 1 }
+    rateLimit: { requests: 1, perSeconds: 4 }
     allowedHosts: [dane.biznes.gov.pl]
 
   krs:
     name: KRS Open API
     kind: registry
     compliance: GREEN
-    complianceNote: Official API; lookup by KRS number only.
+    complianceNote: Official API (open data, CC0); lookup by KRS number only. Sometimes answers a maintenance page (Przerwa techniczna) with status 200 - recorded as an error, not as an empty register. Personal identifiers (PESEL) are never read.
     enabledByDefault: true
     requiresApiKey: false
     sendsIdentifiersExternally: true
@@ -176,7 +176,7 @@ sources:
     name: Wykaz podatników VAT (biała lista)
     kind: registry
     compliance: GREEN
-    complianceNote: Official API; moved to wykazpodatnikowvat.mf.gov.pl/api (old wl-api host stops 2026-12-01).
+    complianceNote: Official API; moved to wykazpodatnikowvat.mf.gov.pl/api (the previous API host stops 2026-12-01 and is never used). Search limit 100 queries a day (at most 10 per run here); a quota answer stops the source. Third parties are recorded as name and role only, PESEL is never read.
     enabledByDefault: true
     requiresApiKey: false
     sendsIdentifiersExternally: true

@@ -219,3 +219,44 @@ export {
   type SearchSubject,
   type SubjectSearchQuery,
 } from './search/query.ts';
+export {
+  CEIDG_BASE_URL,
+  CEIDG_DEFAULT_MAX_RESULTS,
+  CEIDG_PARSER_VERSION,
+  CEIDG_SOURCE_ID,
+  ceidgSearchKey,
+  ceidgSearchUrl,
+  createCeidgCollector,
+  formatCeidgAddress,
+  type CeidgOptions,
+} from './registries/ceidg.ts';
+export {
+  KRS_BASE_URL,
+  KRS_PARSER_VERSION,
+  KRS_SOURCE_ID,
+  createKrsCollector,
+  krsEntryName,
+  krsExtractUrl,
+  type KrsOptions,
+} from './registries/krs.ts';
+export {
+  buildNrb,
+  isValidNip,
+  isValidNrb,
+  isValidRegon,
+  normalizeKrs,
+  normalizeNip,
+  normalizeNrb,
+  nrbCheckDigits,
+  splitPolishFullName,
+  warsawDate,
+} from './registries/polish-ids.ts';
+export {
+  VAT_BASE_URL,
+  VAT_DEFAULT_MAX_SEARCH_CALLS,
+  VAT_PARSER_VERSION,
+  VAT_SOURCE_ID,
+  createVatWhitelistCollector,
+  vatSearchUrl,
+  type VatWhitelistOptions,
+} from './registries/vat-whitelist.ts';

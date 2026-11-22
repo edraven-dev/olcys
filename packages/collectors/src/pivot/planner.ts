@@ -12,6 +12,11 @@
  *   E2  account discovered for the subject         → its handle on the other platforms (depth + 1)
  *   E3  `search.result_url`                        → the page's watch-page collector (same key as I3), else the
  *                                                    recognised account's collector (as E1) (depth + 1)
+ *   I6  full name                                  → every registry that looks people up by name (CEIDG)
+ *   E4  CEIDG `registry.nip`                       → VAT white list, only when the name search matched exactly one
+ *                                                    firm (`registry.ceidg.result_count` = 1); else "ambiguous namesake"
+ *   E5  VAT white list `registry.krs`              → KRS (depth + 1)
+ *   Third parties found in a registry (representatives, clerks, partners, board members) are never pivots.
  */
 import type {
   CollectorInput,
@@ -19,6 +24,7 @@ import type {
   Id,
   Identifier,
   IdentifierKind,
+  Observation,
   OnlineAccount,
   PivotValue,
   SourceId,
@@ -27,6 +33,7 @@ import type { CollectorFactory, CollectorInstance } from '../framework/collector
 import type { WatchedPage } from '../framework/config.ts';
 import type { ResolvedScope } from '../framework/source-registry.ts';
 import { recogniseAccountUrl, toLogicalUrl, type FixtureMapping } from '../framework/urls.ts';
+import { normalizeKrs, normalizeNip } from '../registries/polish-ids.ts';
 import { normaliseQueryText, SEARCH_IDENTIFIER_KINDS } from '../search/query.ts';
 
 export const PIVOT_RULES_VERSION = 'pivot.v1';
@@ -37,6 +44,7 @@ export const PIVOT_REASONS = [
   'linked_url',
   'discovered_account',
   'search_result',
+  'registry_identifier',
 ] as const;
 export type PivotReason = (typeof PIVOT_REASONS)[number];
 export const SKIP_REASONS = [
@@ -50,6 +58,7 @@ export const SKIP_REASONS = [
   'duplicate',
   'already_collected',
   'budget_exceeded',
+  'ambiguous_namesake',
 ] as const;
 export type SkipReason = (typeof SKIP_REASONS)[number];
 
@@ -119,6 +128,10 @@ const RED_PLATFORM_SOURCES: Readonly<Record<string, SourceId>> = {
   discord: 'discord',
   linktree: 'linktree',
 };
+
+const CEIDG_SOURCE = 'ceidg';
+const VAT_SOURCE = 'vat_whitelist';
+const KRS_SOURCE = 'krs';
 
 export function taskKey(sourceId: SourceId, subjectKey: string): string {
   return `${sourceId}|${subjectKey}`;
@@ -282,6 +295,68 @@ class Planner {
     this.linked(logical, depth, provenance, { ...value, method: 'search' });
   }
 
+  /**
+   * Registry pivots (E4, E5). A CEIDG search by name matches every namesake: its NIP is followed only when the search
+   * found exactly one firm, otherwise the task is recorded as skipped ("ambiguous namesake") and nothing is looked up.
+   */
+  registries(parent: PlannedTask, result: CollectorResult, depth: number): void {
+    const via = (o: Observation) => ({
+      reason: 'registry_identifier' as const,
+      rule: parent.sourceId === CEIDG_SOURCE ? 'E4' : 'E5',
+      parentTaskKey: parent.key,
+      observationId: o.id,
+      captureId: o.captureId,
+    });
+    if (parent.sourceId === CEIDG_SOURCE) {
+      const count = result.observations.find((o) => o.property === 'registry.ceidg.result_count')?.value;
+      const nips = result.observations.filter((o) => o.property === 'registry.nip');
+      if (count !== '1' && nips.length) {
+        const subjectKey = `ceidg-namesakes:${count ?? 'unknown'}`;
+        this.skipped.push({
+          key: taskKey(VAT_SOURCE, subjectKey),
+          sourceId: VAT_SOURCE,
+          platform: VAT_SOURCE,
+          subjectKey,
+          depth,
+          provenance: { ...via(nips[0] as Observation), detail: `${count ?? 'unknown'} firms matched the name` },
+          skip: 'ambiguous_namesake',
+        });
+        return;
+      }
+      for (const o of nips) {
+        const nip = normalizeNip(o.value);
+        this.#registryTask(VAT_SOURCE, `nip:${nip}`, { kind: 'nip', value: nip }, depth, via(o), o);
+      }
+    } else if (parent.sourceId === VAT_SOURCE) {
+      for (const o of result.observations.filter((x) => x.property === 'registry.krs')) {
+        const krs = normalizeKrs(o.value);
+        if (krs) this.#registryTask(KRS_SOURCE, `krs:${krs}`, { kind: 'krs', value: krs }, depth, via(o), o);
+      }
+    }
+  }
+
+  #registryTask(
+    sourceId: SourceId,
+    subjectKey: string,
+    value: Pick<PivotValue, 'kind' | 'value'>,
+    depth: number,
+    provenance: PivotProvenance,
+    from: Observation,
+  ): void {
+    this.consider({
+      key: taskKey(sourceId, subjectKey),
+      sourceId,
+      platform: sourceId,
+      subjectKey,
+      depth,
+      input: {
+        ...emptyInput(depth),
+        values: [{ ...value, method: 'search', observationId: from.id, captureId: from.captureId }],
+      },
+      provenance: { ...provenance, detail: subjectKey },
+    });
+  }
+
   plan(): PivotPlan {
     return { rulesVersion: PIVOT_RULES_VERSION, tasks: this.tasks, skipped: this.skipped };
   }
@@ -335,6 +410,18 @@ export function planInitial(identifiers: readonly Identifier[], ctx: PlannerCont
     }
     if (NICK_KINDS.has(identifier.kind)) {
       planner.probes(value, 0, provenance('same_nick', 'I2'), [identifier], identifier.platform);
+    }
+    for (const factory of ctx.factories.filter((f) => f.identifierKinds?.includes(identifier.kind))) {
+      const subjectKey = `name:${normaliseQueryText(value).toLowerCase()}`;
+      planner.consider({
+        key: taskKey(factory.sourceId, subjectKey),
+        sourceId: factory.sourceId,
+        platform: factory.platform,
+        subjectKey,
+        depth: 0,
+        input: { ...emptyInput(0), identifiers: [identifier] },
+        provenance: provenance('input_identifier', 'I6'),
+      });
     }
   }
   const matchable = identifiers.filter((i) => i.value.trim());
@@ -408,6 +495,7 @@ export function planExpansion(parent: PlannedTask, result: CollectorResult, ctx:
       ctx.identifiers ?? parent.input.identifiers,
     );
   }
+  planner.registries(parent, result, depth);
   if (factory?.pivotOnAccounts !== false) {
     // An account found by a same-nick probe was looked up with a nick already probed everywhere: no re-probe with
     // its platform spelling (e.g. the code-hosting login `a-b` for the nick `a_b`).
