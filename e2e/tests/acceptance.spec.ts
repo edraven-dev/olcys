@@ -185,7 +185,7 @@ test('step 6: on-chain activity — fiat cash-out with the NBP table', async ({ 
   await page.goto(`/sprawy/${caseId}/przebiegi/${run1}/graf`);
   await expect(page.getByRole('heading', { name: pl.graph.title })).toBeVisible();
   await expect(page.locator('main canvas, main svg').first()).toBeVisible();
-  await shot(page, '07-graf');
+  await shot(page, '07-graf', page.locator('main canvas').first());
 });
 
 test('step 7a: re-run — the wallet swap raises an alert', async ({ page }) => {
