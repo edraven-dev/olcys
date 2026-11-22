@@ -97,28 +97,29 @@ describe('downloads panel', () => {
   });
 });
 
-describe('downloads panel with a PDF', () => {
-  const pdfFile = (status: 'signed_timestamped' | 'signed' | 'unsigned', warnings: string[] = []): ReportFile => ({
-    kind: 'pdf',
-    fileName: 'olcys-raport-run-1.pdf',
-    mediaType: 'application/pdf',
-    available: true,
-    path: `/api/runs/run-1/report/versions/${'9'.repeat(64)}/pdf`,
-    bytes: 4096,
-    sha256: 'a'.repeat(64),
-    pdf: {
-      status,
-      demoCertificate: true,
-      pdfaProfile: 'PDF/A-3b',
-      pdfaCompliant: true,
-      warnings,
-      manifestSha256: 'b'.repeat(64),
-    },
-  });
-  const render = (files: ReportFile[]) => {
-    act(() => root.render(<DownloadsPanel files={files} />));
-  };
+const pdfFile = (status: 'signed_timestamped' | 'signed' | 'unsigned', warnings: string[] = []): ReportFile => ({
+  kind: 'pdf',
+  fileName: 'olcys-raport-run-1.pdf',
+  mediaType: 'application/pdf',
+  available: true,
+  path: `/api/runs/run-1/report/versions/${'9'.repeat(64)}/pdf`,
+  bytes: 4096,
+  sha256: 'a'.repeat(64),
+  pdf: {
+    status,
+    demoCertificate: true,
+    pdfaProfile: 'PDF/A-3b',
+    pdfaCompliant: true,
+    warnings,
+    manifestSha256: 'b'.repeat(64),
+  },
+});
 
+const render = (files: ReportFile[]) => {
+  act(() => root.render(<DownloadsPanel files={files} />));
+};
+
+describe('downloads panel with a PDF', () => {
   it('lists the PDF with its digest, size and signature status, always as a demo signature', () => {
     render([pdfFile('signed')]);
     expect(host.textContent).toContain('a'.repeat(64));

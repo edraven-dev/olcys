@@ -156,6 +156,20 @@ const legacyFiles = (runId: string, set: ExportSet): ReportFile[] => [
   }),
 ];
 
+/**
+ * The token of the report PDF: embedded in the signature (B-T) or, for a B-B signature, the stamp of the whole file that
+ * a live flush granted later. A version is immutable; this lookup only adds the token once it exists.
+ */
+async function pdfTimestamp(
+  repos: Repositories,
+  pdf: PdfSetEntry | undefined,
+): Promise<{ sha256: string; bytes: number } | undefined> {
+  if (!pdf) return undefined;
+  if (pdf.timestampSha256) return { sha256: pdf.timestampSha256, bytes: pdf.timestampBytes ?? 0 };
+  const stored = await repos.timestamps?.getToken({ type: 'report_pdf', id: pdf.reportId, digest: pdf.sha256 });
+  return stored ? { sha256: stored.token.token.sha256, bytes: stored.token.token.bytes } : undefined;
+}
+
 /** The report PDF of a version as a listed file: available with its signature status, or unavailable. */
 const pdfFile = (pdf: PdfSetEntry | undefined, base: string, fileName: string): ReportFile =>
   pdf
@@ -546,16 +560,6 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
     const base = `/api/runs/${runId}/report/versions/${version}`;
     const name = (extension: string) => `olcys-raport-${runId}.${extension}`;
     const size = async (sha: string) => (await deps.blobs.get(sha)).length;
-    // The token of the PDF: embedded in the signature (B-T) or, for a B-B signature, the stamp of the whole file that a
-    // live flush granted later. A version is immutable; this lookup only adds the token once it exists.
-    const pdfTimestamp = async (
-      pdf: PdfSetEntry | undefined,
-    ): Promise<{ sha256: string; bytes: number } | undefined> => {
-      if (!pdf) return undefined;
-      if (pdf.timestampSha256) return { sha256: pdf.timestampSha256, bytes: pdf.timestampBytes ?? 0 };
-      const stored = await repos.timestamps?.getToken({ type: 'report_pdf', id: pdf.reportId, digest: pdf.sha256 });
-      return stored ? { sha256: stored.token.token.sha256, bytes: stored.token.token.bytes } : undefined;
-    };
     const files: ReportFile[] = [
       {
         kind: 'html',
@@ -577,7 +581,7 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
         sha256: set.dataSha256,
       },
     ];
-    const pdfToken = await pdfTimestamp(set.pdf);
+    const pdfToken = await pdfTimestamp(repos, set.pdf);
     if (pdfToken) {
       files.push({
         kind: 'pdf_timestamp',

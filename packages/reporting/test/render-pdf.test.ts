@@ -191,7 +191,8 @@ describe('renderReportPdf', () => {
     expect(result.status).toBe('unsigned');
     expect(result.warnings).toEqual(['signing_unavailable']);
     expect(result.artifacts.map((a) => a.kind).toSorted()).toEqual(['manifest_json', 'pdf']);
-    for (const artifact of result.artifacts) expect(await deps.blobs.has(artifact.blob.sha256)).toBe(true);
+    const stored = await Promise.all(result.artifacts.map((a) => deps.blobs.has(a.blob.sha256)));
+    expect(stored).toEqual([true, true]);
   });
 
   it('external references: no request is made and it throws', async () => {

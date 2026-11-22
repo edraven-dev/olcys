@@ -261,20 +261,21 @@ describe('older and damaged reports', () => {
   });
 });
 
+const reply = (status: number, body: Uint8Array | object, headers: Record<string, string> = {}): EgressResponse => {
+  const bytes = body instanceof Uint8Array ? body : new TextEncoder().encode(JSON.stringify(body));
+  return {
+    status,
+    finalUrl: '',
+    headers,
+    body: bytes,
+    text: () => new TextDecoder().decode(bytes),
+    json: <T>() => JSON.parse(new TextDecoder().decode(bytes)) as T,
+    provenance: {} as EgressResponse['provenance'],
+  };
+};
+
 describe('report PDF in the version file list', () => {
   const PDF = new TextEncoder().encode('%PDF-1.7 synthetic');
-  const reply = (status: number, body: Uint8Array | object, headers: Record<string, string> = {}): EgressResponse => {
-    const bytes = body instanceof Uint8Array ? body : new TextEncoder().encode(JSON.stringify(body));
-    return {
-      status,
-      finalUrl: '',
-      headers,
-      body: bytes,
-      text: () => new TextDecoder().decode(bytes),
-      json: <T>() => JSON.parse(new TextDecoder().decode(bytes)) as T,
-      provenance: {} as EgressResponse['provenance'],
-    };
-  };
   const gotenberg: EgressClient = {
     async fetch(request) {
       if (request.sourceId !== 'gotenberg') throw new Error('ECONNREFUSED');
