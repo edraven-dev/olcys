@@ -92,6 +92,16 @@ describe('in-memory secrets', () => {
     expect(countLeaks('xx abcdefghijkl yy', fragments)).toBe(1);
     expect(countLeaks('abcdefghijk', fragments)).toBe(0);
   });
+
+  it('finds a seed phrase in a JSON-serialised log, where separators are escaped', () => {
+    const phrase = secretValue('s', 'd', 'seed_phrase', 1, 'txt');
+    const multiline = phrase.includes('\n') ? phrase : phrase.replaceAll(' ', '\n');
+    const fragments = secretFragments([multiline]);
+    const logged = JSON.stringify({ phrase: multiline, note: 'x\ty' });
+    expect(logged).toContain('\\n');
+    expect(countLeaks(logged, fragments)).toBeGreaterThan(0);
+    expect(countLeaks(JSON.stringify({ phrase: 'abandon ability able' }), fragments)).toBe(0);
+  });
 });
 
 /** The same string with its last character changed (an invalid bech32 checksum). */

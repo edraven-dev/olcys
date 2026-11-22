@@ -4,7 +4,7 @@
 import type { ChainFamily } from '@olcys/core';
 import type { PatternId } from '../pipeline-types.ts';
 
-export const PATTERNS_VERSION = 'patterns.v1';
+export const PATTERNS_VERSION = 'patterns.v2';
 
 /** Bitcoin base58 alphabet (no 0 O I l). */
 export const B58 = '[1-9A-HJ-NP-Za-km-z]';
