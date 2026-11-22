@@ -6,6 +6,7 @@
 npm:
   '@noble/curves': 'podpisy secp256k1 i weryfikacja BIP-137; generator danych syntetycznych'
   '@noble/hashes': 'SHA-256, RIPEMD-160 i Keccak-256 (sumy kontrolne adresów, BIP-137, skrót wag); generator danych'
+  '@playwright/test': 'testy akceptacyjne E2E i nagranie filmu demonstracyjnego (lokalny Chromium, bez pobierania przeglądarek)'
   '@safe-global/safe-deployments': 'adresy singletonów Safe (klasyfikacja typu adresu)'
   '@scure/base': 'bech32/bech32m, base58check i base64 (adresy, BIP-137); generator danych'
   '@scure/bip39': 'listy słów BIP-39 do wykrywania i maskowania fraz seed'
