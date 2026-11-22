@@ -83,7 +83,7 @@ function Parts({ parts }: { parts: DiffPart[] }) {
   );
 }
 
-function ChangeGroups({ changes, names }: { changes: ChangeView[]; names: ReadonlyMap<string, string> }) {
+export function ChangeGroups({ changes, names }: { changes: ChangeView[]; names: ReadonlyMap<string, string> }) {
   const { alerts, byKind } = groupChanges(changes);
   return (
     <>

@@ -65,6 +65,8 @@ const AUDITED: Readonly<Record<string, Audited>> = {
   '/api/runs/:runId/egress': { action: 'evidence.view', scope: 'run' },
   '/api/runs/:runId/links': { action: 'run.view', scope: 'run' },
   '/api/runs/:runId/report': { action: 'report.view', scope: 'run' },
+  '/api/runs/:runId/report/view': { action: 'report.view', scope: 'run' },
+  '/api/runs/:runId/report/versions/:version/:kind': { action: 'export.download', scope: 'run' },
   '/api/runs/:runId/exports/:format': { action: 'export.download', scope: 'run' },
   '/api/captures/:captureId': { action: 'evidence.view', scope: 'none' },
   '/api/blobs/:sha256': { action: 'evidence.view', scope: 'none' },
@@ -126,6 +128,7 @@ export function registerAccessLog(app: FastifyInstance, options: AccessLogOption
         caseId?: string;
         runId?: string;
         format?: string;
+        kind?: string;
         captureId?: string;
         sha256?: string;
       };
@@ -137,7 +140,7 @@ export function registerAccessLog(app: FastifyInstance, options: AccessLogOption
         caseId = runId ? (await repos.runs.get(runId))?.caseId : undefined;
       }
       // Evidence reads keep their identity: the capture (with its run and case) or the blob digest.
-      const subject = params.format ?? params.captureId ?? params.sha256;
+      const subject = params.format ?? params.kind ?? params.captureId ?? params.sha256;
       if (params.captureId) {
         const capture = await repos.evidence.getCapture(idOf(params.captureId) ?? '');
         runId = capture?.runId;

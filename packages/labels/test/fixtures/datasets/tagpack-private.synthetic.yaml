@@ -1,0 +1,9 @@
+# SYNTHETIC TEST DATA
+title: Synthetic private tagpack
+is_public: false
+currency: BTC
+category: exchange
+tags:
+  - address: bc1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq
+    label: Private (SYNTHETIC)
+    source: https://tagpacks.example/synthetic/6

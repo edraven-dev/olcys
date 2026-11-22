@@ -9,6 +9,7 @@
     "start": "node src/main.ts"
   },
   "dependencies": {
+    "@olcys/address-extractor": "workspace:*",
     "@olcys/collectors": "workspace:*",
     "@olcys/core": "workspace:*",
     "@olcys/evidence": "workspace:*",
