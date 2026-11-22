@@ -34,6 +34,8 @@ z `containsIdentifier`, koperta pochodzenia i kasety.
   węzła w sieci agencji, dodać ten host do `allowedHosts` osobnego wpisu w `config/sources.yaml` i wskazać jego
   `sourceId` w `config/chain-providers.yaml`. Żaden adres nie opuszcza wtedy sieci agencji; nigdy nie wskazywać
   publicznego RPC ani nie rozwidlać sieci publicznej w Anvilu.
+- **Dane piaskownicy:** wpisy `sandbox_anvil` i `sandbox_esplora` w `config/sources.yaml` mają `sandbox: true`; klient
+  ruchu wychodzącego oznacza wtedy każdą odpowiedź na żywo (koperta pochodzenia i dziennik) jako `sandbox`.
 - **Demonstracja (offline):** `withFixtureSite(configs, FIXTURE_SITE_URL, manifest.hostPrefixes)` przepina adresy na
   ścieżki strony testowej, np. `mempool.space/api` → `/chain/esplora/api`.
 
@@ -79,14 +81,16 @@ Pojedyncze adaptery i funkcje czyste: `createEsploraProvider`, `createEtherscanP
   prezentacji danych; plany darmowe tylko do użytku osobistego/badawczego (prototyp).
 - **EVM (Otterscan, `evm-otterscan`):** węzeł z API `ots_*` (Erigon lub Anvil w piaskownicy) — zwykłe JSON-RPC nie
   listuje historii adresu, `ots_searchTransactionsBefore` tak. Przy pierwszym wywołaniu w przebiegu sprawdzane jest
-  `ots_getApiLevel` ≥ 8 (`minApiLevel`); niższy poziom lub brak przestrzeni `ots` to `provider_unavailable`, dostawca
+  `ots_getApiLevel` ≥ 8 (`minApiLevel`) i `eth_chainId` zgodny ze skonfigurowanym łańcuchem (`evm:N` → N); niższy
+  poziom, brak przestrzeni `ots` lub inny identyfikator łańcucha to `provider_unavailable`, dostawca
   jest wstrzymany do końca przebiegu (bez dalszych zapytań), a adres przechodzi do kolejnego dostawcy. Listowanie
   idzie od najnowszych: (1) `ots_searchTransactionsBefore(adres, blok, rozmiar_strony)` — strony po 25 transakcji
   (`pageSize`; węzeł nie dzieli bloku), przelewy natywne z transakcji, przelewy wewnętrzne z
   `ots_getInternalOperations` (tylko wywołania kontraktów, tylko ruchy z udziałem adresu), transakcje nieudane
   pomijane; (2) i (3) `eth_getLogs` dla `Transfer(address,address,uint256)` z adresem jako nadawcą (topic1) i odbiorcą
   (topic2), porcjami po `logBlockRange` bloków (domyślnie 5 000 000), tylko ERC-20 (trzy tematy, jedno słowo danych),
-  zerowe kwoty pomijane. Symbol i `decimals` tokenu z `eth_call` (raz na kontrakt i przebieg; nieczytelne
+  zerowe kwoty pomijane; operacja wewnętrzna identyczna z wywołaniem najwyższego poziomu (ten sam nadawca, odbiorca i
+  wartość) nie jest emitowana drugi raz. Symbol i `decimals` tokenu z `eth_call` (raz na kontrakt i przebieg; nieczytelne
   `decimals` → pozycja pominięta z powodem `unsupported_decimals`). Wierzchołek: `eth_blockNumber` +
   `eth_getBlockByNumber` (skrót i czas bloku trafiają do proweniencji); znaczniki czasu z samych bloków (receipty
   Otterscan lub `eth_getBlockByNumber`), więc daty fabuły piaskownicy są zachowane. Pierwsza strona zaczyna się od
@@ -107,4 +111,4 @@ Pojedyncze adaptery i funkcje czyste: `createEsploraProvider`, `createEtherscanP
 ## Ograniczenia MVP
 
 Brak natywnych przelewów TRX i sond stanu kontraktów TRON (tylko kod), brak skrótu bloku wierzchołka, brak trwałej
-pamięci podręcznej między przebiegami, brak dostawcy Solana; Otterscan: tokeny tylko ERC-20 (bez ERC-721/1155), brak sprawdzenia `eth_chainId` względem skonfigurowanego łańcucha.
+pamięci podręcznej między przebiegami, brak dostawcy Solana; Otterscan: tokeny tylko ERC-20 (bez ERC-721/1155).

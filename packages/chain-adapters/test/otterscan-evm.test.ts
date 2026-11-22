@@ -129,6 +129,27 @@ describe('Otterscan provider: history', () => {
     expect(items.some((t) => t.txHash === hash(0xd5))).toBe(false);
   });
 
+  it('does not emit the top-level call again when the node lists it as an internal operation', async () => {
+    const call = {
+      hash: hash(0xd6),
+      block: 106,
+      from: ETH1,
+      to: SPLITTER,
+      wei: ETH,
+      input: '0xabcdef12',
+      internal: [{ from: SPLITTER, to: ETH1, wei: ETH / 10n }],
+    };
+    for (const includeTopLevelCall of [false, true]) {
+      const { provider, ctx } = setup({ txs: [call], logs: [], includeTopLevelCall });
+      // oxlint-disable-next-line no-await-in-loop
+      const { items } = await listAll(provider, ctx, 110);
+      expect(items.map((t) => [t.kind, t.amount])).toEqual([
+        ['native', '1'],
+        ['internal', '0.1'],
+      ]);
+    }
+  });
+
   it('AC2: an ERC-20 transfer is a token with symbol and decimals read from the contract', async () => {
     const { provider, ctx, http } = setup();
     const { items } = await listAll(provider, ctx, 110);
@@ -234,6 +255,7 @@ describe('Otterscan provider: history', () => {
     const stuck = new FakeEgressClient((r) => {
       const { id, method } = JSON.parse(bodyText(r)) as { id: number; method: string };
       if (method === 'ots_getApiLevel') return { body: { jsonrpc: '2.0', id, result: 8 } };
+      if (method === 'eth_chainId') return { body: { jsonrpc: '2.0', id, result: '0x1' } };
       return {
         body: {
           jsonrpc: '2.0',
@@ -308,6 +330,23 @@ describe('Otterscan provider: availability', () => {
     expect(methodsOf(http.requests).filter((m) => m === 'ots_getApiLevel')).toHaveLength(1);
   });
 
+  it('a node on another chain id is provider_unavailable and no history is read', async () => {
+    const { provider, ctx, http } = setup({ chainId: 137 });
+    await expect(listAll(provider, ctx, 110)).rejects.toMatchObject({
+      kind: 'provider_unavailable',
+      message: expect.stringContaining('chain id 137'),
+    });
+    await expect(provider.getTip('evm:1', ctx)).rejects.toMatchObject({ kind: 'provider_unavailable' });
+    expect(methodsOf(http.requests)).toEqual(['ots_getApiLevel', 'eth_chainId']);
+  });
+
+  it('checks the chain id once per run', async () => {
+    const { provider, ctx, http } = setup();
+    await provider.getTip('evm:1', ctx);
+    await provider.getCode!({ chain: 'evm:1', address: ETH1 }, ctx);
+    expect(methodsOf(http.requests).filter((m) => m === 'eth_chainId')).toHaveLength(1);
+  });
+
   it('falls through to the next provider in the fetch runner', async () => {
     const down = setup({ apiLevel: 7 });
     const registry = new ChainProviderRegistry();
@@ -362,8 +401,9 @@ describe('Otterscan provider: requests', () => {
     }
     expect([...ids.values()].every((s) => s.size === 1)).toBe(true);
     // the tip with block hash is part of the provenance trail of the run
-    expect(methodsOf(first.http.requests).slice(0, 3)).toEqual([
+    expect(methodsOf(first.http.requests).slice(0, 4)).toEqual([
       'ots_getApiLevel',
+      'eth_chainId',
       'eth_blockNumber',
       'eth_getBlockByNumber',
     ]);

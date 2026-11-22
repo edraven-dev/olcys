@@ -37,6 +37,10 @@ export interface NodeToken {
 }
 export interface FakeNodeState {
   apiLevel: number | 'missing';
+  /** `eth_chainId` answer (default 1, like the sandbox). */
+  chainId?: number;
+  /** Lists the top-level call as the first internal operation (some nodes do). */
+  includeTopLevelCall?: boolean;
   tip: number;
   txs: NodeTx[];
   logs: NodeLog[];
@@ -75,6 +79,8 @@ export function fakeOtterscanNode(state: FakeNodeState): (request: EgressRequest
         return state.apiLevel === 'missing'
           ? fail(-32601, 'the method ots_getApiLevel does not exist')
           : ok(state.apiLevel);
+      case 'eth_chainId':
+        return ok(hex(state.chainId ?? 1));
       case 'eth_blockNumber':
         return ok(hex(state.tip));
       case 'eth_getBlockByNumber': {
@@ -111,7 +117,11 @@ export function fakeOtterscanNode(state: FakeNodeState): (request: EgressRequest
       }
       case 'ots_getInternalOperations': {
         const tx = state.txs.find((t) => t.hash === (params as string[])[0]);
-        return ok((tx?.internal ?? []).map((op) => ({ type: 0, from: op.from, to: op.to, value: hex(op.wei) })));
+        const ops = [
+          ...(tx && state.includeTopLevelCall && tx.to ? [{ from: tx.from, to: tx.to, wei: tx.wei }] : []),
+          ...(tx?.internal ?? []),
+        ];
+        return ok(ops.map((op) => ({ type: 0, from: op.from, to: op.to, value: hex(op.wei) })));
       }
       case 'eth_getLogs': {
         const filter = (params as [{ fromBlock: string; toBlock: string; topics: (string | null)[] }])[0];

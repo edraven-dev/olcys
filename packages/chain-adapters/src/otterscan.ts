@@ -56,6 +56,7 @@ const RPC_ID = {
   eth_getStorageAt: 9,
   eth_getBalance: 10,
   eth_getTransactionCount: 11,
+  eth_chainId: 12,
 } as const;
 type RpcMethod = keyof typeof RPC_ID;
 
@@ -277,6 +278,24 @@ export function createOtterscanEvmProvider(
           breaker.trip(ctx.runId, 'provider_unavailable', reason);
           throw new ChainProviderError('provider_unavailable', id, reason, { fetchId });
         }
+        // The node must serve the chain it is configured for (a mislabelled chain would poison every record).
+        const { result: nodeChain, fetchId: chainFetchId } = await rpc(
+          ctx,
+          'eth_chainId',
+          [],
+          'evm chain id check',
+          false,
+        );
+        const nodeChainId = hexToInt(nodeChain);
+        if (nodeChainId === undefined) {
+          throw new ChainProviderError('invalid_response', id, 'bad eth_chainId result', { fetchId: chainFetchId });
+        }
+        const wrong = options.chains.filter((chain) => chain !== `evm:${nodeChainId}`);
+        if (wrong.length > 0) {
+          const reason = `node reports chain id ${nodeChainId}, configured for ${wrong.join(', ')}`;
+          breaker.trip(ctx.runId, 'provider_unavailable', reason);
+          throw new ChainProviderError('provider_unavailable', id, reason, { fetchId: chainFetchId });
+        }
       })();
       ready.set(ctx.runId, check);
       // A transient failure is retried by the next call; a verdict about the node is final for the run.
@@ -407,6 +426,8 @@ export function createOtterscanEvmProvider(
           const opFrom = String(op.from).toLowerCase();
           const opTo = op.to === null ? '' : String(op.to).toLowerCase();
           if (opWei === '' || /^0+$/.test(opWei) || (opFrom !== me && opTo !== me)) return;
+          // Some nodes list the top-level call as an operation: it is already the native transfer above.
+          if (opFrom === from && opTo === to && opWei === wei) return;
           const converted = rowAmount(opWei, native.decimals);
           if ('amount' in converted) {
             items.push({
