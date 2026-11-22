@@ -1,8 +1,9 @@
 /**
  * Mojeek Search API (web search, AMBER, paid per query; DPA without sub-processors, zero data retention on request).
  * JSON format, exact-phrase queries, Polish language and region bias for names and nicks. The key is a query
- * parameter and is redacted (`api_key=REDACTED`) in logs, provenance and recordings. Storage depends on the plan:
- * Startup may only cache results for an hour, so only rank and URL are kept and every request is hash-only.
+ * parameter and is redacted (`api_key=REDACTED`) in logs and provenance. Requests are hash-only (the raw answer may
+ * carry secrets in snippets); what is kept depends on the plan: Startup may only cache results for an hour, so only
+ * rank and URL are kept, Business and Enterprise keep titles and snippets (redacted).
  *
  * The request parameters and response fields follow the shape documented for this adapter (`fmt`, `t`, `s`, `lb`,
  * `rb`; `response.status`, `response.results[] { url, title, desc }`) and are to be checked against the provider's
@@ -106,7 +107,7 @@ export function createMojeekSearchProvider(options: MojeekSearchOptions): Search
         containsIdentifier: true,
         headers: { accept: 'application/json' },
         secretParams: ['api_key'],
-        persistBody: stores,
+        persistBody: false,
       });
       if ('failure' in fetched) {
         return { status: 'error', results: [], notes: [fetched.failure], fetchIds: [], retrievedAt: nowIso(ctx.clock) };

@@ -36,7 +36,10 @@ export interface SearchRun {
 
 export interface SearchAdapter extends SearchProvider {
   readonly id: SourceId;
-  /** True when the provider's terms allow storing result titles and snippets (else only rank and URL are kept). */
+  /**
+   * True when the provider's terms allow keeping result titles and snippets (else only rank and URL are kept). Raw
+   * responses are never stored: every provider request is hash-only.
+   */
   readonly storesResults: boolean;
   run(query: SubjectSearchQuery, ctx: RunContext): Promise<SearchRun>;
 }

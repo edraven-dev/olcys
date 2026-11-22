@@ -166,11 +166,27 @@ class Planner {
     if (!instance) return skip('not_registered');
     if (!instance.collector.supports(task.input)) return skip('unsupported');
     if (task.depth > ctx.maxPivotDepth) return skip('depth_exceeded');
-    if (ctx.known.has(task.key)) return skip('duplicate');
+    const aliases = this.#aliases(task);
+    if (ctx.known.has(task.key) || aliases.some((k) => ctx.known.has(k))) return skip('duplicate');
     if (ctx.counter.planned >= ctx.maxTasks) return skip('budget_exceeded');
     ctx.known.add(task.key);
+    for (const alias of aliases) ctx.known.add(alias);
     ctx.counter.planned += 1;
     this.tasks.push(task);
+  }
+
+  /**
+   * Other keys of a page task's subject: a watch-list or search-result page that is an account page of the same
+   * platform (e.g. a channel preview) is that account, so a probe or link to it is a duplicate, and vice versa.
+   */
+  #aliases(task: PlannedTask): string[] {
+    if (!task.subjectKey.startsWith('url:')) return [];
+    const account = recogniseAccountUrl(task.subjectKey.slice('url:'.length), this.#ctx.fixture);
+    if (account?.platform !== task.platform) return [];
+    const keys: string[] = [];
+    if (account.handle) keys.push(taskKey(task.sourceId, handleSubject(account.platform, account.handle)));
+    if (account.platformUserId) keys.push(taskKey(task.sourceId, `id:${account.platform}:${account.platformUserId}`));
+    return keys;
   }
 
   /** Task for a recognised account URL (identifier value or `account.link`). */
@@ -310,20 +326,6 @@ export function planInitial(identifiers: readonly Identifier[], ctx: PlannerCont
     if (NICK_KINDS.has(identifier.kind)) {
       planner.probes(value, 0, provenance('same_nick', 'I2'), [identifier], identifier.platform);
     }
-    if (SEARCH_KINDS.has(identifier.kind)) {
-      const subjectKey = searchSubject(identifier);
-      for (const factory of ctx.factories.filter((f) => f.webSearch)) {
-        planner.consider({
-          key: taskKey(factory.sourceId, subjectKey),
-          sourceId: factory.sourceId,
-          platform: factory.platform,
-          subjectKey,
-          depth: 0,
-          input: { ...emptyInput(0), identifiers: [identifier] },
-          provenance: provenance('input_identifier', 'I5'),
-        });
-      }
-    }
   }
   const matchable = identifiers.filter((i) => i.value.trim());
   if (matchable.length) {
@@ -340,6 +342,23 @@ export function planInitial(identifiers: readonly Identifier[], ctx: PlannerCont
         depth: 0,
         input: { ...emptyInput(0), identifiers: matchable, values: [{ kind: 'url', value: url, method: 'search' }] },
         provenance: { reason: 'watch_list', rule: 'I3', detail: url },
+      });
+    }
+  }
+  // Searches last: they never take the task budget from the platform tasks of an identifier.
+  const searches = ctx.factories.filter((f) => f.webSearch);
+  for (const identifier of matchable) {
+    if (!SEARCH_KINDS.has(identifier.kind) || /^https?:\/\//i.test(identifier.value.trim())) continue;
+    const subjectKey = searchSubject(identifier);
+    for (const factory of searches) {
+      planner.consider({
+        key: taskKey(factory.sourceId, subjectKey),
+        sourceId: factory.sourceId,
+        platform: factory.platform,
+        subjectKey,
+        depth: 0,
+        input: { ...emptyInput(0), identifiers: [identifier] },
+        provenance: { reason: 'input_identifier', rule: 'I5', identifierId: identifier.id },
       });
     }
   }

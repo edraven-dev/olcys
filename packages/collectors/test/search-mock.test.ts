@@ -217,6 +217,31 @@ describe('mock search over a synthetic sitemap', () => {
     ).rejects.toThrow(/search mock_search error/);
   });
 
+  it('resolves relative locations under a base path and keeps malformed character references as written', async () => {
+    expect(
+      parseSitemap('<urlset><url><loc>a/b?x=1</loc></url></urlset>', 'http://h.test/base/sitemap.xml').urls,
+    ).toEqual(['http://h.test/base/a/b?x=1']);
+    expect(parseSitemap('<loc>/&#x41;b&#98;</loc>', 'http://h.test/sitemap.xml').urls).toEqual(['http://h.test/Abb']);
+    // Not a Unicode scalar value: kept as written (no exception), so its `#` starts the fragment.
+    expect(parseSitemap('<loc>/q?v=&#x110000;&#55296;</loc>', 'http://h.test/sitemap.xml').urls).toEqual([
+      'http://h.test/q?v=&',
+    ]);
+    const site = {
+      '/robots.txt': { type: 'text/plain', body: '' },
+      '/base/sitemap.xml': { type: 'application/xml', body: '<urlset><url><loc>strona</loc></url></urlset>' },
+      '/base/strona': { body: page('Strona', 'fikcyjny_kacper') },
+    };
+    const http = fakeSite(site);
+    const provider = createMockSearchProvider({
+      baseUrl: `${BASE}/base/`,
+      robots: new RobotsCache(http, USER_AGENT),
+      redactor: TEST_REDACTOR,
+    });
+    const found = await provider.run(exact('fikcyjny_kacper'), runContext(http));
+    expect(paths(http.requests)).toEqual(['/robots.txt', '/base/sitemap.xml', '/base/strona']);
+    expect(found.results.map((r) => r.url)).toEqual([`${BASE}/base/strona`]);
+  });
+
   it('parses locations: entities, CDATA, relative paths; other origins are counted, not kept', () => {
     const xml =
       '<urlset><url><loc> /a?x=1&amp;y=2 </loc></url><url><loc><![CDATA[/b&c]]></loc></url>' +

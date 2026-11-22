@@ -60,12 +60,18 @@ interface SearchIndex {
 
 const XML_ENTITIES: Readonly<Record<string, string>> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" };
 
+/** A numeric character reference that names a Unicode scalar value, else undefined (kept as written). */
+function codePoint(body: string): string | undefined {
+  const hex = body[1] === 'x' || body[1] === 'X';
+  const value = Number.parseInt(body.slice(hex ? 2 : 1), hex ? 16 : 10);
+  if (!Number.isSafeInteger(value) || value > 0x10ffff || (value >= 0xd800 && value <= 0xdfff)) return undefined;
+  return String.fromCodePoint(value);
+}
+
 function decodeXml(text: string): string {
-  return text.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (entity, body: string) => {
-    if (body.startsWith('#x') || body.startsWith('#X')) return String.fromCodePoint(Number.parseInt(body.slice(2), 16));
-    if (body.startsWith('#')) return String.fromCodePoint(Number.parseInt(body.slice(1), 10));
-    return XML_ENTITIES[body.toLowerCase()] ?? entity;
-  });
+  return text.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (entity, body: string) =>
+    body.startsWith('#') ? (codePoint(body) ?? entity) : (XML_ENTITIES[body.toLowerCase()] ?? entity),
+  );
 }
 
 /** `<loc>` values resolved against the sitemap URL; other origins and non-HTTP locations are ignored. */
@@ -225,6 +231,7 @@ export function createMockSearchProvider(options: MockSearchOptions): SearchAdap
       // The index is built the same way for every query: no request carries anything from the case.
       containsIdentifier: false,
       redirect: 'manual',
+      persistBody: false,
       headers: { accept: XML_ACCEPT },
     });
     if ('failure' in sitemap) {

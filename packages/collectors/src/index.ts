@@ -171,10 +171,12 @@ export {
   SEARCH_COLLECTOR_VERSION,
   SEARCH_PLATFORM,
   SEARCH_RESULTS_SCHEMA,
+  SEARCH_SOFTWARE_PREFIX,
   createBraveSearchCollector,
   createMockSearchCollector,
   createMojeekSearchCollector,
   createSearchCollector,
+  isSearchResultCapture,
   searchSubjectKey,
   type SearchCollectorOptions,
 } from './search/collector.ts';
@@ -187,6 +189,7 @@ export {
 } from './search/mock.ts';
 export {
   SEARCH_MODES,
+  braveStorageRightsFromEnv,
   mojeekPlanFromEnv,
   searchCollectorFactories,
   searchModeFromEnv,

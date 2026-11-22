@@ -68,7 +68,10 @@ export interface CollectCaseOptions {
   /** Removes private keys and seed phrases from every body before storage and parsing (required). */
   redactor: SecretRedactor;
   maxPivotDepth: number;
+  /** Default: `createDefaultCollectorRegistry({ mode: ctx.mode, env })`. */
   collectors?: CollectorRegistry;
+  /** Environment of the default registry's search collectors (`OLCYS_SEARCH_MODE`, API keys); default: mock search. */
+  env?: Env;
   maxTasks?: number;
   /** Called after each task (progress for the UI). */
   onTask?: (event: { done: number; planned: number; task: TaskRecord }) => void | Promise<void>;
@@ -107,7 +110,9 @@ export interface CollectCaseResult {
 export async function collectCase(options: CollectCaseOptions): Promise<CollectCaseResult> {
   const { ctx, scope } = options;
   if (ctx.mode !== scope.mode) throw new Error(`run mode ${ctx.mode} differs from the scope mode ${scope.mode}`);
-  const registry = options.collectors ?? createDefaultCollectorRegistry({ mode: ctx.mode });
+  const registry =
+    options.collectors ??
+    createDefaultCollectorRegistry({ mode: ctx.mode, ...(options.env ? { env: options.env } : {}) });
   const deps: CollectorDeps = {
     mode: ctx.mode,
     config: options.config,

@@ -4,8 +4,9 @@
  * the page's own collector. A result list is a pointer, not evidence: the pages are collected (and their addresses
  * extracted) by their collectors, once, whichever way they were found.
  *
- * Provider terms decide what is kept: without storage rights every provider request is hash-only (the body is neither
- * stored nor recorded) and the capture keeps only the rank and URL of each result.
+ * Every provider request is hash-only: a raw response is neither stored nor recorded, because its snippets are scraped
+ * text that may hold secrets and provider terms may forbid keeping it. What the capture keeps follows the terms: with
+ * storage rights rank, URL, title and snippet (secrets redacted), without them only the rank and URL of each result.
  */
 import type {
   Capture,
@@ -31,6 +32,8 @@ import { buildSearchQuery, DEFAULT_MAX_RESULTS } from './query.ts';
 
 export const SEARCH_RESULTS_SCHEMA = 'olcys.search-results.v1';
 export const SEARCH_COLLECTOR_VERSION = 'search.v1';
+/** Software entry `search:<provider>` in the technical record of every result-list capture. */
+export const SEARCH_SOFTWARE_PREFIX = 'search:';
 /** Platform name of the search collectors (they find pages, not accounts). */
 export const SEARCH_PLATFORM = 'web_search';
 
@@ -45,6 +48,14 @@ const CAPTURE_STATUS: Readonly<Record<SearchStatus, CaptureStatus>> = {
 
 const EMPTY_INPUT: CollectorInput = { identifiers: [], accounts: [], addresses: [], depth: 0 };
 
+/**
+ * True for a result-list capture of a search collector. It points at pages and is not evidence of what they say: the
+ * pages are collected (and their addresses extracted) by their own collectors.
+ */
+export function isSearchResultCapture(capture: Pick<Capture, 'technical'>): boolean {
+  return capture.technical?.software.some((s) => s.name.startsWith(SEARCH_SOFTWARE_PREFIX)) ?? false;
+}
+
 /** Observation subject of one query: `search:<provider>:<sha256 of the query text>`. */
 export function searchSubjectKey(providerId: string, queryText: string): string {
   return `search:${providerId}:${sha256Hex(queryText)}`;
@@ -54,7 +65,7 @@ export interface SearchCollectorOptions {
   provider: SearchAdapter;
   descriptor: SourceDescriptor;
   deps: CollectorDeps;
-  /** False: every provider request is hash-only and the capture keeps only `{ rank, url }` per result. */
+  /** False: the capture keeps only `{ rank, url }` per result (no titles or snippets). */
   storesResults: boolean;
   maxResults?: number;
   /** True for providers that read the fixture site (offline and replay only). */
@@ -84,9 +95,10 @@ export function createSearchCollector(options: SearchCollectorOptions): SourceCo
         deps,
         input: descriptor.sendsIdentifiersExternally ? input : EMPTY_INPUT,
       });
+      // Hash-only whatever the provider asks for: the response body is redacted here, in memory, never stored raw.
       const guarded: RunContext = {
         ...ctx,
-        http: { fetch: (request) => http.fetch(storesResults ? request : { ...request, persistBody: false }) },
+        http: { fetch: (request) => http.fetch({ ...request, persistBody: false }) },
       };
       const startedAt = nowIso(ctx.clock);
       const run = await provider.run(query, guarded);
@@ -144,12 +156,13 @@ export function createSearchCollector(options: SearchCollectorOptions): SourceCo
           redirects: [],
           software: [
             { name: '@olcys/collectors', version: COLLECTORS_VERSION },
-            { name: `search:${provider.id}`, version: SEARCH_COLLECTOR_VERSION },
+            { name: `${SEARCH_SOFTWARE_PREFIX}${provider.id}`, version: SEARCH_COLLECTOR_VERSION },
           ],
           transformations: [
+            'provider responses hashed, not stored (scraped snippets may hold secrets)',
             storesResults
               ? 'result list as canonical JSON: rank, URL, title and snippet (secrets redacted)'
-              : 'provider response not stored (terms): result list as canonical JSON with rank and URL only',
+              : 'result list as canonical JSON with rank and URL only (provider terms)',
           ],
           notes,
         },

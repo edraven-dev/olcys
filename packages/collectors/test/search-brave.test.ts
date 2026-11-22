@@ -100,7 +100,7 @@ describe('Brave Search API', () => {
     ]).toEqual(['ALL', null, '20']);
   });
 
-  it('keeps the token out of logs, provenance and recordings, and maps the results', async () => {
+  it('keeps the token and the raw answer out of logs, provenance, storage and recordings; maps the results', async () => {
     const cassetteDir = await mkdtemp(join(tmpdir(), 'olcys-brave-'));
     const body = await fixture('brave-web.json');
     const { sent, test, deps } = setup(() => ({ status: 200, body }), { record: true, cassetteDir });
@@ -116,16 +116,13 @@ describe('Brave Search API', () => {
     expect(sent[0]?.url).toMatch(
       /[?&]q=%22Kacper\+Fikcyjny%22&count=20&offset=0&safesearch=off&spellcheck=false&text_decorations=false/,
     );
-    const files = await readdir(join(cassetteDir, 'brave_search'));
-    const recorded = await Promise.all(files.map((f) => readFile(join(cassetteDir, 'brave_search', f), 'utf8')));
-    expect(recorded).toHaveLength(1);
-    for (const text of [
-      JSON.stringify(test.logs),
-      JSON.stringify(test.envelopes),
-      ...recorded,
-      JSON.stringify(result),
-    ]) {
+    // Hash-only even with storage rights: the raw answer (snippets are scraped text) is neither stored nor recorded.
+    await expect(readdir(join(cassetteDir, 'brave_search'))).rejects.toThrow(/ENOENT/);
+    expect(test.envelopes.map((e) => e.bodyPersisted)).toEqual([false]);
+    const stored = [...test.blobs.data.values()].map((bytes) => new TextDecoder().decode(bytes));
+    for (const text of [JSON.stringify(test.logs), JSON.stringify(test.envelopes), JSON.stringify(result), ...stored]) {
       expect(text).not.toContain(TOKEN);
+      expect(text).not.toContain('TESTSECRET');
     }
     expect(test.logs).toEqual([
       expect.objectContaining({ sourceId: 'brave_search', containsIdentifier: true, allowed: true }),

@@ -1,7 +1,8 @@
 /**
  * Brave Search API (web search, AMBER, paid per query): exact-phrase queries, spelling correction off, no text
  * decorations, web results only. The subscription token travels in a header that is never logged, stored or recorded.
- * Results are stored only with a plan whose terms allow it (`storageRights`); otherwise every request is hash-only.
+ * Requests are hash-only (the raw answer may carry secrets in snippets); titles and snippets are kept, redacted, only
+ * with a plan whose terms allow storing results (`storageRights`).
  */
 import type { RunContext } from '@olcys/core';
 import { nowIso } from '@olcys/core';
@@ -111,7 +112,7 @@ export function createBraveSearchProvider(options: BraveSearchOptions): SearchAd
         containsIdentifier: true,
         headers: { accept: 'application/json', 'X-Subscription-Token': options.apiKey },
         secretParams: ['x-subscription-token'],
-        persistBody: options.storageRights,
+        persistBody: false,
       });
       if ('failure' in fetched) {
         return { status: 'error', results: [], notes: [fetched.failure], fetchIds: [], retrievedAt: nowIso(ctx.clock) };

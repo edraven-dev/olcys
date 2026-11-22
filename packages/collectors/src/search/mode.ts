@@ -25,6 +25,13 @@ export function searchModeFromEnv(env: Env): SearchMode {
   return choice('OLCYS_SEARCH_MODE', env['OLCYS_SEARCH_MODE'], SEARCH_MODES, 'mock');
 }
 
+/** `BRAVE_SEARCH_STORAGE_RIGHTS` (`true` / `false`, default `false`): whether the Brave plan allows storing results. */
+export function braveStorageRightsFromEnv(env: Env): boolean {
+  return (
+    choice('BRAVE_SEARCH_STORAGE_RIGHTS', env['BRAVE_SEARCH_STORAGE_RIGHTS'], ['true', 'false'], 'false') === 'true'
+  );
+}
+
 /** `MOJEEK_PLAN`, default `startup` (the plan decides whether results may be stored). */
 export function mojeekPlanFromEnv(env: Env): MojeekPlan {
   return choice('MOJEEK_PLAN', env['MOJEEK_PLAN'], MOJEEK_PLANS, 'startup');
@@ -39,9 +46,7 @@ export function searchCollectorFactories(options: { mode: FetchMode; env?: Env }
   if (search !== 'external' || (options.mode !== 'live' && options.mode !== 'replay')) return factories;
   const braveKey = env['BRAVE_SEARCH_API_KEY']?.trim();
   if (braveKey) {
-    factories.push(
-      createBraveSearchCollector({ apiKey: braveKey, storageRights: env['BRAVE_SEARCH_STORAGE_RIGHTS'] === 'true' }),
-    );
+    factories.push(createBraveSearchCollector({ apiKey: braveKey, storageRights: braveStorageRightsFromEnv(env) }));
   }
   const mojeekKey = env['MOJEEK_API_KEY']?.trim();
   if (mojeekKey) factories.push(createMojeekSearchCollector({ apiKey: mojeekKey, plan: mojeekPlanFromEnv(env) }));

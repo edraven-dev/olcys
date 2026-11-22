@@ -77,7 +77,7 @@ describe('Mojeek Search API', () => {
     expect([email.searchParams.get('lb'), email.searchParams.get('rb')]).toEqual([null, null]);
   });
 
-  it('logs fmt=json and api_key=REDACTED, never the key, and maps the results', async () => {
+  it('logs fmt=json and api_key=REDACTED, never the key or the raw answer, and maps the results', async () => {
     const cassetteDir = await mkdtemp(join(tmpdir(), 'olcys-mojeek-'));
     const { sent, test, deps } = setup(await readFile(join(FIXTURES, 'mojeek-ok.json'), 'utf8'), 200, {
       record: true,
@@ -92,18 +92,11 @@ describe('Mojeek Search API', () => {
     expect(test.logs[0]?.urlRedacted).toMatch(/[?&]fmt=json(&|$)/);
     expect(test.logs[0]?.urlRedacted).toMatch(/[?&]api_key=REDACTED(&|$)/);
     expect(test.logs[0]?.containsIdentifier).toBe(true);
-    const recorded = await Promise.all(
-      (await readdir(join(cassetteDir, 'mojeek_search'))).map((f) =>
-        readFile(join(cassetteDir, 'mojeek_search', f), 'utf8'),
-      ),
-    );
-    expect(recorded).toHaveLength(1);
-    for (const text of [
-      JSON.stringify(test.logs),
-      JSON.stringify(test.envelopes),
-      ...recorded,
-      JSON.stringify(result),
-    ]) {
+    // Hash-only on every plan: the raw answer is neither stored nor recorded.
+    await expect(readdir(join(cassetteDir, 'mojeek_search'))).rejects.toThrow(/ENOENT/);
+    expect(test.envelopes.map((e) => e.bodyPersisted)).toEqual([false]);
+    const stored = [...test.blobs.data.values()].map((bytes) => new TextDecoder().decode(bytes));
+    for (const text of [JSON.stringify(test.logs), JSON.stringify(test.envelopes), JSON.stringify(result), ...stored]) {
       expect(text).not.toContain(KEY);
     }
     expect(result.status).toBe('ok');

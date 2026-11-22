@@ -10,6 +10,7 @@ import type { CollectorInput, EgressRequest } from '@olcys/core';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { FixtureServer } from '../../../apps/fixture-site/src/fixture-server.ts';
 import {
+  braveStorageRightsFromEnv,
   collectCase,
   createBraveSearchProvider,
   createCollectorConfig,
@@ -17,6 +18,7 @@ import {
   createMojeekSearchCollector,
   createSearchCollector,
   exactPhrase,
+  isSearchResultCapture,
   searchCollectorFactories,
   searchModeFromEnv,
   SourceCircuitBreaker,
@@ -110,19 +112,22 @@ describe('result storage follows the provider terms', () => {
     );
   });
 
-  it('the collector enforces it even when the provider itself would store', async () => {
+  it('the collector keeps only rank and URL when its terms say so, whatever the provider', async () => {
     const { requests, test, artifact } = await braveRun(false, true);
     expect(requests.every((r) => r.persistBody === false)).toBe(true);
     expect(test.envelopes.every((e) => e.bodyPersisted === false)).toBe(true);
     expect(artifact.results.every((r) => Object.keys(r).toSorted().join() === 'rank,url')).toBe(true);
   });
 
-  it('with storage rights the provider body is kept and the capture has titles and snippets', async () => {
-    const { test, artifact } = await braveRun(true, true);
-    expect(test.envelopes[0]?.bodyPersisted).toBe(true);
-    expect(await test.blobs.has(test.envelopes[0]!.body.sha256)).toBe(true);
+  it('with storage rights the capture keeps redacted titles and snippets; the raw answer stays hash-only', async () => {
+    const { requests, test, artifact } = await braveRun(true, true);
+    expect(requests.every((r) => r.persistBody === false)).toBe(true);
+    expect(test.envelopes[0]?.bodyPersisted).toBe(false);
+    expect(await test.blobs.has(test.envelopes[0]!.body.sha256)).toBe(false);
     expect(artifact.storage).toBe('full');
-    expect(artifact.results[0]).toHaveProperty('snippet');
+    expect(artifact.results[1]?.['snippet']).toContain('[REDACTED:test_secret]');
+    const stored = [...test.blobs.data.values()].map((bytes) => new TextDecoder().decode(bytes));
+    expect(stored.some((text) => text.includes('TESTSECRET'))).toBe(false);
   });
 
   it('Mojeek Startup stores nothing but rank and URL', async () => {
@@ -194,6 +199,15 @@ describe('search modes', () => {
     expect(() =>
       searchCollectorFactories({ mode: 'live', env: { OLCYS_SEARCH_MODE: 'external', ...keys, MOJEEK_PLAN: 'gold' } }),
     ).toThrow(/MOJEEK_PLAN/);
+  });
+
+  it('reads the Brave storage rights like the other settings', () => {
+    expect(braveStorageRightsFromEnv({})).toBe(false);
+    expect(braveStorageRightsFromEnv({ BRAVE_SEARCH_STORAGE_RIGHTS: ' TRUE ' })).toBe(true);
+    expect(braveStorageRightsFromEnv({ BRAVE_SEARCH_STORAGE_RIGHTS: 'false' })).toBe(false);
+    expect(() => braveStorageRightsFromEnv({ BRAVE_SEARCH_STORAGE_RIGHTS: '1' })).toThrow(
+      /BRAVE_SEARCH_STORAGE_RIGHTS/,
+    );
   });
 });
 
@@ -282,6 +296,15 @@ describe('search on the fixture site', () => {
     const plain = await run(DEMO_SCOPE.enabledSources);
     const searched = await run(WITH_SEARCH);
     const { result } = searched;
+    // Searches are planned after every other rule of the input identifiers.
+    const rules = result.tasks.filter((t) => t.depth === 0).map((t) => t.provenance.rule);
+    expect(rules.slice(rules.indexOf('I5'))).toEqual(['I5', 'I5', 'I5']);
+    // Result lists are told apart from page captures (the extraction stage skips them).
+    expect(result.captures.filter(isSearchResultCapture).map((c) => c.sourceId)).toEqual([
+      'mock_search',
+      'mock_search',
+      'mock_search',
+    ]);
     expect(
       result.tasks.filter((t) => t.sourceId === 'mock_search').map((t) => [t.key, t.status, t.provenance.rule]),
     ).toEqual([
@@ -327,6 +350,29 @@ describe('search on the fixture site', () => {
       handle: 'fikcyjny_kacper',
       discoveredVia: { sourceId: 'fixture_site', method: 'search' },
     });
+  });
+
+  it('collects a channel reached by a same-nick probe, the watch list and the search once', async () => {
+    const { result } = await run(WITH_SEARCH, [identifier('nickname', 'olcys_test_ostrzezenia')]);
+    const channel = result.tasks.filter((t) => t.sourceId === 'telegram_preview');
+    expect(channel.map((t) => [t.key, t.provenance.rule])).toEqual([
+      ['telegram_preview|handle:telegram:olcys_test_ostrzezenia', 'I2'],
+    ]);
+    expect(result.captures.filter((c) => c.sourceId === 'telegram_preview')).toHaveLength(1);
+    expect(result.skipped).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          key: 'telegram_preview|url:https://t.me/s/olcys_test_ostrzezenia/',
+          skip: 'duplicate',
+          provenance: expect.objectContaining({ rule: 'I3' }),
+        }),
+        expect.objectContaining({
+          key: 'telegram_preview|url:https://t.me/s/olcys_test_ostrzezenia/',
+          skip: 'duplicate',
+          provenance: expect.objectContaining({ rule: 'E3' }),
+        }),
+      ]),
+    );
   });
 
   it('follows result URLs only into sources the case enables', async () => {

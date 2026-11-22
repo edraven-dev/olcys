@@ -66,8 +66,8 @@ const result = await collectCase({
 
 - `scope.egressSources` — deskryptory dla klienta egress; offline każde źródło dostaje limit strony testowej.
 - `createDefaultCollectorRegistry({ mode, env })` — kolektory poniżej oraz wyszukiwarki według `OLCYS_SEARCH_MODE`
-  (`collectCase` bez `collectors` używa trybu przebiegu i domyślnej wyszukiwarki testowej); `runCollector()` uruchamia
-  jeden kolektor w zakresie.
+  (`collectCase` bez `collectors` buduje go z trybu przebiegu i opcji `env`; bez `env` — wyszukiwarka testowa);
+  `runCollector()` uruchamia jeden kolektor w zakresie; `isSearchResultCapture()` rozpoznaje przechwycenia list wyników.
 - Elementy do ponownego użycia: `fetchPage`, `detectAccessBarrier`, `toFixtureUrl` / `toLogicalUrl` /
   `recogniseAccountUrl`, `ResultBuilder`, `buildCapture`, `rollupStatus`, parsery stron.
 
@@ -106,15 +106,19 @@ uzasadnieniem), a zapytanie do nich ujawnia identyfikator (`containsIdentifier: 
 `crypto_address`), adresu albo nicku; NFKC, odstępy scalone. Dokładna fraza `"…"` (`exactPhrase`): bez `"` w środku,
 najwyżej 600 znaków i 75 słów.
 
-**Wyszukiwarka testowa:** pobiera `/sitemap.xml` strony testowej (adresy `<loc>` z innego originu są pomijane), a potem
-— raz na przebieg — każdą stronę dozwoloną w robots.txt (`/private/` nigdy). Zapytania dopasowuje lokalnie, więc żaden
+**Wyszukiwarka testowa:** pobiera `/sitemap.xml` strony testowej (adresy `<loc>` względne są rozwiązywane względem
+adresu mapy, także ze ścieżką bazową; adresy z innego originu są pomijane), a potem — raz na przebieg — każdą stronę
+dozwoloną w robots.txt (`/private/` nigdy). Zapytania dopasowuje lokalnie, więc żaden
 identyfikator nie opuszcza procesu: żądania są takie same bez względu na zapytanie (`containsIdentifier: false`).
 Indeks: tekst bez `<script>` i `<style>`, encje zdekodowane, NFKC, odstępy scalone, sekrety usunięte przed
 indeksowaniem. Fraza dokładna pasuje bez względu na wielkość liter i jako całe słowa (bez litery, cyfry ani `_` tuż
 przed nią i po niej), zapytanie niedokładne — gdy każde jego słowo występuje jako całe słowo. Kolejność: liczba
 wystąpień malejąco, potem adres; fragment ±80 znaków wokół pierwszego trafienia, tytuł z `<title>`, `fetchId` — pobranie
 tej strony. Wyniki podają adres logiczny (jak obserwacje kolektorów). Treść stron jest pobierana tylko jako skrót
-(`persistBody: false`) — kopię dowodową strony robi jej kolektor, po redakcji sekretów.
+(`persistBody: false`) — kopię dowodową strony robi jej kolektor, po redakcji sekretów. Dlatego, tak jak kolektory
+stron, w trybie `replay` wyszukiwarka testowa potrzebuje nagrań mapy witryny i stron testowych przygotowanych poza
+klientem egress (`OLCYS_RECORD` nie nagrywa żądań tylko ze skrótem); brak nagrania to notatka `replay_miss` i status
+`error` lub `partial`.
 
 **Brave:** `GET https://api.search.brave.com/res/v1/web/search` z `q="…"`, `count=20`, `offset=0`, `safesearch=off`,
 `spellcheck=false`, `text_decorations=false`, `result_filter=web`; dla imion i nazwisk oraz nicków `country=PL` i
@@ -128,13 +132,16 @@ oraz nicków `lb=PL`, `rb=PL`); klucz jest maskowany jako `api_key=REDACTED`; `r
 Nazwy parametrów i pól odpowiedzi (`response.results[] { url, title, desc }`) należy sprawdzić w aktualnej dokumentacji
 API Mojeek przed pierwszym użyciem na żywo; testy używają ręcznie przygotowanych odpowiedzi w tym kształcie.
 
-**Przechowywanie wyników (warunki dostawców):** wyszukiwarka testowa — pełne wyniki; Brave — tylko z
+**Przechowywanie wyników (warunki dostawców):** każde żądanie do dostawcy ma `persistBody: false` — surowa odpowiedź
+nie trafia do magazynu ani nagrań (w kopercie pochodzenia tylko skrót i rozmiar, `bodyPersisted: false`), bo jej
+fragmenty to tekst ze stron, który może zawierać sekrety. Warunki dostawców decydują, co zostaje w przechwyceniu:
+wyszukiwarka testowa — pozycja, adres, tytuł i fragment (po redakcji sekretów); Brave — to samo tylko z
 `BRAVE_SEARCH_STORAGE_RIGHTS=true` (plan niestandardowy: w FAQ Brave „Yes, with a custom plan”, a warunki API według
 dostępnych opisów w innych planach na to nie pozwalają); Mojeek — w planie innym niż `startup` (`MOJEEK_PLAN`; plan
-Startup pozwala buforować wyniki najwyżej godzinę). Bez prawa do przechowywania każde żądanie do dostawcy ma
-`persistBody: false` (w kopercie pochodzenia tylko skrót i rozmiar, `bodyPersisted: false`; treść nie trafia do magazynu
-ani nagrań), a przechwycenie zawiera tylko `{ rank, url }` każdego wyniku — bez tytułów i fragmentów — z notatką
-`search_results_not_stored`. **Otwarte pytanie prawne:** czy sama lista adresów wyników (przechwycenie i obserwacje
+Startup pozwala buforować wyniki najwyżej godzinę). Bez prawa do przechowywania przechwycenie zawiera tylko
+`{ rank, url }` każdego wyniku — bez tytułów i fragmentów — z notatką `search_results_not_stored`. Odpowiedzi nie są
+nagrywane, więc przebieg `replay` odtwarza zapytania do Brave i Mojeek tylko z ręcznie przygotowanych, syntetycznych
+nagrań (testy). **Otwarte pytanie prawne:** czy sama lista adresów wyników (przechwycenie i obserwacje
 `search.result_url`) jako ślad audytowy mieści się w warunkach Brave i Mojeek — do potwierdzenia przed użyciem
 produkcyjnym.
 
@@ -159,9 +166,12 @@ wyszukiwarkę.
 | I5     | imię i nazwisko, nick, e-mail, adres kryptowaluty                        | każda zarejestrowana wyszukiwarka: jedno zapytanie (dokładna fraza)        |
 | E3     | `search.result_url` (wynik wyszukiwania)                                 | kolektor strony (klucz jak I3) albo konta (jak E1) (głębokość + 1)         |
 
-Wyniki wyszukiwania (E3) trafiają do kolektora strony z listy obserwowanych, który ją czyta — pod tym samym kluczem co
-zadanie I3, więc strona znaleziona obiema drogami jest zbierana raz — a w przeciwnym razie do kolektora rozpoznanego
-konta (jak E1); strony bez kolektora (np. wątki forum) nie są pobierane.
+Wyszukiwania (I5) są planowane po wszystkich pozostałych regułach identyfikatorów, więc nie zabierają limitu zadań
+kolektorom platform. Wyniki wyszukiwania (E3) trafiają do kolektora strony z listy obserwowanych, który ją czyta — pod
+tym samym kluczem co zadanie I3, więc strona znaleziona obiema drogami jest zbierana raz — a w przeciwnym razie do
+kolektora rozpoznanego konta (jak E1); strony bez kolektora (np. wątki forum) nie są pobierane. Strona z listy
+obserwowanych albo z wyników, która jest stroną konta tej platformy (np. podgląd kanału), ma też klucze tego konta:
+próba nicku, odnośnik i wynik wyszukiwania prowadzą wtedy do jednego zadania.
 
 Każde zadanie ma klucz `<sourceId>|<podmiot>` (np. `bitcointalk|handle:bitcointalk:fikcyjny_kacper`,
 `bitcointalk|id:bitcointalk:900001`, `mock_search|query:kacper fikcyjny` — zapytanie małymi literami, odstępy scalone;
