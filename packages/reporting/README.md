@@ -111,9 +111,10 @@ własnościowe; odrzucone (wykluczone regułą, przypisane przez stronę trzeci�
   tag `tlp:…`), po jednym obiekcie `coin-address` na powiązanie. Tagi adresu: `admiralty-scale:source-reliability`
   (najlepsza ocena wśród przesłanek, które się liczyły), `estimative-language:likelihood-probability` (z określenia
   ICD 203) i `estimative-language:confidence-in-analytic-judgment` (z pewności analitycznej). Każdy adres URL dowodu to
-  atrybut `link` z kategorią „External analysis”, `to_ids: false` i skrótem SHA-256 w komentarzu. Opis obiektu i wartości
-  taksonomii pochodzą z podzbioru w `src/export/misp/`. **Uwaga:** pola `uuid` i `version` szablonu `coin-address` są
-  wartościami zastępczymi (zob. `src/export/misp/README.md`) i wymagają uzupełnienia z aktualnego repozytorium MISP.
+  atrybut `link` z kategorią „External analysis”, `to_ids: false` i skrótem SHA-256 w komentarzu. Obiekt i taksonomie to
+  oficjalne pliki MISP dołączone dosłownie w `src/export/misp/` (`template_uuid` i `template_version` pochodzą z
+  definicji, atrybuty: `address` dla Bitcoina, `address-xmr` dla Monero, `address-crypto` dla pozostałych sieci,
+  `symbol`, `first-seen`, `last-seen`, `text`); odwzorowanie ICD 203 → `likelihood-probability` opisano w `misp/README.md`.
 - **CSV** (`toCsv`): UTF-8 z BOM, separator przecinek, końce wierszy CRLF, cytowanie wg RFC 4180, angielskie nagłówki
   snake_case (to dane, nie interfejs). Pliki: powiązania (posortowane malejąco wg wyniku; tylko przyjęte), materiał
   dowodowy, wyjścia do walut tradycyjnych, zmiany. Komórki tekstowe zaczynające się od `=`, `+`, `-`, `@`, TAB lub CR

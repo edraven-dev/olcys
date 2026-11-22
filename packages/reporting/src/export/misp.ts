@@ -4,19 +4,33 @@
  */
 import { icdTerm } from '../view.ts';
 import definition from './misp/coin-address.definition.json' with { type: 'json' };
-import taxonomies from './misp/taxonomies.json' with { type: 'json' };
+import admiralty from './misp/admiralty-scale.json' with { type: 'json' };
+import estimative from './misp/estimative-language.json' with { type: 'json' };
+import tlpTaxonomy from './misp/tlp.json' with { type: 'json' };
 import { exportId } from './ids.ts';
 import { bestReliability, isoMs, selectLinks, type ExportInput } from './select.ts';
 import type { TlpLevel } from './stix.ts';
 import { KNOWN_CHAINS, chainFamily } from '@olcys/core';
 import { pl } from '../i18n/pl.ts';
 
-/** ICD 203 term (as stored in `LinkAssessment.icd203`) → value of the estimative-language `likelihood-probability`. */
+type Taxonomy = { values: { predicate: string; entry: { value: string }[] }[] };
+
+/** Entry values of one predicate of a vendored MISP taxonomy. */
+const entries = (taxonomy: Taxonomy, predicate: string): string[] =>
+  taxonomy.values.find((v) => v.predicate === predicate)?.entry.map((e) => e.value) ?? [];
+
+const LIKELIHOOD = entries(estimative, 'likelihood-probability');
+const ANALYTIC_CONFIDENCE_VALUES = entries(estimative, 'confidence-in-analytic-judgment');
+const SOURCE_RELIABILITY = entries(admiralty, 'source-reliability');
+const TLP_VALUES = new Set(tlpTaxonomy.predicates.map((p) => p.value));
+
+/**
+ * ICD 203 term (as stored in `LinkAssessment.icd203`) → value of the estimative-language `likelihood-probability`;
+ * the terms are the taxonomy's own values with spaces as hyphens (mapping documented in `misp/README.md`).
+ */
 export function likelihoodValue(icd203: string): string | undefined {
   const value = icd203.replaceAll(' ', '-');
-  return (taxonomies['estimative-language'].predicates['likelihood-probability'] as string[]).includes(value)
-    ? value
-    : undefined;
+  return LIKELIHOOD.includes(value) ? value : undefined;
 }
 
 const tag = (namespace: string, predicate: string, value: string) => `${namespace}:${predicate}="${value}"`;
@@ -26,7 +40,7 @@ export function toMispEvent(input: ExportInput, o: { tlp: TlpLevel; includeRejec
   const { links } = selectLinks(input, o.includeRejected ?? false);
   const rid = data.reportId;
   const timestamp = String(Math.floor(Date.parse(data.generatedAt) / 1000));
-  const tlpName = (taxonomies.tlp.values as string[]).includes(o.tlp) ? o.tlp : 'amber';
+  const tlpName = TLP_VALUES.has(o.tlp) ? o.tlp : 'amber';
   const attribute = (key: string, fields: Record<string, unknown>) => ({
     uuid: exportId(rid, key),
     distribution: '5',
@@ -43,13 +57,18 @@ export function toMispEvent(input: ExportInput, o: { tlp: TlpLevel; includeRejec
         ? ['address', 'btc']
         : family === 'monero'
           ? ['address-xmr', 'xmr']
-          : ['address-other', 'text'];
+          : ['address-crypto', 'text'];
     const tags: string[] = [];
     const grade = bestReliability(link);
-    if (grade) tags.push(tag('admiralty-scale', 'source-reliability', grade.toLowerCase()));
+    if (grade && SOURCE_RELIABILITY.includes(grade.toLowerCase())) {
+      tags.push(tag('admiralty-scale', 'source-reliability', grade.toLowerCase()));
+    }
     const likelihood = likelihoodValue(link.icd203);
     if (likelihood) tags.push(tag('estimative-language', 'likelihood-probability', likelihood));
-    tags.push(tag('estimative-language', 'confidence-in-analytic-judgment', link.analyticConfidence.toLowerCase()));
+    const confidence = link.analyticConfidence.toLowerCase();
+    if (ANALYTIC_CONFIDENCE_VALUES.includes(confidence)) {
+      tags.push(tag('estimative-language', 'confidence-in-analytic-judgment', confidence));
+    }
     const seen = captures.map((c) => isoMs(c.collectedAt)).toSorted();
     const id = `coin:${link.id}`;
     return {

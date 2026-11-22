@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ICD203_SCALE, likelihoodValue, toMispEvent } from '../src/index.ts';
 import definition from '../src/export/misp/coin-address.definition.json' with { type: 'json' };
-import taxonomies from '../src/export/misp/taxonomies.json' with { type: 'json' };
+import estimative from '../src/export/misp/estimative-language.json' with { type: 'json' };
 import { A, exportData } from './export-fixtures.ts';
 
 type Obj = Record<string, any>;
@@ -24,6 +24,8 @@ describe('MISP export', () => {
   it('has one coin-address object per accepted link from the vendored template', () => {
     const objects = event.Object as Obj[];
     expect(objects).toHaveLength(3);
+    expect(definition.uuid).toBe('d0e6997e-78da-4815-a6a1-cfc1c1cb8a46');
+    expect(definition.version).toBe(7);
     for (const o of objects) {
       expect(o).toMatchObject({
         name: 'coin-address',
@@ -35,7 +37,8 @@ describe('MISP export', () => {
     const byAddress = (value: string) => objects.find((o) => o.Attribute.some((a: Obj) => a.value === value))!;
     const btc = byAddress(A.BTC1).Attribute.find((a: Obj) => a.object_relation === 'address');
     expect(btc.type).toBe('btc');
-    expect(byAddress(A.ETH2).Attribute.find((a: Obj) => a.value === A.ETH2).type).toBe('text');
+    const eth = byAddress(A.ETH2).Attribute.find((a: Obj) => a.value === A.ETH2);
+    expect(eth).toMatchObject({ type: 'text', object_relation: 'address-crypto' });
   });
 
   it('tags address attributes with Admiralty and estimative-language values of the vendored taxonomy', () => {
@@ -51,8 +54,19 @@ describe('MISP export', () => {
   });
 
   it('maps every ICD 203 term to a taxonomy value', () => {
-    const values = taxonomies['estimative-language'].predicates['likelihood-probability'];
-    for (const { term } of ICD203_SCALE) expect(values).toContain(likelihoodValue(term));
+    const values = estimative.values
+      .find((v) => v.predicate === 'likelihood-probability')!
+      .entry.map((e) => [e.value, e.numerical_value]);
+    expect(values).toEqual([
+      ['almost-no-chance', 0],
+      ['very-unlikely', 5],
+      ['unlikely', 20],
+      ['roughly-even-chance', 45],
+      ['likely', 55],
+      ['very-likely', 80],
+      ['almost-certain', 95],
+    ]);
+    for (const { term } of ICD203_SCALE) expect(values.map(([v]) => v)).toContain(likelihoodValue(term));
     expect(likelihoodValue('not assessed')).toBeUndefined();
   });
 
