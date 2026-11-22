@@ -4,12 +4,13 @@
  */
 import { useEffect, useState, type AnchorHTMLAttributes, type MouseEvent } from 'react';
 
-export const RUN_TABS = ['overview', 'links', 'rejected', 'activity', 'sources', 'changes', 'report'] as const;
+export const RUN_TABS = ['overview', 'links', 'graph', 'rejected', 'activity', 'sources', 'changes', 'report'] as const;
 export type RunTab = (typeof RUN_TABS)[number];
 
 const TAB_SEGMENTS: Record<RunTab, string> = {
   overview: 'przeglad',
   links: 'powiazania',
+  graph: 'graf',
   rejected: 'odrzucone',
   activity: 'aktywnosc',
   sources: 'zrodla',
