@@ -62,6 +62,8 @@ async def loopback() -> AsyncIterator[Loopback]:
         state.headers.append(dict(request.headers))
         if kind == "ok":
             return web.Response(text=PROFILE_PAGE.format(user=user), content_type="text/html")
+        if kind == "big":
+            return web.Response(text="x" * 5000, content_type="text/html")
         if kind == "missing":
             return web.Response(status=404, text="no such user")
         if kind == "forbidden":

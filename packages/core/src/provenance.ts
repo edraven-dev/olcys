@@ -105,6 +105,8 @@ export interface DelegatedRequestRecord {
   containsIdentifier: boolean;
   allowed: boolean;
   denyReason?: string;
+  /** Transport failure after the request was sent (timeout, connection error). */
+  error?: string;
   requestedAt: IsoDateTime;
   receivedAt?: IsoDateTime;
   httpStatus?: number;

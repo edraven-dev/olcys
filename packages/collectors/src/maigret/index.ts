@@ -6,6 +6,7 @@ export {
   maigretCollectorFactory,
   maigretNick,
   maigretOptionsFromEnv,
+  redactResponse,
   rollupUsernameSearch,
   searchRequestBody,
   type MaigretCollectorOptions,

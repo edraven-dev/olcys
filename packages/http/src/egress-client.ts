@@ -462,6 +462,7 @@ export function createEgressClient(options: EgressClientOptions): EgressClient {
       containsIdentifier: record.containsIdentifier,
       allowed: record.allowed,
       ...(record.denyReason === undefined ? {} : { denyReason: record.denyReason }),
+      ...(record.error === undefined ? {} : { error: record.error }),
       ...(record.httpStatus === undefined ? {} : { httpStatus: record.httpStatus }),
       ...(record.body === undefined ? {} : { bytes: record.body.byteLength }),
       delegate: input.delegate,

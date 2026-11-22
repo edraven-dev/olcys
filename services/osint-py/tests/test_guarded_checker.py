@@ -77,3 +77,14 @@ async def test_redirect_hops_are_logged_and_checked(loopback, make_settings):
     assert denied[0].denyReason and "not allow-listed" in denied[0].denyReason
     assert results["Loop"].status == "unknown" and results["Loop"].reason == "too_many_redirects"
     assert loopback.hits["loop"] == 6  # the first request plus five hops, then stop
+
+
+async def test_truncated_page_is_unknown_not_a_verdict(loopback, make_settings):
+    settings = make_settings({"Big": loopback.site("big"), "Small": loopback.site("ok")})
+    settings.policy["limits"]["maxBodyBytes"] = 1000
+    response = await run_search(search(), settings)
+    results = by_site(response)
+    assert results["Big"].status == "unknown" and results["Big"].reason == "body_truncated"
+    # The prefix is not kept as evidence either.
+    big = next(r for r in response.requests if r.site == "Big" and r.purpose != "robots.txt")
+    assert big.bodyBase64 is None and big.bodyTruncated is True

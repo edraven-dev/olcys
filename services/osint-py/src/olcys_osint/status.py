@@ -19,6 +19,7 @@ UNKNOWN_TYPES = {
     "redirect": "too_many_redirects",
     "request failed": "no_answer",
     "ssl": "tls_error",
+    "body truncated": "body_truncated",
 }
 
 

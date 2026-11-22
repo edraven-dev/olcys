@@ -98,6 +98,7 @@ describe('recordDelegated', () => {
       ['elsewhere.invalid', false, undefined, 'osint-py', true],
     ]);
     expect(logs[2]?.denyReason).toBe('host not allow-listed');
+    expect(logs[0]?.error).toBeUndefined();
     expect(logs[0]?.urlRedacted).toContain('token=REDACTED');
     expect(logs.every((l) => l.runId === 'run-1' && l.sourceId === 'maigret' && l.mode === 'offline')).toBe(true);
     // Only the record with a body has provenance.

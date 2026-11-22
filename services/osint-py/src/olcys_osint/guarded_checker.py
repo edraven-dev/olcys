@@ -268,6 +268,9 @@ class GuardedChecker:
             if self.allow_redirects and 300 <= status < 400 and location:
                 logical = ctx.to_logical(urljoin(actual, location))
                 continue
+            if record["bodyTruncated"]:
+                # A page cut at the size limit must not be judged: found or not found on a prefix is a guess.
+                return None, 0, CheckError("Body truncated", f"more than {ctx.max_body_bytes} bytes")
             return body.decode(charset, "ignore"), status, None
         return None, 0, CheckError("Redirect", f"more than {ctx.max_redirects} redirects")
 

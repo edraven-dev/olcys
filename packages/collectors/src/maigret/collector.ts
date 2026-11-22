@@ -19,6 +19,7 @@ import type {
   Id,
   ProvenanceEnvelope,
   RunContext,
+  SecretRedactor,
   SourceCollector,
   SourceDescriptor,
 } from '@olcys/core';
@@ -128,6 +129,30 @@ export function rollupUsernameSearch(statuses: readonly UsernameStatus[]): Colle
   return 'partial';
 }
 
+/**
+ * Private keys and seed phrases never reach storage: every page body and every extracted field of the service's answer
+ * goes through the project's redactor before captures, blobs, delegated log rows or provenance are built from it.
+ * A body without findings keeps its original bytes.
+ */
+export function redactResponse(response: UsernameSearchResponse, redactor: SecretRedactor): UsernameSearchResponse {
+  const text = (value: string): string => redactor.redact(value).text;
+  return {
+    ...response,
+    results: response.results.map((r) => ({
+      ...r,
+      ids: Object.fromEntries(Object.entries(r.ids).map(([k, v]) => [k, text(v)])),
+      idsLinks: r.idsLinks.map(text),
+    })),
+    requests: response.requests.map((r) => {
+      if (!r.bodyBase64) return r;
+      const decoded = new TextDecoder().decode(decodeBase64(r.bodyBase64));
+      const result = redactor.redact(decoded);
+      if (!result.findings.length) return r;
+      return { ...r, bodyBase64: Buffer.from(result.text, 'utf8').toString('base64') };
+    }),
+  };
+}
+
 const decodeBase64 = (text: string): Uint8Array => new Uint8Array(Buffer.from(text, 'base64'));
 
 function delegatedRecord(request: UsernameSearchRequestLog): DelegatedRequestRecord {
@@ -139,6 +164,7 @@ function delegatedRecord(request: UsernameSearchRequestLog): DelegatedRequestRec
     containsIdentifier: request.containsIdentifier,
     allowed: request.allowed,
     ...(request.denyReason ? { denyReason: request.denyReason } : {}),
+    ...(request.error ? { error: request.error } : {}),
     requestedAt: request.requestedAt,
     ...(request.receivedAt ? { receivedAt: request.receivedAt } : {}),
     ...(request.httpStatus === null ? {} : { httpStatus: request.httpStatus }),
@@ -228,7 +254,8 @@ async function recordSite(search: Search, result: UsernameSiteResult): Promise<C
   if (!ctx.evidence) throw new Error('RunContext.evidence (the capture recorder) is not configured');
   const chain = result.requestIds
     .map((id) => parsed.requests.find((r) => r.id === id))
-    .filter((r): r is UsernameSearchRequestLog => r !== undefined && r.allowed);
+    // The first site on a host also owns the host's robots.txt request: never part of a page's chain.
+    .filter((r): r is UsernameSearchRequestLog => r !== undefined && r.allowed && r.purpose !== 'robots.txt');
   const last = chain.at(-1);
   const delegated = last ? logged.get(last.id) : undefined;
   const provenance = delegated?.provenance;
@@ -386,6 +413,8 @@ export function maigretCollectorFactory(options: MaigretCollectorOptions): Colle
               purpose: 'maigret username enumeration (osint-py)',
               containsIdentifier: true,
               timeoutMs: options.timeoutMs ?? 180_000,
+              // The raw answer carries unredacted page bodies: only its digest and metadata are kept.
+              persistBody: false,
             });
           } catch (error) {
             const failure = classifyFailure(error, searchUrl);
@@ -406,6 +435,7 @@ export function maigretCollectorFactory(options: MaigretCollectorOptions): Colle
             return rb.build();
           }
 
+          parsed = redactResponse(parsed, deps.redactor);
           const software = [
             { name: '@olcys/collectors', version: COLLECTORS_VERSION },
             { name: 'osint-py', version: parsed.service.version },

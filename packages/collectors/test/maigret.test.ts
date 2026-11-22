@@ -6,7 +6,9 @@
  */
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import type { CollectorInput, CollectorResult } from '@olcys/core';
+import type { CollectorInput, CollectorResult, SecretRedactor } from '@olcys/core';
+import { createSecretRedactor } from '../../address-extractor/src/index.ts';
+import { gen } from '../../address-extractor/test/helpers.ts';
 import { describe, expect, it } from 'vitest';
 import {
   collectCase,
@@ -46,7 +48,10 @@ interface Sent {
 }
 
 /** Real egress client over a fake `fetch` standing in for osint-py. */
-function setup(answer: (sent: Sent) => Response = () => new Response(sampleText, { status: 200 })) {
+function setup(
+  answer: (sent: Sent) => Response = () => new Response(sampleText, { status: 200 }),
+  redactor: SecretRedactor = TEST_REDACTOR,
+) {
   const sent: Sent[] = [];
   const fetchImpl = (async (input: string | URL | Request, init?: RequestInit) => {
     const call = { url: String(input), method: init?.method ?? 'GET', body: String(init?.body ?? '') };
@@ -63,7 +68,7 @@ function setup(answer: (sent: Sent) => Response = () => new Response(sampleText,
     config: createCollectorConfig({ mode: 'offline', env: { OLCYS_COLLECTOR_NAME: 'test-analyst' } }),
     robots: { check: async () => ({ allowed: true }) },
     breaker: new SourceCircuitBreaker(),
-    redactor: TEST_REDACTOR,
+    redactor,
     deniedHosts: ['wykop.pl', 'bitcointalk.org'],
   };
   const run = (input: CollectorInput = nickInput(), ctx = test.ctx): Promise<CollectorResult> => {
@@ -269,6 +274,58 @@ describe('collector on the sample (offline)', () => {
     expect(result.status).toBe('error');
     expect(result.notes.some((n) => n.startsWith('synthetic_identifier_refused'))).toBe(true);
     void run;
+  });
+});
+
+describe('secrets and request details', () => {
+  const wif = gen.wif('maigret-wif');
+  const seed = gen.mnemonic12('maigret-seed');
+  const page = `<html><body><p>klucz: ${wif}</p><p>seed: ${seed}</p></body></html>`;
+  const leaking = (): Record<string, unknown> => {
+    const requests = structuredClone(sample['requests'] as Record<string, unknown>[]);
+    const wykop = requests.find((r) => r['site'] === 'Wykop') as Record<string, unknown>;
+    wykop['bodyBase64'] = Buffer.from(page).toString('base64');
+    const results = structuredClone(sample['results'] as Record<string, unknown>[]);
+    (results.find((r) => r['site'] === 'Wykop') as Record<string, unknown>)['ids'] = { fullname: `x ${wif}` };
+    return { ...sample, requests, results };
+  };
+
+  it('redacts a private key and a seed phrase everywhere and never stores the raw service body', async () => {
+    const raw = JSON.stringify(leaking());
+    const { run, test } = setup(() => new Response(raw, { status: 200 }), createSecretRedactor());
+    const result = await run();
+    const fragments = [wif, wif.slice(8, 30), ...seed.split(' ').slice(2, 6).join(' ').split(' ')];
+    const stored = [...test.blobs.data.values()].map((b) => new TextDecoder().decode(b));
+    // The wykop page is stored, with markers instead of the secrets.
+    expect(stored.some((t) => t.includes('[REDACTED:'))).toBe(true);
+    const everywhere = [
+      ...stored,
+      JSON.stringify(result),
+      JSON.stringify(test.logs),
+      JSON.stringify(test.envelopes),
+    ].join('\n');
+    expect(everywhere).not.toContain(wif);
+    expect(everywhere).not.toContain(seed);
+    for (const fragment of fragments.slice(0, 2)) expect(everywhere).not.toContain(fragment);
+    // The raw answer (bodies as received) is neither in the blob store nor in provenance.
+    const answer = test.envelopes.find((e) => e.url.endsWith('/v1/usernames/search'));
+    expect(answer?.bodyPersisted).toBe(false);
+    expect(test.blobs.data.has(answer?.body.sha256 as string)).toBe(false);
+  });
+
+  it('does not start a page capture at robots.txt', async () => {
+    const { run } = setup();
+    const result = await run();
+    const page = result.captures.find((c) => c.status === 'ok' && c.url.includes('/wykop/'));
+    expect(page?.url).toBe('http://fixture-site:4100/wykop/ludzie/fikcyjny_kacper');
+    expect(result.captures.every((c) => !c.url.endsWith('/robots.txt'))).toBe(true);
+  });
+
+  it('carries a request failure of the service into the egress log', async () => {
+    const requests = patched('requests', { error: 'timeout', httpStatus: null, receivedAt: null, allowed: true });
+    const { run, test } = setup(() => new Response(JSON.stringify({ ...sample, requests }), { status: 200 }));
+    await run();
+    expect(test.logs.filter((l) => l.delegate === 'osint-py' && l.error === 'timeout')).toHaveLength(1);
   });
 });
 
