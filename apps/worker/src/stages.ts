@@ -24,6 +24,7 @@ import type {
 import { addressKey, chainFamily, dCmp, dSub, newId, transferKey, uniqueTransfers } from '@olcys/core';
 import {
   analyseAddress,
+  type AddressAnalysis,
   createAssetRegistry,
   createNbpFxRateSource,
   createSeriesPriceSource,
@@ -91,6 +92,7 @@ import { classifyFetched } from './address-types.ts';
 import { withAnalystOverrides } from './analyst.ts';
 import { CLUSTER_EXPANSION, clusterBitcoin } from './clusters.ts';
 import { describeGaps, historyGaps, isOwnStatement, transfersOf } from './chain-data.ts';
+import { computeFlowGraph, coSpendTransfers, expandFlowHops, flowSettings, type EndpointClass } from './flows.ts';
 import { REPO_ROOT, TOOL_VERSION } from './config.ts';
 import type { Stage, StageContext } from './pipeline.ts';
 
@@ -728,7 +730,45 @@ export function createChainStage(options: StageOptions): Stage {
         [...expansion].map(([key, a]) => [key, transfersOf(a, hop?.transfers ?? [], hop?.utxoTxs ?? [])]),
       );
 
-      // 4. Activity, cash-out indicators and flows, valued in PLN at the NBP rate.
+      // 3b. Fund-flow expansion: counterparties of the analysed addresses (recipients first, then senders), bounded and
+      // never past services or excluded addresses; their histories feed the flow graph and the per-order detection.
+      const settings = flowSettings(env, c.cashOutRules.maxHops);
+      const pool = {
+        transfers: [...fetched.transfers, ...(hop?.transfers ?? [])],
+        utxoTxs: [...fetched.utxoTxs, ...(hop?.utxoTxs ?? [])],
+      };
+      const excludedKeys = new Set(
+        decisions
+          .filter(
+            (d) =>
+              effectiveOutcome(decisions.filter((x) => targetOf(x.address) === targetOf(d.address))).outcome ===
+              'excluded',
+          )
+          .map((d) => targetOf(d.address)),
+      );
+      const classes = new Map<string, EndpointClass>();
+      const classify = async (address: AddressRef): Promise<EndpointClass> => {
+        const canonical = canonicalAddress(address);
+        const key = addressKey(canonical);
+        const known = classes.get(key);
+        if (known) return known;
+        const [labelled, pre] = await Promise.all([
+          labels.labelsFor(canonical),
+          prescreenExclusions(canonical, exclusionDeps),
+        ]);
+        const cls = {
+          service: labelled.length > 0,
+          excluded: excludedKeys.has(key) || effectiveOutcome(pre).outcome === 'excluded',
+        };
+        classes.set(key, cls);
+        return cls;
+      };
+      const fetchedKeys = new Set([
+        ...toFetch.map((a) => addressKey(resolvedOf(a))),
+        ...analysedKeys,
+        ...expansion.keys(),
+      ]);
+      const txCounts = new Map(fetched.summaries.map((x) => [addressKey(x.address), x.txCount]));
       const counted = trackUnpriced(
         createValuator({
           fx: createNbpFxRateSource({ http, ...(c.nbpBaseUrl ? { baseUrl: c.nbpBaseUrl } : {}) }),
@@ -736,6 +776,33 @@ export function createChainStage(options: StageOptions): Stage {
           assets,
         }),
       );
+      const expanded: { address: AddressRef; transfers: NormalizedTransfer[]; hop: number }[] = [];
+      const flowExpansion = await expandFlowHops({
+        seeds: analysed,
+        settings,
+        pool,
+        fetched: fetchedKeys,
+        txCounts,
+        assets,
+        valuator: counted.valuator,
+        ctx: runCtx,
+        classify,
+        fetch: (plan) =>
+          runChainFetch(plan, providers, runCtx, { enabledSources: chainSources, tips, ...unknownEvmChains }),
+        async onFetched(address, transfers, hopNumber) {
+          expanded.push({ address, transfers, hop: hopNumber });
+          counterpartyTransfers.set(addressKey(address), transfers);
+        },
+      });
+      const flowGaps = historyGaps(flowExpansion.outcomes);
+      if (flowGaps) {
+        ctx.markPartial(
+          `fund-flow counterparty chain data incomplete for ${flowGaps.count} address(es): ${describeGaps(flowGaps.items)}`,
+          { code: 'counterparty_chain_incomplete', params: { count: flowGaps.count, items: flowGaps.items } },
+        );
+      }
+
+      // 4. Activity, cash-out indicators and flows, valued in PLN at the NBP rate.
       const deps = {
         labels,
         assets,
@@ -746,6 +813,7 @@ export function createChainStage(options: StageOptions): Stage {
         runId,
       };
       const indicators: ActivityIndicators[] = [];
+      const analyses = new Map<string, AddressAnalysis>();
       // A transfer between two analysed addresses is stored once per run (under the first address analysed).
       const stored = new Set<string>();
       const events: CashOutEvent[] = [];
@@ -767,6 +835,7 @@ export function createChainStage(options: StageOptions): Stage {
         );
         indicators.push(analysis.indicators);
         events.push(...analysis.events);
+        analyses.set(addressKey(a), analysis);
         // oxlint-disable-next-line no-await-in-loop
         await ctx.repos.chain.addTransfers(
           runId,
@@ -777,6 +846,63 @@ export function createChainStage(options: StageOptions): Stage {
             stored.add(key);
             return true;
           }),
+        );
+      }
+      // Counterparty histories (hop expansion) only serve flow queries; analysed addresses keep their own history.
+      const counterpartyHistories = [
+        ...[...expansion].map(([, a]) => ({
+          address: a,
+          transfers: transfersOf(a, hop?.transfers ?? [], hop?.utxoTxs ?? []),
+          hop: 1,
+        })),
+        ...expanded,
+      ];
+      for (const history of counterpartyHistories) {
+        // oxlint-disable-next-line no-await-in-loop
+        await ctx.repos.chain.addTransfers(
+          runId,
+          history.address,
+          history.transfers.filter((t) => {
+            const key = transferKey(t);
+            if (stored.has(key)) return false;
+            stored.add(key);
+            return true;
+          }),
+          { expansionHop: history.hop },
+        );
+      }
+      // Bitcoin co-spenders: a payment leaves every input address of its transaction, not only the first one.
+      const coSpend = coSpendTransfers(pool.transfers, pool.utxoTxs);
+      for (const t of coSpend) {
+        const key = transferKey(t);
+        if (stored.has(key)) continue;
+        stored.add(key);
+        // oxlint-disable-next-line no-await-in-loop
+        await ctx.repos.chain.addTransfers(runId, { chain: t.chain, address: t.from }, [t], { expansionHop: 1 });
+      }
+      pool.transfers.push(...coSpend);
+      // 5. Flow graph: edges valued in PLN, a timeline and a Sankey aggregate per analysed address.
+      const graph = await computeFlowGraph({
+        runId,
+        seeds: analysed,
+        settings,
+        pool,
+        assets,
+        valuator: counted.valuator,
+        ctx: runCtx,
+        classify,
+        labelOf: async (a) => (await labels.labelsFor(canonicalAddress(a)))[0],
+        swapsOf: (a) => analyses.get(addressKey(a))?.indicators.swaps ?? [],
+        eventsOf: (a) => analyses.get(addressKey(a))?.events ?? [],
+        ...(ctx.repos.chain.queryFlowEdges ? { query: (id, q) => ctx.repos.chain.queryFlowEdges!(id, q) } : {}),
+        computedAt: new Date().toISOString(),
+      });
+      await ctx.repos.analysis.addFlows?.(runId, graph.edges);
+      await ctx.repos.analysis.addFlowViews?.(graph.views);
+      if (graph.truncatedQueries > 0) {
+        ctx.markPartial(
+          `fund-flow graph truncated at ${settings.edgeLimit} edges in ${graph.truncatedQueries} query(ies)`,
+          { code: 'flow_graph_truncated', params: { count: graph.truncatedQueries, limit: settings.edgeLimit } },
         );
       }
       // A leg without a price or NBP rate leaves its PLN value missing: say so instead of staying silent.
@@ -800,6 +926,8 @@ export function createChainStage(options: StageOptions): Stage {
         exclusions: decisions.length,
         clusters: clusterCount,
         cashOutEvents: events.length,
+        flowEdges: graph.edges.length,
+        flowExpandedAddresses: expanded.length,
         unpricedTransfers: unpriced,
       });
     },

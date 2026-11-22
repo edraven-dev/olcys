@@ -37,6 +37,18 @@ Schemat PostgreSQL, migracje SQL i typowane repozytoria dla magazynu dowodów dz
   `add(runId, klastry)` odrzuca powtórzony identyfikator, `list(runId)` zwraca wiersze według identyfikatora,
   `previousSizes(caseId, ziarna, beforeRunId)` — rozmiary klastrów ziaren z najnowszego wcześniejszego przebiegu sprawy
   (współczynnik wzrostu reguły A7). Tabela tylko do dopisywania (`olcys_app`: SELECT i INSERT).
+- `chain.queryFlowEdges` i `queryFlowEdges(db, zapytanie)` (migracja `0008_fund_flows.sql`) — przepływy środków po
+  zapisanych transferach przebiegu: przeszukiwanie wszerz na poziomie adresów (`walkFlows` z `@olcys/core`) z jednym
+  parametryzowanym zapytaniem SQL na skok (surowy SQL przez `sql` Kysely). Jeden wpis na adres i skok (najwcześniejszy
+  moment dotarcia) utrzymuje liniowy koszt; transfer występuje raz, w pierwszym skoku. Ścieżki kończą się na adresach
+  z `stopAt` (usługi z etykietą, adresy wykluczone), krawędź do adresu już odwiedzonego ma `isCycle`; głębokość
+  (`maxHops`) i liczba krawędzi (`limit`, wynik ma `truncated`) są ograniczone. Magazyn w pamięci używa tego samego
+  przeszukiwania (`traceFlows`); oba są testowane na tych samych scenariuszach (`test/flow-cte.test.ts`).
+  `addTransfers(..., { expansionHop })` zapisuje także historie kontrahentów pobrane w rozszerzeniu (kolumna
+  `chain_transfers.expansion_hop`); `listTransfers` zwraca tylko historie adresów analizowanych.
+- `analysis.addFlows` / `listFlows` (tabela `flow_edge`) i `addFlowViews` / `listFlowViews` (tabela `fund_flow_view`:
+  oś czasu i agregat Sankey adresu) — wyniki obliczeń, tylko do dopisywania (`olcys_app`: SELECT i INSERT); krawędź
+  tego samego transferu i skoku jest w przebiegu zapisana raz.
 - `migrate(ownerUrl)` / `pnpm db:migrate` — migracje SQL z `migrations/` (z kontrolą skrótów SHA-256). Historię
   migracji (`schema_migrations`) może zapisywać wyłącznie właściciel schematu — `migrate()` odbiera prawa zapisu
   pozostałym rolom. Równoczesne uruchomienia (np. równoległe pliki testów) czekają na blokadę doradczą, więc każda

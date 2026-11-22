@@ -505,6 +505,8 @@ interface FlowStep {
   valuation?: Valuation;
   /** Value of exactly this movement taken from an attached cash-out event (or its component leg). */
   eventValuation?: Valuation;
+  /** Flow hop (|hop| ≥ 2) from the fund-flow graph: a movement beyond the direct counterparties (computed path). */
+  hop?: number;
   cashOuts: CashOutEvent[];
 }
 
@@ -547,6 +549,7 @@ export function flowSteps(view: View): FlowStep[] {
     const exact = sameMovement.find((s) => s.asset === edge.asset && sameAmount(s.amount, edge.amount));
     if (exact) {
       if (!exact.valuation && edge.valuation) exact.valuation = edge.valuation;
+      if (Math.abs(edge.hop) >= 2 && exact.hop === undefined) exact.hop = edge.hop;
       continue;
     }
     // Same transaction and endpoints but another asset or amount: ambiguous, neither valued nor duplicated.
@@ -565,6 +568,7 @@ export function flowSteps(view: View): FlowStep[] {
         amount: edge.amount,
         asset: edge.asset,
         ...(edge.valuation ? { valuation: edge.valuation } : {}),
+        ...(Math.abs(edge.hop) >= 2 ? { hop: edge.hop } : {}),
         cashOuts: [],
       });
   }
@@ -664,7 +668,12 @@ function flowItem(view: View, s: FlowStep): SafeHtml {
     ' ',
     t(f.tx, { tx: hash(s.txHashes[0] ?? ''), chain: chainName(s.chain) }),
   ]);
-  const computed = join([value ? t(f.valuation, { value: valuationText(value) }) : f.noValuation, ruleLines(s)]);
+  const hopNote = s.hop === undefined ? '' : join([' ', t(s.hop > 0 ? f.hopDown : f.hopUp, { hop: Math.abs(s.hop) })]);
+  const computed = join([
+    value ? t(f.valuation, { value: valuationText(value) }) : f.noValuation,
+    ruleLines(s),
+    hopNote,
+  ]);
   return markup`<li class="flow-step">${time}${statement('facts', fact)}${statement('computed', computed)}${statement('inferences', inference)}</li>`;
 }
 
