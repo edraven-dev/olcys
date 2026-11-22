@@ -8,6 +8,7 @@ import io
 import socket
 
 import pytest
+from asn1crypto import tsp
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
@@ -228,3 +229,45 @@ def test_a_51_mb_body_is_refused(client):
 def test_demo_identity_is_kept_not_regenerated(tmp_path):
     first = load_or_create_demo_signer(tmp_path / "k", bits=2048)
     assert load_or_create_demo_signer(tmp_path / "k", bits=2048) == first
+
+
+def as_response(token_der: bytes) -> bytes:
+    """What the worker's timestamper hands over: the TSA's full RFC 3161 TimeStampResp, not the bare token."""
+    from asn1crypto import cms
+
+    fields = {"status": {"status": "granted"}, "time_stamp_token": cms.ContentInfo.load(token_der)}
+    return tsp.TimeStampResp(fields).dump()
+
+
+async def test_a_full_time_stamp_response_reaches_pades_b_t(service, identity):
+    stamper, tsa_cert = tsa_stamper()
+    session, _digest, token = await sign(service, True, (stamper, tsa_cert))
+    pdf, _cert, _at, timestamped = await service.finish(session, as_response(token))
+    assert timestamped is True
+    embedded, status = await asyncio.to_thread(validate, pdf, identity, [tsa_cert])
+    assert status.valid and status.trusted
+    assert stamp_token(embedded) is not None
+    assert status.timestamp_validity is not None and status.timestamp_validity.intact
+
+
+async def test_a_response_that_is_not_granted_is_refused(service):
+    session, *_ = await sign(service, False)
+    rejection = bytes.fromhex("3005300302010 2".replace(" ", ""))  # TimeStampResp { status: rejection }
+    with pytest.raises(ApiError) as error:
+        await service.finish(session, rejection)
+    assert (error.value.status_code, error.value.code) == (400, "timestamp_mismatch")
+
+
+async def test_garbage_is_not_a_token(service):
+    session, *_ = await sign(service, False)
+    with pytest.raises(ApiError) as error:
+        await service.finish(session, b"\x30\x03\x02\x01\x01")
+    assert error.value.code == "timestamp_mismatch"
+
+
+def test_size_boundary_is_50_mib(client):
+    limit = 50 * 1024 * 1024
+    at_limit = client.post("/v1/pdf/sign/prepare", json={"pdfBase64": base64.b64encode(b"\0" * limit).decode()})
+    assert (at_limit.status_code, at_limit.json()["code"]) == (400, "invalid_pdf")
+    over = client.post("/v1/pdf/sign/prepare", json={"pdfBase64": base64.b64encode(b"\0" * (limit + 1)).decode()})
+    assert over.status_code == 413

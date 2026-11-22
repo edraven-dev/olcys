@@ -35,12 +35,32 @@ DIGEST = "sha256"
 _DIGEST_NAMES = {"sha256": "2.16.840.1.101.3.4.2.1"}
 
 
+def parse_token(der: bytes) -> cms.ContentInfo:
+    """The time-stamp token (CMS ContentInfo) of ``der``: a full RFC 3161 ``TimeStampResp`` as the worker stores it
+    (its status must be granted), or a bare token."""
+    response = None
+    try:
+        candidate = tsp.TimeStampResp.load(der)
+        _ = candidate.native  # forces parsing: a bare token does not parse as a TimeStampResp
+        response = candidate
+    except Exception:
+        response = None
+    if response is None:
+        return cms.ContentInfo.load(der)
+    if response["status"]["status"].native not in ("granted", "granted_with_mods"):
+        raise ValueError("the time-stamp response is not granted")
+    token = response["time_stamp_token"]
+    if token.native is None:
+        raise ValueError("the time-stamp response carries no token")
+    return cms.ContentInfo.load(token.dump())
+
+
 class PrefetchedTimeStamper(TimeStamper):
     """Hands out a token obtained elsewhere (by the Node worker); it never contacts a TSA itself."""
 
     def __init__(self, token_der: bytes, expected_digest: bytes) -> None:
         super().__init__(include_nonce=False)
-        self._info = cms.ContentInfo.load(token_der)
+        self._info = parse_token(token_der)
         self._expected = expected_digest
 
     def imprint(self) -> bytes:

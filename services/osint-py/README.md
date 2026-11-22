@@ -130,6 +130,13 @@ Raport PDF/A-3b renderuje Gotenberg po stronie Node; ten serwis tylko go podpisu
    `{ pdfBase64, signerCertSha256, signedAt, timestamped }`: PAdES B-T albo, bez znacznika, B-B. Wtedy worker kolejkuje
    osobny znacznik `report_pdf` dla skrótu całego podpisanego pliku.
 
+Znacznik w `timestampTokenBase64` może być pełną odpowiedzią RFC 3161 (`TimeStampResp`, w takiej postaci zwraca go
+timestamper workera; musi mieć status „granted”) albo samym tokenem CMS.
+
+**Limity rozmiaru** (spójne w całym łańcuchu): PDF do 50 MiB (`PDF_MAX_BYTES`; większy zostaje bez podpisu z ostrzeżeniem
+`signing_unavailable`, a usługa odpowiada `413`). Ciało żądania i odpowiedź niosą PDF jako base64 (+33%), więc klient
+ruchu wychodzącego w workerze ma dla usług PDF limit odpowiedzi `PDF_MAX_RESPONSE_BYTES` (ok. 67 MiB), a nie domyślne 25 MiB.
+
 Błędy: `410 session_expired` (nieznana lub wygasła sesja), `400 timestamp_mismatch` (znacznik dla innego skrótu; sesja
 zostaje, można dokończyć bez znacznika), `400 invalid_pdf`, `413 too_large` (ponad 50 MB), `429` (zbyt wiele sesji),
 `503 signing_unavailable` (brak klucza).
