@@ -183,7 +183,7 @@ export async function runPipeline(runId: Id, deps: PipelineDeps): Promise<RunWit
         await repos.runs.update(runId, { progress });
       },
       markPartial(reason, coded) {
-        partial.push({ text: reason, ...(coded ?? {}) });
+        partial.push({ text: reason, ...coded });
       },
     };
 

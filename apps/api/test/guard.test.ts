@@ -19,20 +19,25 @@ const app = (guard?: Parameters<typeof buildApp>[0]['guard']) =>
 const get = (a: ReturnType<typeof app>, host?: string) =>
   a.inject({ method: 'GET', url: '/api/health', headers: host ? { host } : {} });
 
+const post = (a: ReturnType<typeof app>, origin?: string, method: 'POST' | 'PUT' | 'DELETE' = 'POST') =>
+  a.inject({ method, url: '/api/cases', payload: { title: '' }, headers: origin ? { origin } : {} });
+
 describe('Host header', () => {
   it('allows loopback names on any port', async () => {
     const a = app();
-    for (const host of ['localhost', 'localhost:4000', '127.0.0.1:5173', '[::1]:4000', 'LOCALHOST:80'])
-      expect([host, (await get(a, host)).statusCode]).toEqual([host, 200]);
+    const hosts = ['localhost', 'localhost:4000', '127.0.0.1:5173', '[::1]:4000', 'LOCALHOST:80'];
+    const codes = await Promise.all(hosts.map(async (host) => (await get(a, host)).statusCode));
+    expect(codes).toEqual(hosts.map(() => 200));
   });
 
   it('rejects other hosts with 421 and a JSON error (DNS rebinding)', async () => {
     const a = app();
-    for (const host of ['evil.example', 'evil.example:4000', 'localhost.evil.example', '127.0.0.1.evil.example:4000']) {
-      const response = await get(a, host);
-      expect([host, response.statusCode]).toEqual([host, 421]);
-      expect(response.json()).toMatchObject({ error: 'misdirected_request' });
-    }
+    const hosts = ['evil.example', 'evil.example:4000', 'localhost.evil.example', '127.0.0.1.evil.example:4000'];
+    const responses = await Promise.all(hosts.map((host) => get(a, host)));
+    expect(responses.map((r) => r.statusCode)).toEqual(hosts.map(() => 421));
+    expect(responses.map((r) => r.json())).toEqual(
+      hosts.map(() => expect.objectContaining({ error: 'misdirected_request' })),
+    );
   });
 
   it('allows extra hosts from the configuration, by name or name:port', async () => {
@@ -45,16 +50,15 @@ describe('Host header', () => {
 });
 
 describe('Origin header of state-changing requests', () => {
-  const post = (a: ReturnType<typeof app>, origin?: string, method: 'POST' | 'PUT' | 'DELETE' = 'POST') =>
-    a.inject({ method, url: '/api/cases', payload: { title: '' }, headers: origin ? { origin } : {} });
-
   it('rejects a foreign origin with 403', async () => {
     const a = app();
-    for (const method of ['POST', 'PUT', 'DELETE'] as const) {
-      const response = await post(a, 'https://evil.example', method);
-      expect([method, response.statusCode]).toEqual([method, 403]);
-      expect(response.json()).toMatchObject({ error: 'forbidden_origin' });
-    }
+    const responses = await Promise.all(
+      (['POST', 'PUT', 'DELETE'] as const).map((method) => post(a, 'https://evil.example', method)),
+    );
+    expect(responses.map((r) => r.statusCode)).toEqual([403, 403, 403]);
+    expect(responses.map((r) => r.json())).toEqual(
+      responses.map(() => expect.objectContaining({ error: 'forbidden_origin' })),
+    );
     expect((await post(a, 'null')).statusCode).toBe(403);
     expect((await post(a, 'http://localhost:6666')).statusCode).toBe(403);
   });

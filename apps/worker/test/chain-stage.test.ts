@@ -95,10 +95,8 @@ describe('chain stage', () => {
         'chain data incomplete for 1 address(es): tron no enabled provider (1)',
         expect.stringMatching(/^PLN valuation unavailable for \d+ transfer\(s\)/),
       ]);
-      expect((run?.progress['partialCodes'] as { code: string }[]).map((r) => r.code)).toEqual([
-        'chain_incomplete',
-        'valuation_unavailable',
-      ]);
+      const codes = (run?.progress['partialCodes'] ?? []) as { code: string }[];
+      expect(codes.map((r) => r.code)).toEqual(['chain_incomplete', 'valuation_unavailable']);
 
       const egress = await runtime.repos.evidence.listEgressLog(first.id);
       expect(egress.filter((e) => e.allowed).length).toBeGreaterThan(0);

@@ -158,10 +158,10 @@ describe('fixture server', () => {
   });
 });
 
-describe('fixture server — synthetic NBP Table A', () => {
-  const rates = async (path: string) =>
-    (await (await get(path)).json()) as { _synthetic: string; code: string; rates: { no: string; mid: number }[] };
+const rates = async (path: string) =>
+  (await (await get(path)).json()) as { code: string; rates: { no: string; mid: number }[] };
 
+describe('fixture server — synthetic NBP Table A', () => {
   it('answers any end of a month range with the whole synthetic month, marked synthetic', async () => {
     const month = '/nbp/api/exchangerates/rates/a/usd/2026-10-01';
     const full = await get(`${month}/2026-10-31/?format=json`);
@@ -169,7 +169,8 @@ describe('fixture server — synthetic NBP Table A', () => {
     expect(full.headers.get('x-olcys-synthetic')).toBe('true');
     const body = await rates(`${month}/2026-10-31/?format=json`);
     expect(body.code).toBe('USD');
-    expect(body._synthetic).toContain('SYNTHETIC');
+    expect(JSON.stringify(body)).not.toContain('NaN');
+    expect(await (await get(`${month}/2026-10-31/?format=json`)).text()).toContain('SYNTHETIC TEST DATA');
     expect(body.rates.length).toBeGreaterThan(15);
     expect(body.rates.every((r) => /^SYN\d+\/A\/NBP\/2026$/.test(r.no))).toBe(true);
     // The current month is asked with today as its end: the same file answers.
