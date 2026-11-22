@@ -1,3 +1,4 @@
+import { renderPartialReason } from '@olcys/core';
 import { describe, expect, it } from 'vitest';
 import { nbpLine, transfersFor, addressOptions } from '../src/features/activity/activity-model.ts';
 import {
@@ -21,7 +22,13 @@ import {
   rejectedCandidates,
   splitNonAscii,
 } from '../src/features/rejected/rejected-model.ts';
-import { egressSummary, progressCounters, stepStates, summariseSources } from '../src/features/run/run-model.ts';
+import {
+  egressSummary,
+  partialReasons,
+  progressCounters,
+  stepStates,
+  summariseSources,
+} from '../src/features/run/run-model.ts';
 import { pl } from '../src/i18n/pl.ts';
 import { bandForScore, resolveBand } from '../src/lib/band.ts';
 import { isRejectedLink, isWalletSwap, isWeakIdentity, linkBand, type SourceItem } from '../src/lib/domain.ts';
@@ -341,6 +348,26 @@ describe('new-case form', () => {
 });
 
 describe('run overview', () => {
+  it('renders coded partial reasons in Polish and falls back to the raw text for unknown codes', () => {
+    const progress = {
+      partial: ['chain data incomplete for 2 address(es): tron timeout (2)', 'tron provider: timeout', 'x'],
+      partialCodes: [
+        {
+          text: 'chain data incomplete for 2 address(es): tron timeout (2)',
+          code: 'chain_incomplete',
+          params: { count: 2, details: 'tron timeout (2)' },
+        },
+        { text: 'x', code: 'code_from_the_future' },
+      ],
+    };
+    const text = partialReasons({ progress }).map((r) => renderPartialReason(r, pl.overview.partialReasons));
+    expect(text).toEqual([
+      'niepełna historia łańcucha dla 2 adresów (tron timeout (2))',
+      'tron provider: timeout',
+      'x',
+    ]);
+  });
+
   it('derives step states from the progress record', () => {
     const states = stepStates({ status: 'running', progress: { step: 'chain.fetch', done: 3, total: 6 } });
     expect(states['collect.source']).toBe('done');

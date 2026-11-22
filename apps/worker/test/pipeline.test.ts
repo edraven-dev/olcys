@@ -1,8 +1,9 @@
-import type { AnalysisRun, Capture, Observation, Repositories } from '@olcys/core';
+import type { AnalysisRun, Capture, Logger, Observation, Repositories } from '@olcys/core';
 import { newId, nowIso } from '@olcys/core';
 import { createMemoryRepositories } from '@olcys/db';
+import { InMemoryBlobStore } from '@olcys/evidence';
 import { describe, expect, it } from 'vitest';
-import { createCollectStage, createRun, diffWithPrevious } from '../src/index.ts';
+import { createCollectStage, createRun, diffWithPrevious, runPipeline, type Stage } from '../src/index.ts';
 
 const CONFIG: AnalysisRun['config'] = {
   toolVersion: '0.1.0',
@@ -81,5 +82,84 @@ describe('collect stage configuration', () => {
       /OLCYS_SEARCH_MODE must be one of off, mock, external/,
     );
     expect(createCollectStage({ mode: 'offline', sources: [], env: {} }).step).toBe('collect.source');
+  });
+});
+
+const silent: Logger = { debug() {}, info() {}, warn() {}, error() {} };
+
+async function newCase(repos: Repositories) {
+  return repos.cases.create(
+    {
+      title: 'Sprawa testowa',
+      purpose: 'Test na danych syntetycznych',
+      legalBasis: 'test',
+      identifiers: [{ kind: 'nickname', value: 'x', isAnchor: true }],
+      scope: { enabledSources: [], amberJustifications: {}, chains: [], maxPivotDepth: 0 },
+    },
+    'test',
+  );
+}
+
+describe('runPipeline', () => {
+  const partialStage: Stage = {
+    step: 'chain.fetch',
+    async run(ctx) {
+      ctx.markPartial('chain data incomplete for 2 address(es): tron timeout (2)', {
+        code: 'chain_incomplete',
+        params: { count: 2, details: 'tron timeout (2)' },
+      });
+    },
+  };
+
+  it('ends a rescore as failed, not queued, when the rescored run cannot be read', async () => {
+    const repos = createMemoryRepositories();
+    const kase = await newCase(repos);
+    const first = await createRun(repos, { caseId: kase.id, mode: 'offline' }, CONFIG);
+    await repos.runs.update(first.id, { status: 'succeeded', finishedAt: nowIso() });
+    const rescore = await createRun(
+      repos,
+      { caseId: kase.id, mode: 'offline', trigger: 'rescore', rescoreOfRunId: first.id },
+      CONFIG,
+    );
+    const get = repos.runs.get.bind(repos.runs);
+    repos.runs.get = async (id) => {
+      // The rescore itself is readable; the run it rescores is not.
+      if (id === first.id) throw new Error('database unavailable');
+      return get(id);
+    };
+    const finished = await runPipeline(rescore.id, {
+      repos,
+      blobs: new InMemoryBlobStore(),
+      logger: silent,
+      stages: [],
+    });
+    expect(finished.status).toBe('failed');
+    expect(finished.error).toBe('database unavailable');
+    expect(finished.finishedAt).toBeDefined();
+  });
+
+  it('records reasons with codes and a rescore inherits them', async () => {
+    const repos = createMemoryRepositories();
+    const kase = await newCase(repos);
+    const deps = { repos, blobs: new InMemoryBlobStore(), logger: silent, stages: [partialStage] };
+    const first = await createRun(repos, { caseId: kase.id, mode: 'offline' }, CONFIG);
+    const run = await runPipeline(first.id, deps);
+    expect(run.status).toBe('partial');
+    expect(run.progress['partial']).toEqual(['chain data incomplete for 2 address(es): tron timeout (2)']);
+    expect(run.progress['partialCodes']).toEqual([
+      {
+        text: 'chain data incomplete for 2 address(es): tron timeout (2)',
+        code: 'chain_incomplete',
+        params: { count: 2, details: 'tron timeout (2)' },
+      },
+    ]);
+    const rescore = await createRun(
+      repos,
+      { caseId: kase.id, mode: 'offline', trigger: 'rescore', rescoreOfRunId: first.id },
+      CONFIG,
+    );
+    const again = await runPipeline(rescore.id, { ...deps, stages: [] });
+    expect(again.status).toBe('partial');
+    expect(again.progress['partialCodes']).toEqual(run.progress['partialCodes']);
   });
 });

@@ -276,6 +276,15 @@ export const pl = {
     incompletePages: '{pages} bez dostępu do treści ({sources})',
     incompleteReasons: 'zgłoszone przez etapy analizy: {reasons}',
     incompleteGeneric: 'uruchomienie zakończyło się jako częściowe',
+    /** Reasons recorded by the pipeline with a code (`PARTIAL_CODES`); an unknown code shows the engine's sentence. */
+    partialReasons: {
+      sources_unavailable: 'niedostępne źródła: {sources}',
+      pages_unavailable: 'część stron była niedostępna',
+      chain_incomplete: 'niepełna historia łańcucha dla {count} adresów ({details})',
+      counterparty_chain_incomplete: 'niepełna historia łańcucha dla {count} adresów kontrahentów ({details})',
+      address_type_probes_failed: 'nie udało się ustalić typu adresu (sondy zakończone błędem): {count}',
+      valuation_unavailable: 'brak wyceny w PLN dla {count} transferów (brak ceny lub kursu NBP)',
+    } as Record<string, string>,
     addresses: 'W treści zabezpieczonych stron znaleziono {addresses} o poprawnym formacie i sumie kontrolnej.',
     transfers: 'Z publicznych danych blockchain pobrano {transfers} dotyczące analizowanych adresów.',
     secrets:

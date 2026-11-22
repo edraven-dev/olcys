@@ -12,12 +12,15 @@ import type {
   FetchMode,
   Id,
   Logger,
+  PartialCode,
+  PartialParams,
+  PartialReason,
   Repositories,
   RunConfigSnapshot,
   RunStep,
   RunWithProgress,
 } from '@olcys/core';
-import { newId, nowIso, RUN_STEPS } from '@olcys/core';
+import { newId, nowIso, partialProgress, readPartialReasons, RUN_STEPS } from '@olcys/core';
 import { diffRuns, type RunSnapshot } from '@olcys/evidence';
 import { withOverridesSnapshot } from './analyst.ts';
 
@@ -34,8 +37,12 @@ export interface StageContext {
   logger: Logger;
   /** Detail for the UI (counts, current source); merged into the run's progress record. */
   progress(detail: Record<string, unknown>): Promise<void>;
-  /** Some sources could not be read (blocked, login wall, CAPTCHA, error): the run ends as `partial`. */
-  markPartial(reason: string): void;
+  /**
+   * Some data could not be read or computed (blocked source, incomplete chain history, no valuation): the run ends as
+   * `partial`. `reason` is an English sentence for logs; `coded` gives the stable code and parameters from which the
+   * UI and the report render Polish text.
+   */
+  markPartial(reason: string, coded?: { code: PartialCode; params?: PartialParams }): void;
 }
 
 export interface Stage {
@@ -92,12 +99,6 @@ export function evidenceRunIdOf(run: Pick<AnalysisRun, 'id' | 'trigger' | 'resco
   return run.trigger === 'rescore' && run.rescoreOfRunId ? run.rescoreOfRunId : run.id;
 }
 
-/** Why a run is incomplete, as recorded with `markPartial` (`progress.partial`). */
-function partialReasonsOf(run: Pick<RunWithProgress, 'progress'> | undefined): string[] {
-  const recorded = run?.progress?.['partial'];
-  return Array.isArray(recorded) ? recorded.filter((r): r is string => typeof r === 'string') : [];
-}
-
 async function snapshotOf(repos: Repositories, run: RunWithProgress): Promise<RunSnapshot> {
   const evidenceRunId = evidenceRunIdOf(run);
   const [captures, observations, assessments] = await Promise.all([
@@ -149,42 +150,46 @@ export async function runPipeline(runId: Id, deps: PipelineDeps): Promise<RunWit
   const { repos, logger } = deps;
   const queued = await repos.runs.get(runId);
   if (!queued) throw new Error(`run ${runId} not found`);
-  const kase = await repos.cases.get(queued.caseId);
-  if (!kase) throw new Error(`case ${queued.caseId} not found`);
 
+  const partial: PartialReason[] = [];
   let changes: ChangeEvent[] = [];
-  const stages = orderWithDiff(deps.stages, {
-    step: 'diff.previous',
-    async run(stageCtx) {
-      changes = await diffWithPrevious(repos, stageCtx.run);
-    },
-  });
-  const total = stages.length;
+  let total = 0;
   let progress: Record<string, unknown> = { step: 'run.start', done: 0, total };
-  const evidenceRunId = evidenceRunIdOf(queued);
-  // A rescore re-analyses saved evidence: whatever that evidence lacked is still missing from the new analysis.
-  const partial = evidenceRunId === runId ? [] : partialReasonsOf(await repos.runs.get(evidenceRunId));
-  await repos.runs.update(runId, { status: 'running', startedAt: nowIso(), progress });
-  const ctx: StageContext = {
-    run: { ...queued, status: 'running' },
-    evidenceRunId,
-    case: kase,
-    repos,
-    blobs: deps.blobs,
-    logger,
-    async progress(detail) {
-      progress = { ...progress, ...detail };
-      await repos.runs.update(runId, { progress });
-    },
-    markPartial(reason) {
-      partial.push(reason);
-    },
-  };
-
   try {
+    // Everything from here on ends the run as `failed` when it throws: a run never stays `queued` or `running`.
+    const kase = await repos.cases.get(queued.caseId);
+    if (!kase) throw new Error(`case ${queued.caseId} not found`);
+    const stages = orderWithDiff(deps.stages, {
+      step: 'diff.previous',
+      async run(stageCtx) {
+        changes = await diffWithPrevious(repos, stageCtx.run);
+      },
+    });
+    total = stages.length;
+    progress = { step: 'run.start', done: 0, total };
+    const evidenceRunId = evidenceRunIdOf(queued);
+    // A rescore re-analyses saved evidence: whatever that evidence lacked is still missing from the new analysis.
+    if (evidenceRunId !== runId) partial.push(...readPartialReasons((await repos.runs.get(evidenceRunId))?.progress));
+    await repos.runs.update(runId, { status: 'running', startedAt: nowIso(), progress });
+    const ctx: StageContext = {
+      run: { ...queued, status: 'running' },
+      evidenceRunId,
+      case: kase,
+      repos,
+      blobs: deps.blobs,
+      logger,
+      async progress(detail) {
+        progress = { ...progress, ...detail };
+        await repos.runs.update(runId, { progress });
+      },
+      markPartial(reason, coded) {
+        partial.push({ text: reason, ...(coded ?? {}) });
+      },
+    };
+
     for (const [index, stage] of stages.entries()) {
       // Reasons recorded so far stay visible to later stages (the report states that the analysis is incomplete).
-      progress = { step: stage.step, done: index, total, ...(partial.length ? { partial: [...partial] } : {}) };
+      progress = { step: stage.step, done: index, total, ...partialProgress(partial) };
       // Sequential on purpose: every stage consumes what the previous stages stored.
       // oxlint-disable-next-line no-await-in-loop
       await repos.runs.update(runId, { progress });
@@ -194,13 +199,7 @@ export async function runPipeline(runId: Id, deps: PipelineDeps): Promise<RunWit
     await repos.runs.update(runId, {
       status: partial.length ? 'partial' : 'succeeded',
       finishedAt: nowIso(),
-      progress: {
-        step: 'run.finish',
-        done: total,
-        total,
-        changes: changes.length,
-        ...(partial.length ? { partial } : {}),
-      },
+      progress: { step: 'run.finish', done: total, total, changes: changes.length, ...partialProgress(partial) },
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

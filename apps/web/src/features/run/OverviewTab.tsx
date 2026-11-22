@@ -1,4 +1,5 @@
 import type { Capture, EgressLogEntry, RunStep } from '@olcys/core';
+import { renderPartialReason } from '@olcys/core';
 import {
   CaptureStatusBadge,
   HashText,
@@ -91,8 +92,12 @@ export function OverviewTab({ scope }: { scope: RunScope }) {
             </p>
             <ul>
               {partial.map((reason) => (
-                <li key={reason}>
-                  <Verbatim>{reason}</Verbatim>
+                <li key={reason.text}>
+                  {reason.code && pl.overview.partialReasons[reason.code] ? (
+                    renderPartialReason(reason, pl.overview.partialReasons)
+                  ) : (
+                    <Verbatim>{reason.text}</Verbatim>
+                  )}
                 </li>
               ))}
             </ul>

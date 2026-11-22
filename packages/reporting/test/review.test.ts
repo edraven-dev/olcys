@@ -185,6 +185,27 @@ describe('report review fixes', () => {
     expect(indicator).not.toContain('data-statement="fakty"');
   });
 
+  it('renders coded reasons in Polish and the others as recorded', () => {
+    const html = renderReport(
+      withData((d) => {
+        d.partialReasons = [
+          'PLN valuation unavailable for 3 transfer(s): no price or NBP rate',
+          'tron provider: timeout',
+        ];
+        d.partialCodes = [
+          {
+            text: 'PLN valuation unavailable for 3 transfer(s): no price or NBP rate',
+            code: 'valuation_unavailable',
+            params: { count: 3 },
+          },
+        ];
+      }),
+    );
+    const summary = sectionOf(html, 'podsumowanie');
+    expect(summary).toContain('brak wyceny w PLN dla 3 transferów (brak ceny lub kursu NBP); tron provider: timeout');
+    expect(summary).not.toContain('PLN valuation unavailable');
+  });
+
   it('reports an incomplete run prominently', () => {
     const html = renderReport(
       withData((d) => {
