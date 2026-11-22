@@ -107,7 +107,7 @@ describe('argument validation', () => {
   it('accepts plain non-negative integers within range only', () => {
     expect(parseInteger('n', '20000', 1, 1_000_000)).toBe(20000);
     for (const bad of ['20_000', 'Infinity', 'NaN', '-5', '1.5', '', '0x10', '1e3', '1000001']) {
-      expect(() => parseInteger('n', bad, 1, 1_000_000), bad).toThrow(/--n must be an integer/);
+      expect(() => parseInteger('n', bad, 1, 1_000_000)).toThrow(/--n must be an integer/);
     }
     expect(() => parseInteger('seed', '4294967296', 0, 4_294_967_295)).toThrow(/--seed/);
   });
@@ -115,16 +115,17 @@ describe('argument validation', () => {
   it('run() rejects invalid numbers before writing anything', async () => {
     const out = await mkdtemp(join(tmpdir(), 'olcys-calibration-'));
     try {
-      for (const bad of [
+      const bads = [
         { n: Number.NaN },
         { n: Number.POSITIVE_INFINITY },
         { n: 0 },
         { seed: -1 },
         { seed: 1.5 },
         { corpusLimit: 0 },
-      ]) {
-        await expect(run({ oracle: true, out, ...bad })).rejects.toThrow(/must be an integer/);
-      }
+      ];
+      await Promise.all(
+        bads.map((bad) => expect(run({ oracle: true, out, ...bad })).rejects.toThrow(/must be an integer/)),
+      );
       expect(await readdir(out)).toEqual([]);
     } finally {
       await rm(out, { recursive: true, force: true });
