@@ -52,3 +52,20 @@ export interface AddressSummary {
   balance?: DecimalString;
   fetchId: Id;
 }
+
+/** Identity of one transfer within a run: the same on-chain movement fetched for two addresses has one key. */
+export function transferKey(t: NormalizedTransfer): string {
+  const asset = `${t.asset.symbol}:${t.asset.contract ?? ''}`;
+  return [t.chain, t.txHash, t.index ?? '', t.kind, t.from, t.to, asset, t.amount].join('|');
+}
+
+/** The transfers without repeats (first occurrence wins, order kept). */
+export function uniqueTransfers<T extends NormalizedTransfer>(transfers: readonly T[]): T[] {
+  const seen = new Set<string>();
+  return transfers.filter((t) => {
+    const key = transferKey(t);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
