@@ -4,6 +4,7 @@
  * Browser-safe: types, `as const` value lists, pure helpers (ids, decimals, canonical JSON) and zod schemas.
  * Never import `node:*` modules here.
  */
+export * from './access-log.ts';
 export * from './analytics.ts';
 export * from './api.ts';
 export * from './canonical-json.ts';

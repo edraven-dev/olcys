@@ -116,3 +116,15 @@ zob. `packages/reporting/README.md`) jako załącznik z nagłówkami `x-content-
 przebiegu; szczegóły: format, skrót SHA-256 pliku i cel sprawy), z analitykiem z konfiguracji serwera. Nieznany format to
 400, nieznany przebieg lub brak eksportu — 404. Znacznik TLP i nazwa producenta STIX pochodzą ze zmiennych
 `OLCYS_EXPORT_TLP` (domyślnie `amber`) i `OLCYS_STIX_PRODUCER_NAME`.
+
+## Nagłówki bezpieczeństwa i dziennik dostępu
+
+Hak `onSend` (`src/security.ts`) dodaje do każdej odpowiedzi ścisłe CSP (`default-src 'none'; frame-ancestors 'none'`),
+`nosniff`, `Referrer-Policy: no-referrer`, `Permissions-Policy` i `Cache-Control: no-store`; HSTS tylko przy
+`OLCYS_HSTS=1`. Raport HTML dopuszcza swoje arkusze stylów po skrócie SHA-256. Odczyty spraw, uruchomień, dowodów,
+raportów i eksportów trafiają w tle do dziennika dostępu (`GET /api/access-log`): podmiotem jest etykieta analityka
+(`OLCYS_ANALYST_NAME`, inaczej `local`), cel tylko wtedy, gdy klient prześle nagłówek `X-Olcys-Purpose`
+(zakodowany `encodeURIComponent`, bo wartości nagłówków to Latin-1; API dekoduje go, przy błędnej sekwencji zachowuje
+wartość surową, przycina i ogranicza do 500 znaków). Powtórzone identyczne odczyty (odpytywanie postępu) są w oknie
+60 s zapisywane raz; pobrania plików, raportów i eksporty zawsze. Konta i logowanie
+są planowane w kolejnej wersji (poza zakresem MVP). Szczegóły: `docs/security.md`.
