@@ -186,6 +186,25 @@ pomijane (`skipped_overlap`); raport startowy planisty i dziennik wskazują taki
   rola `olcys_app` ma SELECT/INSERT); lista zdarzeń przebiegu: `GET /api/runs/:runId/custody`. Manifest zawiera nazwę
   analityka i adres IP stanowiska — nie jest logowany, a paczki zabezpieczonego materiału należy traktować jako dane
   o ograniczonym dostępie.
+- **Znaczniki czasu RFC 3161.** Po zapisaniu zabezpieczeń etap zbierania prosi usługę znakowania czasem (`TSA_URL`, w
+  demonstracji FreeTSA, źródło `freetsa` z rejestru) o token dla skrótu manifestu (`manifestSha256`); poza system wychodzi
+  tylko skrót i nonce, przez `EgressClient`. Token jest weryfikowany (status, odcisk, nonce, podpis, krytyczne EKU
+  `timeStamping`, `ESSCertID`, łańcuch do kotwic z `config/tsa/`, ważność w chwili `genTime`), a cała odpowiedź zapisana
+  w magazynie blobów (`application/timestamp-reply`) — można ją sprawdzić niezależnie poleceniem
+  `openssl ts -verify` (zob. `config/tsa/freetsa/README.md`). Tylko tryb `live` łączy się z TSA; `offline`, `replay`
+  i `TSA_ENABLED=false` zapisują żądanie ze stanem `queued` (bez zapytania sieciowego), a raport pokazuje
+  „znacznik czasu oczekuje (tryb offline)”. Kolejki zadań nie ma: oczekujące i nieudane żądania ponawia funkcja
+  `flush` — polecenie `pnpm --filter @olcys/worker tsa:flush` oraz zegar harmonogramu (co 10 minut, tylko w trybie live).
+  Zapis jest tylko do dopisywania (`timestamp_request`, `timestamp_token`, migracja `0009`): żądanie nigdy nie zmienia
+  stanu — ponowienie to nowy wiersz (`queued` → `failed` → `granted`/`rejected`), a token jest jeden na
+  (rodzaj, identyfikator, skrót), więc powtórne `flush` jest idempotentne. „Oczekuje” znaczy: ostatnie żądanie jest
+  `queued` lub `failed`, a tokenu nie ma; odpowiedź niezweryfikowana (`rejected`) nie jest ponawiana. Każda próba daje
+  zdarzenie `timestamped` albo `timestamp_failed` w łańcuchu dowodowym; gdy czas `genTime` różni się od czasu
+  zebrania o więcej niż `TSA_MAX_CLOCK_SKEW_SECONDS` (domyślnie 120), zdarzenie ma `skewSuspected: true`. Wczytując
+  przechwycenie, repozytorium uzupełnia `Capture.timestamp`. Start procesu kończy się błędem
+  `tsa_host_not_allow_listed`, gdy host z `TSA_URL` nie jest w `allowedHosts` źródła `TSA_SOURCE_ID`. FreeTSA jest usługą
+  demonstracyjną, bez domniemania z art. 41 eIDAS; token nazywany jest „kwalifikowanym” dopiero po skonfigurowaniu
+  kwalifikowanego dostawcy (`TSA_QUALIFIED=true`).
 - PostgreSQL jest systemem źródłowym. Rola aplikacji `olcys_app` ma na tabelach dowodowych tylko SELECT/INSERT
   (zob. `infra/postgres/init/01-roles.sh`); stan zmienny (status przebiegu, harmonogramy) ma jawne, opisane uprawnienia.
 

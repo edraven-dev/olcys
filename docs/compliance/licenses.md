@@ -50,14 +50,14 @@ Poniższe tabele są generowane z `pnpm-lock.yaml`, `services/osint-py/pyproject
 
 ### Status bramki licencyjnej
 
-- Sprawdzone komponenty: 377 (npm: 367, Python: 2, obrazy: 8).
+- Sprawdzone komponenty: 382 (npm: 371, Python: 2, obrazy: 9).
 - Wynik: wszystkie komponenty zgodne z polityką licencyjną (`config/licenses.json`).
 - Wyjątki licencyjne (`config/compliance/license-exceptions.yaml`): 0.
 - SBOM (CycloneDX 1.6) powstają na żądanie poleceniem `pnpm compliance:sbom` (katalog `data/sbom/`, poza repozytorium); opisują je pliki `olcys-npm.cdx.json` i `olcys-osint-py.cdx.json`.
 
 ### Zależności bezpośrednie npm
 
-Wszystkie zależności bezpośrednie wszystkich pakietów monorepo (31 pakietów); „(dev)” oznacza zależność deweloperską.
+Wszystkie zależności bezpośrednie wszystkich pakietów monorepo (33 pakietów); „(dev)” oznacza zależność deweloperską.
 
 | Komponent | Wersja | Licencja (SPDX) | Zastosowanie | Gdzie |
 | --- | --- | --- | --- | --- |
@@ -72,6 +72,7 @@ Wszystkie zależności bezpośrednie wszystkich pakietów monorepo (31 pakietów
 | @types/react | 19.3.0 | MIT | typy interfejsu (React) | apps/web (dev) |
 | @types/react-dom | 19.3.0 | MIT | typy interfejsu (React DOM) | apps/web (dev) |
 | @vitejs/plugin-react | 6.3.0 | MIT | wtyczka Vite do budowania interfejsu | apps/web (dev) |
+| asn1js | 4.1.0 | BSD-3-Clause | kodowanie i dekodowanie ASN.1/DER (żądania i odpowiedzi znacznika czasu RFC 3161) | packages/evidence |
 | big.js | 7.0.1 | MIT | dokładna arytmetyka dziesiętna (kwoty, PLN) | packages/core |
 | cron-parser | 5.10.6 | MIT | wyrażenia cron harmonogramu analiz (UTC) | apps/worker |
 | cytoscape | 3.35.0 | MIT | graf powiązań (używany bezpośrednio, bez nakładki React; układy wbudowane) | apps/web |
@@ -85,6 +86,7 @@ Wszystkie zależności bezpośrednie wszystkich pakietów monorepo (31 pakietów
 | oxlint | 1.94.0 | MIT | lint | root (dev) |
 | parse5 | 8.1.1 | MIT | parser HTML z pozycjami w źródle (widoki tekstu) | packages/address-extractor |
 | pg | 8.23.1 | MIT | sterownik PostgreSQL (node-postgres) | packages/db |
+| pkijs | 4.0.1 | BSD-3-Clause | struktury PKI/CMS: budowa i weryfikacja znaczników czasu RFC 3161 (podpis, łańcuch certyfikatów) | packages/evidence |
 | react | 19.3.1 | MIT | interfejs użytkownika | apps/web |
 | react-dom | 19.3.1 | MIT | interfejs użytkownika (renderowanie w przeglądarce) | apps/web |
 | typescript | 7.0.2 | Apache-2.0 | kontrola typów (tsc, tylko noEmit) | root (dev) |
@@ -112,6 +114,7 @@ Każdy `image:` z `compose.yml` i każde `FROM` z Dockerfile musi mieć wpis w `
 | gotenberg/gotenberg | 9.9.1 | MIT | HTML → PDF/A (raporty) | compose.yml (gotenberg) | nie |
 | node | 26.13.1-alpine | MIT | środowisko uruchomieniowe serwisu strony testowej (fixture-site) | compose.yml (fixture-site) | nie |
 | ollama/ollama | 0.40.17 | MIT | lokalne środowisko modeli z API zgodnym z OpenAI (opcjonalne, profil llm) | compose.yml (ollama) | nie |
+| ghcr.io/ggml-org/llama.cpp | server-b12602 | MIT | lokalny serwer modeli llama.cpp z API zgodnym z OpenAI (opcjonalny, profil llm-llamacpp) | compose.yml (llamacpp) | nie |
 | blockstream/esplora | v3.0.1 | MIT | lokalny węzeł Bitcoin regtest z API Esplora (profil sandbox, dane demonstracyjne) | compose.yml (esplora-regtest) | nie |
 | ghcr.io/foundry-rs/foundry | v1.10.0 | MIT OR Apache-2.0 | lokalna sieć EVM (anvil; profil sandbox, dane demonstracyjne) | compose.yml (anvil) | nie |
 | ghcr.io/astral-sh/uv | 0.13.9 | MIT OR Apache-2.0 | zarządzanie zależnościami Pythona (etap budowania obrazu osint-py) | services/osint-py/Dockerfile (FROM) | nie |
@@ -119,17 +122,17 @@ Każdy `image:` z `compose.yml` i każde `FROM` z Dockerfile musi mieć wpis w `
 
 ### Zależności przechodnie npm (podsumowanie)
 
-336 pakietów przechodnich; pełna lista z wersjami, skrótami i licencjami jest w SBOM npm (`pnpm compliance:sbom`).
+338 pakietów przechodnich; pełna lista z wersjami, skrótami i licencjami jest w SBOM npm (`pnpm compliance:sbom`).
 
 | Licencja (SPDX) | Runtime | Tylko dev | Razem |
 | --- | --- | --- | --- |
-| MIT | 57 | 139 | 196 |
+| MIT | 58 | 139 | 197 |
 | ISC | 6 | 55 | 61 |
 | Apache-2.0 | 1 | 31 | 32 |
 | BSD-2-Clause | 12 | 2 | 14 |
 | BlueOak-1.0.0 | 0 | 12 | 12 |
 | MPL-2.0 | 0 | 12 | 12 |
-| BSD-3-Clause | 4 | 1 | 5 |
+| BSD-3-Clause | 5 | 1 | 6 |
 | (MIT AND CC-BY-3.0) | 0 | 1 | 1 |
 | 0BSD | 0 | 1 | 1 |
 | CC-BY-3.0 | 0 | 1 | 1 |

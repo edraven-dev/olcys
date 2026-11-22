@@ -102,6 +102,28 @@ export function changesSection(view: View): SafeHtml {
   );
 }
 
+function timestampLine(view: View, capture: Capture): SafeHtml {
+  const e = pl.evidence;
+  const token = capture.timestamp;
+  if (!token) {
+    const latest = view.data.timestampRequests?.[capture.id];
+    if (latest?.outcome === 'rejected') {
+      return muted(t(e.timestampRejected, { reason: latest.reason ?? pl.common.unknown }));
+    }
+    const offline = view.data.run.mode === 'offline' || view.data.run.mode === 'replay';
+    return muted(offline ? e.timestampPendingOffline : e.timestampPending);
+  }
+  const skew = token.skewSuspected === true;
+  return markup`${muted(
+    t(e.timestamp, {
+      genTime: formatUtc(token.genTime),
+      tsa: token.tsaName ?? token.tsaUrl,
+      serial: token.serialNumber ?? pl.common.unknown,
+      level: token.qualified ? e.timestampQualified : e.timestampDemo,
+    }),
+  )}${skew ? markup`<br>${muted(t(e.timestampSkew, { seconds: token.skewSeconds ?? 0 }))}` : ''}`;
+}
+
 /** The snapshot time in UTC; a timestamp the archive wrote in another form is shown as it is. */
 function snapshotDate(timestamp: string): string {
   try {
@@ -143,7 +165,7 @@ function registerRow(view: View, capture: Capture, earlier: boolean): SafeHtml {
       tool: capture.toolVersion,
       clock: capture.clockSynced ? pl.common.yes : pl.common.no,
     }),
-  )}</td><td>${formatUtc(capture.collectedAt)}</td><td class="status-${capture.status}">${status}</td><td>${join([t(e.manifest, { sha: hash(capture.manifestSha256) }), ...artifacts], markup`<br>`)}</td></tr>`;
+  )}</td><td>${formatUtc(capture.collectedAt)}</td><td class="status-${capture.status}">${status}</td><td>${join([t(e.manifest, { sha: hash(capture.manifestSha256) }), ...artifacts], markup`<br>`)}<br>${timestampLine(view, capture)}</td></tr>`;
 }
 
 function egressSummary(view: View): SafeHtml {
