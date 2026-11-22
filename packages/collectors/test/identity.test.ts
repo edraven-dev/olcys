@@ -868,8 +868,8 @@ describe('review fixes', () => {
       '{"result":"success","message":null,"data":{"total_results":0,"results":[]}}',
     ]) {
       const { run } = liveSetup(() => ({ status: 200, body }), ['bitlist']);
-      const result = await run(createBitlistCollector(), probeInput(NICK));
-      expect(result.status).toBe('error');
+      // oxlint-disable-next-line no-await-in-loop
+      expect((await run(createBitlistCollector(), probeInput(NICK))).status).toBe('error');
     }
     expect(() => parseBitlistPosts({ result: 'success', data: { total_results: 0 } })).toThrow(/posts list/);
   });
@@ -896,8 +896,8 @@ describe('review fixes', () => {
 
   it('ENS masks a seed phrase and a private key from a text record everywhere and never stores the raw answer', async () => {
     const wif = createBase58check(sha256).encode(Uint8Array.from([0x80, ...new Uint8Array(32).fill(7), 0x01]));
-    const seed = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
-    const secretText = `${wif} ${seed}`;
+    const phrase = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
+    const secretText = `${wif} ${phrase}`;
     const zero = new Uint8Array(20);
     const answerFor = (inner: Uint8Array): string =>
       `0x${[
@@ -937,6 +937,7 @@ describe('review fixes', () => {
     expect(everything).not.toContain(wif);
     expect(everything).not.toContain('abandon abandon');
     expect(values(result, 'ens.text.description')[0]).toContain('[REDACTED');
+    // oxlint-disable-next-line unicorn/consistent-function-scoping
     const hexOf = (text: string) =>
       [...new TextEncoder().encode(text)].map((b) => b.toString(16).padStart(2, '0')).join('');
     for (const bytes of live.test.blobs.data.values()) {
