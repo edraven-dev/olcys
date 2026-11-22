@@ -73,6 +73,10 @@ describe('demo scenario on the synthetic persona', () => {
               'wykop',
               'github',
               'telegram_preview',
+              // Official Polish registries (GREEN): CEIDG finds the persona's firm by name, its NIP leads to the VAT white list.
+              'ceidg',
+              'vat_whitelist',
+              'krs',
               // GREEN and on by default for new cases: the mock search over the fixture site's sitemap.
               'mock_search',
               'mempool_space',
@@ -189,6 +193,34 @@ describe('demo scenario on the synthetic persona', () => {
       expect(extracted.filter((r) => searchCaptures.has(r.captureId))).toEqual([]);
       const pageUrls = captures.filter((c) => c.sourceId !== 'mock_search').map((c) => c.url);
       expect(new Set(pageUrls).size).toBe(pageUrls.length);
+      // Registry facts: the firm, its NIP, the two bank accounts and the official proof of the white-list check. They
+      // carry no address tier (the scores above are unchanged) and nothing in the registries is an address candidate.
+      expect(contacted).toContain('ceidg');
+      expect(contacted).toContain('vat_whitelist');
+      expect(contacted.has('krs')).toBe(false);
+      const observations = await runtime.repos.evidence.listObservations(first.id);
+      const registryFacts = (property: string) =>
+        observations.filter((o) => o.property === property).map((o) => o.value);
+      expect(registryFacts('registry.business_name')).toEqual(
+        expect.arrayContaining(['Kacper Fikcyjny Usługi Testowe']),
+      );
+      expect(new Set(registryFacts('registry.nip'))).toEqual(new Set(['0001234562']));
+      expect(registryFacts('registry.ceidg.result_count')).toEqual(['1']);
+      expect(registryFacts('registry.bank_account').toSorted()).toEqual([
+        '25000000000000000000010001',
+        '95000000000000000000010002',
+      ]);
+      expect(registryFacts('registry.vat_request_id')).toHaveLength(1);
+      expect(observations.some((o) => /pesel/i.test(o.property) || /pesel/i.test(o.locator))).toBe(false);
+      const registryCaptureIds = new Set(
+        captures.filter((c) => ['ceidg', 'vat_whitelist'].includes(c.sourceId)).map((c) => c.id),
+      );
+      expect(registryCaptureIds.size).toBe(2);
+      // No registry answer yields an address candidate, and no registry request carries a token.
+      expect(extracted.filter((r) => registryCaptureIds.has(r.captureId)).flatMap((r) => r.candidates)).toEqual([]);
+      expect(
+        egress.filter((e) => ['ceidg', 'vat_whitelist'].includes(e.sourceId)).every((e) => e.containsIdentifier),
+      ).toBe(true);
       const stored = new Set((await runtime.repos.labels.list()).map((l) => l.id));
       const used = exclusions.flatMap((d) => d.evidence.labelIds ?? []);
       expect(used.length).toBeGreaterThan(0);

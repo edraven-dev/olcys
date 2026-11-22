@@ -23,6 +23,9 @@ import type { ResolvedScope, SourceRegistry } from '../framework/source-registry
 import { isBarrierStatus, rollupOutcomes, type CollectorStatus } from '../framework/status.ts';
 import { createClassifiedAdsCollector } from '../platforms/classified-ads.ts';
 import { createBitcointalkCollector } from '../platforms/bitcointalk.ts';
+import { createCeidgCollector } from '../registries/ceidg.ts';
+import { createKrsCollector } from '../registries/krs.ts';
+import { createVatWhitelistCollector } from '../registries/vat-whitelist.ts';
 import { createGithubCollector } from '../platforms/code-hosting.ts';
 import { createWykopCollector } from '../platforms/social-profile.ts';
 import { createTelegramCollector } from '../platforms/telegram.ts';
@@ -39,8 +42,10 @@ import {
 } from './planner.ts';
 
 /**
- * Forum, social profile, code hosting, channel previews and P2P ads (fixture), in planning order, then the web search
- * collectors of `OLCYS_SEARCH_MODE` (default: the mock search over the fixture site).
+ * Forum, social profile, code hosting, channel previews and P2P ads (fixture), the Polish public registries, in
+ * planning order, then the web search collectors of `OLCYS_SEARCH_MODE` (default: the mock search over the fixture
+ * site). CEIDG needs the institution's token (`CEIDG_API_TOKEN`) in live mode and is not registered without it;
+ * offline and in replay it reads the synthetic fixture site and needs none.
  */
 export function createDefaultCollectorRegistry(options: { mode?: FetchMode; env?: Env } = {}): CollectorRegistry {
   const registry = new CollectorRegistry()
@@ -48,7 +53,13 @@ export function createDefaultCollectorRegistry(options: { mode?: FetchMode; env?
     .register(createWykopCollector())
     .register(createGithubCollector())
     .register(createTelegramCollector())
-    .register(createClassifiedAdsCollector());
+    .register(createClassifiedAdsCollector())
+    .register(createVatWhitelistCollector())
+    .register(createKrsCollector());
+  const ceidgToken = options.env?.['CEIDG_API_TOKEN']?.trim();
+  if ((options.mode ?? 'offline') !== 'live' || ceidgToken) {
+    registry.register(createCeidgCollector({ token: ceidgToken }));
+  }
   for (const factory of searchCollectorFactories({ mode: options.mode ?? 'offline', env: options.env ?? {} })) {
     registry.register(factory);
   }

@@ -63,3 +63,22 @@ Szczegółowe uzasadnienie statusu każdego źródła znajduje się w polach `co
   BTC/ETH z pliku lokalnego (`demo_prices`, oznaczone w każdej wycenie); stablecoiny USD — jawne założenie parytetu 1:1.
   Produkcja: licencjonowane archiwa świec (Kraken OHLCVT po weryfikacji prawnej; Binance Vision odrzucone ze względu na
   licencję CC-BY-NC-SA). CoinGecko Demo i CoinDesk/CryptoCompare nie są używane (brak licencji komercyjnej).
+
+## Rejestry publiczne (CEIDG, wykaz podatników VAT, KRS)
+
+- **Charakter:** oficjalne API państwowe (GREEN, wiarygodność A). Dają powiązanie imię i nazwisko → firma → rachunek
+  bankowy; fakty rejestrowe nie mają poziomu adresowego i nie zmieniają Wskaźnika Pewności adresów.
+- **CEIDG API v3:** jedyne oficjalne API wyszukujące po imieniu i nazwisku. Wymaga własnego tokenu instytucji
+  (`CEIDG_API_TOKEN`, tylko zmienna środowiskowa, nagłówek `Authorization`, nigdy w dzienniku ani w nagraniach); bez tokenu
+  worker w trybie `live` nie rejestruje źródła. Limit w rejestrze źródeł: 1 żądanie / 4 s (publikowane: 50 / 3 min, 1000 / h);
+  błędów limitu nie ponawiamy. Imię i nazwisko mogą mieć imienników, więc numer NIP jest przekazywany dalej tylko przy
+  dokładnie jednym trafieniu — w przeciwnym razie zadanie jest pomijane jako `ambiguous_namesake`.
+- **Wykaz podatników VAT:** bez klucza, host `wykazpodatnikowvat.mf.gov.pl` (poprzedni host API zostanie wyłączony 2026-12-01
+  i nie jest używany). Limit 100 wyszukań dziennie; przebieg wykonuje najwyżej 10, odpowiedź o limicie zatrzymuje źródło.
+  Identyfikator sprawdzenia (`requestId`) jest zapisywany jako urzędowy dowód.
+- **KRS Open API:** bez klucza (dane otwarte), wyłącznie po numerze KRS. Okna serwisowe objawiają się stroną „Przerwa
+  techniczna” — to błąd źródła, a nie brak wpisu.
+- **Minimalizacja danych (RODO):** numery PESEL nie są czytane ani zapisywane jako obserwacje; osoby trzecie (reprezentanci,
+  prokurenci, wspólnicy, zarząd) trafiają do raportu jako nazwa i rola i nigdy nie stają się podstawą dalszego
+  wyszukiwania. Zapytania ujawniają rejestrom imię, nazwisko lub numer podatkowy badanej osoby i są odnotowane w dzienniku
+  ruchu (`containsIdentifier: true`). Dane testowe są syntetyczne (NIP, REGON, KRS i rachunki celowo nieprzydzielone).
