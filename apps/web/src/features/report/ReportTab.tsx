@@ -34,8 +34,30 @@ export function ReportTab({ scope }: { scope: RunScope }) {
       ) : (
         <p className="notice">{pl.report.missing}</p>
       )}
+      {done && available.data ? <ExportLinks runId={run.id} /> : null}
       {done && available.data && meta.data?.features.judgements ? <RegenerateReport runId={run.id} /> : null}
     </section>
+  );
+}
+
+const EXPORT_FORMATS = ['stix', 'misp', 'csv_links', 'csv_evidence', 'csv_cash_out', 'csv_changes'] as const;
+
+/** STIX, MISP and CSV downloads of the run's report; each download is recorded in the chain of custody. */
+function ExportLinks({ runId }: { runId: string }) {
+  return (
+    <div className="stack">
+      <h3>{pl.report.exports.title}</h3>
+      <p className="hint">{pl.report.exports.hint}</p>
+      <ul>
+        {EXPORT_FORMATS.map((format) => (
+          <li key={format}>
+            <a href={`/api/runs/${encodeURIComponent(runId)}/exports/${format}`} download>
+              {pl.report.exports[format]}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
