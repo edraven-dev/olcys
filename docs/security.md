@@ -32,8 +32,11 @@ stylów, dlatego jego polityka dopuszcza je wyłącznie po skrócie SHA-256 (`st
 `'unsafe-inline'` i bez żadnych skryptów.
 
 Zbudowana aplikacja webowa (`pnpm --filter @olcys/web build`, a następnie `preview`) wysyła ścisłą politykę
-`default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self';
-frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'` oraz pozostałe nagłówki z tabeli.
+`default-src 'self'; script-src 'self'; style-src 'self'; style-src-elem 'self' 'sha256-pgvDUBa4IjFA2yuSJ2cqcyxmNYJMborsd0ORcRv9vw8='; img-src 'self' data: blob:;
+font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'` oraz pozostałe nagłówki z tabeli.
+Jedyne poluzowanie dotyczy wyłącznie CSS: biblioteka grafu (Cytoscape) wstrzykuje jeden stały element `<style>`, który
+jest dopuszczony wyłącznie po skrócie SHA-256 (`style-src-elem`); bez `'unsafe-inline'`, a `script-src 'self'` bez zmian —
+skrypty wbudowane nadal są zablokowane.
 Serwer deweloperski Vite nie może jej zastosować (React Refresh wstrzykuje skrypt, HMR otwiera gniazdo), dlatego
 dostaje tylko pozostałe nagłówki. Ustawienia: `apps/web/vite.settings.ts`.
 

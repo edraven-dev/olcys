@@ -83,6 +83,81 @@ Jeśli strona testowa odrzuci przełączenie wariantu, ustaw `FIXTURE_ALLOW_VARI
 Poza zakresem tej wersji (planowane później): scenariusz z łańcuchami piaskownicy (regtest/Anvil), nagrywanie kaset,
 tryb `--mode sandbox` i wyliczanie nazw użytkowników.
 
+### Test akceptacyjny E2E (`pnpm test:e2e`)
+
+Bramka akceptacyjna zgłoszenia: pakiet Playwright prowadzi **polską konsolę** przez siedem obowiązkowych kroków dema i
+ponowną analizę z alertem podmiany adresu portfela. Oczekiwane wartości bierze z `fixtures/demo/manifest.json` (adresy po
+nazwach slotów z `fixtures/persona/manifest.json`), a etykiety z katalogu `apps/web/src/i18n/pl.ts`.
+
+```bash
+pnpm test:e2e                 # cały scenariusz, headless, ok. 1,5 min
+pnpm test:e2e --screenshots   # to samo + zrzuty PNG do docs/assets/screenshots/ (1440 px szerokości)
+pnpm test:e2e --screenshots --no-mask   # zrzuty bez maskowania — tylko do próby na żywo
+```
+
+Test **nie jest** częścią `pnpm check` ani domyślnego `pnpm test` (potrzebuje przeglądarki i trwa ponad minutę); CI
+pozostaje bez zmian. Do uruchomienia wystarczy lokalny Chromium: `/usr/bin/chromium` albo ścieżka w `E2E_CHROMIUM`.
+Przeglądarki nie są pobierane (`PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1`).
+
+Stos powstaje w całości w procesach potomnych na wolnych portach pętli zwrotnej: build produkcyjny konsoli
+(`vite preview`), API z workerem w procesie na magazynie pamięciowym w trybie `offline` oraz strona testowa z
+przełącznikiem wariantu. Bez bazy danych, bez compose; wspólne kontenery i baza deweloperska nie są dotykane. Identyfikatory
+procesów są zapisywane, a zatrzymanie odbywa się po PID, nigdy po wzorcu.
+
+Kroki i sprawdzenia:
+
+1. **Dane wejściowe** — sprawa tworzona przez formularz „Nowa sprawa” (tytuł, cel, podstawa prawna, trzy identyfikatory
+   persony z kotwicą, zakres źródeł z manifestu; RED wyłączone); widok sprawy pokazuje zablokowany zakres.
+2. **Wyszukiwanie OSINT** — przebieg kończy się; w „Źródła i dowody” dziennik połączeń jest niepusty, każdy host to pętla
+   zwrotna, żądania ujawniające identyfikator są oznaczone, zabezpieczenia stron mają adres URL i skrót SHA-256.
+3. **Wykrywanie adresów** — BTC-1 ma kartę z siecią i identyfikatorem; kandydaci odrzuceni przy walidacji (skrót
+   transakcji, przykład z dokumentacji, homoglify) są wymienieni z powodem.
+4. **Wskaźnik Pewności** — tabela powiązań równa `expected.v1.links` (wyniki, kolejność, przedziały), komunikat „Wynik
+   wspiera ocenę analityka — nie zastępuje jej.”, pewność analityczna osobno, rozwijane uzasadnienie; adresy z zerowym
+   wynikiem nie występują wśród powiązań.
+5. **Odrzucone przypisania** — reguły A1, A2, A4 (z κ), A8 oraz strona trzecia, słaba tożsamość i próby z podmienionymi
+   znakami, z pochodzeniem etykiety.
+6. **Aktywność on-chain** — dla ETH-1 dokładnie jedno zdarzenie B1 z kwotą w PLN i tabelą kursów NBP; dla TRON-1 B1, B4
+   i B5 zgodnie z manifestem; graf się renderuje.
+7. **Źródła i raport** — po przełączeniu strony testowej na `v2` i „Uruchom ponownie” alert „Alert: podmiana adresu
+   portfela w profilu” pokazuje BTC-1 → BTC-2 z obydwoma zabezpieczeniami, a BTC-2 ma wynik z manifestu; panel „Oś czasu
+   strony” jest widoczny. Zakładka „Raport” pokazuje blok odtwarzalności (wersja wag i skróty), nagłówki „A. Fakty
+   źródłowe”, „B. Wyniki obliczeń”, „C. Wnioski wymagające weryfikacji” w tej kolejności oraz listę pobrań ze skrótami
+   SHA-256. Strona „Ustawienia” (`/ustawienia`) jest tylko do odczytu.
+
+Zrzuty (`--screenshots`) obejmują `01-sprawy` … `10-ustawienia`, w tym `08-zmiany-os-czasu`.
+
+Przez cały test przeglądarka **nie może** połączyć się z hostem innym niż `127.0.0.1`/`localhost`/`[::1]`: każde takie
+żądanie jest przerywane i zapisywane, a test kończy się porażką (podobnie przy błędach strony i konsoli).
+
+**Maskowanie danych w materiałach publikowanych.** Zrzuty ekranu (`--screenshots`) i film (`pnpm demo:video`) są domyślnie
+**maskowane**: wstrzyknięty przez Playwright skrypt (aplikacja nie jest zmieniana) zasłania rozmyciem identyfikatory
+persony (imię i nazwisko, nick, e-mail, adresy profili), każdy adres kryptowalutowy (bech32/base58, `0x…`, TRON,
+również w postaci skróconej), skróty transakcji i dowolne adresy e-mail; pola formularza z takimi wartościami są
+rozmywane. Wyniki, przedziały, kody reguł, kwoty w PLN, daty i etykiety pozostają widoczne. Każdy zrzut przechodzi
+kontrolę, że w drzewie DOM nie ma niezamaskowanego tekstu persony ani adresu. `--no-mask` służy **wyłącznie** do próby
+na żywo; materiały do zgłoszenia, README i prezentacji muszą być maskowane.
+
+#### Film demonstracyjny (`pnpm demo:video`)
+
+```bash
+pnpm demo:video            # nagrywa olcys-demo.mp4 w katalogu głównym repozytorium
+pnpm demo:video --force    # nadpisuje istniejący plik (domyślnie odmawia)
+pnpm demo:video --no-mask  # bez maskowania — tylko próba na żywo
+pnpm demo:video --llm      # dodatkowo włącza lokalny model (LLM_ENABLED=true, LLM_MAX_MENTIONS_PER_RUN=1; OVMS z .env.example)
+                           # i pokazuje kartę „Sugestia AI — niezweryfikowana”; domyślnie model jest wyłączony
+```
+
+Skrypt przechodzi ten sam scenariusz co test akceptacyjny, ale w tempie dla widza: Playwright `recordVideo` 1920×1080,
+headless, na lokalnym Chromium, z `slowMo`, płynnym przewijaniem i podświetlaniem kluczowych wartości (wyniki, odrzucenia,
+kwota w PLN, alert BTC-1 → BTC-2). Napisy po polsku („Krok N z 7: …”, karta tytułowa i końcowa, znacznik „DANE
+SYNTETYCZNE” na każdej klatce) są nakładką dodawaną skryptem przez CSSOM, więc działa przy ścisłym CSP; teksty są w
+`e2e/video/captions.pl.ts`. Oczekiwanie na zakończenie analizy jest przyspieszane (z adnotacją na ekranie). Surowe `.webm`
+trafia do ignorowanego przez git katalogu `e2e/.video/`, a systemowy `ffmpeg` (zewnętrzne narzędzie, nie zależność)
+przekodowuje je do H.264 (30 kl./s, CRF 23, `faststart`). Skrypt drukuje czas każdego kroku i całości i **kończy się błędem,
+gdy film trwa dłużej niż 3:00** (plik jest wtedy usuwany). Plik `olcys-demo.mp4` w katalogu głównym repozytorium jest filmem
+zgłoszeniowym.
+
 ### `pnpm dev:doctor`
 
 Skrypt tylko czyta stan (niczego nie uruchamia ani nie zmienia) i drukuje po jednej linii na kontrolę (`✔`, `!`

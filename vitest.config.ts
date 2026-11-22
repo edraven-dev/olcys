@@ -17,7 +17,7 @@ const projects = ['packages', 'apps']
 
 export default defineConfig({
   test: {
-    projects: [...projects, { test: { name: 'scripts', include: ['scripts/**/*.test.ts'] } }],
+    projects: [...projects, { test: { name: 'scripts', include: ['scripts/**/*.test.ts', 'e2e/**/*.test.ts'] } }],
     passWithNoTests: true,
   },
 });

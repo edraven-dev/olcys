@@ -72,7 +72,10 @@ describe('response headers of the web server', () => {
   it('forbid everything but the own origin in production (preview)', () => {
     expect(SPA_CSP).toContain("default-src 'self'");
     expect(SPA_CSP).toContain("frame-ancestors 'none'");
+    // The only relaxation is CSS-only (one hashed `<style>` element of the graph library); scripts and stylesheets stay strict.
     expect(SPA_CSP).not.toMatch(/unsafe-|https?:|\*/);
+    expect(SPA_CSP).toContain("script-src 'self'");
+    expect(SPA_CSP).toContain("style-src 'self'");
     const { preview, server } = (config as (env: { mode: string; command: string }) => UserConfig)({
       mode: 'production',
       command: 'serve',
