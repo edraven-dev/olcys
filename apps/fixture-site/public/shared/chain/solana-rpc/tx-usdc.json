@@ -45,8 +45,7 @@
                 "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
                 "tokenAmount": {
                   "amount": "2500000",
-                  "decimals": 6,
-                  "uiAmount": 2.5
+                  "decimals": 6
                 }
               }
             }

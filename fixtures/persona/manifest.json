@@ -1348,7 +1348,7 @@
     "shared/chain/solana-rpc/tx-cpi.json": "d6a9be2560310e48f596be4f9a343553c06f5b40078608be0652beba6ad28897",
     "shared/chain/solana-rpc/tx-none.json": "ab8e91441aec1eafb98430fea7c13a7180189e48d620a1219f1d498a89c6fd40",
     "shared/chain/solana-rpc/tx-sol.json": "cf279056da43015e4326694a8ac5f68ed33e3913441b6e8aaa6b7b6920a21689",
-    "shared/chain/solana-rpc/tx-usdc.json": "6f62217124962e35491a5ea7082d8f52c78f9b9401e03850624f301e6148bbc6",
+    "shared/chain/solana-rpc/tx-usdc.json": "b9e9e6dc880b4844d9277f0f0fc86348caa5497f49f5cb5b653cc3412b432e86",
     "shared/chain/trongrid/v1/accounts/TD9bJtoDriXK66gCw6zCkQyXptz9VvMjB3/index.json": "8cf21c699e2a0dd1c2e65eb19eaa7dfb11141d6bc8159b6701e974dbdc71a09e",
     "shared/chain/trongrid/v1/accounts/TD9bJtoDriXK66gCw6zCkQyXptz9VvMjB3/transactions/trc20.json": "6c43b27b90fc3c18a1417bb09bd44d5848290981ff9f87b02c95bb48ab0ffb2b",
     "shared/chain/trongrid/v1/accounts/TDdvDp5WtWBcbChtzgH56yaGFZBwZAbkZr/index.json": "e72c47229f5cac6bff9de35fd554a9bc31a55cd9117ca362912eb21b2e00afcc",

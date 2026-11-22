@@ -407,7 +407,7 @@ kolektorów (`test/identity.test.ts`); jej adresy są losowymi bajtami w poprawn
 ## Farcaster i Nostr (NIP-05)
 
 **Farcaster** (źródło AMBER, tylko gdy sprawa je włącza z uzasadnieniem): węzeł Snapchain (`FARCASTER_HUB_URL`, domyślnie
-`haatz.quilibrium.com`; zalecany własny węzeł, bo widzi każde zapytanie) zwraca zweryfikowane adresy fname lub FID.
+`haatz.quilibrium.com`; zalecany własny węzeł, bo widzi każde zapytanie; jego host trzeba dopisać do `allowedHosts` źródła `farcaster` w `config/sources.yaml` – to przeglądana zmiana rejestru, sama zmienna środowiskowa nie wystarcza) zwraca zweryfikowane adresy fname lub FID.
 Wejście: identyfikator z `platform: 'farcaster'` (fname albo numeryczny FID). Odpowiedzi (`userNameProofByName`,
 `userDataByFid`, `verificationsByFid` ze stronicowaniem do `maxVerificationPages`, domyślnie 5) są zapisywane po
 zredagowaniu sekretów (`persistBody: false`), pola bajtowe mogą być hex albo base64. Podpis `claimSignature` (EIP-712)

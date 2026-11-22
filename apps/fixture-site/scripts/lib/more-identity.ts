@@ -104,7 +104,7 @@ const splChecked = (source: string, destination: string, authority: string, amou
       destination,
       authority,
       mint: USDC_MINT,
-      tokenAmount: { amount, decimals: 6, uiAmount: Number(amount) / 1e6 },
+      tokenAmount: { amount, decimals: 6 },
     },
   },
 });
