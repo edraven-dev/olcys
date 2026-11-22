@@ -140,3 +140,37 @@ describe('truncation keeps complete paths', () => {
     cy.destroy();
   });
 });
+
+describe('truncation of one address with many paths', () => {
+  it('shows the address with as many complete paths as fit (166 accounts, 502 elements)', () => {
+    const base = generated();
+    const accounts = Array.from({ length: 166 }, (_, i) => ({
+      ...base.accounts[0]!,
+      id: `p-acc-${i}`,
+      handle: `p${i}`,
+    }));
+    const link: LinkView = {
+      ...btcLink,
+      id: 'wide-link',
+      paths: accounts.map((account) => ({ ...btcLink.paths[0]!, accountId: account.id })),
+    };
+    const input = { caseTitle: 'Sprawa', identifiers: [identity], accounts, links: [link], exclusions: [] };
+    expect(buildGraph(input, { ...DEFAULT_GRAPH_OPTIONS, maxElements: 10_000 }).total).toBe(502);
+    const b = buildGraph(input, DEFAULT_GRAPH_OPTIONS);
+    expect(b.truncated).toBe(true);
+    expect(b.nodes.length + b.edges.length).toBeLessThanOrEqual(500);
+    const address = b.nodes.find((n) => n.kind === 'address');
+    expect(address).toBeDefined();
+    const cy = cytoscape({ headless: true, elements: toElements(b) });
+    const reachable = new Set(
+      cy
+        .$id('subject')
+        .successors()
+        .nodes()
+        .map((n) => n.id()),
+    );
+    expect(b.nodes.every((n) => reachable.has(n.id) || n.id === 'subject')).toBe(true);
+    expect(b.edges.filter((e) => e.kind === 'address_hop').length).toBeGreaterThan(100);
+    cy.destroy();
+  });
+});

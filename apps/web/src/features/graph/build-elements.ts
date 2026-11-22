@@ -243,10 +243,12 @@ export function buildGraph(input: GraphInput, options: GraphOptions): GraphBuild
       addEdge(draft, linkEdge(kind, identifierNode, addressNode.id, link, undefined), tier, link.id);
       continue;
     }
-    for (const path of paths) {
+    for (const [index, path] of paths.entries()) {
+      // One bundle per path: a long link is shown with as many complete paths as fit.
+      const bundle = `${link.id}#${index}`;
       const account = path.accountId ? accounts.get(path.accountId) : undefined;
       if (path.accountId === undefined || !account) {
-        addEdge(draft, linkEdge(kind, identifierNode, addressNode.id, link, path), tier, link.id);
+        addEdge(draft, linkEdge(kind, identifierNode, addressNode.id, link, path), tier, bundle);
         continue;
       }
       const accountNode = addNode(
@@ -270,9 +272,9 @@ export function buildGraph(input: GraphInput, options: GraphOptions): GraphBuild
           label: t(anchor ? pl.graph.edgeLabel.anchor : pl.graph.edgeLabel.identityHop, { p: hopLabel(p) }),
         },
         tier,
-        link.id,
+        bundle,
       );
-      addEdge(draft, linkEdge(kind, accountNode.id, addressNode.id, link, path), tier, link.id);
+      addEdge(draft, linkEdge(kind, accountNode.id, addressNode.id, link, path), tier, bundle);
     }
   }
 
