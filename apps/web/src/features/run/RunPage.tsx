@@ -10,6 +10,7 @@ import { Link, RUN_TABS, routePath, type RunTab } from '../../lib/router.tsx';
 import { useJson, useList } from '../../lib/use-api.ts';
 import { ActivityTab } from '../activity/ActivityTab.tsx';
 import { ChangesTab } from '../changes/ChangesTab.tsx';
+import { GraphTab } from '../graph/GraphTab.tsx';
 import { LinksTab } from '../links/LinksTab.tsx';
 import { RejectedTab } from '../rejected/RejectedTab.tsx';
 import { ReportTab } from '../report/ReportTab.tsx';
@@ -82,6 +83,8 @@ function TabContent({ tab, scope }: { tab: RunTab; scope: RunScope }) {
       return <OverviewTab scope={scope} />;
     case 'links':
       return <LinksTab scope={scope} />;
+    case 'graph':
+      return <GraphTab scope={scope} />;
     case 'rejected':
       return <RejectedTab scope={scope} />;
     case 'activity':

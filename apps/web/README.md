@@ -23,11 +23,40 @@ pnpm vitest run --project @olcys/web
 | `/sprawy/:id`                           | sprawa: cel, identyfikatory, zablokowany zakres, uruchamianie analizy, historia przebiegów z liczbą zmian i alertów, harmonogram analiz okresowych (cron w UTC, najbliższe terminy, ostatnie wyzwolenia, zmiana z powodem)                                                                                            |
 | `/sprawy/:id/przebiegi/:runId/przeglad` | postęp na żywo (odpytywanie `/api/runs/:id` co sekundę), etapy, liczniki, wynik końcowy, źródła (niedostępne oddzielnie od „nie znaleziono”), parametry odtwarzalności                                                                                                                                                |
 | `…/powiazania`                          | powiązane adresy: Wskaźnik Pewności 0–100, przedział (BARDZO WYSOKIE / PRAWDOPODOBNE / ŚREDNIE / NISKIE / WYKLUCZENIE), termin ICD 203, synergia śladów, rozwijane uzasadnienie z wykresem wodospadowym (SVG) i tabelą, bramki, dowody źródłowe                                                                       |
+| `…/graf`                                | graf powiązań (Cytoscape.js): osoba badana → identyfikatory → konta → adresy → podmioty; grubość krawędzi to prawdopodobieństwo etapu, odrzucone adresy i przypisania stron trzecich wyglądają inaczej niż własność; opcjonalnie przepływy środków; widok listy jako dostępny odpowiednik                             |
 | `…/odrzucone`                           | odrzucone adresy: reguły A1–A8 (giełda, adres depozytowy, smart kontrakt, lista wykluczeń) z etykietami i ich pochodzeniem, przypisania przez stronę trzecią, słaba tożsamość, dopasowania odrzucone przy weryfikacji (homoglify z wyróżnieniem znaków spoza ASCII)                                                   |
 | `…/aktywnosc`                           | aktywność on-chain wybranego adresu: wolumeny w walucie i PLN, kontrahenci, przesłanki wyjścia do fiat (B1–B7) z kursem NBP, interakcje z usługami, wymiany, transfery                                                                                                                                                |
 | `…/zrodla`                              | zabezpieczenia stron (URL, czas, SHA-256, status, pliki do pobrania), fakty odczytane ze źródeł, znalezione konta, dziennik połączeń wychodzących z filtrami                                                                                                                                                          |
 | `…/zmiany`                              | zmiany względem poprzedniej analizy; podmiana adresu portfela jako alert z wartościami „było/jest” i oboma zabezpieczeniami                                                                                                                                                                                           |
 | `…/raport`                              | odnośnik do raportu HTML (`/api/runs/:id/report`)                                                                                                                                                                                                                                                                     |
+
+## Graf powiązań
+
+Zakładka „Graf powiązań” (`…/graf`) pokazuje te same wyniki co tabela powiązań w postaci grafu; nie dodaje ustaleń
+i nie korzysta z nowych tras API (`links`, `exclusions`, `accounts`, a przy włączonych przepływach także `activity`).
+
+- **Budowa grafu.** Czysta funkcja `buildGraph` (`src/features/graph/build-elements.ts`) tworzy węzły (osoba badana,
+  identyfikatory, konta, adresy, podmioty) i krawędzie: identyfikator wejściowy, etap tożsamości („P = …”, „kotwica”
+  dla założenia analityka), etap adresu („P = … · poziom dowodu”), adres opublikowany przez konto, ale odrzucony jako
+  majątek (np. trop KYC), przypisanie przez stronę trzecią, odrzucenie regułą A1–A8 i przepływ środków (suma w PLN,
+  gdy każda interakcja ma wycenę; kwoty sumowane dokładnie, bez liczb zmiennoprzecinkowych). Grubość krawędzi etapu
+  to 1 + 5·P. Odrzucone adresy i strony trzecie nigdy nie są krawędziami własności.
+- **Rysowanie.** `CytoscapeGraph` używa biblioteki Cytoscape.js bezpośrednio (bez nakładki React): instancja jest
+  tworzona w efekcie i niszczona przy odmontowaniu (bezpieczne w React StrictMode). Układy wbudowane, bez dodatkowych
+  zasobów i bez animacji: warstwowy (domyślny, `breadthfirst`) i siłowy (`cose`). Motyw jasny i ciemny według
+  `prefers-color-scheme`; znaczenie nie zależy wyłącznie od koloru (kształt węzła, styl linii i etykiety tekstowe).
+- **Sterowanie.** „Pokaż odrzucone”, „Minimalny Wskaźnik Pewności” (filtr dotyczy powiązań z wynikiem; odrzucone nie mają
+  wyniku i zostają), „Pokaż przepływy środków”, wybór układu, „Dopasuj do ekranu”.
+- **Panel szczegółów.** Wybór węzła lub krawędzi pokazuje szczegóły oraz odnośniki: „Pokaż dowody” (otwiera
+  uzasadnienie powiązania w zakładce „Powiązane adresy”) i „Pokaż aktywność on-chain” (zakładka aktywności z
+  wybranym adresem).
+- **Dostępność.** Pojemnik grafu ma `role="img"` i opis z poprawnymi formami liczebników („14 węzłów i 15 krawędzi”,
+  „2 węzły”). „Pokaż jako listę” zastępuje graf tabelami węzłów i krawędzi z tymi samymi etykietami, w pełni
+  obsługiwanymi klawiaturą.
+- **Limit elementów.** Powyżej 500 elementów (węzły i krawędzie) graf jest obcinany w kolejności ważności: osoba
+  badana, identyfikatory, konta i adresy powiązań z tabeli głównej, odrzucone i strony trzecie, na końcu przepływy;
+  baner podaje łączną liczbę elementów.
+- **Dane nie opuszczają przeglądarki.** Brak eksportu grafu; brak zdalnych zasobów.
 
 ## Zasady
 
@@ -75,6 +104,6 @@ pnpm vitest run --project @olcys/web
 
 ## Testy
 
-Vitest (środowisko Node, bez dodatkowych zależności): formatowanie kwot i dat `pl-PL`, przedziały wyniku, parsowanie
+Vitest (środowisko Node; testy komponentów montowanych w DOM używają happy-dom przez nagłówek `@vitest-environment`): formatowanie kwot i dat `pl-PL`, przedziały wyniku, parsowanie
 odpowiedzi API, modele widoków (wykres wodospadowy, synergia, odrzucenia, zmiany, aktywność, formularz), zgodność
 katalogu z rdzeniem i konfiguracją wag oraz proste renderowanie komponentów (`react-dom/server`).

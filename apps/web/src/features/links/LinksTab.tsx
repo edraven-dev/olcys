@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import type {
   AddressCandidate,
   AnalystOverride,
@@ -36,7 +37,7 @@ import {
   type SourceItem,
 } from '../../lib/domain.ts';
 import { formatDateTime, formatLikelihoodRatio, formatProbability, shortHash } from '../../lib/format.ts';
-import { Link, routePath } from '../../lib/router.tsx';
+import { Link, routePath, useLocation } from '../../lib/router.tsx';
 import { useJson, useList } from '../../lib/use-api.ts';
 import type { RunScope } from '../run/RunPage.tsx';
 import { isTerminal } from '../run/run-model.ts';
@@ -74,6 +75,17 @@ export function LinksTab({ scope }: { scope: RunScope }) {
   const meta = useJson<ApiMeta>(apiPaths.meta);
   const judgements = meta.data?.features.judgements === true;
   const overrides = useList<AnalystOverride>(judgements ? apiPaths.caseOverrides(run.caseId) : null, { version });
+  const location = useLocation();
+  const loaded = links.data !== undefined;
+
+  // `#link-<id>` (e.g. from the graph) opens that link's explanation and scrolls to it.
+  useEffect(() => {
+    if (!loaded || !location.hash.startsWith('#link-')) return;
+    const card = document.getElementById(location.hash.slice(1));
+    const details = card?.querySelector('details.explain');
+    if (details instanceof HTMLDetailsElement) details.open = true;
+    card?.scrollIntoView();
+  }, [loaded, location.hash]);
 
   if (!links.data) {
     if (links.error) return <ErrorState title={pl.links.loadError} error={links.error} onRetry={links.reload} />;
