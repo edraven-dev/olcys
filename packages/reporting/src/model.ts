@@ -7,6 +7,7 @@
 import type {
   AddressRef,
   AnalyticConfidence,
+  Capture,
   ReportComputed,
   ReportFact,
   ReportInference,
@@ -36,9 +37,10 @@ function rejectReason(reason: string): string {
 
 function factsOf(view: View): ReportFact[] {
   const { data } = view;
-  const fromObservations = data.observations.map((o): ReportFact & { at: string } => {
+  const fromObservations = data.observations.map((o): { fact: ReportFact; at: string } => {
     const capture = view.captureById.get(o.captureId);
-    return {
+    const at = capture?.collectedAt ?? o.observedAt;
+    const fact: ReportFact = {
       id: o.id,
       statement: fill(pl.facts.observation, {
         source: view.sourceName(o.sourceId),
@@ -48,13 +50,13 @@ function factsOf(view: View): ReportFact[] {
       }),
       captureId: o.captureId,
       url: capture?.url ?? '',
-      collectedAt: capture?.collectedAt ?? o.observedAt,
-      at: capture?.collectedAt ?? o.observedAt,
+      collectedAt: at,
     };
+    return { fact, at };
   });
-  const fromCandidates = data.candidates.map((c): ReportFact & { at: string } => {
+  const fromCandidates = data.candidates.map((c): { fact: ReportFact; at: string } => {
     const capture = view.captureById.get(c.captureId);
-    return {
+    const fact: ReportFact = {
       id: c.id,
       statement: fill(pl.model.candidateQuote, {
         address: c.address.address,
@@ -64,13 +66,13 @@ function factsOf(view: View): ReportFact[] {
       captureId: c.captureId,
       url: capture?.url ?? '',
       collectedAt: capture?.collectedAt ?? '',
-      ...(c.context?.snippet ? { quote: c.context.snippet } : {}),
-      at: capture?.collectedAt ?? '',
     };
+    if (c.context?.snippet) fact.quote = c.context.snippet;
+    return { fact, at: capture?.collectedAt ?? '' };
   });
   return [...fromObservations, ...fromCandidates]
-    .toSorted((a, b) => timeOf(a.at) - timeOf(b.at) || cmp(a.id, b.id))
-    .map(({ at: _at, ...fact }) => fact);
+    .toSorted((a, b) => timeOf(a.at) - timeOf(b.at) || cmp(a.fact.id, b.fact.id))
+    .map((entry) => entry.fact);
 }
 
 function basedOnAddress(view: View, address: AddressRef): string[] {
@@ -245,6 +247,39 @@ function inferencesOf(view: View): ReportInference[] {
   return out;
 }
 
+type FlowStepInput = ReturnType<typeof flowSteps>[number];
+
+function fundFlowStep(s: FlowStepInput): ReportModel['fundFlow'][number] {
+  const description =
+    s.kind === 'indicator'
+      ? fill(pl.model.indicatorPrefix, {
+          text: fill(pl.flow.indicator, {
+            amount: formatAmount(s.amount, s.asset),
+            from: s.from,
+            to: s.to,
+            txs: s.txHashes.join(', ') || pl.common.none,
+            chain: chainName(s.chain),
+          }),
+        })
+      : fill(pl.flow.step, { amount: formatAmount(s.amount, s.asset), from: s.from, to: s.to });
+  const step: ReportModel['fundFlow'][number] = { at: s.at, description, txHashes: s.txHashes };
+  const value = s.valuation ?? s.eventValuation;
+  if (value) step.valuation = value;
+  return step;
+}
+
+function registerEntry(view: View, c: Capture): ReportModel['evidenceRegister'][number] {
+  const entry: ReportModel['evidenceRegister'][number] = {
+    captureId: c.id,
+    url: c.url,
+    collectedAt: c.collectedAt,
+    manifestSha256: c.manifestSha256,
+    sourceName: view.sourceName(c.sourceId),
+  };
+  if (c.timestamp) entry.timestamp = c.timestamp;
+  return entry;
+}
+
 export function buildReportModel(data: ReportData): ReportModel {
   const view = buildView(data);
   const cfg = data.run.config;
@@ -287,32 +322,10 @@ export function buildReportModel(data: ReportData): ReportModel {
     facts: factsOf(view),
     computed: computedOf(view),
     inferences: inferencesOf(view),
-    fundFlow: steps.map((s) => {
-      const value = s.valuation ?? s.eventValuation;
-      const fact =
-        s.kind === 'indicator'
-          ? fill(pl.model.indicatorPrefix, {
-              text: fill(pl.flow.indicator, {
-                amount: formatAmount(s.amount, s.asset),
-                from: s.from,
-                to: s.to,
-                txs: s.txHashes.join(', ') || pl.common.none,
-                chain: chainName(s.chain),
-              }),
-            })
-          : fill(pl.flow.step, { amount: formatAmount(s.amount, s.asset), from: s.from, to: s.to });
-      return { at: s.at, description: fact, txHashes: s.txHashes, ...(value ? { valuation: value } : {}) };
-    }),
+    fundFlow: steps.map(fundFlowStep),
     changesSincePrevious: data.changes.toSorted(
       (a, b) => cmp(a.kind, b.kind) || cmp(a.key.locator, b.key.locator) || cmp(a.id, b.id),
     ),
-    evidenceRegister: view.captures.map((c) => ({
-      captureId: c.id,
-      url: c.url,
-      collectedAt: c.collectedAt,
-      manifestSha256: c.manifestSha256,
-      ...(c.timestamp ? { timestamp: c.timestamp } : {}),
-      sourceName: view.sourceName(c.sourceId),
-    })),
+    evidenceRegister: view.captures.map((c) => registerEntry(view, c)),
   };
 }

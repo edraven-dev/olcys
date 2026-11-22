@@ -396,19 +396,22 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
       });
     }
     const set = await findExportSet(deps, runId);
-    for (const format of EXPORT_KINDS) {
+    const exported = EXPORT_KINDS.flatMap((format) => {
       const e = set?.exports[format];
-      if (!e) continue;
+      return e ? [{ format, sha256: e.sha256 }] : [];
+    });
+    const exportBytes = await Promise.all(exported.map(async (e) => (await deps.blobs.get(e.sha256)).length));
+    exported.forEach(({ format, sha256 }, i) => {
       files.push({
         kind: format,
         fileName: `olcys-${runId}-${EXPORT_FILE_EXTENSIONS[format]}`,
         mediaType: EXPORT_MEDIA_TYPES[format],
         available: true,
         path: `${base}/exports/${format}`,
-        bytes: (await deps.blobs.get(e.sha256)).length,
-        sha256: e.sha256,
+        bytes: exportBytes[i] ?? 0,
+        sha256,
       });
-    }
+    });
     const view: ReportView = { report: buildReportModel(stored.data), files };
     return view;
   });

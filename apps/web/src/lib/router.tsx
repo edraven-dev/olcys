@@ -21,6 +21,7 @@ const TAB_SEGMENTS: Record<RunTab, string> = {
 export type Route =
   | { name: 'cases' }
   | { name: 'newCase' }
+  | { name: 'settings' }
   | { name: 'case'; caseId: string }
   | { name: 'run'; caseId: string; runId: string; tab: RunTab }
   | { name: 'notFound' };
@@ -33,6 +34,8 @@ export function routePath(route: Route): string {
       return '/';
     case 'newCase':
       return '/sprawy/nowa';
+    case 'settings':
+      return '/ustawienia';
     case 'case':
       return `/sprawy/${segment(route.caseId)}`;
     case 'run':
@@ -54,6 +57,7 @@ export function parseRoute(pathname: string): Route {
       }
     });
   if (parts.length === 0) return { name: 'cases' };
+  if (parts[0] === 'ustawienia' && parts.length === 1) return { name: 'settings' };
   if (parts[0] !== 'sprawy') return { name: 'notFound' };
   if (parts.length === 1) return { name: 'cases' };
   if (parts.length === 2) return parts[1] === 'nowa' ? { name: 'newCase' } : { name: 'case', caseId: parts[1] ?? '' };

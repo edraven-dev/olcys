@@ -96,6 +96,11 @@ export function defaultStages(runtime) {
 Potok wykonuje porównanie z poprzednim przebiegiem jako wbudowany krok `diff.previous`; krok `report.render` działa po
 nim, więc raport zawiera wykryte zmiany. `GET /api/runs/:id/report` zwraca najnowszy raport `html` przebiegu.
 
+`buildReportModel(data)` buduje z tych samych danych (`ReportData`) strukturalny `ReportModel` z `@olcys/core`: fakty
+źródłowe, wyniki obliczeń i wnioski (każdy z `requiresVerification`) osobno, blok odtwarzalności, podsumowanie, chronologię
+przepływów, zmiany i rejestr dowodów. Zdania pochodzą z katalogu polskiego (`pl.model` i istniejących sekcji), więc
+konsola i HTML mówią tym samym językiem. `findReportData` odczytuje zapisane dane najnowszego raportu przebiegu.
+
 ## Eksporty: STIX 2.1, MISP i CSV
 
 Krok `report.render` zapisuje obok raportu HTML sześć eksportów, zbudowanych z tych samych danych (`ReportData`) co
