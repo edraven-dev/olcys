@@ -3,6 +3,7 @@ import type {
   AddressCandidate,
   AddressLabel,
   AddressRef,
+  AnalystOverride,
   ExclusionDecision,
   FeatureContribution,
   HopResult,
@@ -221,6 +222,84 @@ function synergyText(view: View, link: LinkAssessment): SafeHtml {
   return para(t(pl.links.appearances, { sources: plural(sources.length, pl.counts.sourcesLoc), list: names }));
 }
 
+/**
+ * The analyst's judgements on the link, oldest first, with the current (latest) one named: a separate statement next
+ * to the computed score, which it never changes.
+ */
+function judgementsBlock(view: View, link: LinkAssessment): SafeHtml {
+  const own = (view.data.judgements ?? []).filter((j) => j.linkAssessmentId === link.id);
+  const latest = own.at(-1);
+  if (!latest) return markup``;
+  const j = pl.judgements;
+  const entries = own.map(
+    (x) =>
+      markup`${t(j.entry, { label: markup`<strong>${j.values[x.judgement].label}</strong>`, analyst: x.analyst, at: formatUtc(x.at) })}<br>${muted(j.values[x.judgement].description)}<br>${t(j.justification, { text: x.justification })}`,
+  );
+  return block(
+    'analyst',
+    join([
+      para(t(j.current, { label: j.values[latest.judgement].label })),
+      list(entries),
+      para(j.notice, 'muted'),
+      para(j.automationBias, 'muted'),
+    ]),
+  );
+}
+
+function overrideTarget(view: View, o: AnalystOverride): SafeHtml {
+  const x = pl.overrides.targets;
+  const parts: SafeHtml[] = [];
+  const { observationId, candidateId, sourceId, accountId, address } = o.target;
+  if (observationId) {
+    const observation = view.observationById.get(observationId);
+    parts.push(
+      observation
+        ? markup`${t(x.observation, { property: propertyLabel(observation.property) })} ${captureRef(view, observation.captureId)}`
+        : t(x.observation, { property: markup`<code>${observationId}</code>` }),
+    );
+  }
+  if (candidateId) parts.push(t(x.candidate, { id: markup`<code>${candidateId}</code>` }));
+  if (sourceId) parts.push(t(x.source, { source: view.sourceName(sourceId) }));
+  if (accountId) {
+    const account = view.accountById.get(accountId);
+    parts.push(t(x.account, { account: account ? `${account.platform} / ${account.handle}` : accountId }));
+  }
+  if (address) parts.push(t(x.address, { address: addr(address.address) }));
+  return join(parts, markup`<br>`);
+}
+
+function overrideValue(o: AnalystOverride): string {
+  if (o.kind === 'reliability_grade') return pl.reliability[o.value as keyof typeof pl.reliability] ?? o.value;
+  if (o.kind === 'review_decision')
+    return pl.overrides.decisions[o.value as keyof typeof pl.overrides.decisions] ?? o.value;
+  return pl.features[o.value] ?? o.value;
+}
+
+/** The analyst overrides a rescore run applied (its config snapshot names them as `rulesVersions.overrides`). */
+function overridesBlock(view: View): SafeHtml {
+  const applied = view.data.overrides ?? [];
+  if (!applied.length) return markup``;
+  const c = pl.overrides.columns;
+  return block(
+    'analyst',
+    join([
+      markup`<h3>${pl.overrides.title}</h3>`,
+      para(pl.overrides.intro),
+      table(
+        [c.kind, c.target, c.value, c.analyst, c.justification],
+        applied.map((o) => [
+          pl.overrides.kinds[o.kind] ?? o.kind,
+          overrideTarget(view, o),
+          overrideValue(o),
+          markup`${o.analyst}<br>${muted(formatUtc(o.at))}`,
+          o.justification,
+        ]),
+        'grid compact',
+      ),
+    ]),
+  );
+}
+
 function linkCard(view: View, link: LinkAssessment): SafeHtml {
   const address = link.address.address;
   const identity = view.identityById.get(link.identityId);
@@ -342,7 +421,7 @@ function linkCard(view: View, link: LinkAssessment): SafeHtml {
   )}</p>${block('facts', ev.accounts.length || ev.facts.length || ev.candidates.length ? facts : para(pl.links.noFacts))}${block(
     'computed',
     computed,
-  )}${block('inferences', inferences)}</article>`;
+  )}${judgementsBlock(view, link)}${block('inferences', inferences)}</article>`;
 }
 
 export function linksSection(view: View): SafeHtml {
@@ -351,6 +430,7 @@ export function linksSection(view: View): SafeHtml {
     pl.sections.links,
     join([
       para(pl.links.intro),
+      overridesBlock(view),
       view.linked.length ? view.linked.map((l) => linkCard(view, l)) : para(pl.links.none, 'empty'),
     ]),
   );

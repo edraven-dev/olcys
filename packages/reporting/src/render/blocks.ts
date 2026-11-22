@@ -1,6 +1,7 @@
 /**
- * Building blocks shared by the report sections. The three statement classes are rendered only through `block()`,
- * so every statement sits in a labelled, visually distinct container: facts, computed results or inferences.
+ * Building blocks shared by the report sections. The statement classes are rendered only through `block()`, so every
+ * statement sits in a labelled, visually distinct container: facts, computed results, inferences — and the analyst's
+ * own statements (judgements, overrides), which never change the computed results.
  */
 import type { ChainId, Id } from '@olcys/core';
 import { KNOWN_CHAINS } from '@olcys/core';
@@ -8,7 +9,7 @@ import { join, markup, t, type Html, type SafeHtml } from '../html.ts';
 import { pl } from '../i18n/pl.ts';
 import type { BandId, View } from '../view.ts';
 
-export const STATEMENT_CLASSES = ['facts', 'computed', 'inferences'] as const;
+export const STATEMENT_CLASSES = ['facts', 'computed', 'inferences', 'analyst'] as const;
 export type StatementClass = (typeof STATEMENT_CLASSES)[number];
 
 /** Polish ids used in markup (`data-statement`), stable for tests and readers of the HTML. */
@@ -16,6 +17,7 @@ export const STATEMENT_IDS: Record<StatementClass, string> = {
   facts: 'fakty',
   computed: 'obliczenia',
   inferences: 'wnioski',
+  analyst: 'ocena-analityka',
 };
 
 function isEmpty(body: Html): boolean {

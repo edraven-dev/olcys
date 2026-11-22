@@ -5,6 +5,7 @@
 import type {
   AnalysisRepository,
   AnalysisRun,
+  AnalystOverride,
   Capture,
   FlowEdge,
   Id,
@@ -15,7 +16,7 @@ import type {
 } from '@olcys/core';
 import { addressKey, newId, nowIso } from '@olcys/core';
 import { REPORT_TEMPLATE_VERSION, type ReportData, type ReportSource } from './types.ts';
-import { cmp, refKey } from './view.ts';
+import { cmp, refKey, timeOf } from './view.ts';
 
 export interface BuildReportOptions {
   /** Source register (`config/sources.yaml`) for display names and compliance status. */
@@ -40,6 +41,14 @@ function plainRun(run: RunWithProgress): AnalysisRun {
 }
 
 const byId = <T extends { id: string }>(items: readonly T[]): T[] => items.toSorted((a, b) => cmp(a.id, b.id));
+const byTime = <T extends { at: string; id: string }>(items: readonly T[]): T[] =>
+  items.toSorted((a, b) => timeOf(a.at) - timeOf(b.at) || cmp(a.id, b.id));
+
+/** The overrides a run applied: only a rescore applies them, those recorded until it was queued. */
+function appliedOverrides(run: AnalysisRun, overrides: readonly AnalystOverride[]): AnalystOverride[] {
+  if (run.trigger !== 'rescore') return [];
+  return byTime(overrides.filter((o) => timeOf(o.at) <= timeOf(run.queuedAt)));
+}
 
 function toReportSource(s: SourceDescriptor): ReportSource {
   return {
@@ -95,6 +104,13 @@ export async function buildReportData(
     repos.labels.list(),
     analysis.listFlows ? analysis.listFlows(evidenceRunId) : Promise.resolve([] as FlowEdge[]),
   ]);
+
+  // Analyst statements and inputs, kept apart from the computed results (optional ports of the store).
+  const [judgements, overrides] = await Promise.all([
+    repos.judgements ? repos.judgements.listByRun(runId) : Promise.resolve([]),
+    repos.overrides && run.trigger === 'rescore' ? repos.overrides.listByCase(run.caseId) : Promise.resolve([]),
+  ]);
+  const applied = appliedOverrides(plainRun(run), overrides);
 
   // Reasons the pipeline recorded so far (`markPartial`): sources or stages that could not deliver data.
   const recorded = run.progress?.['partial'];
@@ -178,5 +194,7 @@ export async function buildReportData(
     activity: activity.toSorted((a, b) => cmp(addressKey(a.address), addressKey(b.address))),
     cashOuts: byId(cashOuts),
     changes: byId(changes),
+    ...(judgements.length ? { judgements: byTime(judgements) } : {}),
+    ...(applied.length ? { overrides: applied } : {}),
   };
 }
