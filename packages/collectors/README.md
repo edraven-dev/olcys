@@ -78,20 +78,79 @@ oryginału zostaje w kopercie pochodzenia i w `technical.redaction`) oraz `heade
 
 ## Kolektory
 
-| Źródło (`sourceId`) | Platforma     | Tryby         | Co zbiera                                                                                |
-| ------------------- | ------------- | ------------- | ---------------------------------------------------------------------------------------- |
-| `bitcointalk`       | `bitcointalk` | offline, live | profil → „Show Posts” → do 3 wątków (najpierw z podpisaną wiadomością, potem z adresem)  |
-| `wykop`             | `wykop`       | offline       | profil społecznościowy: opis, linki do innych kont (`account.link`), wpisy               |
-| `github`            | `github`      | offline       | profil z tym samym nickiem → repozytoria → surowy `FUNDING.json` (roszczenia Drips)      |
-| `telegram_preview`  | `telegram`    | offline, live | publiczny podgląd kanału `t.me/s/<kanał>`: opis kanału, posty z autorem (strona trzecia) |
-| `fixture_site`      | `tablica`     | offline       | ogłoszenie P2P: sprzedający (imię i nazwisko, login, e-mail), treść ogłoszenia           |
-| `mock_search`       | `web_search`  | offline       | wyszukiwarka testowa: strony z mapy witryny strony testowej zawierające zapytanie        |
-| `brave_search`      | `web_search`  | live, replay  | Brave Search API: wyniki wyszukiwania dokładnej frazy (tylko w trybie `external`)        |
-| `mojeek_search`     | `web_search`  | live, replay  | Mojeek Search API: wyniki wyszukiwania dokładnej frazy (tylko w trybie `external`)       |
+| Źródło (`sourceId`) | Platforma       | Tryby         | Co zbiera                                                                                 |
+| ------------------- | --------------- | ------------- | ----------------------------------------------------------------------------------------- |
+| `bitcointalk`       | `bitcointalk`   | offline, live | profil → „Show Posts” → do 3 wątków (najpierw z podpisaną wiadomością, potem z adresem)   |
+| `wykop`             | `wykop`         | offline       | profil społecznościowy: opis, linki do innych kont (`account.link`), wpisy                |
+| `github`            | `github`        | offline       | profil z tym samym nickiem → repozytoria → surowy `FUNDING.json` (roszczenia Drips)       |
+| `telegram_preview`  | `telegram`      | offline, live | publiczny podgląd kanału `t.me/s/<kanał>`: opis kanału, posty z autorem (strona trzecia)  |
+| `fixture_site`      | `tablica`       | offline       | ogłoszenie P2P: sprzedający (imię i nazwisko, login, e-mail), treść ogłoszenia            |
+| `mock_search`       | `web_search`    | offline       | wyszukiwarka testowa: strony z mapy witryny strony testowej zawierające zapytanie         |
+| `brave_search`      | `web_search`    | live, replay  | Brave Search API: wyniki wyszukiwania dokładnej frazy (tylko w trybie `external`)         |
+| `mojeek_search`     | `web_search`    | live, replay  | Mojeek Search API: wyniki wyszukiwania dokładnej frazy (tylko w trybie `external`)        |
+| `ceidg`             | `ceidg`         | offline, live | CEIDG API v3: firmy jednoosobowe po imieniu i nazwisku (w `live` wymaga tokenu)           |
+| `vat_whitelist`     | `vat_whitelist` | offline, live | wykaz podatników VAT po NIP lub REGON: status VAT, rachunki bankowe, osoby (nazwa i rola) |
+| `krs`               | `krs`           | offline, live | KRS Open API: odpis aktualny spółki po numerze KRS (zarząd, prokurenci, wspólnicy)        |
 
 Profil forum po nazwie (`action=profile;user=`) jest sprawdzony tylko na stronie testowej; w trybie `live` potrzebny
 jest numer uid albo adres profilu. Strony Wykopu, GitHuba (HTML) i ogłoszeń istnieją tylko na stronie testowej.
 Wyszukiwarka testowa działa w trybach `offline` i `replay` (w `live` zadanie jest pomijane jako `unsupported`).
+
+## Rejestry publiczne (`registry.*`)
+
+Trzy oficjalne rejestry dają legalne powiązania imię i nazwisko → firma → rachunek bankowy, które łączą wypłatę z
+łańcucha z obiegiem fiat. Fakty rejestrowe są wiarygodne (A), ale **nie mają poziomu adresowego** (E1–E4) i nie zmieniają
+Wskaźnika Pewności adresów; służą korroboracji tożsamości i kontekstowi fiat. Moduły: `src/registries/`.
+
+| Źródło          | Zapytanie                                                                                                         | Dane wejściowe                                             |
+| --------------- | ----------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| `ceidg`         | `GET …/firmy?imie[]=…&nazwisko[]=…&page=1&limit=25` (nagłówek `Authorization: Bearer`); opcjonalnie `/firma/{id}` | identyfikator `full_name` (imię i nazwisko), wartość `nip` |
+| `vat_whitelist` | `GET https://wykazpodatnikowvat.mf.gov.pl/api/search/nip/{nip}?date=RRRR-MM-DD` (także `regon`)                   | wartości `nip` / `regon` o poprawnej sumie kontrolnej      |
+| `krs`           | `GET …/OdpisAktualny/{krs}?rejestr=P&format=json`, po 404 jednorazowo `rejestr=S`                                 | wartość `krs` (uzupełniana zerami do 10 cyfr)              |
+
+- **CEIDG** wymaga własnego tokenu instytucji (`CEIDG_API_TOKEN`, wniosek na koncie Biznes.gov.pl). Token jest potrzebny
+  tylko w trybie `live`: bez niego worker w ogóle nie rejestruje `ceidg` (planer widzi źródło jako niedostępne). W trybach
+  `offline` i `replay` żądania idą do strony testowej z danymi syntetycznymi i nie mają nagłówka `Authorization`. Token
+  trafia wyłącznie do nagłówka (`secretParams`), więc nie występuje w dzienniku ruchu, kopercie pochodzenia, adresie ani
+  nagraniu. Limit: 1 żądanie / 4 s (publikowane limity: 50 / 3 min i 1000 / h). Wyszukiwanie po imieniu i nazwisku
+  zwraca wszystkie osoby o tych danych, dlatego kolektor zapisuje liczbę trafień (`registry.ceidg.result_count`).
+  Jedno słowo nie wystarcza (`supports()` fałsz); imię to pierwsze, nazwisko ostatnie słowo (nazwisko dwuczłonowe zostaje
+  w całości), formy fleksyjne nie są normalizowane. HTTP 204 lub pusta lista to `not_found`. Dane kontaktowe z `/firma/{id}`
+  (e-mail i strona WWW firmy; telefonu nigdy) czyta tylko opcja `fetchDetails` przy jednym trafieniu — domyślnie wyłączona.
+- **Wykaz podatników VAT** nie wymaga klucza. Parametr `date` to data w strefie Europe/Warsaw (`warsawDate`), a nie UTC.
+  Stary host `wl-api.mf.gov.pl` (wyłączany 2026-12-01) nie jest nigdzie używany. Limit wyszukiwania to 100 zapytań dziennie:
+  przebieg wykonuje najwyżej 10 (`maxSearchCallsPerRun`), dalsze wartości są pomijane z notatką `truncated`; HTTP 429 lub
+  błąd z komunikatem o limicie to `blocked` z notatką `rate_limited`, bez ponowień i bez kolejnych żądań. `requestId` z odpowiedzi
+  jest urzędowym dowodem sprawdzenia i zostaje obserwacją `registry.vat_request_id`. Rachunki bankowe są zapisywane tylko
+  po sprawdzeniu sumy kontrolnej NRB (IBAN mod 97). Adres zamieszkania (`residenceAddress`) bywa adresem domowym
+  przedsiębiorcy, dlatego jest czytany tylko dla podmiotu z numerem KRS; w pozostałych przypadkach — wyłącznie adres
+  prowadzenia działalności (`workingAddress`).
+- **KRS** nie wymaga klucza (dane otwarte, CC0) i wyszukuje wyłącznie po numerze KRS. API bywa przerwane stroną HTML
+  „Przerwa techniczna” z kodem 200 — kolektor zwraca wtedy `error` z notatką `KRS API maintenance` (nie „brak wpisu”) i
+  nie próbuje drugiego rejestru.
+
+**Minimalizacja danych.** Pola PESEL (biała lista, identyfikatory osób w KRS) nie są czytane — nie powstaje żadna
+obserwacja z numerem PESEL. Osoby trzecie (reprezentanci, prokurenci, wspólnicy, członkowie zarządu) zapisywane są
+wyłącznie jako nazwa i rola (`registry.representative`, `registry.partner`, wartość `<nazwa> — <rola>`) i **nigdy nie są
+pivotami**. Surowa odpowiedź rejestru jest zapisana jako przechwycenie (dowód) w stanie otrzymanym; nie zawiera niczego,
+co kolektor miałby czytać poza powyższymi polami, ale na białej liście reprezentanci mogą mieć w niej PESEL — warto to
+uwzględnić w polityce retencji. Każde zapytanie ma `containsIdentifier: true` (imię, nazwisko i numery podatkowe to
+identyfikatory sprawy). W trybie `live` imię i nazwisko będące syntetycznym identyfikatorem persony nie jest wysyłane.
+
+**Obserwacje** (podmiot `ceidg:<id>` / `vat:<nip>` / `krs:<numer>` / `ceidg-search:<sha256 „imię nazwisko”>`; lokalizator
+`<podmiot>#<ścieżka pola w odpowiedzi>`): `registry.business_name`, `.owner_name`, `.nip`, `.regon`, `.krs`, `.status`,
+`.vat_status`, `.business_location` (adres siedziby lub działalności — celowo nie `registry.address`, żeby adres pocztowy
+nigdy nie wyglądał na adres kryptowaluty), `.www`, `.email`, `.bank_account` (po jednej na rachunek), `.has_virtual_accounts`,
+`.start_date`, `.removal_date`, `.vat_request_id`, `.representative`, `.partner` oraz `registry.ceidg.result_count`.
+Etykiety polskie: `apps/web/src/i18n/pl.ts` i katalog pakietu raportu.
+
+**Kształty odpowiedzi** (`test/fixtures/registries/` i strona testowa, ścieżki `/registries/…`) odpowiadają
+dokumentacji (CEIDG v3: `firmy[]`, `count`; biała lista: `result.subject`, `result.requestId`; KRS:
+`odpis.naglowekA`, `odpis.dane.dzial1/dzial2`). Nazwy pól i parametrów zostały przyjęte ze streszczenia dokumentacji i
+nie były sprawdzane na żywo — przed pierwszym użyciem produkcyjnym należy je zweryfikować w aktualnej dokumentacji
+(zwłaszcza `nip[]` w CEIDG oraz kod błędu limitu na białej liście). Wartości w danych testowych są celowo nieprzydzielone:
+NIP `0001234562`, REGON `001234562`, KRS `0009999901`, rachunki z numerem rozliczeniowym `00000000` (sumy kontrolne
+liczy `buildNrb`), PESEL zawsze `null`.
 
 ## Wyszukiwarki (`search.v1`)
 
@@ -155,18 +214,21 @@ wyszukiwarkę.
 
 ## Pivoty (`pivot.v1`)
 
-| Reguła | Wyzwalacz                                                                | Zadanie                                                                    |
-| ------ | ------------------------------------------------------------------------ | -------------------------------------------------------------------------- |
-| I1     | identyfikator podany dla platformy P                                     | kolektor platformy P                                                       |
-| I2     | nick / login                                                             | ten sam nick na pozostałych platformach (GitHub: `_` i `.` → `-`)          |
-| I3     | dowolny identyfikator                                                    | strony z listy obserwowanych; zachowane tylko, gdy zawierają identyfikator |
-| I4     | identyfikator będący adresem profilu                                     | kolektor rozpoznanej platformy                                             |
-| E1     | `account.link` do rozpoznanego konta                                     | kolektor tej platformy (głębokość + 1)                                     |
-| E2     | konto znalezione dla osoby inaczej niż próbą nicku (nie kanał ostrzeżeń) | jego login na pozostałych platformach (głębokość + 1)                      |
-| I5     | imię i nazwisko, nick, e-mail, adres kryptowaluty                        | każda zarejestrowana wyszukiwarka: jedno zapytanie (dokładna fraza)        |
-| E3     | `search.result_url` (wynik wyszukiwania)                                 | kolektor strony (klucz jak I3) albo konta (jak E1) (głębokość + 1)         |
+| Reguła | Wyzwalacz                                                                | Zadanie                                                                                                                         |
+| ------ | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| I1     | identyfikator podany dla platformy P                                     | kolektor platformy P                                                                                                            |
+| I2     | nick / login                                                             | ten sam nick na pozostałych platformach (GitHub: `_` i `.` → `-`)                                                               |
+| I3     | dowolny identyfikator                                                    | strony z listy obserwowanych; zachowane tylko, gdy zawierają identyfikator                                                      |
+| I4     | identyfikator będący adresem profilu                                     | kolektor rozpoznanej platformy                                                                                                  |
+| E1     | `account.link` do rozpoznanego konta                                     | kolektor tej platformy (głębokość + 1)                                                                                          |
+| E2     | konto znalezione dla osoby inaczej niż próbą nicku (nie kanał ostrzeżeń) | jego login na pozostałych platformach (głębokość + 1)                                                                           |
+| I5     | imię i nazwisko, nick, e-mail, adres kryptowaluty                        | każda zarejestrowana wyszukiwarka: jedno zapytanie (dokładna fraza)                                                             |
+| E3     | `search.result_url` (wynik wyszukiwania)                                 | kolektor strony (klucz jak I3) albo konta (jak E1) (głębokość + 1)                                                              |
+| I6     | imię i nazwisko (`full_name`)                                            | CEIDG: jedno wyszukiwanie po imieniu i nazwisku (klucz `name:<imię nazwisko>`)                                                  |
+| E4     | `registry.nip` z CEIDG                                                   | wykaz VAT (głębokość + 1) — **tylko** gdy `registry.ceidg.result_count` = 1; w przeciwnym razie pominięcie `ambiguous_namesake` |
+| E5     | `registry.krs` z wykazu VAT                                              | KRS (głębokość + 1)                                                                                                             |
 
-Wyszukiwania (I5) są planowane po wszystkich pozostałych regułach identyfikatorów, więc nie zabierają limitu zadań
+Osoby trzecie z rejestrów (reprezentanci, prokurenci, wspólnicy, zarząd) nigdy nie są pivotami. Wyszukiwania (I5) są planowane po wszystkich pozostałych regułach identyfikatorów, więc nie zabierają limitu zadań
 kolektorom platform. Wyniki wyszukiwania (E3) trafiają do kolektora strony z listy obserwowanych, który ją czyta — pod
 tym samym kluczem co zadanie I3, więc strona znaleziona obiema drogami jest zbierana raz — a w przeciwnym razie do
 kolektora rozpoznanego konta (jak E1); strony bez kolektora (np. wątki forum) nie są pobierane. Strona z listy
@@ -181,7 +243,7 @@ dla adresu kryptowaluty `…|address:<sieć>:<adres>`) i zapisany powód. Wielko
 znaczenia, interpunkcja tak (`a-b` i `a_b` to różne konta). Pominięcia: `source_red`, `amber_without_justification`,
 `unknown_source`, `source_not_enabled`, `not_registered`, `unsupported`, `depth_exceeded` (`maxPivotDepth` sprawy),
 `duplicate` (także konto już znalezione pod innym kluczem), `already_collected` (zadanie w kolejce objęte kontem
-zebranym wcześniej w przebiegu), `budget_exceeded` (domyślnie 40 zadań). Lista obserwowanych
+zebranym wcześniej w przebiegu), `budget_exceeded` (domyślnie 40 zadań), `ambiguous_namesake` (CEIDG znalazł więcej niż jedną firmę o tym imieniu i nazwisku — nie ma automatycznego pivotu, bo to ryzyko pomyłki z inną osobą). Lista obserwowanych
 stron: offline i replay — strony z manifestu persony (jak mapa witryny), live — `OLCYS_WATCH_PAGES` (`platforma=adres`, po przecinku).
 
 ## Słownik obserwacji
@@ -206,6 +268,7 @@ ekstraktor może przypisać wzmiankę autorowi. Lokalizator: `<klucz>#<właściw
 | `computed.identifier_match`                                                   | konto sprzedającego / post kanału | obliczenie OŁCyŚ: który identyfikator sprawy pasuje (`email`, `full_name`, `nickname`, …) |
 | `search.result_url`                                                           | strona `search:<dostawca>:<sha>`  | adres wyniku; lokalizator `search:<dostawca>:<sha256 zapytania>#rank=<n>`                 |
 | `search.result_count`                                                         | strona `search:<dostawca>:<sha>`  | liczba wyników (tylko pełna lista)                                                        |
+| `registry.*` (opis w sekcji „Rejestry publiczne”)                             | strona `ceidg:` / `vat:` / `krs:` | fakty z urzędowych rejestrów; osoby trzecie tylko jako nazwa i rola, nigdy PESEL          |
 
 Pola zmieniające się przy każdej wizycie (`Last Active`, `Local Time`, `Current Status`) zostają tylko w przechwyceniu.
 
@@ -244,5 +307,5 @@ Notatki mają postać `kod: szczegóły`; interfejs tłumaczy kod.
 usługi zapisywane w przechwyceniach; `OLCYS_CLOCK_SYNCED=1` — zegar zweryfikowany z NTP; `OLCYS_WATCH_PAGES` — lista
 obserwowanych stron w trybie `live`. Wyszukiwarki: `OLCYS_SEARCH_MODE` (`off` | `mock` | `external`, domyślnie `mock`),
 `BRAVE_SEARCH_API_KEY`, `BRAVE_SEARCH_STORAGE_RIGHTS` (`true` tylko z planem, który pozwala przechowywać wyniki),
-`MOJEEK_API_KEY`, `MOJEEK_PLAN` (`startup` | `business` | `enterprise`, domyślnie `startup`). Klucze wyłącznie ze
-zmiennych środowiskowych.
+`MOJEEK_API_KEY`, `MOJEEK_PLAN` (`startup` | `business` | `enterprise`, domyślnie `startup`); rejestry: `CEIDG_API_TOKEN`
+(tylko `live`; bez niego CEIDG nie jest rejestrowany). Klucze wyłącznie ze zmiennych środowiskowych.
