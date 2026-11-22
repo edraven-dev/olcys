@@ -81,12 +81,12 @@ describe('report model', () => {
     cited.delete(undefined);
     expect(cited.size).toBeGreaterThan(0);
     for (const l of data.links) {
-      const basedOn = model.computed.find((c) => c.id === l.id)?.basedOn ?? [];
-      for (const p of l.paths ?? [])
-        for (const h of [p.identityHop, p.addressHop])
-          for (const c of h?.contributions ?? [])
-            for (const id of [c.evidence?.observationId, c.evidence?.candidateId])
-              if (id) expect(basedOn).toContain(id);
+      const expected = (l.paths ?? [])
+        .flatMap((p) => [p.identityHop, p.addressHop])
+        .flatMap((h) => h?.contributions ?? [])
+        .flatMap((c) => [c.evidence?.observationId, c.evidence?.candidateId])
+        .filter((id): id is string => id !== undefined);
+      expect(model.computed.find((c) => c.id === l.id)?.basedOn ?? []).toEqual(expect.arrayContaining(expected));
     }
   });
 });

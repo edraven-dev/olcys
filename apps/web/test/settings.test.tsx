@@ -53,7 +53,7 @@ const resource = (data: SourceItem[] | undefined, error?: unknown): Resource<Sou
   error,
   loading: false,
   updatedAt: data ? Date.parse('2026-11-21T10:00:00.000Z') : undefined,
-  reload: vi.fn(),
+  reload: vi.fn<() => void>(),
 });
 
 describe('settings page', () => {
@@ -94,10 +94,11 @@ describe('settings page', () => {
   });
 });
 
+const render = (sourcesResource: Resource<SourceItem[]>) =>
+  text(renderToStaticMarkup(<SettingsView meta={meta} sources={sourcesResource} />));
+
 describe('source register states', () => {
   const failure = new ApiRequestError(500, 'internal', '');
-  const render = (sourcesResource: Resource<SourceItem[]>) =>
-    text(renderToStaticMarkup(<SettingsView meta={meta} sources={sourcesResource} />));
 
   it('shows loading separately from the rest of the settings', () => {
     const content = render(resource(undefined));
