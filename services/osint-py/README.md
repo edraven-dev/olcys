@@ -103,8 +103,15 @@ barier. Węzeł Node scala ten dziennik z dziennikiem ruchu wychodzącego (`reco
   tego samego hosta, 4 połączenia, bez ponowień, treść do 1 MiB na odpowiedź i 20 MiB na wyszukiwanie, weryfikacja TLS.
   Jedno wyszukiwanie naraz. Maigret loguje adresy z nickiem, więc jego logger jest wyciszony: na stdout nie trafia
   żaden adres.
-- **Czego usługa nie robi:** nie czyta `robots.txt` (sprawdza istnienie jednego publicznego profilu pod adresem z bazy
-  serwisów), nie loguje się, nie rozwiązuje CAPTCHA, nie skanuje hostów, nie rotuje adresów.
+- **robots.txt (RFC 9309).** Dla każdego hosta (także po przekierowaniu) `GuardedChecker` raz na wyszukiwanie pobiera
+  `robots.txt` tą samą, strzeżoną i logowaną ścieżką (z uczciwym `User-Agent`; wpis w dzienniku ma `purpose:
+  "robots.txt"` i `containsIdentifier: false`) i czyta go modułem `urllib.robotparser`. Adres wyłączony przez
+  robots.txt ma status `skipped` z powodem `robots_disallowed` i nie jest pobierany. Odpowiedź 2xx → obowiązują reguły;
+  4xx → brak ograniczeń, z wyjątkiem 429 (limit: host wyłączony do końca wyszukiwania, serwisy `blocked`/`rate_limited`);
+  5xx, przekierowanie lub brak odpowiedzi → host wyłączony na to wyszukiwanie (`skipped`, `robots_unavailable`) — tak
+  samo jak w `RobotsCache` po stronie Node. Na stronie testowej `/private/` jest wyłączone w robots.txt, a syntetyczny
+  serwis `Archiwum` w bazie `fixture` wskazuje tam, więc zawsze kończy się jako `skipped`.
+- **Czego usługa nie robi:** nie loguje się, nie rozwiązuje CAPTCHA, nie skanuje hostów, nie rotuje adresów.
 
 ## Testy
 
@@ -121,5 +128,5 @@ testowej, np. z `pnpm dev:fixture`, oraz `docker run --network host`).
 ## Wynik dla persony (baza `fixture`)
 
 `fikcyjny_kacper`: Wykop `found`, GitHub i Telegram `not_found`, Keybase `blocked` (syntetyczna strona kontrolna
-„ochrona przed botami”), X i serwis randkowy wykluczone polityką i nigdy nieodpytywane; `fikcyjny-kacper`: GitHub `found`.
+„ochrona przed botami”), Archiwum `skipped` (`robots_disallowed`), X i serwis randkowy wykluczone polityką i nigdy nieodpytywane; `fikcyjny-kacper`: GitHub `found`.
 Przykładowa odpowiedź: `tests/data/usernames-search.sample.json`.

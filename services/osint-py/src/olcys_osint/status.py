@@ -27,6 +27,8 @@ def map_status(verdict: str, error_type: str | None, error_desc: str | None) -> 
     desc = (error_desc or "").strip()
     kind = (error_type or "").strip().lower()
     if kind == "guarded":
+        if desc == "robots_rate_limited":
+            return "blocked", "rate_limited"
         return "skipped", desc or "denied"
     if kind == "captcha":
         return "captcha", desc or "captcha"

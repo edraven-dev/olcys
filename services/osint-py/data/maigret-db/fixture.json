@@ -33,6 +33,14 @@
       "usernameClaimed": "olcys_test_ostrzezenia",
       "usernameUnclaimed": "olcys_test_brak_konta"
     },
+    "Archiwum": {
+      "tags": ["pl", "social"],
+      "checkType": "status_code",
+      "urlMain": "https://archiwum.example/",
+      "url": "https://archiwum.example/{username}",
+      "usernameClaimed": "fikcyjny_kacper",
+      "usernameUnclaimed": "olcys_test_brak_konta"
+    },
     "X": {
       "tags": ["social"],
       "checkType": "status_code",

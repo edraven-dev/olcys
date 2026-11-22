@@ -9,9 +9,9 @@
   "username": "fikcyjny_kacper",
   "database": {
     "id": "fixture",
-    "sha256": "0beae8d4faf3e49754632bdd8b8dde7ee54d37ef6971d5258eb6235b310746a9",
-    "sitesTotal": 6,
-    "sitesSelected": 4,
+    "sha256": "e1cad6e669498d1376b2bfefe843e21e837fa02dbeac5bb860d2edad7420f8d5",
+    "sitesTotal": 7,
+    "sitesSelected": 5,
     "excludedByPolicy": 2
   },
   "policy": {
@@ -20,9 +20,21 @@
     "tags": ["crypto", "finance", "pl", "social", "coding", "messaging"],
     "userAgent": "OLCYS/0.1.0 (OSINT research prototype)"
   },
-  "startedAt": "2026-11-22T04:06:09.851Z",
-  "finishedAt": "2026-11-22T04:06:09.884Z",
+  "startedAt": "2026-11-22T04:22:42.815Z",
+  "finishedAt": "2026-11-22T04:22:42.852Z",
   "results": [
+    {
+      "site": "Archiwum",
+      "platform": "archiwum",
+      "tags": ["pl", "social"],
+      "profileUrl": "https://archiwum.example/fikcyjny_kacper",
+      "status": "skipped",
+      "reason": "robots_disallowed",
+      "httpStatus": null,
+      "requestIds": ["01a2017d-f98e-73fb-ad1e-45c5a65b2bca", "01a2017d-f992-7327-8e42-0734296f180a"],
+      "ids": {},
+      "idsLinks": []
+    },
     {
       "site": "GitHub",
       "platform": "github",
@@ -31,7 +43,7 @@
       "status": "not_found",
       "reason": null,
       "httpStatus": 404,
-      "requestIds": ["01a2016e-d2ca-7287-a632-8492cb0496ef"],
+      "requestIds": ["01a2017d-f993-7557-8539-3a38bc28c446"],
       "ids": {},
       "idsLinks": []
     },
@@ -43,7 +55,7 @@
       "status": "blocked",
       "reason": "access_denied",
       "httpStatus": 403,
-      "requestIds": ["01a2016e-d2cb-71cd-9231-619711f33ea3"],
+      "requestIds": ["01a2017d-f993-7557-8539-3a39c0608836"],
       "ids": {},
       "idsLinks": []
     },
@@ -55,7 +67,7 @@
       "status": "not_found",
       "reason": null,
       "httpStatus": 404,
-      "requestIds": ["01a2016e-d2cb-71cd-9231-619842823b48"],
+      "requestIds": ["01a2017d-f993-7557-8539-3a3addb51562"],
       "ids": {},
       "idsLinks": []
     },
@@ -67,14 +79,56 @@
       "status": "found",
       "reason": null,
       "httpStatus": 200,
-      "requestIds": ["01a2016e-d2cb-71cd-9231-61991da7e0a8"],
+      "requestIds": ["01a2017d-f993-7557-8539-3a3b7c81afc6"],
       "ids": {},
       "idsLinks": []
     }
   ],
   "requests": [
     {
-      "id": "01a2016e-d2ca-7287-a632-8492cb0496ef",
+      "id": "01a2017d-f98e-73fb-ad1e-45c5a65b2bca",
+      "method": "GET",
+      "url": "http://fixture-site:4100/robots.txt",
+      "logicalUrl": "http://fixture-site:4100/robots.txt",
+      "host": "fixture-site",
+      "site": "Archiwum",
+      "purpose": "robots.txt",
+      "containsIdentifier": false,
+      "allowed": true,
+      "denyReason": null,
+      "requestedAt": "2026-11-22T04:22:42.830Z",
+      "receivedAt": "2026-11-22T04:22:42.834Z",
+      "httpStatus": 200,
+      "responseHeaders": {},
+      "bodySha256": "91233360016c9f47bdfe628f848f303ace5f755844c500f8241259dde8faca0c",
+      "bodyBase64": null,
+      "bodyTruncated": false,
+      "userAgent": "OLCYS/0.1.0 (OSINT research prototype)",
+      "error": null
+    },
+    {
+      "id": "01a2017d-f992-7327-8e42-0734296f180a",
+      "method": "GET",
+      "url": "http://fixture-site:4100/private/archiwum/fikcyjny_kacper",
+      "logicalUrl": "https://archiwum.example/fikcyjny_kacper",
+      "host": "fixture-site",
+      "site": "Archiwum",
+      "purpose": "username enumeration",
+      "containsIdentifier": true,
+      "allowed": false,
+      "denyReason": "robots_disallowed",
+      "requestedAt": "2026-11-22T04:22:42.834Z",
+      "receivedAt": null,
+      "httpStatus": null,
+      "responseHeaders": {},
+      "bodySha256": null,
+      "bodyBase64": null,
+      "bodyTruncated": false,
+      "userAgent": "OLCYS/0.1.0 (OSINT research prototype)",
+      "error": null
+    },
+    {
+      "id": "01a2017d-f993-7557-8539-3a38bc28c446",
       "method": "GET",
       "url": "http://fixture-site:4100/github/fikcyjny_kacper",
       "logicalUrl": "https://github.com/fikcyjny_kacper",
@@ -84,12 +138,12 @@
       "containsIdentifier": true,
       "allowed": true,
       "denyReason": null,
-      "requestedAt": "2026-11-22T04:06:09.866Z",
-      "receivedAt": "2026-11-22T04:06:09.868Z",
+      "requestedAt": "2026-11-22T04:22:42.835Z",
+      "receivedAt": "2026-11-22T04:22:42.837Z",
       "httpStatus": 404,
       "responseHeaders": {
         "content-type": "text/plain; charset=utf-8",
-        "date": "Sun, 22 Nov 2026 04:06:09 GMT",
+        "date": "Sun, 22 Nov 2026 04:22:42 GMT",
         "x-olcys-synthetic": "true"
       },
       "bodySha256": "907ba78b4545338d3539683e63ecb51cf51c10adc9dabd86e92bd52339f298b9",
@@ -99,7 +153,7 @@
       "error": null
     },
     {
-      "id": "01a2016e-d2cb-71cd-9231-619711f33ea3",
+      "id": "01a2017d-f993-7557-8539-3a39c0608836",
       "method": "GET",
       "url": "http://fixture-site:4100/keybase/fikcyjny_kacper",
       "logicalUrl": "https://keybase.io/fikcyjny_kacper",
@@ -109,13 +163,13 @@
       "containsIdentifier": true,
       "allowed": true,
       "denyReason": null,
-      "requestedAt": "2026-11-22T04:06:09.867Z",
-      "receivedAt": "2026-11-22T04:06:09.874Z",
+      "requestedAt": "2026-11-22T04:22:42.835Z",
+      "receivedAt": "2026-11-22T04:22:42.841Z",
       "httpStatus": 403,
       "responseHeaders": {
         "content-type": "text/html; charset=utf-8",
         "content-length": "740",
-        "date": "Sun, 22 Nov 2026 04:06:09 GMT",
+        "date": "Sun, 22 Nov 2026 04:22:42 GMT",
         "x-olcys-synthetic": "true"
       },
       "bodySha256": "045b5af319357d60169181d704f24978065d4d3907bad595d1a068fd86625311",
@@ -125,7 +179,7 @@
       "error": null
     },
     {
-      "id": "01a2016e-d2cb-71cd-9231-619842823b48",
+      "id": "01a2017d-f993-7557-8539-3a3addb51562",
       "method": "GET",
       "url": "http://fixture-site:4100/telegram/fikcyjny_kacper",
       "logicalUrl": "https://t.me/fikcyjny_kacper",
@@ -135,12 +189,12 @@
       "containsIdentifier": true,
       "allowed": true,
       "denyReason": null,
-      "requestedAt": "2026-11-22T04:06:09.867Z",
-      "receivedAt": "2026-11-22T04:06:09.878Z",
+      "requestedAt": "2026-11-22T04:22:42.835Z",
+      "receivedAt": "2026-11-22T04:22:42.847Z",
       "httpStatus": 404,
       "responseHeaders": {
         "content-type": "text/plain; charset=utf-8",
-        "date": "Sun, 22 Nov 2026 04:06:09 GMT",
+        "date": "Sun, 22 Nov 2026 04:22:42 GMT",
         "x-olcys-synthetic": "true"
       },
       "bodySha256": "907ba78b4545338d3539683e63ecb51cf51c10adc9dabd86e92bd52339f298b9",
@@ -150,7 +204,7 @@
       "error": null
     },
     {
-      "id": "01a2016e-d2cb-71cd-9231-61991da7e0a8",
+      "id": "01a2017d-f993-7557-8539-3a3b7c81afc6",
       "method": "GET",
       "url": "http://fixture-site:4100/wykop/ludzie/fikcyjny_kacper",
       "logicalUrl": "https://wykop.pl/ludzie/fikcyjny_kacper",
@@ -160,13 +214,13 @@
       "containsIdentifier": true,
       "allowed": true,
       "denyReason": null,
-      "requestedAt": "2026-11-22T04:06:09.867Z",
-      "receivedAt": "2026-11-22T04:06:09.883Z",
+      "requestedAt": "2026-11-22T04:22:42.835Z",
+      "receivedAt": "2026-11-22T04:22:42.852Z",
       "httpStatus": 200,
       "responseHeaders": {
         "content-type": "text/html; charset=utf-8",
         "content-length": "1347",
-        "date": "Sun, 22 Nov 2026 04:06:09 GMT",
+        "date": "Sun, 22 Nov 2026 04:22:42 GMT",
         "x-olcys-synthetic": "true"
       },
       "bodySha256": "4633d3a7ab3befaa8d967e6d330fc6194db27974e7d2d2ae597e9984b5531653",
@@ -184,6 +238,6 @@
     "captcha": 0,
     "unknown": 0,
     "illegal": 0,
-    "skipped": 0
+    "skipped": 1
   }
 }

@@ -163,7 +163,9 @@ async def run_search(request: UsernameSearchRequest, settings: Settings) -> User
         status, reason = map_status(verdict, error_type, error_desc)
         checker = result.get("checker")
         records = list(getattr(checker, "records", []))
-        final = next((r for r in reversed(records) if r["httpStatus"] is not None), None)
+        final = next(
+            (r for r in reversed(records) if r["httpStatus"] is not None and r["purpose"] != "robots.txt"), None
+        )
         http_status = final["httpStatus"] if final else None
         reason = http_reason(status, reason, http_status)
         ids: dict[str, str] = {}
@@ -203,7 +205,7 @@ async def run_search(request: UsernameSearchRequest, settings: Settings) -> User
                 host=r["host"],
                 site=r["site"],
                 purpose=r["purpose"],
-                containsIdentifier=True,
+                containsIdentifier=r["containsIdentifier"],
                 allowed=r["allowed"],
                 denyReason=r["denyReason"],
                 requestedAt=r["requestedAt"],

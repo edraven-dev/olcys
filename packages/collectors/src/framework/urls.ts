@@ -13,6 +13,7 @@ export const DEFAULT_HOST_PREFIXES: Readonly<Record<string, string>> = {
   'raw.githubusercontent.com': '/github-raw',
   't.me': '/telegram',
   'keybase.io': '/keybase',
+  'archiwum.example': '/private/archiwum',
   'mempool.space/api': '/chain/esplora/api',
   'blockstream.info/api': '/chain/esplora/api',
   'api.etherscan.io/v2/api': '/chain/etherscan/v2/api',

@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import urljoin, urlsplit, urlunsplit
+from urllib.robotparser import RobotFileParser
 
 import aiohttp
 
@@ -86,6 +87,9 @@ class GuardContext:
     connections: int = 4
     received_bytes: int = 0
     log: list[dict[str, Any]] = field(default_factory=list)
+    # Per origin: a parser (2xx), or a denial reason (robots.txt unavailable or rate limited). Fetched once per search.
+    robots: dict[str, RobotFileParser | str] = field(default_factory=dict)
+    robots_locks: dict[str, asyncio.Lock] = field(default_factory=dict)
     _session: aiohttp.ClientSession | None = None
 
     def session(self) -> aiohttp.ClientSession:
@@ -184,15 +188,17 @@ class GuardedChecker:
     async def close(self) -> None:
         return None
 
-    def _record(self, ctx: GuardContext, logical: str, actual: str) -> dict[str, Any]:
+    def _record(
+        self, ctx: GuardContext, logical: str, actual: str, purpose: str = PURPOSE, identifier: bool = True
+    ) -> dict[str, Any]:
         record = {
             "id": str(uuid.uuid7()),
             "method": "GET",
             "url": actual,
             "logicalUrl": logical,
             "host": (urlsplit(actual).hostname or "").lower(),
-            "purpose": PURPOSE,
-            "containsIdentifier": True,
+            "purpose": purpose,
+            "containsIdentifier": identifier,
             "allowed": True,
             "denyReason": None,
             "requestedAt": now_iso(),
@@ -228,6 +234,10 @@ class GuardedChecker:
                     raise Denied("response size budget exhausted")
             except Denied as denial:
                 return self._denied(ctx, logical, actual, denial.reason)
+            try:
+                await self._check_robots(ctx, actual, headers)
+            except Denied as denial:
+                return self._denied(ctx, logical, actual, denial.reason)
             record = self._record(ctx, logical, actual)
             await ctx.pacer.wait(record["host"])
             try:
@@ -260,6 +270,52 @@ class GuardedChecker:
                 continue
             return body.decode(charset, "ignore"), status, None
         return None, 0, CheckError("Redirect", f"more than {ctx.max_redirects} redirects")
+
+    async def _check_robots(self, ctx: GuardContext, actual: str, headers: dict[str, str]) -> None:
+        """RFC 9309: robots.txt of the origin, once per search, through the same guarded and logged path.
+
+        2xx: rules apply; 4xx: no restrictions, except 429 (a rate limit: the host is off for this search);
+        5xx, redirect or unreachable: the host is off for this search.
+        """
+        parts = urlsplit(actual)
+        origin = f"{parts.scheme}://{parts.netloc}"
+        lock = ctx.robots_locks.setdefault(origin, asyncio.Lock())
+        async with lock:
+            if origin not in ctx.robots:
+                ctx.robots[origin] = await self._fetch_robots(ctx, origin, headers)
+        rules = ctx.robots[origin]
+        if isinstance(rules, str):
+            raise Denied(rules)
+        if not rules.can_fetch(ctx.user_agent, actual):
+            raise Denied("robots_disallowed")
+
+    async def _fetch_robots(self, ctx: GuardContext, origin: str, headers: dict[str, str]) -> RobotFileParser | str:
+        url = f"{origin}/robots.txt"
+        record = self._record(ctx, ctx.to_logical(url), url, "robots.txt", False)
+        await ctx.pacer.wait(record["host"])
+        try:
+            timeout = aiohttp.ClientTimeout(total=ctx.request_timeout)
+            async with ctx.session().get(url, headers=headers, allow_redirects=False, timeout=timeout) as response:
+                body, truncated = await self._read(ctx, response)
+                record["receivedAt"] = now_iso()
+                record["httpStatus"] = response.status
+                record["bodySha256"] = hashlib.sha256(body).hexdigest()
+                record["bodyTruncated"] = truncated
+                status = response.status
+        except (TimeoutError, aiohttp.ClientError) as error:
+            record["error"] = type(error).__name__
+            return "robots_unavailable"
+        if status == 429:
+            return "robots_rate_limited"
+        parser = RobotFileParser()
+        if 200 <= status < 300:
+            parser.parse(body.decode("utf-8", "ignore").splitlines())
+            parser.modified()
+            return parser
+        if 400 <= status < 500:
+            parser.allow_all = True
+            return parser
+        return "robots_unavailable"
 
     def _denied(self, ctx: GuardContext, logical: str, actual: str, reason: str):
         record = self._record(ctx, logical, actual)

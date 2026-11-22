@@ -59,6 +59,7 @@
     "wykop.pl": "/wykop",
     "github.com": "/github",
     "t.me": "/telegram",
-    "keybase.io": "/keybase"
+    "keybase.io": "/keybase",
+    "archiwum.example": "/private/archiwum"
   }
 }

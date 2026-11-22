@@ -47,8 +47,9 @@ async def test_statuses_for_each_kind_of_answer(loopback, make_settings):
 async def test_request_log_and_honest_user_agent(loopback, make_settings):
     settings = make_settings({"Found": loopback.site("ok"), "Missing": loopback.site("missing")})
     response = await run_search(search("olcys_test"), settings)
-    assert len(response.requests) == 2
-    for record in response.requests:
+    pages = [r for r in response.requests if r.purpose != "robots.txt"]
+    assert len(pages) == 2
+    for record in pages:
         assert record.method == "GET"
         assert record.containsIdentifier is True
         assert record.allowed is True
@@ -57,8 +58,8 @@ async def test_request_log_and_honest_user_agent(loopback, make_settings):
         assert record.requestedAt.endswith("Z")
     assert set(loopback.user_agents) == {settings.user_agent}
     assert all("proxy" not in {k.lower() for k in headers} for headers in loopback.headers)
-    found = next(r for r in response.requests if r.site == "Found")
-    missing = next(r for r in response.requests if r.site == "Missing")
+    found = next(r for r in pages if r.site == "Found")
+    missing = next(r for r in pages if r.site == "Missing")
     assert found.bodyBase64 and found.bodySha256
     assert missing.bodyBase64 is None and missing.bodySha256  # bodies only for found/barrier sites, hash always
     assert found.id in by_site(response)["Found"].requestIds
@@ -69,7 +70,7 @@ async def test_redirect_hops_are_logged_and_checked(loopback, make_settings):
     response = await run_search(search(), make_settings(sites))
     results = by_site(response)
     assert results["Hop"].status == "found"
-    assert len([r for r in response.requests if r.site == "Hop"]) == 2
+    assert len([r for r in response.requests if r.site == "Hop" and r.purpose != "robots.txt"]) == 2
     assert results["Escape"].status == "skipped"
     denied = [r for r in response.requests if not r.allowed]
     assert len(denied) == 1 and denied[0].host == "elsewhere.invalid"

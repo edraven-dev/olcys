@@ -22,11 +22,15 @@ async def search(base: str, username: str):
 async def test_persona_nickname_hits_and_misses(fake_fixture_site):
     response = await search(fake_fixture_site, "fikcyjny_kacper")
     assert statuses(response) == {
+        "Archiwum": "skipped",
         "GitHub": "not_found",
         "Keybase": "blocked",
         "Telegram": "not_found",
         "Wykop": "found",
     }
+    archive = next(r for r in response.results if r.site == "Archiwum")
+    assert archive.reason == "robots_disallowed"
+    assert "/private/archiwum/fikcyjny_kacper" not in app_state["seen"]
     # X and the dating site are excluded by policy and never requested.
     assert response.database.excludedByPolicy == 2
     assert not any("x.com" in r.logicalUrl or "randki" in r.logicalUrl for r in response.requests)
@@ -56,7 +60,7 @@ async def test_unmapped_fixture_host_is_skipped_not_contacted(fake_fixture_site)
     )
     response = await run_search(UsernameSearchRequest(username="fikcyjny_kacper", database="fixture"), settings)
     assert statuses(response)["Telegram"] == "skipped"
-    denied = [r for r in response.requests if not r.allowed]
+    denied = [r for r in response.requests if not r.allowed and "fixture mapping" in (r.denyReason or "")]
     assert len(denied) == 1 and denied[0].denyReason == "no fixture mapping for host t.me"
     assert all("telegram" not in path for path in app_state["seen"])
 
@@ -66,6 +70,7 @@ async def test_real_fixture_site():
     base = os.environ["OLCYS_E2E_FIXTURE_URL"]
     response = await search(base, "fikcyjny_kacper")
     assert statuses(response) == {
+        "Archiwum": "skipped",
         "GitHub": "not_found",
         "Keybase": "blocked",
         "Telegram": "not_found",

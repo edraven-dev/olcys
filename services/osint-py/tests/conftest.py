@@ -26,6 +26,8 @@ class Loopback:
         self.hits: Counter[str] = Counter()
         self.user_agents: list[str] = []
         self.headers: list[dict[str, str]] = []
+        self.robots_text = ""
+        self.robots_status = 404
 
     @property
     def base(self) -> str:
@@ -47,6 +49,10 @@ class Loopback:
 @pytest_asyncio.fixture
 async def loopback() -> AsyncIterator[Loopback]:
     state: Loopback
+
+    async def robots(_request: web.Request) -> web.StreamResponse:
+        state.hits["robots"] += 1
+        return web.Response(text=state.robots_text, status=state.robots_status, content_type="text/plain")
 
     async def handler(request: web.Request) -> web.StreamResponse:
         kind = request.match_info["kind"]
@@ -78,6 +84,7 @@ async def loopback() -> AsyncIterator[Loopback]:
         return web.Response(status=500)
 
     app = web.Application()
+    app.router.add_get("/robots.txt", robots)
     app.router.add_get("/{kind}/{user}", handler)
     runner = web.AppRunner(app)
     await runner.setup()
@@ -122,8 +129,10 @@ def make_settings(tmp_path: Path):
 async def fake_fixture_site() -> AsyncIterator[str]:
     """Stands in for the synthetic fixture site: same prefixes and answers for the persona's pages."""
     pages = {
+        "/robots.txt": (200, "User-agent: *\nDisallow: /private/\n"),
         "/wykop/ludzie/fikcyjny_kacper": (200, "<html>wykop fikcyjny_kacper</html>"),
         "/github/fikcyjny-kacper": (200, "<html>github fikcyjny-kacper</html>"),
+        "/private/archiwum/fikcyjny_kacper": (200, "<html>should never be fetched</html>"),
         "/keybase/fikcyjny_kacper": (403, "<html><main data-olcys-barrier='blocked'>blocked</main></html>"),
     }
     seen: list[str] = []
