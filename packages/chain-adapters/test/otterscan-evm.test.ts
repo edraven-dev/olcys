@@ -150,6 +150,35 @@ describe('Otterscan provider: history', () => {
     }
   });
 
+  it('reads internal operations of an empty-input call to a contract that forwards value to the address', async () => {
+    const forward = {
+      hash: hash(0xd7),
+      block: 106,
+      from: EXCH,
+      to: SPLITTER,
+      wei: ETH,
+      internal: [{ from: SPLITTER, to: ETH1, wei: ETH / 2n }],
+    };
+    const { provider, ctx, http } = setup({ txs: [forward], logs: [], code: { [SPLITTER]: '0x6080' } });
+    const { items } = await listAll(provider, ctx, 110);
+    expect(items.map((t) => [t.kind, t.from, t.to, t.amount])).toEqual([['internal', SPLITTER, ETH1, '0.5']]);
+    expect(methodsOf(http.requests)).toContain('ots_getInternalOperations');
+    // touched only internally: the top-level parties are other accounts, so the trace is read without a code lookup
+    const plain = setup({ txs: [{ ...forward, hash: hash(0xd8) }], logs: [], code: {} });
+    expect((await listAll(plain.provider, plain.ctx, 110)).items).toHaveLength(1);
+  });
+
+  it('does not trace a plain transfer to an account without code', async () => {
+    const { provider, ctx, http } = setup({
+      logs: [],
+      txs: [{ hash: DEPOSIT, block: 100, from: EXCH, to: ETH1, wei: ETH }],
+    });
+    await listAll(provider, ctx, 110);
+    const methods = methodsOf(http.requests);
+    expect(methods).toContain('eth_getCode');
+    expect(methods).not.toContain('ots_getInternalOperations');
+  });
+
   it('AC2: an ERC-20 transfer is a token with symbol and decimals read from the contract', async () => {
     const { provider, ctx, http } = setup();
     const { items } = await listAll(provider, ctx, 110);
@@ -255,6 +284,7 @@ describe('Otterscan provider: history', () => {
     const stuck = new FakeEgressClient((r) => {
       const { id, method } = JSON.parse(bodyText(r)) as { id: number; method: string };
       if (method === 'ots_getApiLevel') return { body: { jsonrpc: '2.0', id, result: 8 } };
+      if (method === 'eth_getCode') return { body: { jsonrpc: '2.0', id, result: '0x' } };
       if (method === 'eth_chainId') return { body: { jsonrpc: '2.0', id, result: '0x1' } };
       return {
         body: {

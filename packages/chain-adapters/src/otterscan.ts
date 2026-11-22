@@ -208,6 +208,7 @@ export function createOtterscanEvmProvider(
   // Per run: the API-level verdict and block timestamps / token metadata (never shared between runs).
   const ready = new Map<string, Promise<void>>();
   const timestamps = new Map<string, number>();
+  const codePresence = new Map<string, boolean>();
   const tokenMeta = new Map<string, { symbol: string; decimals: number }>();
 
   const requireChain = (chain: ChainId): void => {
@@ -332,6 +333,26 @@ export function createOtterscanEvmProvider(
     return envelope.result.toLowerCase();
   }
 
+  /** Whether the account has code (cached per run and address): a contract's receive()/fallback can forward value. */
+  async function hasCode(ctx: RunContext, address: string): Promise<boolean> {
+    const key = `${ctx.runId}|${address}`;
+    const cached = codePresence.get(key);
+    if (cached !== undefined) return cached;
+    const { result, fetchId } = await rpc(
+      ctx,
+      'eth_getCode',
+      [address, 'latest'],
+      'evm address code (trace check)',
+      true,
+    );
+    if (typeof result !== 'string' || !HEX.test(result)) {
+      throw new ChainProviderError('invalid_response', id, 'bad code', { fetchId });
+    }
+    const present = result !== '0x';
+    codePresence.set(key, present);
+    return present;
+  }
+
   /** Token symbol and decimals read from the contract (cached per run); unreadable decimals stay `-1` (skipped). */
   async function tokenInfo(ctx: RunContext, contract: string): Promise<{ symbol: string; decimals: number }> {
     const key = `${ctx.runId}|${contract}`;
@@ -407,8 +428,12 @@ export function createOtterscanEvmProvider(
           });
         } else skipped.push({ txHash: hash, reason: converted.skip });
       }
-      // A plain value transfer has no inner calls: only contract calls and creations are traced.
-      if (input !== '0x' || tx.to === null) {
+      // Inner calls exist for calldata, creations, a transaction that listed the address only because it was touched
+      // internally, and a call (even with empty input) to a contract whose receive()/fallback forwards value.
+      // Only a plain transfer between the address and an account without code is not traced.
+      // oxlint-disable-next-line no-await-in-loop
+      const traced = input !== '0x' || tx.to === null || (from !== me && to !== me) || (await hasCode(ctx, to));
+      if (traced) {
         // Sequential on purpose: deterministic request order for cassettes.
         // oxlint-disable-next-line no-await-in-loop
         const { result: ops, fetchId: opsFetchId } = await rpc(
