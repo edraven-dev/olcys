@@ -1,0 +1,39 @@
+[
+  { "str": "Numer w rejestrze", "x": 10, "y": 10, "page": 1 },
+  { "str": "Data wpisu", "x": 70, "y": 10, "page": 1 },
+  { "str": "Imię i Nazwisko / Nazwa firmy", "x": 130, "y": 10, "page": 1 },
+  { "str": "Numer KRS", "x": 260, "y": 10, "page": 1 },
+  { "str": "NIP", "x": 320, "y": 10, "page": 1 },
+  { "str": "Rodzaj świadczonych usług", "x": 380, "y": 10, "page": 1 },
+  { "str": "zawieszenie", "x": 560, "y": 10, "page": 1 },
+  { "str": "zakończenie", "x": 620, "y": 10, "page": 1 },
+
+  { "str": "RDWW-9001", "x": 10, "y": 30, "page": 1 },
+  { "str": "2025-03-01", "x": 70, "y": 30, "page": 1 },
+  { "str": "Giełda Testowa", "x": 130, "y": 30, "page": 1 },
+  { "str": "sp. z o.o. (SYNTHETIC)", "x": 130, "y": 42, "page": 1 },
+  { "str": "0000123456", "x": 260, "y": 30, "page": 1 },
+  { "str": "5260000005", "x": 320, "y": 30, "page": 1 },
+  { "str": "wymiana pomiędzy walutami wirtualnymi a środkami płatniczymi", "x": 380, "y": 30, "page": 1 },
+
+  { "str": "RDWW-9002", "x": 10, "y": 70, "page": 1 },
+  { "str": "2025-04-01", "x": 70, "y": 70, "page": 1 },
+  { "str": "Portfel Testowy S.A. (SYNTHETIC)", "x": 130, "y": 70, "page": 1 },
+  { "str": "0000654321", "x": 260, "y": 70, "page": 1 },
+  { "str": "5260000000", "x": 320, "y": 70, "page": 1 },
+  { "str": "prowadzenie portfeli", "x": 380, "y": 70, "page": 1 },
+
+  { "str": "RDWW-9003", "x": 10, "y": 110, "page": 1 },
+  { "str": "2025-05-01", "x": 70, "y": 110, "page": 1 },
+  { "str": "Jan Przykładowy (SYNTHETIC)", "x": 130, "y": 110, "page": 1 },
+  { "str": "5260000005", "x": 320, "y": 110, "page": 1 },
+  { "str": "wymiana pomiędzy walutami wirtualnymi", "x": 380, "y": 110, "page": 1 },
+
+  { "str": "RDWW-9004", "x": 10, "y": 20, "page": 2 },
+  { "str": "2025-06-01", "x": 70, "y": 20, "page": 2 },
+  { "str": "Wykreślona Spółka sp. z o.o. (SYNTHETIC)", "x": 130, "y": 20, "page": 2 },
+  { "str": "0000777777", "x": 260, "y": 20, "page": 2 },
+  { "str": "5260000005", "x": 320, "y": 20, "page": 2 },
+  { "str": "wymiana pomiędzy walutami wirtualnymi a środkami płatniczymi", "x": 380, "y": 20, "page": 2 },
+  { "str": "2026-02-15", "x": 620, "y": 20, "page": 2 }
+]

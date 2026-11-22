@@ -1,0 +1,10 @@
+# Links label entities (as named by the label datasets) to register records: ESMA LEI and Polish register number.
+# This committed file holds synthetic demo entries only; a production map is supplied via OLCYS_ENTITY_MAP_FILE.
+# Kanga EU and the Polish Kanga platform are different entities: never map one name to both without evidence.
+version: entity-map.v1
+
+entities:
+  - entity: Bramka Testowa (SYNTHETIC)
+    lei: SYNTHBRAMKA000000T01
+  - entity: Giełda Testowa (SYNTHETIC)
+    rdww: RDWW-9001

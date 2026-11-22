@@ -62,3 +62,4 @@ export {
 } from './registries.ts';
 export { loadSafeSingletons, SAFE_VERSIONS } from './safe-singletons.ts';
 export { utxoScriptType } from './utxo-script.ts';
+export * from './importers/index.ts';
