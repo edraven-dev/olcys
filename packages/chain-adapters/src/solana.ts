@@ -336,6 +336,8 @@ export function createSolanaRpcProvider(config: ChainProviderConfig, deps: Provi
       const exhausted = successful.length > take.length;
       return {
         items,
+        // Token receipts go to the owner's token accounts, whose signatures are not listed here.
+        notes: ['token_accounts_not_scanned'],
         ...(skipped.length > 0 ? { skipped } : {}),
         // The budget stopped the listing: what was read is kept and the history is reported as incomplete.
         ...(exhausted || ((cursor.read ?? 0) + take.length >= maxTransactions && entries.length >= pageSize)

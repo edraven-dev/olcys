@@ -57,6 +57,7 @@ export {
   type RequestOptions,
 } from './request.ts';
 export {
+  CHAIN_NOTE_TEXT_PL,
   compareTransfers,
   runChainFetch,
   TipCache,

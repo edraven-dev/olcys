@@ -125,3 +125,5 @@ Nieudane transakcje nie są pobierane. Budżet to 500 transakcji na adres (`opti
 historia jest oznaczona jako obcięta. Treści wywołań mają stały porządek kluczy i `id: 1` (stabilne klucze kaset).
 Publiczny punkt dostępu ma limit 100 zapytań/10 s na IP i 40/10 s na metodę, stąd 4 zapytania/s w rejestrze, i nie służy
 do produkcji; własny węzeł zmienia tylko `baseUrl`. Produkcyjny dostęp do pełnej historii jest planowany.
+
+Ograniczenie: przelewy SPL na konta tokenów adresu (np. wpływy USDC) nie są pobierane, bo skanowane są tylko podpisy samego adresu, a nie jego kont tokenów. Wynik niesie notatkę `token_accounts_not_scanned` (tekst polski w `CHAIN_NOTE_TEXT_PL`); historia tokenów jest niepełna. Skan kont tokenów jest planowany.
