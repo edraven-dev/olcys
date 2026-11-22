@@ -46,6 +46,8 @@ export interface LabelProvenance {
   sourceType?: LabelSourceType;
   /** True when the dataset may decide an exclusion on its own (licence and kind allow it). Missing means false. */
   deciding?: boolean;
+  /** Datasets published per asset (e.g. OFAC lists): the asset the label was read from; each asset has its own history. */
+  asset?: string;
   /** Set for synthetic demo datasets. */
   synthetic?: boolean;
 }
