@@ -3,7 +3,7 @@
  * (RFC 9309) are checked for every hop, redirects are followed manually (at most 5 hops), barriers stop the source
  * for the rest of the run, and the block page itself is preserved as evidence. No browser, no subresources.
  */
-import type { CaptureStatus, CaptureTechnicalReport, EgressResponse, Id } from '@olcys/core';
+import type { CaptureDraft, CaptureStatus, CaptureTechnicalReport, EgressResponse, Id } from '@olcys/core';
 import { nowIso } from '@olcys/core';
 import { buildCapture } from '../framework/capture.ts';
 import { COLLECTORS_VERSION } from '../framework/config.ts';
@@ -31,11 +31,21 @@ export interface PageRequest {
   software?: { name: string; version: string }[];
   /** Overrides the HTTP-derived status from the body (e.g. an HTTP 200 "member does not exist" page). */
   classify?: (body: string) => { status: CaptureStatus; reason: string } | undefined;
+  /**
+   * An archived copy of a page (Wayback snapshot). The capture gets the `archive_snapshot` profile and this provenance.
+   * The original site's robots.txt does not apply to the archive's copy and the body is not checked for access
+   * barriers (an archived login page is content, not a block of this request); only the HTTP status is.
+   */
+  archive?: CaptureDraft['archive'];
+  /** Called with the logical URL of every hop before it is requested; throws to refuse it. */
+  guardUrl?: (logicalUrl: string) => void;
 }
 
 export interface PageResult extends PageOutcome {
   /** Decoded body of the final response, for the parsers. */
   body?: string;
+  /** Raw bytes of the final response (before decoding and redaction), e.g. for digest checks. */
+  bytes?: Uint8Array;
   contentType?: string;
   /** Live URL of the final response (the fixture URL mapped back offline). */
   logicalUrl: string;
@@ -100,17 +110,20 @@ export async function fetchPage(http: SourceHttp, request: PageRequest): Promise
         notes: [note('allow_list_denied', `${new URL(url).hostname} is not allowed for ${http.descriptor.id}`)],
       };
     }
-    // Sequential on purpose: every hop is checked against robots.txt before it is requested.
-    // oxlint-disable-next-line no-await-in-loop
-    const decision = await http.deps.robots.check(url, http.descriptor.id);
-    const robotsUrl = new URL('/robots.txt', url).toString();
-    robots = decision.allowed ? { allowed: true, robotsUrl } : { allowed: false, robotsUrl, reason: decision.reason };
-    if (!decision.allowed) {
-      return {
-        status: 'blocked',
-        logicalUrl: http.logicalUrl(url),
-        notes: [note('robots_disallowed', `${http.logicalUrl(url)} (${decision.reason})`)],
-      };
+    request.guardUrl?.(http.logicalUrl(url));
+    if (!request.archive) {
+      // Sequential on purpose: every hop is checked against robots.txt before it is requested.
+      // oxlint-disable-next-line no-await-in-loop
+      const decision = await http.deps.robots.check(url, http.descriptor.id);
+      const robotsUrl = new URL('/robots.txt', url).toString();
+      robots = decision.allowed ? { allowed: true, robotsUrl } : { allowed: false, robotsUrl, reason: decision.reason };
+      if (!decision.allowed) {
+        return {
+          status: 'blocked',
+          logicalUrl: http.logicalUrl(url),
+          notes: [note('robots_disallowed', `${http.logicalUrl(url)} (${decision.reason})`)],
+        };
+      }
     }
     try {
       // oxlint-disable-next-line no-await-in-loop
@@ -172,7 +185,13 @@ export async function fetchPage(http: SourceHttp, request: PageRequest): Promise
       )
     : await http.ctx.blobs.put(response.body, mediaType);
   const html = /html|xml/i.test(contentType) ? body : '';
-  const verdict = detectAccessBarrier({ status: response.status, headers: response.headers, finalUrl, html });
+  const verdict = detectAccessBarrier({
+    status: response.status,
+    headers: response.headers,
+    // The archived page's own path (e.g. a login URL) says nothing about access to the archive.
+    finalUrl: request.archive ? 'about:blank' : finalUrl,
+    html: request.archive ? '' : html,
+  });
   let status: CaptureStatus = verdict.status === 'ok' ? statusFromHttp(response.status) : verdict.status;
   if (notes.length) status = 'error';
   const classified = status === 'ok' ? request.classify?.(body) : undefined;
@@ -220,6 +239,7 @@ export async function fetchPage(http: SourceHttp, request: PageRequest): Promise
     fetchIds,
     status,
     technical,
+    ...(request.archive ? { archive: request.archive } : {}),
   });
-  return { status, capture, body, contentType, logicalUrl, notes };
+  return { status, capture, body, bytes: response.body, contentType, logicalUrl, notes };
 }

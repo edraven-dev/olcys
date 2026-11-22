@@ -16,6 +16,9 @@
  *   E4  CEIDG `registry.nip`                       → VAT white list, only when the name search matched exactly one
  *                                                    firm (`registry.ceidg.result_count` = 1); else "ambiguous namesake"
  *   E5  VAT white list `registry.krs`              → KRS (depth + 1)
+ *   E6  profile URL of an account the subject gave or their own page linked (input / cross link), and a watch-list page
+ *       that matched a case identifier → archive history (Wayback), same depth: a lookup, not a pivot. Pages of third
+ *       parties (same-nick probes, search hits, warning channels) are never looked up: the URL is disclosed to the archive.
  *   Third parties found in a registry (representatives, clerks, partners, board members) are never pivots.
  */
 import type {
@@ -32,7 +35,7 @@ import type {
 import type { CollectorFactory, CollectorInstance } from '../framework/collector-registry.ts';
 import type { WatchedPage } from '../framework/config.ts';
 import type { ResolvedScope } from '../framework/source-registry.ts';
-import { recogniseAccountUrl, toLogicalUrl, type FixtureMapping } from '../framework/urls.ts';
+import { isFixtureUrl, recogniseAccountUrl, toLogicalUrl, type FixtureMapping } from '../framework/urls.ts';
 import { normalizeKrs, normalizeNip } from '../registries/polish-ids.ts';
 import { normaliseQueryText, SEARCH_IDENTIFIER_KINDS } from '../search/query.ts';
 
@@ -45,6 +48,7 @@ export const PIVOT_REASONS = [
   'discovered_account',
   'search_result',
   'registry_identifier',
+  'archive_history',
 ] as const;
 export type PivotReason = (typeof PIVOT_REASONS)[number];
 export const SKIP_REASONS = [
@@ -357,6 +361,25 @@ class Planner {
     });
   }
 
+  /** Archive-history task for one page of the subject (E6); nothing when the case does not enable the archive. */
+  history(url: string, depth: number, provenance: PivotProvenance): void {
+    const factory = this.#ctx.factories.find((f) => f.archiveHistory);
+    if (!factory || !this.#ctx.scope.isEnabled(factory.sourceId)) return;
+    const logical = toLogicalUrl(url, this.#ctx.fixture);
+    // A page that exists only on the fixture site (no live URL) has no archive to ask: never send it out.
+    if (isFixtureUrl(logical, this.#ctx.fixture)) return;
+    const subjectKey = `url:${logical}`;
+    this.consider({
+      key: taskKey(factory.sourceId, subjectKey),
+      sourceId: factory.sourceId,
+      platform: factory.platform,
+      subjectKey,
+      depth,
+      input: { ...emptyInput(depth), values: [{ kind: 'url', value: logical, method: 'cross_link' }] },
+      provenance: { ...provenance, reason: 'archive_history', detail: logical },
+    });
+  }
+
   plan(): PivotPlan {
     return { rulesVersion: PIVOT_RULES_VERSION, tasks: this.tasks, skipped: this.skipped };
   }
@@ -496,6 +519,27 @@ export function planExpansion(parent: PlannedTask, result: CollectorResult, ctx:
     );
   }
   planner.registries(parent, result, depth);
+  if (!factory?.archiveHistory) {
+    // E6: the subject's own accounts (given or linked by their own pages), not hypotheses from a same-nick probe.
+    for (const account of result.accounts) {
+      if (account.discoveredVia.method !== 'input' && account.discoveredVia.method !== 'cross_link') continue;
+      if (factory?.pivotOnAccounts === false) continue;
+      planner.history(account.profileUrl, parent.depth, {
+        reason: 'archive_history',
+        rule: 'E6',
+        parentTaskKey: parent.key,
+        accountId: account.id,
+      });
+    }
+    // E6: a watch-list page is the subject's only when an identifier matched on it (the collector kept observations).
+    if (parent.provenance.reason === 'watch_list' && factory?.pivotOnAccounts !== false && result.observations.length) {
+      planner.history(parent.subjectKey.replace(/^url:/, ''), parent.depth, {
+        reason: 'archive_history',
+        rule: 'E6',
+        parentTaskKey: parent.key,
+      });
+    }
+  }
   if (factory?.pivotOnAccounts !== false) {
     // An account found by a same-nick probe was looked up with a nick already probed everywhere: no re-probe with
     // its platform spelling (e.g. the code-hosting login `a-b` for the nick `a_b`).
