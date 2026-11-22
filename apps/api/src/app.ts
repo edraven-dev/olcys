@@ -24,7 +24,7 @@ import {
   StartRunSchema,
   TimelineQuerySchema,
 } from '@olcys/core';
-import { buildPropertyTimelines } from '@olcys/evidence';
+import { buildPropertyTimelines, latestExtractions } from '@olcys/evidence';
 import { EXPORT_FILE_EXTENSIONS, EXPORT_KINDS, findExportSet, isExportKind } from '@olcys/reporting';
 import { evidenceRunIdOf, TOOL_VERSION } from '@olcys/worker';
 import Fastify, { type FastifyInstance, type FastifyReply } from 'fastify';
@@ -192,18 +192,23 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
     const filter = parse(TimelineQuerySchema, request.query);
     const runs = await repos.runs.listByCase(caseId);
     const evidenceRunIds = [...new Set(runs.map((run) => evidenceRunIdOf(run)))];
-    const [captures, observations, accounts, candidates] = await Promise.all([
+    const [captures, observations, accounts, extractions] = await Promise.all([
       Promise.all(evidenceRunIds.map((id) => repos.evidence.listCaptures(id))),
       Promise.all(evidenceRunIds.map((id) => repos.evidence.listObservations(id))),
       Promise.all(evidenceRunIds.map((id) => repos.evidence.listAccounts(id))),
-      Promise.all(runs.map((run) => repos.evidence.listCandidates(run.id))),
+      // Oldest run first: the newest analysis of a capture (e.g. a rescore) decides what was found on it.
+      Promise.all(
+        runs
+          .toSorted((a, b) => a.queuedAt.localeCompare(b.queuedAt))
+          .map((run) => repos.evidence.listExtractionResults(run.id)),
+      ),
     ]);
     const allCaptures = unique(captures);
     const allObservations = unique(observations);
     return buildPropertyTimelines(
       {
         captures: allCaptures,
-        candidates: unique(candidates),
+        extractions: latestExtractions(extractions),
         archive: buildWaybackHistory(allCaptures, allObservations),
         observations: allObservations,
         accounts: unique(accounts),

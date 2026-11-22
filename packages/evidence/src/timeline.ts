@@ -8,7 +8,7 @@
 import type {
   Capture,
   ChangeEvent,
-  AddressCandidate,
+  ExtractionResult,
   Id,
   IsoDateTime,
   Observation,
@@ -38,16 +38,17 @@ export interface ArchiveSnapshotEntry {
 export interface TimelineInput {
   captures: (Pick<Capture, 'id' | 'runId' | 'url' | 'status' | 'collectedAt' | 'archive'> &
     Partial<Pick<Capture, 'technical'>>)[];
-  candidates: Pick<AddressCandidate, 'captureId' | 'address'>[];
+  /** One extraction result per capture (see `latestExtractions`); a capture without one has not been extracted yet. */
+  extractions: Pick<ExtractionResult, 'captureId' | 'candidates'>[];
   archive: ArchiveSnapshotEntry[];
   /** Live property-level observations (e.g. `profile.bitcoin_address`). */
   observations?: Observation[];
   /**
-   * Accounts the collectors found. A capture an account was discovered from stands for the account's canonical profile
-   * page (e.g. a profile fetched by nickname is the page `…profile;u=<id>` the archive lists), whatever URL it was
-   * requested under.
+   * Accounts the collectors found. The capture that read an account's profile (`profileCaptureId`) stands for the
+   * account's canonical profile page (e.g. a profile fetched by nickname is the page `…profile;u=<id>` the archive
+   * lists), whatever URL it was requested under. The page that merely linked to the account is not that capture.
    */
-  accounts?: Pick<OnlineAccount, 'profileUrl' | 'discoveredVia'>[];
+  accounts?: Pick<OnlineAccount, 'profileUrl' | 'profileCaptureId'>[];
 }
 
 export interface TimelineFilter {
@@ -96,13 +97,13 @@ const sameValues = (a: readonly string[], b: readonly string[]): boolean =>
 const sortedUnique = (values: Iterable<string>): string[] => [...new Set(values)].toSorted();
 
 /**
- * The page a live capture stands for: the canonical profile page of the account discovered from it, else its logical
+ * The page a live capture stands for: the canonical profile page of the account it read, else its logical
  * URL (offline mode) or the requested URL.
  */
 function pageResolver(input: TimelineInput): (c: TimelineCapture) => string {
   const profiles = new Map<Id, string>();
   for (const account of input.accounts ?? []) {
-    const captureId = account.discoveredVia.captureId;
+    const captureId = account.profileCaptureId;
     if (captureId && !profiles.has(captureId)) profiles.set(captureId, normalisePageUrl(account.profileUrl));
   }
   return (c) => profiles.get(c.id) ?? normalisePageUrl(c.technical?.logicalUrl ?? c.url);
@@ -143,8 +144,10 @@ function shape(key: ChangeEvent['key'], points: TimelinePoint[]): PropertyTimeli
   return { key, points, intervals, changes };
 }
 
-function livePoint(capture: TimelineCapture, values: string[]): Raw {
-  const ok = capture.status === 'ok';
+/** `values: undefined` = the capture was read but no extraction result exists yet: a gap, never an empty page. */
+function livePoint(capture: TimelineCapture, values: string[] | undefined): Raw {
+  const ok = capture.status === 'ok' && values !== undefined;
+  const gapReason = capture.status === 'ok' ? 'extraction_pending' : capture.status;
   return {
     sortId: capture.id,
     point: {
@@ -153,20 +156,37 @@ function livePoint(capture: TimelineCapture, values: string[]): Raw {
       captureId: capture.id,
       runId: capture.runId,
       provenance: 'live',
-      ...(ok ? {} : { gapReason: capture.status }),
+      ...(ok ? {} : { gapReason }),
     },
   };
+}
+
+/** Address keys per extracted capture; a capture without an extraction result is absent (not empty). */
+function extractedValues(extractions: TimelineInput['extractions']): Map<Id, Set<string>> {
+  const values = new Map<Id, Set<string>>();
+  for (const result of extractions) {
+    const set = values.get(result.captureId) ?? new Set<string>();
+    for (const c of result.candidates) set.add(addressKey(c.address));
+    values.set(result.captureId, set);
+  }
+  return values;
+}
+
+/**
+ * One extraction result per capture: the newest analysis wins, because a rescore re-extracts saved captures and its
+ * result replaces the earlier one (an address it rejected must not survive from an older run). `rounds` are the results
+ * of each run, oldest run first.
+ */
+export function latestExtractions<T extends { captureId: Id }>(rounds: readonly (readonly T[])[]): T[] {
+  const newest = new Map<Id, T>();
+  for (const round of rounds) for (const result of round) newest.set(result.captureId, result);
+  return [...newest.values()];
 }
 
 function pageTimelines(input: TimelineInput, options: TimelineOptions): { url: string; timeline: PropertyTimeline }[] {
   const liveUrl = pageResolver(input);
   const byId = new Map(input.captures.map((c) => [c.id, c]));
-  const valuesOf = new Map<Id, Set<string>>();
-  for (const c of input.candidates) {
-    const set = valuesOf.get(c.captureId) ?? new Set<string>();
-    set.add(addressKey(c.address));
-    valuesOf.set(c.captureId, set);
-  }
+  const valuesOf = extractedValues(input.extractions);
   const entriesByUrl = new Map<string, ArchiveSnapshotEntry[]>();
   for (const entry of input.archive) {
     const at = snapshotTimestampToIso(entry.snapshotTimestamp);
@@ -182,7 +202,9 @@ function pageTimelines(input: TimelineInput, options: TimelineOptions): { url: s
     // A fetched copy that can be trusted: the values another row with the same digest (identical bytes) inherits.
     const usable = (e: ArchiveSnapshotEntry): TimelineCapture | undefined => {
       const capture = e.captureId ? byId.get(e.captureId) : undefined;
-      return e.fetched && e.digestCheck !== 'mismatch' && capture?.status === 'ok' ? capture : undefined;
+      return e.fetched && e.digestCheck !== 'mismatch' && capture?.status === 'ok' && valuesOf.has(capture.id)
+        ? capture
+        : undefined;
     };
     const raws: Raw[] = [];
     for (const entry of entries) {
@@ -206,6 +228,7 @@ function pageTimelines(input: TimelineInput, options: TimelineOptions): { url: s
       if (entry.fetched && capture) {
         if (entry.digestCheck === 'mismatch') raws.push(base(null, false, 'digest_mismatch'));
         else if (capture.status !== 'ok') raws.push(base(null, false, capture.status));
+        else if (!valuesOf.has(capture.id)) raws.push(base(null, false, 'extraction_pending'));
         else raws.push(base(sortedUnique(valuesOf.get(capture.id) ?? []), false));
         continue;
       }
@@ -223,7 +246,8 @@ function pageTimelines(input: TimelineInput, options: TimelineOptions): { url: s
     }
     for (const capture of input.captures) {
       if (capture.archive || liveUrl(capture) !== url) continue;
-      raws.push(livePoint(capture, sortedUnique(valuesOf.get(capture.id) ?? [])));
+      const values = valuesOf.get(capture.id);
+      raws.push(livePoint(capture, values ? sortedUnique(values) : undefined));
     }
     const key = { platform: 'web', locator: `web:${url}#${PAGE_ADDRESS_PROPERTY}`, property: PAGE_ADDRESS_PROPERTY };
     results.push({ url, timeline: shape(key, sortPoints(raws)) });

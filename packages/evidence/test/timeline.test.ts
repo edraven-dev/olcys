@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   buildPropertyTimelines,
+  latestExtractions,
   normalisePageUrl,
   snapshotTimestampToIso,
   type ArchiveSnapshotEntry,
@@ -11,7 +12,21 @@ import {
 
 const fixture = JSON.parse(readFileSync(join(import.meta.dirname, 'fixtures/timeline/profile-history.json'), 'utf8'));
 const PAGE: string = fixture.page;
-const input = (patch: Partial<TimelineInput> = {}): TimelineInput => ({ ...structuredClone(fixture), ...patch });
+type Candidate = { captureId: string; address: { chain: string; address: string } };
+/** The fixture with a completed extraction for every capture, made from `candidates` (a capture without one is empty). */
+const input = (patch: Partial<TimelineInput> & { candidates?: Candidate[] } = {}): TimelineInput => {
+  const { candidates = fixture.candidates as Candidate[], ...rest } = patch;
+  const merged = { ...structuredClone(fixture), ...rest };
+  return {
+    ...merged,
+    extractions:
+      rest.extractions ??
+      merged.captures.map((c: { id: string }) => ({
+        captureId: c.id,
+        candidates: candidates.filter((x) => x.captureId === c.id),
+      })),
+  };
+};
 const BTC = (n: number) => `bitcoin:BTC-${n}`;
 const pageOnly = (i: TimelineInput) => buildPropertyTimelines(i, { property: 'page.address' });
 
@@ -177,14 +192,64 @@ describe('buildPropertyTimelines', () => {
       c.id.startsWith('l') ? { ...c, url: 'https://forum.example.org/profile?user=fikcyjny_kacper' } : c,
     );
     expect(pageOnly(input({ captures }))[0]!.points.filter((p) => p.provenance === 'live')).toEqual([]);
-    const accounts = ['l1', 'l2'].map((captureId) => ({
+    const accounts = ['l1', 'l2'].map((profileCaptureId) => ({
       profileUrl: PAGE,
-      discoveredVia: { sourceId: 'forum_example', method: 'direct_fetch', captureId },
-    })) as unknown as TimelineInput['accounts'];
+      profileCaptureId,
+    })) as TimelineInput['accounts'];
     const [t] = pageOnly(input({ captures, accounts }));
     expect(t!.points.map((p) => p.provenance)).toEqual(['archive', 'archive', 'archive', 'live', 'live']);
     expect(t!.changes).toHaveLength(2);
     expect(t!.changes[1]).toMatchObject({ lastSeenBefore: { captureId: 'l1' }, firstSeenAfter: { captureId: 'l2' } });
+  });
+
+  it('a page that only linked to the account is not the profile: its capture stays on its own page', () => {
+    const search = {
+      id: 's1',
+      runId: 'run-1',
+      url: 'https://forum.example.org/search?q=x',
+      status: 'ok',
+      collectedAt: '2026-03-01T09:00:05.000Z',
+    };
+    const captures = [...fixture.captures, search];
+    const candidates = [...fixture.candidates, { captureId: 's1', address: { chain: 'bitcoin', address: 'BTC-7' } }];
+    // The account was discovered on the search page (`discoveredVia`), but its profile was read by l1 and l2.
+    const accounts = [
+      { profileUrl: PAGE, profileCaptureId: 'l1', discoveredVia: { captureId: 's1' } },
+      { profileUrl: PAGE, profileCaptureId: 'l2', discoveredVia: { captureId: 's1' } },
+    ] as unknown as TimelineInput['accounts'];
+    const [t] = pageOnly(input({ captures, candidates, accounts }));
+    expect(t!.points.map((p) => p.captureId).filter((id) => id === 's1')).toEqual([]);
+    expect(t!.intervals.flatMap((i) => i.values)).not.toContain(BTC(7));
+  });
+
+  it('a capture without an extraction result is a gap (not a removal); an empty result is an empty page', () => {
+    const base = input();
+    const extractions = base.extractions.filter((e) => e.captureId !== 'l2');
+    const [t] = pageOnly({ ...base, extractions });
+    expect(t!.points.at(-1)).toMatchObject({ values: null, gapReason: 'extraction_pending', provenance: 'live' });
+    expect(t!.changes).toHaveLength(1);
+    const archivedPending = pageOnly({
+      ...base,
+      extractions: base.extractions.filter((e) => e.captureId !== 'a3'),
+    })[0]!;
+    expect(archivedPending.points.find((p) => p.captureId === 'a3')).toMatchObject({
+      values: null,
+      gapReason: 'extraction_pending',
+    });
+    expect(archivedPending.changes.every((c) => c.after.length > 0)).toBe(true);
+  });
+
+  it('latestExtractions: the newest analysis of a capture replaces the older one', () => {
+    const older = [
+      { captureId: 'c1', candidates: ['BTC-REJECTED'] },
+      { captureId: 'c2', candidates: ['x'] },
+    ];
+    const newer = [{ captureId: 'c1', candidates: [] as string[] }];
+    expect(latestExtractions([older, newer])).toEqual([
+      { captureId: 'c1', candidates: [] },
+      { captureId: 'c2', candidates: ['x'] },
+    ]);
+    expect(latestExtractions([newer, older]).find((e) => e.captureId === 'c1')?.candidates).toEqual(['BTC-REJECTED']);
   });
 
   it('AC6: live property observations form their own timeline; walletOnly drops non-wallet keys', () => {

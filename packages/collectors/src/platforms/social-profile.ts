@@ -105,6 +105,7 @@ export function createWykopCollector(): CollectorFactory {
             platform: 'wykop',
             handle,
             profileUrl,
+            profileCaptureId: capture.id,
             discoveredVia: { sourceId: descriptor.id, method: target.method, captureId: target.foundIn ?? capture.id },
           });
           const account = observer(rb, capture, 'account', accountKey);

@@ -26,6 +26,7 @@ export { custodyCollected } from './custody.ts';
 export { readManifest, verifyCapture, type CaptureVerification } from './verify-capture.ts';
 export {
   buildPropertyTimelines,
+  latestExtractions,
   normalisePageUrl,
   PAGE_ADDRESS_PROPERTY,
   snapshotTimestampToIso,

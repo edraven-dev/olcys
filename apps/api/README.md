@@ -68,7 +68,10 @@ są opcjonalne; `walletOnly` przyjmuje wyłącznie `true` lub `false`, a niepraw
 daje 400 `invalid_input` ze ścieżką błędnego pola w `issues`. Trasa tylko czyta zapisane dane. Osie stron powstają dla
 stron, które mają kopie archiwalne; osie pól profilu (np. `profile.bitcoin_address`) — z faktów przebiegów na żywo.
 Punkty kopii archiwalnych mają `provenance: "archive"` i czas migawki z archiwum; luki (`values: null`) nigdy nie
-oznaczają usunięcia adresu.
+oznaczają usunięcia adresu. Dla każdego przechwycenia liczy się wynik wyodrębnienia z najnowszej analizy (ponowna
+ocena zastępuje wcześniejszy wynik); przechwycenie, którego wyodrębnienie jeszcze się nie zakończyło, jest luką
+(`extraction_pending`). Wiele pobrań tej samej migawki łączy się tak: użyteczne (status `ok`, skrót zgodny) wygrywa z
+niepobranym lub błędnym, a spośród równych — najnowsze.
 
 ## Oceny i korekty analityka
 

@@ -43,7 +43,7 @@ const observation = (runId: string, captureId: string, property: string, value: 
     observedAt: '2026-03-01T09:00:00.000Z',
   }) as Observation;
 
-async function seed(repos: Repositories): Promise<string> {
+async function seed(repos: Repositories) {
   const kase = await repos.cases.create(
     {
       title: 'Sprawa syntetyczna (oś czasu)',
@@ -91,7 +91,7 @@ async function seed(repos: Repositories): Promise<string> {
       extractorVersion: 'test',
     });
   }
-  return kase.id;
+  return { caseId: kase.id, run1: run1, live, archived };
 }
 
 const appFor = (repos: Repositories) =>
@@ -107,7 +107,7 @@ const appFor = (repos: Repositories) =>
 describe('GET /api/cases/:caseId/timeline', () => {
   it('returns the page timeline of the case: archive before live, two bracketed wallet changes', async () => {
     const repos = createMemoryRepositories();
-    const caseId = await seed(repos);
+    const { caseId } = await seed(repos);
     const app = appFor(repos);
     const response = await app.inject(`/api/cases/${caseId}/timeline?url=${encodeURIComponent(PAGE)}&walletOnly=true`);
     expect(response.statusCode).toBe(200);
@@ -119,6 +119,58 @@ describe('GET /api/cases/:caseId/timeline', () => {
       [['bitcoin:BTC-0'], ['bitcoin:BTC-1'], true],
       [['bitcoin:BTC-1'], ['bitcoin:BTC-2'], true],
     ]);
+    await app.close();
+  });
+
+  it('uses the newest analysis of a capture: a rescore that rejects an address removes it from the timeline', async () => {
+    const repos = createMemoryRepositories();
+    const { caseId, run1, live } = await seed(repos);
+    const rescore = newId();
+    await repos.runs.create({
+      id: rescore,
+      caseId,
+      trigger: 'rescore',
+      rescoreOfRunId: run1,
+      mode: 'offline',
+      status: 'succeeded',
+      config: {},
+      queuedAt: '2026-03-20T09:00:00.000Z',
+    } as unknown as AnalysisRun);
+    // The rescore re-extracted the first live capture and rejected its address (documentation example): no candidates.
+    await repos.evidence.addExtraction(rescore, {
+      captureId: live[0]!.id,
+      candidates: [],
+      rejected: [],
+      secrets: [],
+      extractorVersion: 'test-2',
+    });
+    const app = appFor(repos);
+    const [timeline] = (await app.inject(`/api/cases/${caseId}/timeline?walletOnly=true`)).json() as PropertyTimeline[];
+    expect(timeline!.points.filter((p) => p.provenance === 'live').map((p) => p.values)).toEqual([
+      [],
+      ['bitcoin:BTC-2'],
+    ]);
+    await app.close();
+  });
+
+  it('shows a capture whose extraction has not run as a gap, not as a removal', async () => {
+    const repos = createMemoryRepositories();
+    const { caseId } = await seed(repos);
+    const run3 = newId();
+    await repos.runs.create({
+      id: run3,
+      caseId,
+      trigger: 'manual',
+      mode: 'offline',
+      status: 'running',
+      config: {},
+      queuedAt: '2026-03-30T09:00:00.000Z',
+    } as unknown as AnalysisRun);
+    await repos.evidence.addCaptures([capture(newId(), run3, '2026-03-30T09:00:10.000Z')]);
+    const app = appFor(repos);
+    const [timeline] = (await app.inject(`/api/cases/${caseId}/timeline?walletOnly=true`)).json() as PropertyTimeline[];
+    expect(timeline!.points.at(-1)).toMatchObject({ values: null, gapReason: 'extraction_pending' });
+    expect(timeline!.changes).toHaveLength(2);
     await app.close();
   });
 
@@ -142,7 +194,7 @@ describe('GET /api/cases/:caseId/timeline', () => {
 
   it('answers 400 with the failing path for bad filters', async () => {
     const repos = createMemoryRepositories();
-    const caseId = await seed(repos);
+    const { caseId } = await seed(repos);
     const app = appFor(repos);
     for (const [query, path] of [
       ['walletOnly=maybe', 'walletOnly'],

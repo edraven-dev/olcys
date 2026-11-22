@@ -24,8 +24,11 @@ export interface ChangeEvent {
 
 // --- history timeline: live runs and archived copies of one page or property -----------------------------------------
 
-/** Why a timeline point carries no value: the page could not be read (never a removal) or the copy is untrusted. */
-export type TimelineGapReason = CaptureStatus | 'not_fetched' | 'digest_mismatch';
+/**
+ * Why a timeline point carries no value: the page could not be read (never a removal), the copy is untrusted, or the
+ * addresses were not extracted from it yet (`extraction_pending`: no extraction result exists for the capture).
+ */
+export type TimelineGapReason = CaptureStatus | 'not_fetched' | 'digest_mismatch' | 'extraction_pending';
 
 export interface TimelinePoint {
   /** Archive: the snapshot time the archive reports; live: when the capture was collected. */

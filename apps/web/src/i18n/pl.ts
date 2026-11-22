@@ -1239,6 +1239,7 @@ export const pl = {
     gap: 'luka: {reason}',
     gapReasons: {
       not_fetched: 'kopia niepobrana, brak ustalonej zawartości',
+      extraction_pending: 'adresy z tego odczytu nie zostały jeszcze wyodrębnione',
       digest_mismatch: 'skrót pobranej kopii nie zgadza się z wykazem archiwum',
       not_found: 'strona nie istniała (404)',
       blocked: 'blokada',

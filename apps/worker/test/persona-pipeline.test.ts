@@ -7,7 +7,7 @@ import { readFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import type { Logger } from '@olcys/core';
 import { createMemoryRepositories } from '@olcys/db';
-import { buildPropertyTimelines, InMemoryBlobStore, verifyCapture } from '@olcys/evidence';
+import { buildPropertyTimelines, InMemoryBlobStore, latestExtractions, verifyCapture } from '@olcys/evidence';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createFixtureServer, type FixtureServer } from '../../fixture-site/src/fixture-server.ts';
 import { buildWaybackHistory } from '@olcys/collectors';
@@ -320,13 +320,24 @@ describe('demo scenario on the synthetic persona', () => {
       const timelines = buildPropertyTimelines(
         {
           captures: timelineCaptures,
-          candidates: await load((id) => runtime.repos.evidence.listCandidates(id)),
+          extractions: latestExtractions(
+            await Promise.all(runIds.map((id) => runtime.repos.evidence.listExtractionResults(id))),
+          ),
           archive: buildWaybackHistory(timelineCaptures, timelineObservations),
           observations: timelineObservations,
           accounts: await load((id) => runtime.repos.evidence.listAccounts(id)),
         },
         { walletOnly: true },
       );
+      // The account records the capture that read its profile (not the page that linked to it).
+      const bitcointalkAccounts = (await runtime.repos.evidence.listAccounts(first.id)).filter(
+        (acct) => acct.platform === 'bitcointalk' && acct.platformUserId === '900001',
+      );
+      expect(bitcointalkAccounts.length).toBeGreaterThan(0);
+      for (const acct of bitcointalkAccounts) {
+        const read = timelineCaptures.find((c) => c.id === acct.profileCaptureId);
+        expect(read?.technical?.logicalUrl ?? read?.url).toMatch(/action=profile;(u|user)=/);
+      }
       const profile = timelines.find((t) => t.key.property === 'page.address');
       expect(profile?.key.locator).toBe('web:https://bitcointalk.org/index.php?action=profile;u=900001#page.address');
       expect(profile?.points.map((p) => [p.provenance, p.archive?.snapshotTimestamp, p.values?.length])).toEqual([
