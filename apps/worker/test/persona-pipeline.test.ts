@@ -174,7 +174,6 @@ describe('demo scenario on the synthetic persona', () => {
       // by their own collectors, and its result lists are never read for addresses (no second copy of a mention).
       expect(contacted).toContain('mock_search');
       expect(egress.filter((e) => e.sourceId === 'mock_search').every((e) => !e.containsIdentifier)).toBe(true);
-      const captures = await runtime.repos.evidence.listCaptures(first.id);
       const searchCaptures = new Set(captures.filter((c) => c.sourceId === 'mock_search').map((c) => c.id));
       expect(searchCaptures.size).toBe(3);
       expect(extracted.filter((r) => searchCaptures.has(r.captureId))).toEqual([]);

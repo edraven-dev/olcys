@@ -62,9 +62,11 @@ describe('writeCollectionPackage', () => {
     manifest.captureId = '../../escaped';
     const crafted = await source.blobs.put(new TextEncoder().encode(canonicalJson(manifest)), 'application/json');
     const out = join(dir, 'a', 'b', 'paczka');
-    await expect(writeCollectionPackage([crafted.sha256], out, source.blobs)).rejects.toThrow();
-    await expect(readFile(join(dir, 'escaped.json'))).rejects.toThrow();
-    await expect(readFile(join(dir, 'a', 'escaped.json'))).rejects.toThrow();
+    await expect(writeCollectionPackage([crafted.sha256], out, source.blobs)).rejects.toThrow(
+      /ENOENT|schema|digest|outside/,
+    );
+    await expect(readFile(join(dir, 'escaped.json'))).rejects.toThrow(/ENOENT|schema|digest|outside/);
+    await expect(readFile(join(dir, 'a', 'escaped.json'))).rejects.toThrow(/ENOENT|schema|digest|outside/);
   });
 
   it('does not treat a storage error as a missing artifact', async () => {
