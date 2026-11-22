@@ -16,12 +16,12 @@ ekstraktor adresów na zapisanym HTML.
    (co najmniej 20 znaków), GREEN — gdy sprawa je wymienia. W trybach `offline` i `replay` dochodzi strona testowa (`fixture_site`).
    Kolektor spoza zakresu to błąd planera: `SourceRefusedError` przed jakimkolwiek żądaniem.
 2. **Każde żądanie** idzie przez klienta egress (lista dozwolonych hostów, limity, dziennik z `containsIdentifier`,
-   koperta pochodzenia). `containsIdentifier` nigdy nie jest obniżane, a identyfikator sprawy w adresie podnosi je do
+   provenance envelope). `containsIdentifier` nigdy nie jest obniżane, a identyfikator sprawy w adresie podnosi je do
    `true`. W trybie `live` żądanie z syntetycznym identyfikatorem persony jest odrzucane przed wysłaniem.
 3. **robots.txt (RFC 9309) dla każdego kroku**, przekierowania obsługiwane ręcznie (najwyżej 5), host każdego kroku
    sprawdzany względem listy dozwolonych. Strona wyłączona w robots.txt nie jest pobierana.
-4. **Bariery kończą zbieranie ze źródła:** CAPTCHA, wyzwanie przeglądarki (`cf-mitigated: challenge`), ściana
-   logowania, blokada (403/451) i limit (429 z `retry-after`) dają status `captcha` / `login_wall` / `blocked`, strona
+4. **Bariery kończą zbieranie ze źródła:** CAPTCHA, browser challenge (`cf-mitigated: challenge`), login
+   wall, blokada (403/451) i limit (429 z `retry-after`) dają status `captcha` / `login_wall` / `blocked`, strona
    blokady zostaje zapisana jako dowód, a źródło do końca przebiegu nie jest już odpytywane. Bez ponowień i obchodzenia.
 5. **Tryby `offline` i `replay`:** kolektory budują adresy prawdziwych serwisów, a `resolveSourceUrl` zamienia host na prefiks
    strony testowej (`hostPrefixes` z manifestu persony, adres bazowy `OLCYS_FIXTURE_BASE_URL` lub `FIXTURE_SITE_URL`).
@@ -31,9 +31,9 @@ ekstraktor adresów na zapisanym HTML.
 7. **Sekrety nie trafiają do magazynu:** treść strony jest pobierana z `persistBody: false` (klient egress zachowuje
    tylko skrót i jej nie nagrywa), w pamięci przechodzi przez `SecretRedactor` (klucze prywatne, frazy seed), a
    zapisywane są wyłącznie bajty po redakcji. Parsery i obserwacje widzą tylko tekst po redakcji; `technical.redaction`
-   podaje liczbę i rodzaje usuniętych sekretów (bez wartości) oraz skrót oryginału z koperty pochodzenia.
+   podaje liczbę i rodzaje usuniętych sekretów (bez wartości) oraz skrót oryginału z provenance envelope.
 
-## Publiczne API (wywołanie z potoku)
+## Publiczne API (wywołanie z pipeline’u)
 
 ```ts
 const sources = await loadSourceRegistry(); // config/sources.yaml (albo createSourceRegistry(descriptors))
@@ -218,7 +218,7 @@ klientem egress (`OLCYS_RECORD` nie nagrywa żądań tylko ze skrótem); brak na
 **Brave:** `GET https://api.search.brave.com/res/v1/web/search` z `q="…"`, `count=20`, `offset=0`, `safesearch=off`,
 `spellcheck=false`, `text_decorations=false`, `result_filter=web`; dla imion i nazwisk oraz nicków `country=PL` i
 `search_lang=pl`, dla e-maili i adresów kryptowalut `country=ALL`. Token w nagłówku `X-Subscription-Token` nie trafia do
-dziennika, koperty pochodzenia ani nagrania. Gdy dostawca zmienił zapytanie (`query.altered`), wyniki są odrzucane
+dziennika, provenance envelope ani nagrania. Gdy dostawca zmienił zapytanie (`query.altered`), wyniki są odrzucane
 (status `partial`, dokładność nie jest zapewniona); 401/403 (klucz lub plan) i 422 → `error`; 429 → `blocked`, a źródło
 jest wstrzymane do końca przebiegu (bez ponowień).
 
@@ -260,9 +260,9 @@ pozwala wykryć zmianę portfela, która nastąpiła przed pierwszym przebiegiem
    przechwycenia, w których treść się zmieniła. Kolejne strony wyników pobierane są kluczem wznowienia, do
    `maxCdxPages` (domyślnie 3). Zbiegają się tylko sąsiednie, identyczne skróty, więc A → B → A to trzy wpisy — i to jest
    oś czasu.
-3. **Wybór migawek** (`selectSnapshots`): do `maxSnapshotsPerUrl` (domyślnie 12) — pierwsza, ostatnia i równomiernie
+3. **Wybór snapshotów** (`selectSnapshots`): do `maxSnapshotsPerUrl` (domyślnie 12) — pierwsza, ostatnia i równomiernie
    rozłożone pozostałe; rosnąco i deterministycznie.
-4. **Pobranie surowej migawki** (`…/web/<znacznik>id_/<adres>`): bajty archiwum bez przepisywania przez Wayback. Skrót
+4. **Pobranie surowego snapshotu** (`…/web/<znacznik>id_/<adres>`): bajty archiwum bez przepisywania przez Wayback. Skrót
    SHA-1 (base32, bez dopełnienia) porównywany jest ze skrótem z CDX; wynik (`match` / `mismatch`) jest tylko
    zapisywany, bo ponowne kodowanie przy transferze może dać niezgodność.
 
@@ -277,13 +277,13 @@ Zasady:
   przebiegu): kolejne zadania nie wysyłają nic i kończą się `blocked`, bieżące — `partial` (albo `blocked`) z notatką
   `rate_limited: wayback rate limited (circuit open)`. Odpowiedź 5xx kończy tylko to jedno zapytanie (`error`).
 - Każde zapytanie ma `containsIdentifier: true` (adres profilu pochodzi od podmiotu sprawy i jest ujawniany archiwum);
-  cele: `wayback availability`, `wayback cdx listing`, `wayback snapshot`. robots.txt hosta archiwum jest respektowany przy pobieraniu migawek (zakaz daje `blocked` z notatką
-  `robots_disallowed`; odpowiedź 429 na robots.txt jest traktowana jak nieosiągalny plik i dodatkowo wstrzymuje źródło do końca przebiegu (`rate_limited`), bez zapytania o migawkę; wynik jest buforowany w przebiegu jak dla innych hostów), a robots.txt
+  cele: `wayback availability`, `wayback cdx listing`, `wayback snapshot`. robots.txt hosta archiwum jest respektowany przy pobieraniu snapshotów (zakaz daje `blocked` z notatką
+  `robots_disallowed`; odpowiedź 429 na robots.txt jest traktowana jak nieosiągalny plik i dodatkowo wstrzymuje źródło do końca przebiegu (`rate_limited`), bez zapytania o snapshot; wynik jest buforowany w przebiegu jak dla innych hostów), a robots.txt
   witryny źródłowej nie jest sprawdzany dla kopii z archiwum. Zapytania Availability i CDX (API JSON) nie podlegają
-  robots.txt. Treść migawki nie jest oceniana jako bariera (zarchiwizowana strona logowania jest treścią, nie blokadą).
+  robots.txt. Treść snapshotu nie jest oceniana jako bariera (zarchiwizowana strona logowania jest treścią, nie blokadą).
 - **Kopia archiwalna to ta sama grupa pochodzenia co strona, którą odwzorowuje.** Przechwycenie ma profil
   `archive_snapshot` i pole `archive` (`provider`, `snapshotTimestamp`, `originalUrl`, ponadto w manifeście
-  `replayUrl` i `cdxDigest`); `collectedAt` to czas pobrania, nigdy czas migawki. Ocena punktowa przypisuje wzmianki w
+  `replayUrl` i `cdxDigest`); `collectedAt` to czas pobrania, nigdy czas snapshotu. Ocena punktowa przypisuje wzmianki w
   kopii temu samemu kontu co żywa strona, więc archiwum dodaje historię, nie punkty.
 - **Pivot E6:** adres profilu konta podanego przez analityka albo wskazanego przez stronę własnego konta podmiotu (`input`,
   `cross_link`, w nieprzerwanym łańcuchu od konta podanego przez analityka — nigdy przez trafienie wyszukiwarki ani stronę osoby trzeciej) oraz strona z listy obserwowanych, na której dopasowano identyfikator, dostają jedno zadanie Wayback,
@@ -292,13 +292,13 @@ Zasady:
 
 Obserwacje (podmiot: strona `{ type: 'page', key: <adres oryginalny> }`, lokalizator `wayback:<adres>@<znacznik>`):
 `archive.snapshot` (znacznik) i `archive.digest` (skrót z CDX) dla każdego wpisu listy — fakty — oraz
-`computed.archive_digest_check` (`match` / `mismatch`) dla każdej pobranej migawki — obliczenie. Każda odpowiedź API
+`computed.archive_digest_check` (`match` / `mismatch`) dla każdej pobranego snapshotu — obliczenie. Każda odpowiedź API
 (Availability, kolejne strony CDX) jest osobnym przechwyceniem w formacie JSON. `buildWaybackHistory(captures,
 observations)` łączy je w wpisy osi czasu (`WaybackHistoryEntry`: adres, znacznik, czas ISO, skrót, `fetched`,
 `captureId`, `digestCheck`), posortowane rosnąco — dane wejściowe dla osi czasu zmian profilu.
 
 W trybach `offline` i `replay` archiwum symuluje strona testowa (`web.archive.org` → `/wayback`, `archive.org` →
-`/archive-org`): migawki profilu persony na forum, z których starsza nie zawiera portfela, a nowsza pokazuje BTC-1.
+`/archive-org`): snapshoty profilu persony na forum, z których starsza nie zawiera portfela, a nowsza pokazuje BTC-1.
 Warunki korzystania z Internet Archive dopuszczają dostęp „dla celów naukowych i badawczych”; ich zgodność z użyciem
 przez KAS pozostaje otwartym pytaniem prawnym (patrz `docs/compliance/sources.md`).
 
@@ -310,13 +310,13 @@ przez KAS pozostaje otwartym pytaniem prawnym (patrz `docs/compliance/sources.md
 listą dozwolonych hostów, limitem 4 zapytań/s i własnym dziennikiem — a kolektor:
 
 - wysyła kanoniczne ciało żądania (`canonicalJson`, bez identyfikatora przebiegu i czasu: ten sam nick daje te same bajty,
-  więc kasety trybu `replay` pasują); identyfikator przebiegu idzie tylko w nagłówku `x-olcys-run-id`;
+  więc cassettes trybu `replay` pasują); identyfikator przebiegu idzie tylko w nagłówku `x-olcys-run-id`;
 - w `database` wysyła `fixture` (offline i replay) albo `upstream` (live); `OSINT_PY_DATABASE=fixture|upstream` to zmienia;
 - przekazuje `deniedHostSuffixes`: hosty źródeł rejestru, których sprawa nie włączyła (`CollectorDeps.deniedHosts`),
   oraz — po stronie serwisu — listę RED; serwis nie kontaktuje takich hostów;
 - scala dziennik żądań serwisu z dziennikiem ruchu wychodzącego (`EgressClient.recordDelegated`): jeden wiersz na
   żądanie z polem `delegate: 'osint-py'`, `containsIdentifier: true`, odmowy jako `allowed: false`; dla żądań z treścią
-  powstaje koperta pochodzenia z `delegatedVia`. Bez tej metody klienta kolektor **nic nie wysyła** (`error`, notatka
+  powstaje provenance envelope z `delegatedVia`. Bez tej metody klienta kolektor **nic nie wysyła** (`error`, notatka
   `delegated_log_unavailable`);
 - zapisuje przechwycenie raportu (JSON bez treści stron) oraz po jednym przechwyceniu na każdy znaleziony profil i każdą
   stronę bariery; konto-kandydat dostaje `discoveredVia.method = 'enumeration'` i **nie jest powiązaniem** — nie ma wagi
@@ -402,7 +402,7 @@ kluczy. Moduły: `src/identity/`. Żadne z nich nie daje dowodu samo z siebie: o
 
 Persona demonstracyjna jest nieznana wszystkim trzem źródłom (odpowiedzi „nie znaleziono”), więc jej wynik nie zmienia się.
 Druga syntetyczna tożsamość `olcys_test_ewa` / `olcys-test-ewa.eth` (uid 900201) jest „znaleziona” i służy testom
-kolektorów (`test/identity.test.ts`); jej adresy są losowymi bajtami w poprawnym formacie, wyprowadzonymi z ziarna manifestu.
+kolektorów (`test/identity.test.ts`); jej adresy są losowymi bajtami w poprawnym formacie, wyprowadzonymi z seedu manifestu.
 
 ## Farcaster i Nostr (NIP-05)
 
@@ -490,7 +490,7 @@ ekstraktor może przypisać wzmiankę autorowi. Lokalizator: `<klucz>#<właściw
 | `profile.name`, `profile.login`, `profile.email`, `profile.member_since`                  | konto `tablica:<login>`             | dane sprzedającego z ogłoszenia P2P                                                                                                       |
 | `post.title`, `post.price`                                                                | strona `tablica:ad=<id>`            | tytuł i cena ogłoszenia                                                                                                                   |
 | `profile.name`, `profile.description`                                                     | konto `telegram:<kanał>`            | nazwa i opis kanału                                                                                                                       |
-| `archive.snapshot`, `archive.digest`, `computed.archive_digest_check`                     | strona (adres oryginalny)           | wpis listy CDX Wayback (znacznik, skrót) i obliczone porównanie skrótu pobranej migawki                                                   |
+| `archive.snapshot`, `archive.digest`, `computed.archive_digest_check`                     | strona (adres oryginalny)           | wpis listy CDX Wayback (znacznik, skrót) i obliczone porównanie skrótu pobranego snapshotu                                                |
 | `computed.identifier_match`                                                               | konto sprzedającego / post kanału   | obliczenie OŁCyŚ: który identyfikator sprawy pasuje (`email`, `full_name`, `nickname`, …)                                                 |
 | `search.result_url`                                                                       | strona `search:<dostawca>:<sha>`    | adres wyniku; lokalizator `search:<dostawca>:<sha256 zapytania>#rank=<n>`                                                                 |
 | `search.result_count`                                                                     | strona `search:<dostawca>:<sha>`    | liczba wyników (tylko pełna lista)                                                                                                        |
@@ -513,7 +513,7 @@ Notatki mają postać `kod: szczegóły`; interfejs tłumaczy kod.
 | ------------------------------ | ----------------------------------------------------------------- |
 | `robots_disallowed`            | Strona wyłączona w robots.txt — nie pobrano                       |
 | `allow_list_denied`            | Host spoza listy dozwolonych — nie pobrano                        |
-| `barrier_captcha`              | CAPTCHA lub wyzwanie przeglądarki — pominięto bez obchodzenia     |
+| `barrier_captcha`              | CAPTCHA lub browser challenge — pominięto bez obchodzenia         |
 | `barrier_login_wall`           | Wymagane logowanie — pominięto                                    |
 | `barrier_blocked`              | Dostęp zablokowany — pominięto                                    |
 | `rate_limited`                 | Przekroczony limit zapytań — źródło wstrzymane do końca przebiegu |

@@ -103,13 +103,13 @@ describe('new-case form', () => {
     },
   ];
 
-  it('locks RED sources, pre-checks GREEN defaults and labels every control', () => {
+  it('offers no RED source, pre-checks GREEN defaults and labels every control', () => {
     const html = renderToStaticMarkup(<CaseForm sources={sources} />);
-    const red = /<input[^>]*id="[^"]*-src-x_twitter"[^>]*>/.exec(html)?.[0] ?? '';
-    expect(red).toContain('disabled');
-    expect(red).not.toContain('checked');
+    expect(html).not.toMatch(/id="[^"]*-src-x_twitter"/);
+    expect(text(html)).not.toContain('X / Twitter');
+    expect(text(html)).toContain('Źródła RED (1) nie są opcją wyboru');
+    expect(html).toContain('Ustawienia → Rejestr źródeł');
     expect(/<input[^>]*id="[^"]*-src-fixture_site"[^>]*>/.exec(html)?.[0]).toContain('checked');
-    expect(text(html)).toContain('Zablokowane: Terms forbid scraping.');
     expect(text(html)).toContain('Zapytanie ujawnia identyfikator podmiotowi zewnętrznemu');
     for (const id of html.matchAll(/<(?:input|select|textarea)[^>]*\bid="([^"]+)"/g)) {
       expect(html, `label for ${id[1]}`).toContain(`for="${id[1]}"`);

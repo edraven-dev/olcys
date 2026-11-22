@@ -8,9 +8,14 @@ export function serverSettings(
   mode: string,
   envDir: string,
   processEnv: Readonly<Record<string, string | undefined>>,
-): { port: number; apiTarget: string } {
+): { host: string; port: number; apiTarget: string } {
   const env = { ...loadEnv(mode, envDir, ''), ...processEnv };
-  return { port: Number(env.WEB_PORT || 5173), apiTarget: `http://127.0.0.1:${env.API_PORT || 4000}` };
+  // WEB_HOST: loopback by default; the container stack (compose.app.yml) binds 0.0.0.0 inside its own network.
+  return {
+    host: env.WEB_HOST || '127.0.0.1',
+    port: Number(env.WEB_PORT || 5173),
+    apiTarget: `http://127.0.0.1:${env.API_PORT || 4000}`,
+  };
 }
 
 /**

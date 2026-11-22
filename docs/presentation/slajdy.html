@@ -312,7 +312,10 @@
       <ul style="margin-top: 50px; font-size: 36px">
         <li>Sprawa z <b>celem i podstawą prawną</b>; źródła AMBER tylko z uzasadnieniem (min. 20 znaków).</li>
         <li>Identyfikator może być <b>kotwicą</b>: udokumentowanym założeniem analityka.</li>
-        <li>Zbieranie z włączonych źródeł, <b>planer pivotów</b> do zadanej głębokości.</li>
+        <li>
+          Źródła: Bitcointalk, Wykop, GitHub, Telegram, ogłoszenia P2P, Keybase, ENS, Farcaster, Nostr, CEIDG, VAT, KRS,
+          Wayback; on-chain: Esplora, Etherscan V2, TronGrid, Solana.
+        </li>
         <li>Cała demonstracja na <b>fikcyjnej personie</b> i lokalnej stronie testowej.</li>
       </ul>
       <footer><span>OŁCyŚ · dane syntetyczne</span><span>3</span></footer>
@@ -327,9 +330,10 @@
             przesłanki
           </div>
           <ul>
-            <li>Przesłanki <b>osłabiane</b> wiarygodnością źródła (skala Admiralicji).</li>
+            <li>Przesłanki <b>osłabiane</b> wiarygodnością źródła (Admiralty Code, system NATO).</li>
             <li>
-              <b>Synergia śladów</b>: ten sam adres w niezależnych źródłach; powtórzenia w jednej usłudze nie liczą się.
+              <b>Synergia śladów</b>: niezależne ścieżki mnożą szanse (50 i 24 → 62); powtórzenia w jednej usłudze nie
+              liczą się.
             </li>
             <li>Pełna lista wkładów (wodospad), <b>pewność analityczna osobno</b>.</li>
             <li><b>Model AI nigdy nie decyduje</b>: sugestie mają wagę 0 do potwierdzenia przez analityka.</li>
@@ -376,8 +380,8 @@
       <div class="cols c-t">
         <ul>
           <li><b>Adresy depozytowe giełd</b> i etykietowane usługi (A1, A4).</li>
-          <li><b>Kontrakty</b> usług i zachowanie usługi (A2, A5), CoinJoin (A6).</li>
-          <li><b>Wektory dokumentacji</b>: przykłady, adresy spalenia (A8).</li>
+          <li><b>Smart kontrakty</b>: kod bajtowy ≠ 0x (eth_getCode) → 0 (A2); A5–A7 tylko oznaczają adres.</li>
+          <li><b>Wektory dokumentacji</b>: przykłady, adresy burn (A8).</li>
           <li><b>Homoglify</b> i skróty transakcji odrzucone przy weryfikacji sum.</li>
           <li>Odrzucenie <b>przeklasyfikowuje, nie usuwa</b>: wpłata na giełdę to przesłanka cash-out.</li>
         </ul>
@@ -399,7 +403,7 @@
           </li>
           <li><b>Przepływ środków</b> śledzony przez N przeskoków kontrahentów (konfigurowalnie).</li>
           <li>Obliczenia na <b>DecimalString</b>, bez liczb zmiennoprzecinkowych.</li>
-          <li>Dane łańcuchowe: Bitcoin, sieci EVM, TRON.</li>
+          <li>Dane łańcuchowe: Bitcoin, sieci EVM, TRON, Solana.</li>
         </ul>
         <figure>
           <img src="../assets/screenshots/06-aktywnosc.png" alt="" />
@@ -431,9 +435,9 @@
       <h1>Jakość dowodowa</h1>
       <div class="cols c-t">
         <ul>
-          <li><b>Manifest przechwycenia</b> z SHA-256 dla każdej strony (Protokół Berkeley).</li>
+          <li><b>Manifest przechwycenia</b> z SHA-256 dla każdej strony (Berkeley Protocol).</li>
           <li><b>Dziennik wyjść</b> z polem <b>containsIdentifier</b>; tylko do dopisywania.</li>
-          <li><b>Znacznik czasu RFC 3161</b>; poza system wychodzi tylko skrót.</li>
+          <li><b>Znacznik czasu RFC 3161</b> w trybie live; poza system wychodzi tylko skrót.</li>
           <li><b>Podpisany PDF/A-3b</b> z manifestem. Podpis demonstracyjny, niekwalifikowany.</li>
           <li><b>A. Fakty · B. Obliczenia · C. Wnioski</b> rozdzielone w całym raporcie.</li>
         </ul>
@@ -483,7 +487,7 @@
         <div class="arch">
           <div class="node f">Konsola web<small>React, po polsku</small></div>
           <div class="node f">API<small>Fastify</small></div>
-          <div class="node f">Potok analizy<small>worker</small></div>
+          <div class="node f">Pipeline analizy<small>worker</small></div>
           <div class="vl">↓</div>
           <div class="node">Kolektory<small>i adaptery łańcuchowe</small></div>
           <div class="node egress">EgressClient<small>hosty, limity, dziennik</small></div>
@@ -500,7 +504,7 @@
           <ul style="font-size: 34px">
             <li>Konta i role użytkowników.</li>
             <li>Weryfikacja API na żywo.</li>
-            <li>Scenariusz z łańcuchami piaskownicy.</li>
+            <li>Scenariusz z łańcuchami sandbox.</li>
             <li>Podpis kwalifikowany.</li>
           </ul>
           <h2 style="margin-top: 34px">Ograniczenia</h2>

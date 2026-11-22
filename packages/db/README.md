@@ -14,7 +14,7 @@ Schemat PostgreSQL, migracje SQL i typowane repozytoria dla magazynu dowodów dz
   dopisywania; rola `olcys_app` nie ma praw UPDATE/DELETE.
 - `schedules` (migracja `0002_schedules.sql`) — `setSchedule` zastępuje `cases.schedule` (poza statusem jedyna kolumna
   sprawy z prawem UPDATE) i w tej samej transakcji dopisuje zmianę do `case_schedule_change` (kto, dlaczego, przed, po);
-  `fire` zajmuje termin wpisem `schedule_tick` z unikalnym `job_id` pod blokadą doradczą sprawy (tę samą blokadę bierze
+  `fire` zajmuje termin wpisem `schedule_tick` z unikalnym `job_id` pod advisory lockiem sprawy (tę samą blokadę bierze
   `setSchedule`), więc termin uruchamia najwyżej jeden przebieg także przy kilku procesach, i nie uruchamia go, gdy
   przebieg sprawy jest w kolejce lub w toku. Decyzja dostaje czas ostatniej zmiany harmonogramu i ostatni obsłużony
   termin; decyzja `not_due` (termin już nienależny) niczego nie zapisuje. Obie tabele są tylko do dopisywania.
@@ -32,10 +32,10 @@ Schemat PostgreSQL, migracje SQL i typowane repozytoria dla magazynu dowodów dz
   wykonania. `add(runId, klasyfikacje)` odrzuca adres sklasyfikowany już w tym przebiegu, `list(runId)` zwraca wiersze
   według łańcucha i adresu. Tabela tylko do dopisywania (`olcys_app`: SELECT i INSERT).
 - `clusters` (migracja `0007_address_clusters.sql`) — klastry Bitcoin z heurystyki wspólnego wydatkowania w tabeli
-  `address_cluster` (`PRIMARY KEY (run_id, id)`; `id` = `c_` + skrót posortowanej listy adresów): ziarna i adresy
+  `address_cluster` (`PRIMARY KEY (run_id, id)`; `id` = `c_` + skrót posortowanej listy adresów): adresy seed i adresy
   (`text[]`), rozmiar i poprzedni rozmiar, dowody połączeń, pominięte transakcje, usługi i flagi (`jsonb`).
   `add(runId, klastry)` odrzuca powtórzony identyfikator, `list(runId)` zwraca wiersze według identyfikatora,
-  `previousSizes(caseId, ziarna, beforeRunId)` — rozmiary klastrów ziaren z najnowszego wcześniejszego przebiegu sprawy
+  `previousSizes(caseId, ziarna, beforeRunId)` — rozmiary klastrów adresów seed z najnowszego wcześniejszego przebiegu sprawy
   (współczynnik wzrostu reguły A7). Tabela tylko do dopisywania (`olcys_app`: SELECT i INSERT).
 - `chain.queryFlowEdges` i `queryFlowEdges(db, zapytanie)` (migracja `0008_fund_flows.sql`) — przepływy środków po
   zapisanych transferach przebiegu: przeszukiwanie wszerz na poziomie adresów (`walkFlows` z `@olcys/core`) z jednym
@@ -57,6 +57,6 @@ Schemat PostgreSQL, migracje SQL i typowane repozytoria dla magazynu dowodów dz
   SELECT i INSERT) i nie wpływają na żadną wartość oceny.
 - `migrate(ownerUrl)` / `pnpm db:migrate` — migracje SQL z `migrations/` (z kontrolą skrótów SHA-256). Historię
   migracji (`schema_migrations`) może zapisywać wyłącznie właściciel schematu — `migrate()` odbiera prawa zapisu
-  pozostałym rolom. Równoczesne uruchomienia (np. równoległe pliki testów) czekają na blokadę doradczą, więc każda
+  pozostałym rolom. Równoczesne uruchomienia (np. równoległe pliki testów) czekają na advisory lock, więc każda
   migracja jest stosowana raz.
 - Testy integracyjne wymagają `OLCYS_TEST_DATABASE_URL` i `OLCYS_TEST_DATABASE_URL_OWNER`.

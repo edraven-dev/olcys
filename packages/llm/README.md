@@ -38,13 +38,13 @@ Klient modelu zgodny z API OpenAI, wersjonowany rejestr promptów, odpowiedzi zg
 
 Tekst sprawy może trafić tylko do źródła GREEN rodzaju `ai_model` z `sendsIdentifiersExternally: false`. Przy
 `LLM_ENABLED=true` inny wpis (np. AMBER) kończy start błędem `llm_source_not_allowed` (`LlmConfigError`), a klient
-sprawdza to samo przy każdym wywołaniu (`egress_denied`). Zdalne (AMBER) punkty końcowe modelu wymagają zatwierdzenia
+sprawdza to samo przy każdym wywołaniu (`egress_denied`). Zdalne (AMBER) endpointy modelu wymagają zatwierdzenia
 w zakresie sprawy z uzasadnieniem — poza zakresem MVP. Wyłączony model (`LLM_ENABLED=false`) nie wymaga magazynu wywołań.
 
-Punkt końcowy modelu to źródło `local_llm` w `config/sources.yaml` (rodzaj `ai_model`, GREEN, tylko hosty lokalne,
+Endpoint modelu to źródło `local_llm` w `config/sources.yaml` (rodzaj `ai_model`, GREEN, tylko hosty lokalne,
 `sendsIdentifiersExternally: false`). `apps/worker/src/llm.ts` buduje dla niego osobnego klienta wyjścia (lista
-dozwolonych hostów, limit zapytań, dziennik wyjścia, koperta pochodzenia) i zapisuje wywołania w `llm_call`. Domyślnie
-działa lokalny OpenVINO Model Server (`http://localhost:2140/v3`, model `qwen3.6-35b-ov`). Zdalny punkt końcowy
+dozwolonych hostów, limit zapytań, dziennik wyjścia, provenance envelope) i zapisuje wywołania w `llm_call`. Domyślnie
+działa lokalny OpenVINO Model Server (`http://localhost:2140/v3`, model `qwen3.6-35b-ov`). Zdalny endpoint
 wymaga osobnego wpisu AMBER w rejestrze.
 
 ## Zamiana modelu
@@ -59,25 +59,23 @@ jeśli serwer tego wymaga, `LLM_CHAT_TEMPLATE_KWARGS`, np. `{"enable_thinking":f
 | llama.cpp (profil compose `llm-llamacpp`) | `http://127.0.0.1:8081/v1`  | `LLAMACPP_ALIAS`             |
 | vLLM (host z GPU, poza compose)           | `http://127.0.0.1:8000/v1`  | identyfikator z `vllm serve` |
 
-Po zmianie `.env` uruchom `pnpm llm:check`: polecenie czyta te same zmienne co worker, wypisuje host punktu
-końcowego, model, listę modeli serwera (`GET {base}/models`), skrót modelu (`LLM_MODEL_DIGEST` albo „brak skrótu
+Po zmianie `.env` uruchom `pnpm llm:check`: polecenie czyta te same zmienne co worker, wypisuje host endpointu, model, listę modeli serwera (`GET {base}/models`), skrót modelu (`LLM_MODEL_DIGEST` albo „brak skrótu
 modelu”), wynik jednej próby ze ścisłym schematem JSON na syntetycznym wejściu oraz opóźnienie. Próba przechodzi przez
 ten sam klient i ten sam klient wyjścia co analizy (źródło `local_llm`, lista dozwolonych hostów, dziennik wyjścia).
 Przy błędzie (serwer niedostępny, modelu nie ma na liście, odpowiedź niezgodna ze schematem) kod wyjścia jest różny od
-zera. Test `apps/worker/test/llm-swap.test.ts` dowodzi zamiany na dwóch atrapach serwerów na `127.0.0.1`.
+zera. Test `apps/worker/test/llm-swap.test.ts` dowodzi zamiany na dwóch mockach serwerów na `127.0.0.1`.
 
-Każdy uruchomiony przebieg zapisuje tożsamość modelu w migawce konfiguracji (`config.llm`): adres bazowy bez danych
-logowania i zapytania, identyfikator modelu, `LLM_MODEL_DIGEST` albo `none` i znacznik włączenia. Każdy dozwolony punkt
-końcowy to źródło GREEN z pętli zwrotnej; inny host wymaga osobnego wpisu w `config/sources.yaml`.
+Każdy uruchomiony przebieg zapisuje tożsamość modelu w snapshocie konfiguracji (`config.llm`): adres bazowy bez danych
+logowania i zapytania, identyfikator modelu, `LLM_MODEL_DIGEST` albo `none` i znacznik włączenia. Każdy dozwolony endpoint to źródło GREEN z adresu loopback; inny host wymaga osobnego wpisu w `config/sources.yaml`.
 
 Model o dobrej znajomości polskiego na licencji Apache-2.0 (np. Bielik 11B v3 Instruct, SpeakLeash) pobiera się
 ręcznie, jednorazowo i poza analizą (pobranie nie niesie danych sprawy; OŁCyŚ niczego nie pobiera sam): w Ollamie
 `ollama pull` z biblioteki modeli, w llama.cpp przez plik GGUF umieszczony w `data/models/` (`LLAMACPP_MODEL_FILE`,
 `LLAMACPP_ALIAS`) i `LLM_MODEL_DIGEST=sha256:<suma kontrolna pliku>`. Profile compose `llm` i `llm-llamacpp` mają wyłączone
-funkcje chmurowe i telemetrię, porty wiązane do `127.0.0.1` oraz testy zdrowia.
+funkcje chmurowe i telemetrię, porty wiązane do `127.0.0.1` oraz healthchecki.
 
 Test dymny z działającym modelem jest wyłączony domyślnie: `OLCYS_LLM_LIVE=1 pnpm vitest run --project @olcys/worker llm-live`
-(tylko pętla zwrotna, krótki syntetyczny prompt).
+(tylko loopback, krótki syntetyczny prompt).
 
 Sugestie (`LlmSuggestion`) mają zerową wagę w ocenie; decyzję analityka zapisuje `POST /api/suggestions/:id/decision`.
 
@@ -97,7 +95,7 @@ dosłownym cytatem z linii `nagłówek:`, `etykieta:` lub `fragment:` (po zwini�
 `failed: span_not_in_input` i sugestia nie powstaje. `lexiconAgreement` porównuje rolę z sygnałami leksykalnymi
 ekstraktora (`agrees` / `differs` / `lexicon_silent`); wynik trafia do `output.agreement`.
 
-Wynik to sugestia o zerowej wadze: nie zapisuje żadnej przesłanki ani oceny. Krok potoku (`llm.suggest`) opisuje
+Wynik to sugestia o zerowej wadze: nie zapisuje żadnej przesłanki ani oceny. Krok pipeline’u (`llm.suggest`) opisuje
 `apps/worker/README.md`. Test dymny z żywym modelem: `OLCYS_LLM_LIVE=1 pnpm vitest run --project @olcys/worker suggest-roles-live`.
 
 ## Zadanie `report-inference-draft` (v1): szkice wniosków do sekcji C raportu

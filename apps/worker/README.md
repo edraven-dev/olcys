@@ -1,6 +1,6 @@
-# @olcys/worker — potok analizy i korzeń kompozycji
+# @olcys/worker — pipeline analizy i composition root
 
-Łączy implementacje pakietów z portami `@olcys/core` i wykonuje potok analizy. W MVP potok działa synchronicznie
+Łączy implementacje pakietów z portami `@olcys/core` i wykonuje pipeline analizy. W MVP pipeline działa synchronicznie
 w procesie API: etapy wykonują się po kolei, zapisują wyniki przez repozytoria i raportują postęp w rekordzie
 przebiegu. Porównanie z poprzednim zakończonym przebiegiem sprawy jest wbudowanym krokiem `diff.previous`; etapy
 późniejszych kroków według `RUN_STEPS` (raport) wykonują się po nim i widzą wykryte zmiany. Powody niepełności
@@ -13,18 +13,18 @@ z etapu.
 ## Publiczne API
 
 - `createRuntime(options)` — buduje środowisko: repozytoria (PostgreSQL przy `DATABASE_URL`, inaczej w pamięci),
-  magazyn treści (`OLCYS_DATA_DIR/blobs`), rejestr źródeł z `config/sources.yaml`, migawkę konfiguracji przebiegu
-  (skróty SHA-256 rejestru źródeł i wag), tryb (`OLCYS_MODE`) oraz `startRun()`, który tworzy przebieg i uruchamia potok
-  bez czekania na wynik, i `launchRun(runId)`, który uruchamia potok przebiegu utworzonego wcześniej (z tego korzysta
-  planista).
+  magazyn treści (`OLCYS_DATA_DIR/blobs`), rejestr źródeł z `config/sources.yaml`, snapshot konfiguracji przebiegu
+  (skróty SHA-256 rejestru źródeł i wag), tryb (`OLCYS_MODE`) oraz `startRun()`, który tworzy przebieg i uruchamia pipeline
+  bez czekania na wynik, i `launchRun(runId)`, który uruchamia pipeline przebiegu utworzonego wcześniej (z tego korzysta
+  scheduler).
 - `runPipeline(runId, deps)` — wykonuje etapy (`Stage`: `step` + `run(ctx)`), aktualizuje status (`running` →
   `succeeded`, `partial` gdy część źródeł lub danych łańcucha była niedostępna, albo `failed` z komunikatem błędu)
   i zapisuje zmiany. Ponowna ocena dziedziczy powody niepełności ocenianego przebiegu (razem z kodami). Błąd na
   dowolnym etapie przygotowania — także odczyt ocenianego przebiegu — kończy przebieg jako `failed` z komunikatem;
   przebieg nigdy nie zostaje w stanie `queued`.
 - `diffWithPrevious(repos, run)` — porównanie z poprzednim przebiegiem przez `diffRuns` z `@olcys/evidence`.
-- `loadConfig()` — rejestr źródeł i migawka konfiguracji.
-- `createScheduler({ runtime, settings?, clock? })` — planista analiz okresowych (zob. `docs/architecture.md`,
+- `loadConfig()` — rejestr źródeł i snapshot konfiguracji.
+- `createScheduler({ runtime, settings?, clock? })` — scheduler analiz okresowych (zob. `docs/architecture.md`,
   „Analizy okresowe”): `start()` uzgadnia stan z bazą (`reconcile()`), od razu obsługuje termin do nadrobienia, a potem
   sprawdza harmonogramy co `OLCYS_SCHEDULER_INTERVAL_SECONDS`; `stop()` czeka na trwające sprawdzenie. `evaluate()`
   i `fire(caseId, termin)` obsługują terminy (jeden wpis `schedule_tick` na termin, bez nakładania się przebiegów
@@ -55,10 +55,10 @@ o token dla skrótu `manifestSha256` każdego zapisanego przechwycenia (etap zbi
 
 ## Etapy przebiegu
 
-`defaultStages({ mode, sources, env })` zwraca etapy MVP w kolejności potoku:
+`defaultStages({ mode, sources, env })` zwraca etapy MVP w kolejności pipeline’u:
 
 1. **Zbieranie** (`collect.source`) — kolektory przez jednego klienta ruchu wychodzącego na przebieg (lista dozwolonych hostów,
-   robots.txt, dziennik ruchu i koperty pochodzenia zapisywane w magazynie). Treść stron jest maskowana z kluczy prywatnych
+   robots.txt, dziennik ruchu i provenance envelope zapisywane w magazynie). Treść stron jest maskowana z kluczy prywatnych
    i fraz seed przed zapisem (`createSecretRedactor()` z pakietu wyodrębniania adresów). Oprócz kolektorów platform
    rejestrowane są wyszukiwarki według `OLCYS_SEARCH_MODE` (domyślnie `mock` — wyszukiwarka testowa po stronie testowej;
    zob. `packages/collectors/README.md`); klucze API pochodzą wyłącznie ze zmiennych środowiskowych. Rejestr kolektorów
@@ -76,19 +76,19 @@ o token dla skrótu `manifestSha256` każdego zapisanego przechwycenia (etap zbi
    wydatkowania (`src/clusters.ts`, heurystyka z bezpiecznikami CoinJoin i usług — zob.
    [metodyka](../../docs/methodology/klastrowanie-wspolwydatkowania.md)): historie partnerów są pobierane tym samym klientem
    ruchu wychodzącego (≤ 200 adresów, głębokość 2, ≤ 5 stron; bez usług i adresów z listy wykluczeń), klastry są
-   zapisywane w `clusters` (tylko do dopisywania), a reguła A7 oznacza ziarna klastra, który wchłonął usługę, osiągnął
+   zapisywane w `clusters` (tylko do dopisywania), a reguła A7 oznacza adresy seed klastra, który wchłonął usługę, osiągnął
    limit lub gwałtownie urósł względem poprzedniego przebiegu. Niepełna historia partnera daje powód `partial`
    z kodem `counterparty_chain_incomplete`. Punktacja dostaje członków klastra jako powiązania `CLUSTER_ASSOCIATED`
-   (wynik 0, „nie oceniono”) wyłącznie dla ziaren z roszczeniem własności. Adresy otrzymują tylko dostawcy włączeni w zakresie sprawy
+   (wynik 0, „nie oceniono”) wyłącznie dla adresów seed z roszczeniem własności. Adresy otrzymują tylko dostawcy włączeni w zakresie sprawy
    (AMBER, np. `etherscan_v2`, `trongrid`, z uzasadnieniem analityka); kursy NBP przy włączonym `nbp_api`. Historia
    pobrana niecałkowicie (brak włączonego dostawcy, blokada, brak nagrania, obcięcie) oznacza przebieg jako `partial`.
    Użyte etykiety są zapisywane w magazynie (raport, API). Adres giełdy nigdy nie jest przypisywany osobie, ale
    interakcja jest rejestrowana; trop KYC tylko dla adresu podanego w pierwszej osobie (nie w cytacie, ostrzeżeniu,
    zgłoszeniu oszustwa ani na liście).
-4. **Punktacja** (`score.links`) — Wskaźnik Pewności dla powiązań; migawka konfiguracji przebiegu zapisuje wersję
+4. **Punktacja** (`score.links`) — Wskaźnik Pewności dla powiązań; snapshot konfiguracji przebiegu zapisuje wersję
    i skrót SHA-256 wag używanych przez punktację. Tylko w ponownej ocenie etap stosuje korekty analityka sprawy
    zapisane do chwili zlecenia przebiegu (`applyOverrides` z `@olcys/scoring`, moduł `src/analyst.ts`). Zbiór jest
-   ustalany przy tworzeniu przebiegu: migawka konfiguracji zapisuje identyfikatory (`analystOverrides`) i etykietę
+   ustalany przy tworzeniu przebiegu: snapshot konfiguracji zapisuje identyfikatory (`analystOverrides`) i etykietę
    `rulesVersions.overrides` (`overrides@<liczba>:<id najnowszej>`), a punktacja stosuje dokładnie ten zbiór.
 5. **Raport** (`report.render`) — po wbudowanym porównaniu z poprzednim przebiegiem (`diff.previous`), więc raport
    zawiera wykryte zmiany.
@@ -144,7 +144,7 @@ odczyt `listTransfers` także usuwa powtórzenia, więc raport i API nie liczą 
 ## Sugestie ról wzmianek o adresach (`llm.suggest`)
 
 Krok `llm.suggest` (po `score.links`, przed porównaniem z poprzednim przebiegiem) działa w procesie, bez kolejki, i jest
-częścią potoku tylko wtedy, gdy klient modelu jest włączony (`LLM_ENABLED=true`). Dla wzmianek o adresach wykrytych w
+częścią pipeline’u tylko wtedy, gdy klient modelu jest włączony (`LLM_ENABLED=true`). Dla wzmianek o adresach wykrytych w
 przebiegu (najpierw adresy cytowane przez ocenę powiązań lub reguły odrzucania) prosi model o rolę wzmianki
 (`classifyAddressMention` z `@olcys/llm`) i zapisuje wyniki jako oczekujące `LlmSuggestion` — bez żadnego wpływu na
 Wskaźnik Pewności. Przetwarzanie jest sekwencyjne i ograniczone: `LLM_MAX_MENTIONS_PER_RUN` (domyślnie 20) wywołań na
@@ -157,7 +157,7 @@ wywoływać model. Odpowiedź, która nie jest użyteczna (zły JSON, naruszenie
 odrzucana bez zmiany statusu przebiegu. Ponowna ocena (`rescore`) nie wywołuje modelu.
 
 Potwierdzona przez analityka sugestia jest jedynym sposobem, w jaki rola od modelu wpływa na ocenę: przebieg ponownej
-oceny (`rescore`) zapisuje w migawce konfiguracji (`confirmedSuggestions`: id sugestii, czas decyzji, rola, kandydat i
+oceny (`rescore`) zapisuje w snapshocie konfiguracji (`confirmedSuggestions`: id sugestii, czas decyzji, rola, kandydat i
 adres; etykieta `rulesVersions.confirmedSuggestions`) role potwierdzone przed jego zakolejkowaniem i przekazuje dokładnie
 te wpisy jako `AnalystCue` (`applyOverrides`, opcja
 `cues`; kandydaci są odnajdywani po zabezpieczeniu, adresie i pozycji). Oczekujące i odrzucone sugestie nigdy nie są

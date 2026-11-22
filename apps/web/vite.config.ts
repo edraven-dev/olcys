@@ -7,13 +7,13 @@ import { SECURITY_HEADERS, serverSettings, SPA_CSP } from './vite.settings.ts';
 const ROOT = resolve(import.meta.dirname, '..', '..');
 
 export default defineConfig(({ mode }) => {
-  const { port, apiTarget } = serverSettings(mode, ROOT, process.env);
+  const { host, port, apiTarget } = serverSettings(mode, ROOT, process.env);
   return {
     plugins: [react()],
-    server: { host: '127.0.0.1', port, strictPort: true, proxy: { '/api': apiTarget }, headers: SECURITY_HEADERS },
+    server: { host, port, strictPort: true, proxy: { '/api': apiTarget }, headers: SECURITY_HEADERS },
     // The production build is checked with the strict CSP (`pnpm --filter @olcys/web build && preview`).
     preview: {
-      host: '127.0.0.1',
+      host,
       port,
       strictPort: true,
       proxy: { '/api': apiTarget },

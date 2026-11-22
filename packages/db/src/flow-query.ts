@@ -44,7 +44,7 @@ export function queryFlowEdges(db: Db, query: FlowQuery & { runId: Id }): Promis
              ORDER BY x.chain, x.record->>'txHash', x.record->>'index', x.record->>'kind', x.f, x.t,
                       x.record->'asset'->>'symbol', x.record->'asset'->>'contract', x.record->>'amount', x.id
           ) d
-         ORDER BY d.bt, (d.record->>'txHash') COLLATE "C", coalesce((d.record->>'index')::int, -1),
+         ORDER BY d.bt, (d.record->>'txHash') COLLATE "C", coalesce((d.record->>'index')::numeric, -1),
                   d.f COLLATE "C", d.t COLLATE "C", (d.record->>'amount') COLLATE "C"
          LIMIT ${limit}
       `.execute(db);

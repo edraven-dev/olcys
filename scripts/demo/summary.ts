@@ -73,8 +73,9 @@ export function summarise(input: SummaryInput): string[] {
   lines.push(
     '',
     `${s.ui}: ${input.webUrl}/sprawy/${input.caseId}`,
-    `${s.report}: ${input.apiUrl}/api/runs/${v1.runId}/report`,
-    `${s.reportV2}: ${input.apiUrl}/api/runs/${v2.runId}/report`,
+    // Through the console origin: its proxy serves /api, also when only the console port is published (compose.app.yml).
+    `${s.report}: ${input.webUrl}/api/runs/${v1.runId}/report`,
+    `${s.reportV2}: ${input.webUrl}/api/runs/${v2.runId}/report`,
     '',
   );
   lines.push(

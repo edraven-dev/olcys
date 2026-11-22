@@ -2,7 +2,7 @@
 
 Raport z analizy OSINT o jakości dowodowej: samodzielny dokument HTML w języku polskim, zbudowany z zapisanych danych
 przebiegu, z wyraźnym rozdzieleniem faktów źródłowych, wyników obliczeń i wniosków wymagających weryfikacji; oraz krok
-potoku `report.render`, który raport generuje i zapisuje.
+pipeline’u `report.render`, który raport generuje i zapisuje.
 
 - **Zależności:** wyłącznie kontrakty `@olcys/core` (testy używają też `@olcys/db` i `@olcys/evidence`).
 - **Testy:** `test/*.test.ts`, uruchamiane poleceniem `pnpm vitest run --project @olcys/reporting`.
@@ -31,7 +31,7 @@ potoku `report.render`, który raport generuje i zapisuje.
    z autorami jako nieprzesądzające. Interakcje z giełdami są odnotowywane, a nie przypisywane osobie.
 5. Aktywność on-chain i przesłanki wyjścia do walut tradycyjnych — wartości w PLN z tabelą, datą i kursem NBP.
    Podrozdział „Klastry adresów Bitcoin” (`ReportData.clusters`, gdy magazyn je przechowuje) przedstawia wynik
-   heurystyki wspólnego wydatkowania jako obliczenie, a nie fakt: rozmiar, ziarna, dowody połączeń, pominięte
+   heurystyki wspólnego wydatkowania jako obliczenie, a nie fakt: rozmiar, adresy seed, dowody połączeń, pominięte
    transakcje CoinJoin i wspólne z powodem oraz ostrzeżenia (usługa, limit, wzrost). Klastry bez połączeń są
    zliczone jednym zdaniem; powiązania `CLUSTER_ASSOCIATED` nie są liczone jako powiązania własnościowe.
 6. Chronologia przepływu środków — zdania w kolejności czasu, zbudowane z transakcji, krawędzi przepływu i zdarzeń
@@ -92,7 +92,7 @@ Decyzja zleca ponowne wygenerowanie raportu przez tę samą, szeregowaną ście�
   `scoreBand(score, excluded?)`, `icdTerm(link)`, formatery (`formatPln`, `formatAmount`, `formatUtc`, …) oraz katalog
   tekstów `pl`.
 
-## Włączenie kroku w potoku
+## Włączenie kroku w pipeline’u
 
 ```ts
 // apps/api/src/stages.ts
@@ -106,7 +106,7 @@ export function defaultStages(runtime) {
 }
 ```
 
-Potok wykonuje porównanie z poprzednim przebiegiem jako wbudowany krok `diff.previous`; krok `report.render` działa po
+Pipeline wykonuje porównanie z poprzednim przebiegiem jako wbudowany krok `diff.previous`; krok `report.render` działa po
 nim, więc raport zawiera wykryte zmiany. `GET /api/runs/:id/report` zwraca najnowszy raport `html` przebiegu.
 
 `buildReportModel(data)` buduje z tych samych danych (`ReportData`) strukturalny `ReportModel` z `@olcys/core`: fakty
@@ -192,6 +192,6 @@ zdarzenia zagregowanego, opiera się na kursie syntetycznym; puste, gdy brak wyc
 przechodziły za oficjalne wyceny NBP. STIX i MISP nie zawierają wartości PLN. Tag `admiralty-scale` uwzględnia tylko
 ścieżki, które się liczyły (`counted`).
 
-Zamiast osobnego zadania `report.export` eksporty powstają w kroku `report.render` (potok nie ma kolejki zadań), więc
+Zamiast osobnego zadania `report.export` eksporty powstają w kroku `report.render` (pipeline nie ma kolejki zadań), więc
 każde ponowne wygenerowanie raportu tworzy też nowe eksporty z aktualnymi ocenami analityka. Nic nie jest wysyłane do
 żadnego systemu zewnętrznego.

@@ -1,10 +1,10 @@
 # Notatki prelegenta
 
-Slajdy: [`olcys-prezentacja.pdf`](olcys-prezentacja.pdf). Wszystkie dane w prezentacji są syntetyczne i zamaskowane.
+Slajdy: [`olcys-prezentacja.pdf`](olcys-prezentacja.pdf). Wszystkie dane w prezentacji są syntetyczne (niemaskowane).
 
 ## 1. Tytuł, problem i cel
 
-OŁCyŚ, czyli Osintowy łapacz cyfrowych śladów, jest narzędziem OSINT dla analityków KAS. Analitycy potrzebują publicznych śladów adresów kryptowalutowych, powiązań, które da się obronić, sygnałów wyjścia do walut tradycyjnych oraz materiału dowodowego do postępowań. Naszym celem jest narzędzie, które te ślady znajduje, ocenia i dokumentuje, a przy tym działa wyłącznie na źródłach publicznych. Cała demonstracja korzysta z fikcyjnej persony i danych syntetycznych.
+OŁCyŚ, czyli Osintowy łapacz cyfrowych śladów, jest narzędziem OSINT dla analityków KAS. Analitycy potrzebują publicznych śladów adresów kryptowalutowych, powiązań, które da się obronić, sygnałów wyjścia do walut tradycyjnych oraz materiału dowodowego do postępowań. OŁCyŚ znajduje te ślady, ocenia je i dokumentuje, korzystając wyłącznie ze źródeł publicznych. Cała demonstracja korzysta z fikcyjnej persony i danych syntetycznych.
 
 ## 2. Co robi OŁCyŚ
 
@@ -32,12 +32,12 @@ Sprawę można analizować ponownie ręcznie lub z harmonogramu, a wynik jest po
 
 ## 8. Jakość dowodowa
 
-Każda pobrana strona ma manifest z SHA-256, a dziennik wyjść zapisuje pole containsIdentifier przy każdym żądaniu. Skróty są znakowane czasem według RFC 3161. Raport jest podpisanym PDF/A-3b z dołączonym manifestem; podpis jest demonstracyjny i niekwalifikowany, co mówimy wprost. W raporcie fakty (A), obliczenia (B) i wnioski do weryfikacji (C) pozostają rozdzielone.
+Każda pobrana strona ma manifest z SHA-256, a dziennik ruchu wychodzącego zapisuje pole containsIdentifier przy każdym żądaniu. Skróty są znakowane czasem według RFC 3161. Raport jest podpisanym PDF/A-3b z dołączonym manifestem; podpis jest demonstracyjny i niekwalifikowany, co mówimy wprost. W raporcie fakty (A), obliczenia (B) i wnioski do weryfikacji (C) pozostają rozdzielone.
 
 ## 9. Zgodność i bezpieczeństwo
 
-Pracujemy wyłącznie w trybie OSINT, według rejestru źródeł GREEN, AMBER i RED; źródła RED nigdy nie są kontaktowane. Sprawdzamy robots.txt i nie obchodzimy CAPTCHA ani zabezpieczeń antybotowych. Klucze prywatne są usuwane z pamięci, telemetria jest wyłączona, a konsola ma ścisłą politykę CSP. Dziennik dostępu jest tylko do dopisywania, a licencje przechodzą bramkę otwartych licencji. Model AI jest lokalny i wymienny, a jego sugestie mają wagę zero do potwierdzenia przez analityka. Konta użytkowników są poza zakresem MVP i planowane w kolejnej wersji.
+Pracujemy wyłącznie w trybie OSINT, według rejestru źródeł GREEN, AMBER i RED; źródła RED nigdy nie są kontaktowane. Sprawdzamy robots.txt i nie obchodzimy CAPTCHA ani zabezpieczeń antybotowych. Klucze prywatne są usuwane z pamięci, telemetria jest wyłączona, a konsola ma ścisłą politykę CSP. Dziennik dostępu jest tylko do dopisywania, a każda zależność przechodzi kontrolę licencji open source. Model AI jest lokalny i wymienny, a jego sugestie mają wagę zero do potwierdzenia przez analityka. Konta użytkowników są poza zakresem MVP i planowane w kolejnej wersji.
 
 ## 10. Architektura, technologie i plany
 
-Konsola web komunikuje się z API, które uruchamia potok analizy. Cały ruch sieciowy przechodzi przez jeden EgressClient z listą hostów, limitami i dziennikiem. Dane trafiają do PostgreSQL i magazynu blobów, a usługi pomocnicze to osint-py (Maigret, pyHanko), Gotenberg i lokalny model. Stos to Node 26 z TypeScriptem, React, Fastify, PostgreSQL i Python. Kolejne kroki: konta i role, weryfikacja API na żywo, scenariusz z łańcuchami piaskownicy i podpis kwalifikowany.
+Konsola web komunikuje się z API, które uruchamia pipeline analizy. Cały ruch sieciowy przechodzi przez jeden EgressClient z listą hostów, limitami i dziennikiem. Dane trafiają do PostgreSQL i magazynu blobów, a usługi pomocnicze to osint-py (Maigret, pyHanko), Gotenberg i lokalny model. Stos to Node 26 z TypeScriptem, React, Fastify, PostgreSQL i Python. Kolejne kroki: konta i role, weryfikacja API na żywo, scenariusz z łańcuchami sandbox i podpis kwalifikowany.

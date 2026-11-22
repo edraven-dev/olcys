@@ -126,6 +126,7 @@ function SourceRegister({ sources }: { sources: readonly SourceItem[] }) {
           red: count('RED'),
         })}
       </p>
+      {count('RED') > 0 ? <p className="hint">{pl.settings.sources.redRole}</p> : null}
       <div className="table-wrap">
         <table>
           <thead>

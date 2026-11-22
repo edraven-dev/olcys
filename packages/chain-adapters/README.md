@@ -3,14 +3,14 @@
 Dostawcy danych blockchain za portem `ChainProvider` (Esplora, Etherscan V2, TronGrid, własny węzeł EVM z API Otterscan). Ten sam kod obsługuje publiczne
 API, węzły utrzymywane lokalnie i syntetyczną stronę testową — różni się wyłącznie adres bazowy (`baseUrl`). Każde
 zapytanie idzie przez klienta ruchu wychodzącego przebiegu (`ctx.http`): lista dozwolonych hostów, limity, dziennik
-z `containsIdentifier`, koperta pochodzenia i kasety.
+z `containsIdentifier`, provenance envelope i cassettes.
 
 - **Zależności:** kontrakty `@olcys/core` oraz `yaml` (odczyt konfiguracji). Inne pakiety są dostępne przez porty
   łączone w `apps/worker`.
 - **Testy:** `test/*.test.ts` (w tym `otterscan-evm.test.ts` na syntetycznym węźle JSON-RPC oraz opcjonalny
   `otterscan-evm.integration.test.ts` z żywym Anvilem — pomijany z komunikatem, gdy `SANDBOX_EVM_RPC_URL` jest
   nieustawiony lub węzeł nieosiągalny), uruchamiane poleceniem `pnpm vitest run --project @olcys/chain-adapters` (bez sieci:
-  atrapy klienta oraz strona testowa uruchamiana w procesie na 127.0.0.1).
+  mocki klienta oraz strona testowa uruchamiana w procesie na 127.0.0.1).
 
 ## Konfiguracja: `config/chain-providers.yaml`
 
@@ -24,7 +24,7 @@ z `containsIdentifier`, koperta pochodzenia i kasety.
 
 - `sourceId` musi istnieć w sekcji `providers:` pliku `config/sources.yaml`; źródła RED są odrzucane przy wczytaniu.
 - Klucze API wyłącznie ze zmiennych środowiskowych (`ETHERSCAN_API_KEY`, `TRONGRID_API_KEY`); wysyłane tylko, gdy są
-  ustawione, i zawsze maskowane w dzienniku i kasetach (`apikey`, nagłówek `TRON-PRO-API-KEY`).
+  ustawione, i zawsze maskowane w dzienniku i cassettes (`apikey`, nagłówek `TRON-PRO-API-KEY`).
 - **Wdrożenie własne:** zmiana `baseUrl` na własny Esplora/electrs (Bitcoin Core + Blockstream electrs), zgodny
   z Etherscan backend lub indeksator TRC-20 przy java-tron; host trafia do `config/sources.yaml`.
 - **`evm-otterscan` (węzeł własny):** adres węzła z `SANDBOX_EVM_RPC_URL` (`baseUrlEnv` nadpisuje `baseUrl`, gdy
@@ -34,8 +34,8 @@ z `containsIdentifier`, koperta pochodzenia i kasety.
   węzła w sieci agencji, dodać ten host do `allowedHosts` osobnego wpisu w `config/sources.yaml` i wskazać jego
   `sourceId` w `config/chain-providers.yaml`. Żaden adres nie opuszcza wtedy sieci agencji; nigdy nie wskazywać
   publicznego RPC ani nie rozwidlać sieci publicznej w Anvilu.
-- **Dane piaskownicy:** wpisy `sandbox_anvil` i `sandbox_esplora` w `config/sources.yaml` mają `sandbox: true`; klient
-  ruchu wychodzącego oznacza wtedy każdą odpowiedź na żywo (koperta pochodzenia i dziennik) jako `sandbox`.
+- **Dane sandboxa:** wpisy `sandbox_anvil` i `sandbox_esplora` w `config/sources.yaml` mają `sandbox: true`; klient
+  ruchu wychodzącego oznacza wtedy każdą odpowiedź na żywo (provenance envelope i dziennik) jako `sandbox`.
 - **Demonstracja (offline):** `withFixtureSite(configs, FIXTURE_SITE_URL, manifest.hostPrefixes)` przepina adresy na
   ścieżki strony testowej, np. `mempool.space/api` → `/chain/esplora/api`.
 
@@ -60,10 +60,10 @@ Pojedyncze adaptery i funkcje czyste: `createEsploraProvider`, `createEtherscanP
 
 ## Zachowanie
 
-- **Kolejność i powtórzenia:** zapytania wykonywane po kolei (deterministyczny dziennik i kasety). HTTP 429/503
+- **Kolejność i powtórzenia:** zapytania wykonywane po kolei (deterministyczny dziennik i cassettes). HTTP 429/503
   obsługuje klient ruchu wychodzącego; tu ponawiane jest tylko dławienie zwracane jako HTTP 200 (Etherscan „Max rate
   limit reached”): 1 s, 2 s, 4 s ± 20 %. Odpowiedź 403 blokuje dostawcę do końca przebiegu i adres przechodzi do
-  kolejnego dostawcy. Brak kasety (`replay_miss`) nigdy nie powoduje zapytania na żywo.
+  kolejnego dostawcy. Brak cassette (`replay_miss`) nigdy nie powoduje zapytania na żywo.
 - **Stan łańcucha:** wierzchołek pobierany raz na (dostawca, łańcuch); pozycje powyżej niego są pomijane, a Etherscan
   dostaje `endblock` = wysokość wierzchołka. Zapisywana jest wysokość (bez skrótu bloku — dodatkowe zapytanie).
 - **Kwoty:** całkowite jednostki bazowe → `DecimalString` bez liczb zmiennoprzecinkowych; JSON parsowany z zachowaniem
@@ -79,7 +79,7 @@ Pojedyncze adaptery i funkcje czyste: `createEsploraProvider`, `createEtherscanP
   odpowiedź `{ status: 'reverted' }` — negatywny wynik sondy, nie błąd; pozostałe błędy JSON-RPC są błędami dostawcy.
   Każda sonda zawiera adres (`containsIdentifier: true`). Warunki: „Powered by Etherscan.io APIs” przy każdej
   prezentacji danych; plany darmowe tylko do użytku osobistego/badawczego (prototyp).
-- **EVM (Otterscan, `evm-otterscan`):** węzeł z API `ots_*` (Erigon lub Anvil w piaskownicy) — zwykłe JSON-RPC nie
+- **EVM (Otterscan, `evm-otterscan`):** węzeł z API `ots_*` (Erigon lub Anvil w sandboxie) — zwykłe JSON-RPC nie
   listuje historii adresu, `ots_searchTransactionsBefore` tak. Przy pierwszym wywołaniu w przebiegu sprawdzane jest
   `ots_getApiLevel` ≥ 8 (`minApiLevel`) i `eth_chainId` zgodny ze skonfigurowanym łańcuchem (`evm:N` → N); niższy
   poziom, brak przestrzeni `ots` lub inny identyfikator łańcucha to `provider_unavailable`, dostawca
@@ -93,8 +93,8 @@ Pojedyncze adaptery i funkcje czyste: `createEsploraProvider`, `createEtherscanP
   wartość) nie jest emitowana drugi raz. Symbol i `decimals` tokenu z `eth_call` (raz na kontrakt i przebieg; nieczytelne
   `decimals` → pozycja pominięta z powodem `unsupported_decimals`). Wierzchołek: `eth_blockNumber` +
   `eth_getBlockByNumber` (skrót i czas bloku trafiają do proweniencji); znaczniki czasu z samych bloków (receipty
-  Otterscan lub `eth_getBlockByNumber`), więc daty fabuły piaskownicy są zachowane. Pierwsza strona zaczyna się od
-  `toBlock` (wierzchołek z biegacza), więc migawka jest przypięta. Ciała zapytań są deterministyczne (JSON-RPC POST,
+  Otterscan lub `eth_getBlockByNumber`), więc daty fabuły sandboxa są zachowane. Pierwsza strona zaczyna się od
+  `toBlock` (wierzchołek z biegacza), więc snapshot jest przypięta. Ciała zapytań są deterministyczne (JSON-RPC POST,
   stała kolejność kluczy, jedno `id` na metodę), `containsIdentifier: true` wszędzie, gdzie w parametrach jest adres
   lub skrót transakcji. `getAddressSummary`: `eth_getBalance` i `eth_getTransactionCount` (wysłane transakcje); liczbę
   transakcji i pierwszą/ostatnią aktywność wylicza biegacz z historii. `getCode`, `getStorageAt`, `call` jak
@@ -122,7 +122,7 @@ pamięci podręcznej między przebiegami, brak dostawcy Solana; Otterscan: token
 systemowy) i SPL (`transfer`, `transferChecked`, także instrukcje wewnętrzne CPI; indeks `i*100`, wewnętrzne `i*100+j+1`),
 z kontami tokenów mapowanymi na właścicieli. Tokeny identyfikuje mint (USDC, USDT, EURC; nieznany mint to `SPL`).
 Nieudane transakcje nie są pobierane. Budżet to 500 transakcji na adres (`options.maxTransactions`); po jego wyczerpaniu
-historia jest oznaczona jako obcięta. Treści wywołań mają stały porządek kluczy i `id: 1` (stabilne klucze kaset).
+historia jest oznaczona jako obcięta. Treści wywołań mają stały porządek kluczy i `id: 1` (stabilne klucze cassettes).
 Publiczny punkt dostępu ma limit 100 zapytań/10 s na IP i 40/10 s na metodę, stąd 4 zapytania/s w rejestrze, i nie służy
 do produkcji; własny węzeł zmienia tylko `baseUrl`. Produkcyjny dostęp do pełnej historii jest planowany.
 

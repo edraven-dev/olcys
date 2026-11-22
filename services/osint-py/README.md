@@ -47,8 +47,8 @@ Pythona i klienta w Node.
 Odpowiedź: `service` (wersje usługi, Maigreta, socid-extractora i Pythona), `database` (`id`, `sha256`, liczba serwisów,
 wybranych i wykluczonych polityką), `policy`, `results` (po jednym wpisie na serwis) i `requests` (dziennik żądań).
 Status serwisu to jeden z: `found`, `not_found`, `blocked`, `login_wall`, `captcha`, `unknown`, `illegal`, `skipped`.
-**Bariera ani niepowodzenie nigdy nie jest „brakiem profilu”:** 403, 429, strona z CAPTCHA lub wyzwaniem
-przeglądarki, cenzura → `blocked`/`captcha` (z powodem, np. `rate_limited`); ściana logowania → `login_wall`;
+**Bariera ani niepowodzenie nigdy nie jest „brakiem profilu”:** 403, 429, strona z CAPTCHA lub browser
+challenge, cenzura → `blocked`/`captcha` (z powodem, np. `rate_limited`); login wall → `login_wall`;
 przekroczony czas, błąd połączenia, 5xx → `unknown`; odmowa strażnika sieci → `skipped`. Po barierze nie ma ponowień ani
 obejść (`retries=0`; 429 to jedno żądanie). Trafienie (`found`) to **kandydat na konto, nie powiązanie**: ta sama nazwa
 na innym serwisie może należeć do kogoś innego.
@@ -155,8 +155,8 @@ docker build --target test -t olcys-osint-test services/osint-py
 docker run --rm --network none olcys-osint-test   # pytest z pytest-socket (tylko 127.0.0.1)
 ```
 
-Testy używają serwera na `127.0.0.1` (odpowiedzi 200, 404, 403, 429, CAPTCHA, ściana logowania, przekroczony czas,
-przekierowania, pętla przekierowań), bazy testowej i atrapy strony testowej; nie łączą się z prawdziwą siecią.
+Testy używają serwera na `127.0.0.1` (odpowiedzi 200, 404, 403, 429, CAPTCHA, login wall, przekroczony czas,
+przekierowania, pętla przekierowań), bazy testowej i mocka strony testowej; nie łączą się z prawdziwą siecią.
 Test `test_real_fixture_site` jest pomijany, dopóki nie ustawisz `OLCYS_E2E_FIXTURE_URL` (adres działającej strony
 testowej, np. z `pnpm dev:fixture`, oraz `docker run --network host`).
 

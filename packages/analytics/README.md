@@ -14,7 +14,7 @@ obliczeniami dotyczącymi adresów, nigdy stwierdzeniami o osobie.
   w strefie Europe/Warsaw (`2026-11-12T23:30Z` to w Polsce 13 listopada). Wybierana jest najnowsza tabela sprzed tego
   dnia (najwyżej 10 dni wstecz) — w święta NBP nie publikuje tabel, więc kalendarz świąt nie jest potrzebny.
 - API NBP (GREEN, bez klucza, ujawnia tylko daty i waluty): `GET https://api.nbp.pl/api/exchangerates/rates/a/{kod}/
-  {RRRR-MM-01}/{koniec miesiąca}/?format=json` — jedno zapytanie na miesiąc i walutę (stałe adresy, więc nagrane kasety
+  {RRRR-MM-01}/{koniec miesiąca}/?format=json` — jedno zapytanie na miesiąc i walutę (stałe adresy, więc nagrane cassettes
   pasują do kolejnych przebiegów); 404 „Brak danych” oznacza pusty miesiąc. Kurs zapisywany dokładnie jak w źródle
   (`3.6500`) z numerem tabeli. Źródło kursów może dostać własnego klienta ruchu wychodzącego (`http`), np. by pobierać
   NBP na żywo, gdy dane łańcuchowe pochodzą ze strony testowej.
@@ -70,7 +70,7 @@ leży w `queryFlowEdges` (`@olcys/db`) i `traceFlows` (`@olcys/core`, magazyn w 
   rozwijany raz, więc każdy transfer występuje raz, w pierwszym skoku, a praca rośnie liniowo z liczbą transferów
   (równoległe transfery jednej relacji nie mnożą się w ścieżki). Ścieżka kończy się na adresie z etykietą usługi lub
   z decyzją o wykluczeniu (krawędź do niego jest pokazana, ale dalej się jej nie śledzi). Krawędź prowadząca do adresu
-  już odwiedzonego (ziarno lub wcześniejszy skok) ma `isCycle: true` i nie jest kontynuowana. Wynik jest ograniczony
+  już odwiedzonego (adres seed lub wcześniejszy skok) ma `isCycle: true` i nie jest kontynuowana. Wynik jest ograniczony
   limitem krawędzi (2 000); przekroczenie ustawia `truncated`. Bitcoin: transakcja opuszcza każdy adres swoich
   wejść, więc etap analizy dopisuje płatność także do pozostałych adresów wejściowych (współwydający).
 - **`buildFlowEdges(wiersze, { valuator, assets }, ctx)`** — krawędzie wyceniane w PLN po kursie NBP z dnia transferu

@@ -12,7 +12,7 @@ Pakiet jest czysty i deterministyczny: nie łączy się z siecią, a zegar i gen
 - `loadWeights(path?)`, `parseWeights(bytes)` — wczytują i walidują tabelę wag (domyślnie
   `config/scoring/weights.v2.yaml`); `sha256` liczony z surowych bajtów pliku trafia do
   `RunConfigSnapshot.weightsSha256`. `weightsPath(file)`, `DEFAULT_WEIGHTS_FILE`, `featureFamily(key)`.
-- `scoreRun(input, weights, { clock, newId })` — główne wejście dla potoku: z kont, przechwyceń, obserwacji, kandydatów
+- `scoreRun(input, weights, { clock, newId })` — główne wejście dla pipeline’u: z kont, przechwyceń, obserwacji, kandydatów
   adresów i decyzji wykluczeń buduje roszczenia (`buildClaims`) i ocenia każde z nich. Zwraca `assessments`
   (`LinkAssessment[]`, posortowane po adresie i relacji) oraz `notes` — powody, dla których zebrany materiał nie stał
   się cechą (`FEATURE_NOTE_CODES`, np. `signature_invalid`, `observation_address_invalid`, `no_identity_path`).
@@ -64,8 +64,8 @@ P(ścieżka) = P(osoba ↔ konto) × P(konto ↔ adres).
 - Relacje `THIRD_PARTY_ATTRIBUTION`, `TX_COUNTERPARTY`, `CLUSTER_ASSOCIATED`: bez ścieżek, wynik 0, `icd203` =
   `not assessed` (nie oceniono), bramka `relation` niespełniona — to inna relacja, a nie słaby dowód posiadania.
   `CLUSTER_ASSOCIATED` powstaje z `FeatureExtractionInput.clusters` (heurystyka wspólnego wydatkowania): członkowie
-  klastra, którego ziarno ma roszczenie własności (`SELF_DECLARED`, `PAYMENT_ENDPOINT`, `MENTION_UNCLEAR`); nigdy nie
-  podnosi wyniku ziarna ani nie dostaje wag.
+  klastra, którego adres seed ma roszczenie własności (`SELF_DECLARED`, `PAYMENT_ENDPOINT`, `MENTION_UNCLEAR`); nigdy nie
+  podnosi wyniku adresu seed ani nie dostaje wag.
 - `CUSTODIAL_EXCHANGE` (adres depozytowy giełdy) oraz decyzja wykluczenia `excluded` / `reclassified` (np. A1 etykieta,
   A2 kontrakt, A4 depozyt, A8 lista wykluczeń): wynik prezentowany 0, `band` = `WYKLUCZENIE`. Wynik arytmetyczny
   zostaje w `paths` i `ungated` (np. siła tropu KYC dla adresu depozytowego). Decyzje `flagged` / `kept` są tylko
@@ -77,7 +77,7 @@ P(ścieżka) = P(osoba ↔ konto) × P(konto ↔ adres).
 
 - **Ścieżki** mają kotwice oraz konta z co najmniej jedną dodatnią cechą tożsamości. Konta osób trzecich (np. autor
   listy adresów giełd, kanał z ostrzeżeniami) nie tworzą roszczeń posiadania (notatka `no_identity_path`).
-- **Cechy tożsamości** (grupa = konto): `exact_username_or_name` (uchwyt równy nickowi / loginowi / identyfikatorowi
+- **Cechy tożsamości** (grupa = konto): `exact_username_or_name` (handle równy nickowi / loginowi / identyfikatorowi
   komunikatora po normalizacji albo nazwa równa imieniu i nazwisku — `displayName`, `profile.name`, `profile.display_name`,
   `profile.full_name`, `profile.real_name`, `profile.seller_name`), `profile_link_to_anchor` (`account.link` lub
   `profile.link` wskazujące profil kotwicy), `verified_cross_proof` (`verification.*` wskazujące kotwicę),
@@ -111,12 +111,12 @@ P(ścieżka) = P(osoba ↔ konto) × P(konto ↔ adres).
   `post.author` albo konto wykryte na tej stronie); dopiero potem ten sam post tej samej platformy w innym
   przechwyceniu. Kopia archiwalna dziedziczy autora oryginału. Bez autora wzmianka nie tworzy roszczenia.
 - **Podpis BIP-137** wiąże adres z kontem tylko wtedy, gdy treść wprost wskazuje to konto: zwrot („I am”, „jestem”,
-  „user”, „konto” …) z pełnym uchwytem (porównanie po NFC i wielkości liter, bez usuwania znaków diakrytycznych) albo identyfikator konta w kontekście „uid” / „user id” / `u=`. Poprawny podpis
+  „user”, „konto” …) z pełnym handle (porównanie po NFC i wielkości liter, bez usuwania znaków diakrytycznych) albo identyfikator konta w kontekście „uid” / „user id” / `u=`. Poprawny podpis
   dowodzi kontroli klucza przez podpisującego, nie przez publikującego: skopiowana wiadomość nie daje E1 (notatka
   `signed_message_unbound`).
-- **Konta wykryte kilka razy** (ta sama platforma i identyfikator, albo dokładnie ten sam uchwyt bez identyfikatora —
-  podobne uchwyty, np. `demo-user` i `demo_user`, to osobne konta i tylko cecha tożsamości) są scalane: liczą się
-  uchwyty, nazwy wyświetlane, adresy profili i strony wykrycia wszystkich rekordów.
+- **Konta wykryte kilka razy** (ta sama platforma i identyfikator, albo dokładnie ten sam handle bez identyfikatora —
+  podobne handle, np. `demo-user` i `demo_user`, to osobne konta i tylko cecha tożsamości) są scalane: liczą się
+  handle, nazwy wyświetlane, adresy profili i strony wykrycia wszystkich rekordów.
 - **Relacja roszczenia:** pierwszeństwo CUSTODIAL_EXCHANGE > SELF_DECLARED > PAYMENT_ENDPOINT > MENTION_UNCLEAR (także
   dla wzmianek zastąpionych przez E1/E2); decyzja `reclassified` z relacją ją zastępuje. Poziom = najlepszy poziom cech.
 

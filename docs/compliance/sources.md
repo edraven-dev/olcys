@@ -10,7 +10,7 @@ Rejestr w formie czytelnej dla maszyn to **`config/sources.yaml`** — kod go eg
 - **AMBER** — domyślnie wyłączone; analityk włącza je dla konkretnej sprawy z uzasadnieniem, które jest rejestrowane.
 - **RED** — nie można ich włączyć; rejestr kolektorów je odrzuca, a lista dozwolonych hostów nigdy ich nie zawiera.
 
-Tabele źródeł (według statusu) i lista narzędzi niedozwolonych poniżej są **generowane** z `config/sources.yaml` i
+Tabele źródeł (według statusu) i lista narzędzi niedozwolonych poniżej są generowane z `config/sources.yaml` i
 `config/forbidden-tools.yaml` poleceniem `pnpm compliance:sources` (sprawdzanym w `pnpm check`); nie edytuje się ich
 ręcznie. Przegląd statusów wykonano w listopadzie 2026 r.
 
@@ -19,7 +19,7 @@ ręcznie. Przegląd statusów wykonano w listopadzie 2026 r.
 
 Poniższe tabele są generowane z `config/sources.yaml` i `config/forbidden-tools.yaml` poleceniem `pnpm compliance:sources` — nie edytuj ich ręcznie.
 
-Rejestr: `sources.v1`, SHA-256 `b9873505ed52664560bf75c6cff11647614193039fb3aba8e2be3840e7292264`.
+Rejestr: `sources.v1`, SHA-256 `7b821f82468bd296551a1d948a4fc4ff876a445b9381f97b6208e38f7825357f`.
 
 ### Źródła GREEN
 
@@ -36,14 +36,14 @@ Używane domyślnie (lub po włączeniu w sprawie), bez dodatkowego uzasadnienia
 | Gotenberg (renderowanie HTML do PDF/A, usługa lokalna) (`gotenberg`) | internal_service | tak | 2 / 1 s | nie | F | https://github.com/gotenberg/gotenberg/blob/main/LICENSE | Otwarte oprogramowanie (MIT): silnik Chromium/PDF uruchomiony jako lokalny kontener. Otrzymuje gotowy raport (zawiera dane sprawy) i nie ma dostępu do sieci: Chromium jest ograniczony do przesłanych plików (zakotwiczona lista dozwolonych adresów, blokada adresów publicznych i prywatnych, bez JavaScriptu), pobieranie z adresu i webhooki są wyłączone. Nie używa się bibliotek PDF o ograniczonej licencji. Dostęp wyłącznie przez klienta ruchu wychodzącego; nigdy nie jest odtwarzana z kaset ani do nich zapisywana. |
 | Keybase – interfejs wyszukiwania (`keybase`) | identity_protocol | tak | 1 / 1 s | tak | A | https://keybase.io/docs/api/1.0/call/user/lookup | Publiczny interfejs wyszukiwania; podpisane adresy kryptowalutowe. Usługa jest tylko utrzymywana, dane głównie sprzed 2020 r. Link prowadzi do dokumentacji interfejsu, nie do regulaminu. |
 | KRS Open API (`krs`) | registry | tak | 1 / 1 s | tak | A | https://prs.ms.gov.pl/krs/openApi | Oficjalny interfejs (dane otwarte, CC0); wyszukiwanie wyłącznie po numerze KRS. Czasem zwraca stronę przerwy technicznej ze statusem 200 – zapisujemy to jako błąd, a nie jako pusty rejestr. Numery PESEL nigdy nie są odczytywane. Warunki są zawarte w oficjalnej dokumentacji interfejsu. |
-| Lokalny model AI (serwer zgodny z API OpenAI na tym komputerze) (`local_llm`) | ai_model | tak | 2 / 1 s | nie | F | https://github.com/openvinotoolkit/model_server/blob/main/LICENSE | OpenVINO Model Server (Apache-2.0) z modelem o otwartych wagach (Qwen, Apache-2.0) na pętli zwrotnej lub hoście compose; podpowiedzi i odpowiedzi nie opuszczają maszyny. Model tylko podpowiada: sugestie mają zerową wagę w ocenie, dopóki analityk ich nie potwierdzi. Treści ze źródeł z llmAllowed false nigdy nie są wysyłane. Link prowadzi do licencji serwera. |
+| Lokalny model AI (serwer zgodny z API OpenAI na tym komputerze) (`local_llm`) | ai_model | tak | 2 / 1 s | nie | F | https://github.com/openvinotoolkit/model_server/blob/main/LICENSE | OpenVINO Model Server (Apache-2.0) z modelem o otwartych wagach (Qwen, Apache-2.0) na loopbacku lub hoście compose; podpowiedzi i odpowiedzi nie opuszczają maszyny. Model tylko podpowiada: sugestie mają zerową wagę w ocenie, dopóki analityk ich nie potwierdzi. Treści ze źródeł z llmAllowed false nigdy nie są wysyłane. Link prowadzi do licencji serwera. |
 | mempool.space Esplora REST (Bitcoin) (`mempool_space`) | chain_data | tak | 1 / 1 s | tak | A | https://mempool.space/terms-of-service | Publiczny interfejs z nieujawnionymi limitami na adres IP; ok. 1 zapytania na sekundę. Ujawnia odpytywane adresy; w produkcji używamy własnego Esplora/electrs. |
-| Atrapa wyszukiwarki (dane testowe) (`mock_search`) | search | tak | 10 / 1 s | nie | C | brak opublikowanego regulaminu | Przeszukuje mapę witryny syntetycznej (tylko tryby z danymi testowymi, z poszanowaniem robots.txt). Zapytania są dopasowywane lokalnie, więc żaden identyfikator nie opuszcza komputera. Domyślne ustawienie demonstracji (OLCYS_SEARCH_MODE=mock). |
+| Mock wyszukiwarki (dane testowe) (`mock_search`) | search | tak | 10 / 1 s | nie | C | brak opublikowanego regulaminu | Przeszukuje mapę witryny syntetycznej (tylko tryby z danymi testowymi, z poszanowaniem robots.txt). Zapytania są dopasowywane lokalnie, więc żaden identyfikator nie opuszcza komputera. Domyślne ustawienie demonstracji (OLCYS_SEARCH_MODE=mock). |
 | NBP Web API (kursy walut) (`nbp_api`) | price_fx | tak | 2 / 1 s | nie | A | https://api.nbp.pl/en.html | Bezpłatny interfejs bez klucza, tylko HTTPS; do 93 dni na zapytanie. Zapytania ujawniają wyłącznie daty i waluty. Zasady użycia są w oficjalnej instrukcji interfejsu. |
 | Nostr (NIP-05 i przekaźniki) (`nostr`) | identity_protocol | tak | 2 / 1 s | tak | C | brak opublikowanego regulaminu | Otwarty protokół publiczny. NIP-05 wskazuje, ale nie weryfikuje tożsamości; adresy Lightning (lud16) bywają powiernicze. Brak regulaminu – brak jednego operatora. |
 | Usługa podpisu PDF (pyHanko w services/osint-py, usługa lokalna) (`pdf_signing`) | internal_service | tak | 5 / 1 s | nie | F | https://github.com/MatthiasValvekens/pyHanko/blob/master/LICENSE | pyHanko (MIT) podpisuje PDF raportu (PAdES) lokalnym kluczem demonstracyjnym na tym komputerze; usługa nie otwiera połączeń sieciowych: żądanie znacznika czasu RFC 3161 wysyła strona Node (tylko skrót) przez źródło znakowania czasem. Certyfikat demonstracyjny jest samopodpisany i NIEkwalifikowany; kwalifikowany certyfikat na module HSM to kolejny krok produkcyjny. Dostęp wyłącznie przez klienta ruchu wychodzącego; nigdy nie jest odtwarzana z kaset ani do nich zapisywana. |
-| Piaskownica: EVM (lokalny Anvil, API Otterscan) (`sandbox_anvil`) | chain_data | nie | 50 / 1 s | nie | A | brak opublikowanego regulaminu | Lokalny łańcuch EVM w profilu compose „sandbox” (chain id 1); tylko portfele demonstracyjne, bez sieci publicznej. Dozwolona na żywo w trybie offline; nie łączy się z hostem zewnętrznym. |
-| Piaskownica: Bitcoin regtest (lokalny Esplora) (`sandbox_esplora`) | chain_data | nie | 20 / 1 s | nie | A | brak opublikowanego regulaminu | Lokalna sieć regtest w profilu compose „sandbox”; tylko portfele demonstracyjne, bez sieci publicznej. Dozwolona na żywo w trybie offline; nie łączy się z hostem zewnętrznym. |
+| Sandbox: EVM (lokalny Anvil, API Otterscan) (`sandbox_anvil`) | chain_data | nie | 50 / 1 s | nie | A | brak opublikowanego regulaminu | Lokalny łańcuch EVM w profilu compose „sandbox” (chain id 1); tylko portfele demonstracyjne, bez sieci publicznej. Dozwolona na żywo w trybie offline; nie łączy się z hostem zewnętrznym. |
+| Sandbox: Bitcoin regtest (lokalny Esplora) (`sandbox_esplora`) | chain_data | nie | 20 / 1 s | nie | A | brak opublikowanego regulaminu | Lokalna sieć regtest w profilu compose „sandbox”; tylko portfele demonstracyjne, bez sieci publicznej. Dozwolona na żywo w trybie offline; nie łączy się z hostem zewnętrznym. |
 | Wykaz podatników VAT (biała lista) (`vat_whitelist`) | registry | tak | 1 / 1 s | tak | A | https://www.gov.pl/web/kas/api-wykazu-podatnikow-vat | Oficjalny interfejs pod adresem wykazpodatnikowvat.mf.gov.pl/api (dotychczasowy host wygasa 2026-12-01 i nie jest używany). Limit 100 wyszukiwań dziennie (w jednym przebiegu najwyżej 10); odpowiedź o przekroczeniu limitu zatrzymuje źródło. Osoby trzecie zapisujemy tylko jako imię, nazwisko i rolę, PESEL nigdy nie jest odczytywany. Warunki są zawarte w oficjalnej dokumentacji interfejsu. |
 | Internet Archive – Wayback CDX / Availability (tylko odczyt) (`wayback_cdx`) | archive | tak | 20 / 60 s | tak | B | https://archive.org/about/terms.php | Wyłącznie odczyt, do 20 zapytań na minutę. NIGDY nie używamy Save Page Now na stronach podejrzanych, bo publikuje to zapis strony. |
 
@@ -158,9 +158,9 @@ Przepływ danych: każde zapytanie do usługi zewnętrznej ujawnia odpytywany id
 ruchu wychodzącego rejestruje każde takie ujawnienie (`containsIdentifier`), a wdrożenia produkcyjne powinny
 preferować własne węzły, lokalne kopie zbiorów danych i dostawców z umową powierzenia przetwarzania (DPA).
 
-Szczegółowe uzasadnienie statusu każdego źródła (pola `complianceNote`, `complianceNotePl`, `tosUrl`) jest w `config/sources.yaml`
-i w tabelach powyżej. Wpis wymaga polskiej nazwy i uwagi oraz klucza `tosUrl` (`null` = brak opublikowanego regulaminu); źródła RED
-muszą wymieniać blokowane hosty — nie są kontaktowane nawet jako „dodatkowe” hosty wdrożenia.
+Szczegółowe uzasadnienie statusu każdego źródła (pola `complianceNote`, `complianceNotePl`, `tosUrl`) jest w
+`config/sources.yaml` i w tabelach powyżej. Wpis wymaga polskiej nazwy i uwagi oraz klucza `tosUrl` (`null` = brak
+opublikowanego regulaminu); źródła RED muszą wymieniać blokowane hosty — nie są kontaktowane nawet jako „dodatkowe” hosty wdrożenia.
 
 ## Wyszukiwarki internetowe
 
@@ -220,20 +220,20 @@ muszą wymieniać blokowane hosty — nie są kontaktowane nawet jako „dodatko
 ## Archiwum internetowe (Wayback Machine)
 
 - **Charakter:** `wayback_cdx` (GREEN, wiarygodność B) — wyłącznie odczyt: Availability API, CDX z `collapse=digest` i
-  odtwarzanie surowej migawki (`id_`). Do 20 zapytań na minutę, jedno naraz; odpowiedź 429, która utrzymuje się po
+  odtwarzanie surowego snapshotu (`id_`). Do 20 zapytań na minutę, jedno naraz; odpowiedź 429, która utrzymuje się po
   odczekaniu klienta, wstrzymuje źródło do końca przebiegu (archiwum blokuje klientów, którzy nadal wysyłają po 429).
-- **robots.txt:** przy pobieraniu migawek respektujemy robots.txt hosta archiwum (zakaz = `blocked`, `robots_disallowed`);
+- **robots.txt:** przy pobieraniu snapshotów respektujemy robots.txt hosta archiwum (zakaz = `blocked`, `robots_disallowed`);
   robots.txt witryny źródłowej nie jest sprawdzany dla jej kopii w archiwum. Zapytania do API (Availability, CDX) go nie dotyczą.
 - **Save Page Now jest zakazane.** Zapisałoby stronę podejrzaną w publicznym archiwum i ujawniło zainteresowanie
-  śledczych. Kod nie ma ścieżki, która zbudowałaby adres punktu zapisu (`assertWaybackReadUrl`, test w
+  śledczych. Kod nie ma ścieżki, która zbudowałaby adres endpointu zapisu (`assertWaybackReadUrl`, test w
   `packages/collectors/test/wayback.test.ts`); używane jest tylko `GET`. archive.today jest wykluczone (zmieniane
-  archiwa, ściana CAPTCHA).
+  archiwa, blokada CAPTCHA).
 - **Czego dotyczy zapytanie:** wyłącznie adresów profili kont samej badanej osoby (podanych przez analityka albo
   wskazanych przez jej własne strony) i dopasowanych stron z listy obserwowanych — nie stron osób trzecich. Adres jest
   ujawniany Internet Archive, więc każde zapytanie ma w dzienniku ruchu `containsIdentifier: true`.
-- **Dowód:** migawka jest kopią z archiwum (pole `archive` przechwycenia), a nie stanem strony w chwili zbierania; ma tę
+- **Dowód:** snapshot jest kopią z archiwum (pole `archive` przechwycenia), a nie stanem strony w chwili zbierania; ma tę
   samą grupę pochodzenia co strona, którą odwzorowuje, więc nie zwiększa Wskaźnika Pewności — dodaje historię. Zgodność
-  skrótu migawki ze skrótem z CDX jest zapisywana jako obliczenie.
+  skrótu snapshotu ze skrótem z CDX jest zapisywana jako obliczenie.
 - **Otwarte pytanie prawne:** warunki korzystania z Internet Archive udzielają dostępu „dla celów naukowych i
   badawczych”. Czy obejmują one użycie przez organ administracji (KAS) w czynnościach urzędowych, wymaga opinii
   prawnej, zanim źródło zostanie włączone w sprawie prowadzonej na żywo.
@@ -248,8 +248,8 @@ muszą wymieniać blokowane hosty — nie są kontaktowane nawet jako „dodatko
   warunków i limitów; włączane tylko w sprawie z uzasadnieniem (≥ 20 znaków). Zapytania: autor → adresy i wpisy, adres →
   autorzy; nigdy po dziale ani tekście swobodnym; 1 zapytanie na 2 s. Dane to kopia treści z forum (kontekst, nie dowód);
   w produkcji lepsze są publiczne zrzuty danych, a zrzuty zbudowane z obejściem limitów forum są niedozwolone.
-- **ENS** (`ens`, GREEN, wiarygodność A): publiczne wpisy w łańcuchu bloków, odczytywane przez węzeł JSON-RPC wdrożenia.
-  Rejestr ma `allowedHosts: []`: **host węzła podaje wdrożenie** w `OLCYS_SOURCE_HOSTS_ENS` (razem z `ENS_RPC_URL` i
+- **ENS** (`ens`, GREEN, wiarygodność A): publiczne wpisy w blockchainie, odczytywane przez węzeł JSON-RPC wdrożenia.
+  Rejestr ma `allowedHosts: []`: host węzła podaje wdrożenie w `OLCYS_SOURCE_HOSTS_ENS` (razem z `ENS_RPC_URL` i
   `ENS_UNIVERSAL_RESOLVER`); host spoza listy dozwolonych jest błędem konfiguracji przy starcie, a bez `ENS_RPC_URL` kolektor
   nie jest rejestrowany. Zalecany własny węzeł: węzeł komercyjny widziałby każdy badany adres lub nazwę. Bez indeksatorów,
   bramek CCIP-Read i bez pobierania awatarów; rekordy tekstowe są niezaufanymi danymi.

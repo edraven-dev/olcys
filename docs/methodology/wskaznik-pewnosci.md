@@ -2,7 +2,7 @@
 
 Wskaźnik Pewności (0–100) opisuje prawdopodobieństwo powiązania identyfikatora ze sprawy z adresem kryptowalutowym —
 nigdy osobę. Liczony jest dwuetapowo: (1) czy konto internetowe należy do osoby, (2) czy konto kontroluje adres; każda
-przesłanka ma iloraz wiarygodności (BF) osłabiany według wiarygodności źródła (ρ, skala Admiralicji). Wzory, poziomy
+przesłanka ma iloraz wiarygodności (BF) osłabiany według wiarygodności źródła (ρ, Admiralty Code). Wzory, poziomy
 dowodów, bramki i przykład obliczeń opisują [architektura](../architecture.md) (sekcja „Wskaźnik Pewności
 (podsumowanie)”) oraz [pakiet punktacji](../../packages/scoring/README.md); wagi są w `config/scoring/weights.v2.yaml`.
 
@@ -25,7 +25,7 @@ Analityk może zapisać ocenę każdego powiązania (karta powiązania w zakład
 - Każda ocena ma uzasadnienie (10–2000 znaków po przycięciu spacji), analityka i czas zapisu. Analityk pochodzi
   z konfiguracji serwera (`OLCYS_ANALYST_NAME`, w razie braku `OLCYS_COLLECTOR_NAME`, domyślnie `analyst`; po
   wprowadzeniu uwierzytelniania — zalogowany użytkownik), nigdy z treści żądania.
-- Ocena jest zapisywana **obok** wyniku i nie zmienia obliczonego Wskaźnika Pewności: ani wyniku, ani określenia
+- Ocena jest zapisywana obok wyniku i nie zmienia obliczonego Wskaźnika Pewności: ani wyniku, ani określenia
   ICD 203, bramek, przedziału, ani zdarzeń `SCORE_CHANGED` porównania przebiegów. Nie uruchamia ponownych obliczeń.
 - Ocen może być kilka; aktualna jest najnowsza (według czasu, a przy równym czasie — identyfikatora). Wcześniejsze
   oceny pozostają zapisane i widoczne.
@@ -48,7 +48,7 @@ Korekta analityka jest daną wejściową do obliczeń, a nie zmianą wyniku (`PO
 
 - Korekta musi dotyczyć elementu z przebiegu tej sprawy (obserwacji, konta, wykrytego adresu, źródła lub adresu
   ocenionego powiązania); inne klucze przesłanek są odrzucane (`feature_not_allowed`).
-- Korekta niczego nie zmienia od razu. Uwzględnia ją dopiero **ponowna ocena zapisanych danych** (`rescore`: przycisk
+- Korekta niczego nie zmienia od razu. Uwzględnia ją dopiero ponowna ocena zapisanych danych (`rescore`: przycisk
   „Uruchom ponowną ocenę (rescore)” albo `POST /api/cases/:caseId/runs` z `{ "trigger": "rescore", "rescoreOfRunId" }`),
   która stosuje korekty sprawy zapisane do chwili jej zlecenia. Ich zbiór jest ustalany raz, przy zleceniu: parametry
   przebiegu zapisują identyfikatory korekt (`analystOverrides`) i etykietę `rulesVersions.overrides =
@@ -79,7 +79,7 @@ Korekta analityka jest daną wejściową do obliczeń, a nie zmianą wyniku (`PO
 ## Kalibracja i jej granice
 
 Wagi (`config/scoring/weights.v2.yaml`) są wartościami wyjściowymi: dla cech łączących konta i adresy z tożsamością nie
-istnieją opublikowane, zwalidowane ilorazy wiarygodności, a status wag pozostaje **„nieskalibrowane”**
+istnieją opublikowane, zwalidowane ilorazy wiarygodności, a status wag pozostaje „nieskalibrowane”
 (`status: uncalibrated`). Pakiet punktacji zawiera więc powtarzalny sprawdzian, który mierzy, na ile prawdopodobieństwa
 silnika zgadzają się z częstością prawdziwych powiązań w danych o znanej prawdzie, i nic poza tym:
 
@@ -89,21 +89,21 @@ pnpm --filter @olcys/scoring calibrate --oracle          # dane losowane z samyc
 pnpm --filter @olcys/scoring calibrate --oracle --propose  # dodatkowo propozycja wag (tylko pod --out)
 ```
 
-Wyniki trafiają do `data/calibration/<algorytm>/<wagi>/<ziarno>[-oracle]/` (katalog ignorowany przez git):
-`report.json`, `reliability.svg` (diagram niezawodności) i `report.md`. Raport zawiera SHA-256 wag, wersje algorytmu
-i reguł, SHA-256 zbioru danych oraz ziarno; te same dane wejściowe i to samo ziarno dają identyczne bajty.
+Wyniki trafiają do `data/calibration/<algorytm>/<wagi>/<seed>[-oracle]/` (katalog ignorowany przez git):
+`report.json`, `reliability.svg` (reliability diagram) i `report.md`. Raport zawiera SHA-256 wag, wersje algorytmu
+i reguł, SHA-256 zbioru danych oraz seed; te same dane wejściowe i ten sam seed dają identyczne bajty.
 
 ### Metoda
 
-- **Generator** (ziarnowany, deterministyczny) tworzy na poziomie silnika roszczenia z etykietą: 1 — prawdziwe
+- **Generator** (z seedem, deterministyczny) tworzy na poziomie silnika twierdzenia z etykietą: 1 — prawdziwe
   powiązanie własnościowe, 0 — fałszywe. Cechy są losowane niezależnie (Bernoulli), kopie tej samej cechy mogą
   pochodzić z jednej lub wielu grup pochodzenia (sprawdzenie, że lustrzane kopie nie są liczone wielokrotnie).
-  Roszczenia `THIRD_PARTY_ATTRIBUTION` nie są generowane (nie są oceniane).
+  Twierdzenia `THIRD_PARTY_ATTRIBUTION` nie są generowane (nie są oceniane).
 - **Tryb `oracle`:** częstość cechy w klasie prawdziwej i fałszywej tak, by m / u = BF′ (iloraz po osłabieniu według
-  wiarygodności), a priorytety klas równe priorytetom z wag (identyfikator kotwicy: 0,99). Poprawny silnik musi być tu
-  skalibrowany, więc tryb sprawdza generator, bufory deduplikacji i arytmetykę, **nie wagi**. Silnik z założenia traktuje brak
-  cechy jako neutralny (iloraz 1); to założenie silnika, a nie dostrojenie sprawdzianu, i jest poprawne tylko dla cech rzadkich, dlatego w tym trybie cechy muszą być rzadkie (największa różnica częstości między
-  klasami: 0,04); przy częstszych cechach średnia prognoza systematycznie przewyższa obserwowaną.
+  wiarygodności), a prawdopodobieństwa a priori klas równe tym z wag (identyfikator kotwicy: 0,99). Poprawny silnik musi być tu
+  skalibrowany, więc tryb sprawdza generator, bufory deduplikacji i arytmetykę, nie wagi. Silnik z założenia traktuje
+  brak cechy jako neutralny (iloraz 1); to założenie silnika, a nie dostrojenie sprawdzianu, i jest poprawne tylko dla
+  cech rzadkich, dlatego w tym trybie cechy muszą być rzadkie (największa różnica częstości między klasami: 0,04); przy częstszych cechach średnia prognoza systematycznie przewyższa obserwowaną.
 - **Tryb `scenarios`:** osiem scenariuszy z ręcznie przyjętymi założeniami (prawdziwy właściciel z kotwicą, konto
   o tej samej nazwie z linkiem w profilu, ta sama nazwa i dowód kryptograficzny należący do obcej osoby, cytowany
   adres, lista lub dokumentacja, stopka z darowiznami, wzmianka o wpłacie na giełdę, kopie lustrzane). Etykieta
@@ -114,7 +114,7 @@ i reguł, SHA-256 zbioru danych oraz ziarno; te same dane wejściowe i to samo z
   Dla każdej cechy: empiryczny iloraz wiarygodności `((n₁ + 0,5)/(N₁ + 1)) / ((n₀ + 0,5)/(N₀ + 1))` obok BF i BF′;
   dla cech etapu tożsamości lub adresu klasą jest prawda tego etapu, a nie całego powiązania.
 - **Ostrzeżenia:** `overconfident:<scenariusz>` (średnia prognoza przewyższa obserwowaną o więcej niż 0,1 przy n ≥ 200),
-  `sparse:<cecha>` (mniej niż 30 wystąpień w jednej z klas), `corpus_missing`, `persona_mismatch:<roszczenie>`.
+  `sparse:<cecha>` (mniej niż 30 wystąpień w jednej z klas), `corpus_missing`, `persona_mismatch:<twierdzenie>`.
 - **Trafność relacji:** każdy dokument korpusu `fixtures/corpus/` jest wyodrębniany ekstraktorem adresów, owijany
   w syntetyczne konto-kotwicę i przetwarzany przez `buildClaims`; relacja każdego adresu jest porównywana z relacją,
   do której prowadzi rola z prawdy wzorcowej (tabela sygnał → relacja z reguł `relations.v1`). To miara łańcucha
@@ -127,7 +127,7 @@ i reguł, SHA-256 zbioru danych oraz ziarno; te same dane wejściowe i to samo z
   reszta jest kopiowana. Zatwierdzenie pliku jako nowej wersji wag jest decyzją człowieka — kod nigdy nie zmienia
   `config/scoring/`.
 
-### Ostatnie wyniki (dane syntetyczne, wagi `weights.v2`, algorytm `two-hop-llr/1.0.0`, n = 20 000, ziarno 20261121)
+### Ostatnie wyniki (dane syntetyczne, wagi `weights.v2`, algorytm `two-hop-llr/1.0.0`, n = 20 000, seed 20261121)
 
 | Miara                         | `oracle`                  | `scenarios`               |
 | ----------------------------- | ------------------------- | ------------------------- |
@@ -140,13 +140,13 @@ i reguł, SHA-256 zbioru danych oraz ziarno; te same dane wejściowe i to samo z
   empiryczny LR w granicach 15 % od BF′. Silnik i deduplikacja zachowują się więc zgodnie z modelem, gdy dane
   pochodzą z modelu.
 - W trybie `scenarios` wysoki ECE wynika z założeń scenariuszy, a nie z błędu mechaniki: prognozy są zgrupowane przy
-  kilku wartościach (np. 0,53 dla wielu roszczeń), a scenariusze mają stałe etykiety (np. stopka z darowiznami: prognoza
-  0,505, założona prawda 1). Ostrzeżenie `overconfident:same_nick_stranger_with_proof` pokazuje coś istotnego: ta
+  kilku wartościach (np. 0,53 dla wielu twierdzeń), a scenariusze mają stałe etykiety (np. stopka z darowiznami: prognoza
+  0,505, założona prawda 1). Ostrzeżenie `overconfident:same_nick_stranger_with_proof` pokazuje ważny przypadek: ta
   sama nazwa konta z poprawnym dowodem kryptograficznym, należącym do obcej osoby, dostaje wynik 24 („mało
   prawdopodobne”), a założona prawda wynosi 0. Wynik ten jest właściwą reakcją na małą wiarygodność etapu tożsamości,
   ale analityk nie może go czytać jako „prawie wykluczone”.
-- Kopie lustrzane pochodzące z jednej grupy pochodzenia dają prognozę 0,560 wobec zaobserwowanych 0,563 przy założonych 0,56 (silnik liczy je raz);
-  gdy każda kopia ma własną grupę (symulowane podwójne liczenie), scenariusz dostaje ostrzeżenie `overconfident`.
+- Kopie lustrzane pochodzące z jednej grupy pochodzenia dają prognozę 0,560 wobec zaobserwowanych 0,563 przy
+  założonych 0,56 (silnik liczy je raz); gdy każda kopia ma własną grupę (symulowane podwójne liczenie), scenariusz dostaje ostrzeżenie `overconfident`.
 - Trafność relacji na korpusie: makro-F1 0,827 (n = 1200 adresów). Najczęstszy błąd to rola „pierwsza osoba” lub „prośba
   o wpłatę” odczytana jako wzmianka bez wyraźnej roli (`MENTION_UNCLEAR`: 84 z 278 deklaracji własności i 41 z 379
   punktów płatności); wykrywanie sygnału roli jest więc ograniczeniem łańcucha, nie wag.
@@ -163,11 +163,11 @@ i reguł, SHA-256 zbioru danych oraz ziarno; te same dane wejściowe i to samo z
   cech, a nie poprawia modelu. Przyjęto też niezależność cech wewnątrz etapu poza regułą jednej cechy na rodzinę
   i grupę pochodzenia.
 - Dopóki nie będzie rzeczywistych, oznaczonych przypadków (wymagają podstawy prawnej i opracowania przez ekspertów),
-  wagi zachowują status **„nieskalibrowane”**, a Wskaźnik Pewności należy czytać jako uporządkowaną miarę wspierającą
+  wagi zachowują status „nieskalibrowane”, a Wskaźnik Pewności należy czytać jako uporządkowaną miarę wspierającą
   decyzję analityka, nie jako częstość prawdziwych powiązań.
 - **Znane ograniczenie: konto o tej samej nazwie z poprawnym dowodem kryptograficznym.** Silnik ocenia dwa etapy osobno:
   dowód kryptograficzny potwierdza, że konto kontroluje adres, ale etap tożsamości (sama zgodność nazwy, iloraz 3
-  przy priorytecie 1:9) pozostaje słaby, więc iloczyn daje około 24 („mało prawdopodobne”), a nie wartość bliską 0.
+  przy szansach a priori 1:9) pozostaje słaby, więc iloczyn daje około 24 („mało prawdopodobne”), a nie wartość bliską 0.
   To skutek przyjętej konstrukcji, a nie błąd arytmetyki; sprawdzian zgłasza go jako
   `overconfident:same_nick_stranger_with_proof`. Czy etap tożsamości powinien silniej obniżać wynik w takim przypadku,
   jest pytaniem projektowym i wymaga decyzji; ta wersja silnika się nie zmienia.

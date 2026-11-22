@@ -5,24 +5,24 @@ Wymóg wyzwania: należy wskazać wszystkie wykorzystane komponenty i ich licenc
 - **część generowana** (poniżej, między znacznikami `generated:licenses`): zależności bezpośrednie npm wszystkich
   pakietów, pakiety Pythona, obrazy kontenerów i podsumowanie zależności przechodnich. Generuje ją
   `pnpm licenses:docs --write` z `pnpm-lock.yaml`, `services/osint-py/pyproject.toml`, `compose.yml`, plików Dockerfile
-  i `config/compliance/components.yaml`; `pnpm licenses:docs --check` (część `pnpm check`) wykrywa rozjazd. Nie edytuje
+  i `config/compliance/components.yaml`; `pnpm licenses:docs --check` (część `pnpm check`) wykrywa rozbieżności. Nie edytuje
   się jej ręcznie: nowa zależność bezpośrednia wymaga polskiego opisu zastosowania w
   `config/compliance/components.yaml`, a nowy obraz kontenera wpisu w sekcji `images` tego pliku;
-- **część ręczna** (po znaczniku końcowym): komponenty, których nie opisuje żaden menedżer pakietów (środowisko
-  uruchomieniowe, dane, przepisane wyrażenia regularne). Wiersze dodaje się tu ręcznie.
+- **część ręczna** (po znaczniku końcowym): komponenty, których nie opisuje żaden menedżer pakietów (runtime,
+  dane, przepisane wyrażenia regularne). Wiersze dodaje się tu ręcznie.
 
 **Kontrole (wszystkie offline, część `pnpm check`):**
 
-- `pnpm compliance:licences` (jedyna bramka licencji npm w `pnpm check`): każdy pakiet z lockfile (także opcjonalne pakiety natywne innych platform) i każdy pakiet
-  Pythona względem pełnej polityki (`allowed`, `separateServiceOnly`, `deny`, narzędzia z
+- `pnpm compliance:licences` (jedyna bramka licencji npm w `pnpm check`): każdy pakiet z lockfile (także opcjonalne
+  pakiety natywne innych platform) i każdy pakiet Pythona względem pełnej polityki (`allowed`, `separateServiceOnly`, `deny`, narzędzia z
   `config/forbidden-tools.yaml`); wyrażenia SPDX są rozstrzygane tak, że `OR` wystarczy spełnić jedną gałęzią, a `AND`
   wymaga wszystkich. Brak licencji, `NOASSERTION`, `SEE LICENSE IN …` i nieznany identyfikator wymagają decyzji
-  człowieka: wpisu w `config/compliance/license-exceptions.yaml` (licencji z listy `deny` nie można obejść). Wyjątek zapisuje licencję ustaloną po lekturze tekstu; podlega ona tej samej
-  polityce (np. zatwierdzone GPL-3.0-only nadal jest dozwolone tylko jako osobna usługa), a SBOM używa wartości z wyjątku;
+  człowieka: wpisu w `config/compliance/license-exceptions.yaml` (licencji z listy `deny` nie można obejść). Wyjątek
+  zapisuje licencję ustaloną po lekturze tekstu; podlega ona tej samej polityce (np. zatwierdzone GPL-3.0-only nadal jest dozwolone tylko jako osobna usługa), a SBOM używa wartości z wyjątku;
 - `pnpm compliance:images`: każdy `image:` z `compose.yml` i każde `FROM` z Dockerfile musi być opisane w
   `config/compliance/components.yaml`; licencje GPL/AGPL/LGPL są dopuszczone tylko dla osobnych, niemodyfikowanych usług
   (`separateService: true`);
-- `pnpm compliance:sbom --check`: buduje SBOM w pamięci i zawodzi przy naruszeniu bramki (komponent bez licencji lub z
+- `pnpm compliance:sbom --check`: buduje SBOM w pamięci i kończy się błędem przy naruszeniu bramki (komponent bez licencji lub z
   niedozwoloną). `pnpm compliance:sbom` zapisuje SBOM CycloneDX 1.6 na żądanie do `data/sbom/` (katalog poza
   repozytorium, aby równoległe zmiany zależności nie powodowały konfliktów); generowanie jest deterministyczne (bez
   znacznika czasu i `serialNumber`, posortowane, z sumą SHA-256 lockfile).
@@ -45,7 +45,7 @@ licencje „source-available” (np. Blockscout ≥ v11) oraz licencje wykluczaj
 
 **Renderowanie i podpis raportu PDF.** Raport PDF/A-3b renderuje Gotenberg 9 (MIT, osobny kontener z silnikiem Chromium)
 i podpisuje pyHanko 0.38.2 (MIT; zależności: `pyhanko-certvalidator`, `asn1crypto`, `oscrypto`, `uritools`, `tzlocal` –
-MIT, `cryptography` – Apache-2.0 OR BSD-3-Clause) w usłudze `services/osint-py`. Świadomie **nie** użyto:
+MIT, `cryptography` – Apache-2.0 OR BSD-3-Clause) w usłudze `services/osint-py`. Świadomie nie użyto:
 
 - **QuestPDF** (biblioteka .NET) – licencja Community (v3.0 z 2026-07-06) wyklucza podmioty sektora publicznego i nie jest
   zatwierdzona przez OSI, więc nie może być używana przez administrację skarbową;
@@ -54,7 +54,7 @@ MIT, `cryptography` – Apache-2.0 OR BSD-3-Clause) w usłudze `services/osint-p
   procesie aplikacji; Gotenberg działa jako izolowana usługa bez dostępu do sieci.
 
 Zapasowym silnikiem renderującym pozostaje WeasyPrint (BSD-3-Clause) z zablokowanym pobieraniem zasobów (`url_fetcher`).
-Certyfikat użyty do podpisu jest samopodpisanym certyfikatem **demonstracyjnym, niekwalifikowanym**; klucz powstaje
+Certyfikat użyty do podpisu jest samopodpisanym certyfikatem demonstracyjnym, niekwalifikowanym; klucz powstaje
 lokalnie przy pierwszym użyciu i nigdy nie trafia do repozytorium.
 
 <!-- prettier-ignore-start -->
@@ -64,7 +64,7 @@ Poniższe tabele są generowane z `pnpm-lock.yaml`, `services/osint-py/pyproject
 
 ### Status bramki licencyjnej
 
-- Sprawdzone komponenty: 438 (npm: 374, Python: 55, obrazy: 9).
+- Sprawdzone komponenty: 442 (npm: 374, Python: 55, obrazy: 13).
 - Wynik: wszystkie komponenty zgodne z polityką licencyjną (`config/licenses.json`).
 - Wyjątki licencyjne (`config/compliance/license-exceptions.yaml`): 0.
 - SBOM (CycloneDX 1.6) powstają na żądanie poleceniem `pnpm compliance:sbom` (katalog `data/sbom/`, poza repozytorium); opisują je pliki `olcys-npm.cdx.json` i `olcys-osint-py.cdx.json`.
@@ -178,13 +178,17 @@ Każdy `image:` z `compose.yml` i każde `FROM` z Dockerfile musi mieć wpis w `
 
 | Obraz | Tag | Licencja (SPDX) | Zastosowanie | Gdzie | Osobna usługa |
 | --- | --- | --- | --- | --- | --- |
+| postgres | 19.0-alpine3.24 | PostgreSQL | baza danych | compose.app.yml (postgres) | nie |
+| gotenberg/gotenberg | 9.9.1 | MIT | HTML → PDF/A (raporty) | compose.app.yml (gotenberg) | nie |
+| node | 26.13.1-alpine | MIT | runtime serwisu strony testowej (fixture-site) | compose.app.yml (fixture-site) | nie |
 | postgres | 19.0-alpine3.24 | PostgreSQL | baza danych | compose.yml (postgres) | nie |
 | gotenberg/gotenberg | 9.9.1 | MIT | HTML → PDF/A (raporty) | compose.yml (gotenberg) | nie |
-| node | 26.13.1-alpine | MIT | środowisko uruchomieniowe serwisu strony testowej (fixture-site) | compose.yml (fixture-site) | nie |
+| node | 26.13.1-alpine | MIT | runtime serwisu strony testowej (fixture-site) | compose.yml (fixture-site) | nie |
 | ollama/ollama | 0.40.17 | MIT | lokalne środowisko modeli z API zgodnym z OpenAI (opcjonalne, profil llm) | compose.yml (ollama) | nie |
 | ghcr.io/ggml-org/llama.cpp | server-b12602 | MIT | lokalny serwer modeli llama.cpp z API zgodnym z OpenAI (opcjonalny, profil llm-llamacpp) | compose.yml (llamacpp) | nie |
 | blockstream/esplora | v3.0.1 | MIT | lokalny węzeł Bitcoin regtest z API Esplora (profil sandbox, dane demonstracyjne) | compose.yml (esplora-regtest) | nie |
 | ghcr.io/foundry-rs/foundry | v1.10.0 | MIT OR Apache-2.0 | lokalna sieć EVM (anvil; profil sandbox, dane demonstracyjne) | compose.yml (anvil) | nie |
+| node | 26.13.1-alpine | MIT | runtime serwisu strony testowej (fixture-site) | infra/app/Dockerfile (FROM) | nie |
 | ghcr.io/astral-sh/uv | 0.13.9 | MIT OR Apache-2.0 | zarządzanie zależnościami Pythona (etap budowania obrazu osint-py) | services/osint-py/Dockerfile (FROM) | nie |
 | python | 3.15.2-slim-trixie | PSF-2.0 | środowisko serwisu OSINT (osint-py) | services/osint-py/Dockerfile (FROM) | nie |
 
@@ -213,7 +217,7 @@ Każdy `image:` z `compose.yml` i każde `FROM` z Dockerfile musi mieć wpis w `
 
 | Komponent                                 | Wersja     | Licencja (SPDX)         | Zastosowanie                                                                                                                                   | Gdzie                                   |
 | ----------------------------------------- | ---------- | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
-| Node.js                                   | 26.13.1    | MIT                     | środowisko uruchomieniowe                                                                                                                      | host / `node:26.13.1-alpine`            |
+| Node.js                                   | 26.13.1    | MIT                     | runtime                                                                                                                                        | host / `node:26.13.1-alpine`            |
 | pnpm                                      | 12.22.0    | MIT                     | menedżer pakietów                                                                                                                              | host                                    |
 | Unicode TR39 (confusables)                | —          | Unicode-3.0             | dane: ręcznie wybrana tabela homoglifów (cyrylica/greka)                                                                                       | packages/address-extractor              |
 | SpiderFoot (regex)                        | 4.0        | MIT                     | linia bazowa benchmarku adresów: przepisane wyrażenia regularne `sfp_bitcoin`, `sfp_ethereum`                                                  | packages/address-extractor (`bench/`)   |
@@ -228,7 +232,7 @@ to fakty przepisane z notatek wydań eth-infinitism (kod tego repozytorium, obj�
 a rejestr delegatów EIP-7702 (`config/labels/eip7702-delegates.v1.yaml`) zawiera wyłącznie syntetyczny wpis
 demonstracyjny.
 
-Eksporty raportu (STIX 2.1, MISP, CSV) nie dodają żadnej zależności npm. Dane MISP (`packages/reporting/src/export/misp/`) to
-oficjalne pliki z repozytoriów MISP (adresy źródłowe i data pobrania: 2026-11-22 w `misp/README.md`) wraz z tekstami licencji; ich licencja (CC0 1.0 lub BSD-2-Clause) jest dozwolona. Schematów JSON
-OASIS `cti-stix2-json-schemas` nie dołączono do repozytorium: poprawność strukturalna pakietu STIX jest sprawdzana w
+Eksporty raportu (STIX 2.1, MISP, CSV) nie dodają żadnej zależności npm. Dane MISP
+(`packages/reporting/src/export/misp/`) to oficjalne pliki z repozytoriów MISP (adresy źródłowe i data pobrania: 2026-11-22 w `misp/README.md`) wraz z tekstami
+licencji; ich licencja (CC0 1.0 lub BSD-2-Clause) jest dozwolona. Schematów JSON OASIS `cti-stix2-json-schemas` nie dołączono do repozytorium: poprawność strukturalna pakietu STIX jest sprawdzana w
 testach własnymi asercjami (identyfikatory, znaczniki czasu, właściwości wymagane).

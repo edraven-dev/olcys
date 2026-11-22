@@ -5,7 +5,7 @@ w środowisku i utwardzenie kontenerów.
 
 ## Poza zakresem MVP (planowane)
 
-Konta użytkowników i logowanie są **poza zakresem tego MVP i planowane w kolejnej wersji**: konta analityków z rolami,
+Konta użytkowników i logowanie są poza zakresem MVP i planowane w kolejnej wersji: konta analityków z rolami,
 sesje po stronie serwera oraz ograniczanie liczby prób logowania. Do tego czasu aplikację otwiera się i używa od razu,
 bez monitu o tożsamość czy cel. Dostęp można ograniczyć na poziomie wdrożenia (API nasłuchuje na `127.0.0.1`).
 Wbudowane zabezpieczenia API to sprawdzanie nagłówków `Host` i `Origin` (ochrona przed DNS rebinding i zapisami z
@@ -13,7 +13,7 @@ innych witryn), opisane w `apps/api/src/guard.ts`.
 
 ## Nagłówki bezpieczeństwa i CSP
 
-API ustawia nagłówki w jednym haku `onSend`, więc żadna trasa ich nie pominie:
+API ustawia nagłówki w jednym hooku `onSend`, więc żadna trasa ich nie pominie:
 
 | Nagłówek                                                     | Wartość                                                           |
 | ------------------------------------------------------------ | ----------------------------------------------------------------- |
@@ -34,19 +34,19 @@ stylów, dlatego jego polityka dopuszcza je wyłącznie po skrócie SHA-256 (`st
 Zbudowana aplikacja webowa (`pnpm --filter @olcys/web build`, a następnie `preview`) wysyła ścisłą politykę
 `default-src 'self'; script-src 'self'; style-src 'self'; style-src-elem 'self' 'sha256-pgvDUBa4IjFA2yuSJ2cqcyxmNYJMborsd0ORcRv9vw8='; img-src 'self' data: blob:;
 font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'` oraz pozostałe nagłówki z tabeli.
-Jedyne poluzowanie dotyczy wyłącznie CSS: biblioteka grafu (Cytoscape) wstrzykuje jeden stały element `<style>`, który
-jest dopuszczony wyłącznie po skrócie SHA-256 (`style-src-elem`); bez `'unsafe-inline'`, a `script-src 'self'` bez zmian —
+Jedyne poluzowanie dotyczy CSS: biblioteka grafu (Cytoscape) wstrzykuje jeden stały element `<style>`, dopuszczony
+tylko po skrócie SHA-256 (`style-src-elem`); bez `'unsafe-inline'`, a `script-src 'self'` bez zmian —
 skrypty wbudowane nadal są zablokowane.
-Serwer deweloperski Vite nie może jej zastosować (React Refresh wstrzykuje skrypt, HMR otwiera gniazdo), dlatego
+Serwer deweloperski Vite nie może jej zastosować (React Refresh wstrzykuje skrypt, HMR otwiera WebSocket), dlatego
 dostaje tylko pozostałe nagłówki. Ustawienia: `apps/web/vite.settings.ts`.
 
 ## Dziennik dostępu
 
-Tabela `access_log` (migracja `0011_access_log.sql`) rejestruje, **kto** oglądał lub eksportował **którą** sprawę, kiedy
-i z jakim wynikiem. Jest dopisywana w tle, bez żadnego monitu przed wyświetleniem:
+Tabela `access_log` (migracja `0011_access_log.sql`) rejestruje, kto oglądał lub eksportował którą sprawę, kiedy
+i z jakim wynikiem. Jest dopisywana w tle, bez monitu przed wyświetleniem:
 
 - **Zdarzenia:** odczyt sprawy i jej uruchomień (`case.view`), uruchomienia i powiązań (`run.view`), dowodów
-  (przechwycenia, obserwacje, konta, dziennik wyjść, pliki: `evidence.view`), raportu HTML (`report.view`), eksportów
+  (przechwycenia, obserwacje, konta, dziennik ruchu wychodzącego, pliki: `evidence.view`), raportu HTML (`report.view`), eksportów
   (`export.download`) oraz samego dziennika (`audit.view`). Zapisy (tworzenie spraw, uruchomienia) rejestrują się
   osobno w łańcuchu dowodowym i ocenach.
 - **Podmiot (`actor`):** etykieta analityka, której API używa przy ocenach analityka (`OLCYS_ANALYST_NAME`), a gdy jej
@@ -74,10 +74,10 @@ i z jakim wynikiem. Jest dopisywana w tle, bez żadnego monitu przed wyświetlen
 - **Gotenberg** (renderowanie PDF/A) jest utwardzony w `compose.yml`: Chromium może czytać tylko pliki przesłane w żądaniu
   (zakotwiczona lista dozwolonych `^file:///tmp/.*`), adresy publiczne i prywatne są odrzucane, JavaScript jest wyłączony,
   pobieranie z adresu i webhooki są wyłączone, a usługa nie ma dostępu do żadnego serwera znaczników czasu (`PDF_DENY_*`).
-  Nie ustawiamy `CHROMIUM_PROXY_SERVER` (wyłączyłoby ochronę przed przepięciem DNS). Dostęp do usługi: tylko przez klienta
+  Nie ustawiamy `CHROMIUM_PROXY_SERVER` (wyłączyłoby ochronę przed DNS rebinding). Dostęp do usługi: tylko przez klienta
   ruchu wychodzącego, jako źródło lokalne `gotenberg` (`internal_service`), z `containsIdentifier: true`.
-- **Podpis** (pyHanko w `services/osint-py`, źródło `pdf_signing`) używa lokalnego klucza **demonstracyjnego**: certyfikat
-  jest samopodpisany i **niekwalifikowany** — nie daje domniemań prawnych podpisu kwalifikowanego (eIDAS), a raport i konsola
+- **Podpis** (pyHanko w `services/osint-py`, źródło `pdf_signing`) używa lokalnego klucza demonstracyjnego: certyfikat
+  jest samopodpisany i niekwalifikowany — nie daje domniemań prawnych podpisu kwalifikowanego (eIDAS), a raport i konsola
   mówią o tym wprost. Klucz prywatny powstaje na maszynie przy pierwszym użyciu w wolumenie kontenera, nie trafia do
   repozytorium, obrazu, dziennika ani odpowiedzi API (`GET /v1/pdf/signer` zwraca wyłącznie certyfikaty). Zastosowanie
   produkcyjne wymaga certyfikatu kwalifikowanego na module HSM (PKCS#11).
@@ -94,7 +94,7 @@ Dowody w testach (`pnpm test`):
 
 - `scripts/security/no-telemetry.test.ts`: każda usługa `compose.yml` (wszystkie profile), każdy `Dockerfile`, każdy
   workflow CI i `.env.example` ustawiają opt-outy; test pada dla usługi bez `DO_NOT_TRACK`.
-- `apps/web/test/build-security.test.ts`: buduje wersję produkcyjną i sprawdza, że `index.html` oraz paczki nie
+- `apps/web/test/build-security.test.ts`: buduje wersję produkcyjną i sprawdza, że `index.html` oraz bundle nie
   odwołują się do żadnego zdalnego hosta (czcionki, skrypty, CDN, analityka), nie mają skryptów ani stylów
   wbudowanych, a serwer `preview` wysyła ścisłą politykę CSP.
 - `apps/api/test/security.test.ts`: nagłówki odpowiedzi, skróty stylów raportu, dziennik dostępu i maskowanie logów.
@@ -107,6 +107,6 @@ tylko `CHOWN`, `DAC_OVERRIDE`, `FOWNER`, `SETGID` i `SETUID`, których potrzebuj
 jako użytkownik `node`, a `fixture-site` i `osint-py` mają system plików tylko do odczytu z `tmpfs` na `/tmp`.
 Usługi profilu `sandbox` (Esplora, Anvil) mają wyłącznie `no-new-privileges`, bo ich obrazy uruchamiają wiele
 procesów z przełączaniem użytkowników i portami uprzywilejowanymi. Konfigurację sprawdza `docker compose config -q`.
-Po zmianie warto uruchomić stos i upewnić się, że wszystkie usługi osiągają stan healthy.
+Po zmianie uruchom stos i sprawdź, czy wszystkie usługi są healthy.
 
 Opcjonalny `pgaudit` nie jest częścią tej wersji.

@@ -129,7 +129,7 @@ jako bezpiecznik klastrowania (poniżej), A7 jest oceniana z klastrów.
 ## Klastrowanie Bitcoin metodą wspólnego wydatkowania (heurystyka)
 
 `buildCoSpendClusters(seeds, txs, { labels, prevTxs, rules, maxClusterSize?, previousSizes? }, runId)` łączy adresy
-wejść jednej transakcji (struktura zbiorów rozłącznych) z ziaren — adresów Bitcoin sprawy. To **heurystyka**: wynik jest
+wejść jednej transakcji (struktura zbiorów rozłącznych) z adresów seed — adresów Bitcoin sprawy. To **heurystyka**: wynik jest
 obliczeniem, nie faktem, i nie zmienia Wskaźnika Pewności. Metodykę i ograniczenia opisuje
 [klastrowanie wspólnego wydatkowania](../../docs/methodology/klastrowanie-wspolwydatkowania.md).
 
@@ -143,7 +143,7 @@ obliczeniem, nie faktem, i nie zmienia Wskaźnika Pewności. Metodykę i ogranic
 - `planClusterExpansion(clusters, fetched, { maxDepth, round, maxAddresses, exclude })` wskazuje partnerów do pobrania
   (≤ 200 adresów, głębokość ≤ 2, bez usług i adresów z listy wykluczeń); pobieranie wykonuje etap analizy łańcucha.
 - `toClusterSummary(cluster)` i `evaluateClusterCollapse(summary, { rules, runId })` — reguła A7: decyzja `flagged`
-  dla każdego ziarna klastra, który wchłonął usługę, osiągnął limit lub urósł co najmniej `a7.minGrowthFactor` razy.
+  dla każdego adresu seed klastra, który wchłonął usługę, osiągnął limit lub urósł co najmniej `a7.minGrowthFactor` razy.
 
 ## Importery otwartych zbiorów etykiet
 
@@ -152,12 +152,12 @@ Importery działają **offline** na plikach lokalnych (`pnpm labels:import <zbi�
 i polityka licencji: `config/labels/datasets.v1.yaml`. Zbiór o statusie `refused` nigdy nie jest importowany
 (`dataset_licence_refused`); zbiór `deciding` musi spełniać `decidingAllowed`; zbiory wyłączone domyślnie wymagają
 uzasadnienia (`--justification`). Licencja zbioru trafia do pochodzenia (`provenance.license`) każdej etykiety, a wersją
-jest commit, data migawki lub data raportu. Ponowny import identycznej zawartości nie zmienia magazynu.
+jest commit, data snapshotu lub data raportu. Ponowny import identycznej zawartości nie zmienia magazynu.
 
 | Zbiór (`datasetId`)   | Licencja                                             | Rola                                                          | Sposób użycia                                                                                 |
 | --------------------- | ---------------------------------------------------- | ------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
 | `graphsense-tagpacks` | MIT                                                  | rozstrzyga (`deciding`)                                       | `parseTagPack`, `parseActorPack`; pewność z `confidence.csv`; `end_activity` → `activeTo`     |
-| `ofac-0xb10c`         | domena publiczna (`LicenseRef-US-Gov-Public-Domain`) | rozstrzyga; status sankcji to atrybut `sanctioned`            | `parseOfacList`, `diffOfacVersions` (`activeFrom` / `activeTo` między migawkami)              |
+| `ofac-0xb10c`         | domena publiczna (`LicenseRef-US-Gov-Public-Domain`) | rozstrzyga; status sankcji to atrybut `sanctioned`            | `parseOfacList`, `diffOfacVersions` (`activeFrom` / `activeTo` między snapshotami)            |
 | `por-file`            | ujawnienie przez wydawcę                             | rozstrzyga                                                    | `parsePorCsv` z profilem z `config/labels/por-profiles.v1.yaml`; wersja = data raportu        |
 | `eth-labels`          | nieznana (dane pochodne Etherscan)                   | **tylko potwierdza** (`deciding: false`), wyłączony domyślnie | `readEthLabels` (`node:sqlite`); wymaga `--justification`                                     |
 | `esma-casps`          | zasady ponownego wykorzystania ESMA                  | rejestr podmiotów (bez adresów)                               | `parseEsmaCasps`; usługa `c` ⇒ `fiatCapable`                                                  |
@@ -174,8 +174,8 @@ Odrzucone: `opensanctions` (CC-BY-NC-4.0), `dune-spellbook` (BUSL-1.1), `arkham`
   przez mapę `config/labels/entity-map.v1.yaml` (w repozytorium tylko wpisy syntetyczne; mapa produkcyjna pochodzi
   z `OLCYS_ENTITY_MAP_FILE`) i uzupełnia `euAuthorised`, `fiatCapable`, `plRegistered` **wyłącznie** gdy etykieta
   zostawiła je nieokreślone, na podstawie rekordów ważnych w dniu zapytania. Brak rekordu nie oznacza braku zezwolenia.
-- **Odświeżanie:** pobrać nowy plik zbioru ręcznie (migawka OFAC `sanctioned_addresses_<AKTYWO>.json`, TagPacki z
+- **Odświeżanie:** pobrać nowy plik zbioru ręcznie (snapshot OFAC `sanctioned_addresses_<AKTYWO>.json`, TagPacki z
   repozytorium GraphSense, CSV proof-of-reserves ze strony giełdy, `CASPS.csv` z ESMA) i uruchomić
-  `pnpm labels:import <zbiór> <plik> --version <data lub commit>`; każda wersja migawki jest zachowywana.
+  `pnpm labels:import <zbiór> <plik> --version <data lub commit>`; każda wersja snapshotu jest zachowywana.
   Przykład: `pnpm labels:import por-file okx.csv --profile okx --version 2026-11-01`.
 - **Dane testowe:** `test/fixtures/datasets/` zawiera wyłącznie dane syntetyczne w rzeczywistych formatach zbiorów.

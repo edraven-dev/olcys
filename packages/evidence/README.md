@@ -1,6 +1,6 @@
 # @olcys/evidence
 
-Magazyn plików adresowany treścią (SHA-256), manifesty, rekordy zabezpieczeń stron zgodne z Protokołem Berkeley, znaczniki czasu RFC 3161 oraz porównywanie kolejnych przebiegów analizy.
+Magazyn plików adresowany treścią (SHA-256), manifesty, rekordy zabezpieczeń stron zgodne z Berkeley Protocol, znaczniki czasu RFC 3161 oraz porównywanie kolejnych przebiegów analizy.
 
 - **Zależności:** wyłącznie kontrakty `@olcys/core`. Inne pakiety są dostępne przez porty łączone w `apps/worker`.
 - **Testy:** `test/*.test.ts`, uruchamiane poleceniem `pnpm vitest run --project @olcys/evidence`.
@@ -10,7 +10,7 @@ Magazyn plików adresowany treścią (SHA-256), manifesty, rekordy zabezpieczeń
 - `FileBlobStore(root)` — niezmienny magazyn plików adresowany SHA-256 (zapis atomowy, weryfikacja przy odczycie).
 - `InMemoryBlobStore` — implementacja do testów; `sha256Hex()`; `canonicalJson()` (RFC 8785, z `@olcys/core`).
 - `buildPropertyTimelines(wejście, filtr?)` — oś czasu wartości strony (`page.address`: adresy wyodrębnione ze strony)
-  i pól profilu: punkty z kopii archiwalnych (Wayback Machine, czas migawki podany przez archiwum, nigdy czas naszego
+  i pól profilu: punkty z kopii archiwalnych (Wayback Machine, czas snapshotu podany przez archiwum, nigdy czas naszego
   pobrania) i z przebiegów na żywo, okresy o tym samym zbiorze wartości oraz zmiany z przedziałem czasu (ostatni punkt
   przed zmianą — pierwszy po). Wartości pochodzą z wyników wyodrębnienia (`extractions`; `latestExtractions()` wybiera dla przechwycenia wynik najnowszej analizy, więc ponowna ocena z odrzuconym adresem usuwa go z osi); przechwycenie bez wyniku wyodrębnienia to luka `extraction_pending`, a nie usunięcie adresu. Przechwycenie, które odczytało profil konta (`profileCaptureId`), reprezentuje kanoniczną stronę
   profilu tego konta (np. profil pobrany po nicku to strona `…;u=<id>` z wykazu archiwum), niezależnie od adresu żądania. Niepobrana kopia z tym samym skrótem CDX dziedziczy wartości (`inferredFromDigest`,
@@ -25,7 +25,7 @@ Magazyn plików adresowany treścią (SHA-256), manifesty, rekordy zabezpieczeń
   niepobranej jest wstrzymywany (`suppressed`), a nie zgłaszany jako usunięty. Zmiana wyniku powiązania daje
   `SCORE_CHANGED` z przyczyną: dane, algorytm lub oba. Każde zdarzenie ma skrót `keySha256` do idempotentnego zapisu.
 
-## Przechwycenia zgodne z Protokołem Berkeley
+## Przechwycenia zgodne z Berkeley Protocol
 
 - `createCaptureRecorder({ clockSync, collector, toolVersion, gitCommit? })` — `CaptureRecorder`, jedyne miejsce, które
   buduje manifest. `record(draft, ctx)` zapisuje artefakty (`{ bytes, mediaType }`) albo ponownie liczy skrót plików już
