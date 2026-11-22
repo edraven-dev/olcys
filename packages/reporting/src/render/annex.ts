@@ -102,6 +102,27 @@ export function changesSection(view: View): SafeHtml {
   );
 }
 
+/** Skew above which the register warns (the default of `TSA_MAX_CLOCK_SKEW_SECONDS`; the custody event has the exact flag). */
+const SKEW_WARNING_SECONDS = 120;
+
+function timestampLine(view: View, capture: Capture): SafeHtml {
+  const e = pl.evidence;
+  const token = capture.timestamp;
+  if (!token) {
+    const offline = view.data.run.mode === 'offline' || view.data.run.mode === 'replay';
+    return muted(offline ? e.timestampPendingOffline : e.timestampPending);
+  }
+  const skew = token.skewSeconds !== undefined && Math.abs(token.skewSeconds) > SKEW_WARNING_SECONDS;
+  return markup`${muted(
+    t(e.timestamp, {
+      genTime: formatUtc(token.genTime),
+      tsa: token.tsaName ?? token.tsaUrl,
+      serial: token.serialNumber ?? pl.common.unknown,
+      level: token.qualified ? e.timestampQualified : e.timestampDemo,
+    }),
+  )}${skew ? markup`<br>${muted(t(e.timestampSkew, { seconds: token.skewSeconds ?? 0 }))}` : ''}`;
+}
+
 function registerRow(view: View, capture: Capture, earlier: boolean): SafeHtml {
   const n = view.captureNo.get(capture.id) ?? 0;
   const e = pl.evidence;
@@ -134,7 +155,7 @@ function registerRow(view: View, capture: Capture, earlier: boolean): SafeHtml {
       tool: capture.toolVersion,
       clock: capture.clockSynced ? pl.common.yes : pl.common.no,
     }),
-  )}</td><td>${formatUtc(capture.collectedAt)}</td><td class="status-${capture.status}">${status}</td><td>${join([t(e.manifest, { sha: hash(capture.manifestSha256) }), ...artifacts], markup`<br>`)}</td></tr>`;
+  )}</td><td>${formatUtc(capture.collectedAt)}</td><td class="status-${capture.status}">${status}</td><td>${join([t(e.manifest, { sha: hash(capture.manifestSha256) }), ...artifacts], markup`<br>`)}<br>${timestampLine(view, capture)}</td></tr>`;
 }
 
 function egressSummary(view: View): SafeHtml {

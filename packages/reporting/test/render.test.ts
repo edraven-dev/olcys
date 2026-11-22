@@ -271,3 +271,34 @@ describe('renderReport', () => {
       expect(html).toContain(text);
   });
 });
+
+describe('trusted timestamps in the evidence register', () => {
+  it('shows the pending text offline and the token (genTime, TSA, serial, level) once stamped', () => {
+    const data = personaData();
+    expect(sectionOf(renderReport(data), 'rejestr')).toContain(pl.evidence.timestampPendingOffline);
+
+    const [first, ...rest] = data.captures;
+    const stamped = {
+      ...first!,
+      timestamp: {
+        tsaUrl: 'https://freetsa.org/tsr',
+        token: { sha256: 'd'.repeat(64), bytes: 1500, mediaType: 'application/timestamp-reply' },
+        genTime: '2026-11-21T10:01:05.000Z',
+        hashAlgorithm: 'sha256' as const,
+        messageImprint: first!.manifestSha256,
+        serialNumber: '4242',
+        tsaName: 'CN=Test TSA',
+        qualified: false,
+        skewSeconds: 600,
+      },
+    };
+    const html = renderReport({ ...data, captures: [stamped, ...rest] });
+    const register = sectionOf(html, 'rejestr');
+    expect(register).toContain('znacznik czasu RFC 3161: ');
+    expect(register).toContain('CN=Test TSA');
+    expect(register).toContain('nr seryjny 4242');
+    expect(register).toContain('niekwalifikowana');
+    expect(register).toContain('różni się od czasu zebrania o 600 s');
+    expect(() => assertSelfContainedHtml(html)).not.toThrow();
+  });
+});

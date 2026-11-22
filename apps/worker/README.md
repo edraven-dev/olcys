@@ -38,6 +38,21 @@ z etapu.
 Etapy (zbieranie, wyodrębnianie adresów, analiza łańcucha, punktacja, raport) rejestruje proces API
 (`apps/api/src/stages.ts`).
 
+## Znakowanie czasem (RFC 3161)
+
+`createTrustedTimestamper(...)` (`src/timestamper.ts`, udostępniany jako `runtime.timestamper`) prosi usługę znakowania czasem
+o token dla skrótu `manifestSha256` każdego zapisanego przechwycenia (etap zbierania woła go tuż po zapisie). Tylko w trybie
+`live` wysyła zapytanie; w `offline` i `replay` zapisuje żądanie `queued` bez połączenia, a przy `TSA_ENABLED=false`
+— `queued: disabled`. Awaria TSA nie przerywa przebiegu: żądanie zapisuje się jako `failed` i czeka na ponowienie.
+
+- `flush({ limit?, subjectIds? })` — ponawia oczekujące żądania (tylko `live` i `TSA_ENABLED=true`); idempotentne (jeden
+  token na skrót). Wywołuje je polecenie `pnpm --filter @olcys/worker tsa:flush` oraz harmonogram: raz przy starcie i
+  co `flushIntervalSeconds` (domyślnie 600 s), gdy `canFlush`.
+- Zmienne: `TSA_ENABLED`, `TSA_URL`, `TSA_SOURCE_ID`, `TSA_POLICY_OID`, `TSA_QUALIFIED`, `TSA_TRUST_ANCHORS`,
+  `TSA_TIMEOUT_MS`, `TSA_MAX_CLOCK_SKEW_SECONDS`, `TSA_USERNAME`/`TSA_PASSWORD` (zob. `.env.example`). Przy starcie host z
+  `TSA_URL` musi być w `allowedHosts` źródła `TSA_SOURCE_ID` (rodzaj `timestamping`); inaczej start kończy się błędem
+  `tsa_host_not_allow_listed`.
+
 ## Etapy przebiegu
 
 `defaultStages({ mode, sources, env })` zwraca etapy MVP w kolejności potoku:
