@@ -5,12 +5,13 @@
  *   node scripts/compliance/check-images.ts
  */
 import { checkImages, findImageUses, loadImageSpecs } from './images.ts';
-import { loadPolicy, REPO_ROOT } from './policy.ts';
+import { loadExceptions, loadPolicy, REPO_ROOT } from './policy.ts';
 
 const findings = checkImages(
   await findImageUses(REPO_ROOT),
   await loadImageSpecs(REPO_ROOT),
   await loadPolicy(REPO_ROOT),
+  await loadExceptions(REPO_ROOT),
 );
 const problems = findings.filter((f) => f.decision.verdict !== 'allow');
 for (const f of problems) {

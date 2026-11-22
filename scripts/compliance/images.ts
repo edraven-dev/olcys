@@ -7,7 +7,7 @@ import { readFile, readdir } from 'node:fs/promises';
 import { join, relative } from 'node:path';
 import { parse } from 'yaml';
 import { cmp } from './cyclonedx.ts';
-import { decideComponent, type ComponentDecision, type LicencePolicy } from './policy.ts';
+import { decideComponent, type ComponentDecision, type LicenceException, type LicencePolicy } from './policy.ts';
 
 export interface ImageSpec {
   licence: string;
@@ -93,7 +93,12 @@ export async function loadImageSpecs(root: string): Promise<Record<string, Image
   return doc.images ?? {};
 }
 
-export function checkImages(uses: ImageUse[], specs: Record<string, ImageSpec>, policy: LicencePolicy): ImageFinding[] {
+export function checkImages(
+  uses: ImageUse[],
+  specs: Record<string, ImageSpec>,
+  policy: LicencePolicy,
+  exceptions: LicenceException[] = [],
+): ImageFinding[] {
   return uses.map((use) => {
     const spec = specs[use.repository];
     if (!spec) return { ...use, decision: { verdict: 'review', rule: 'not-in-components.yaml' } };
@@ -108,6 +113,7 @@ export function checkImages(uses: ImageUse[], specs: Record<string, ImageSpec>, 
         separateService: spec.separateService === true,
       },
       policy,
+      exceptions,
     );
     return { ...use, spec, decision };
   });

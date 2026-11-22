@@ -26,6 +26,29 @@ describe('Python SBOM', () => {
     expect(() => parsePyprojectDeps('[project]\ndependencies = [\n  "a==1"\n')).toThrow(/cannot parse/);
   });
 
+  it.each([
+    ['comment after the header', '[project] # application metadata\ndependencies = ["a==1"]\n'],
+    ['indented key', '[project]\n  dependencies = [ "a==1" ]\n'],
+    ['key comment and trailing space', '[project]\ndependencies = ["a==1"] # pins  \n'],
+    ['single quotes', "[project]\ndependencies = ['a==1']\n"],
+    [
+      'multi-line with trailing comma and comments',
+      '[project]\ndependencies = [\n  # runtime\n  "a==1", # first\n]\n[tool.uv]\n',
+    ],
+    [
+      'indented header and following table',
+      '  [project]  \nname = "x"\ndependencies=["a==1"]\n[tool.uv]\ndependencies = ["zzz"]\n',
+    ],
+  ])('reads valid TOML forms: %s', (_name, toml) => {
+    expect([...parsePyprojectDeps(toml)]).toEqual([['a', '1']]);
+  });
+
+  it('fails clearly instead of returning an empty list', () => {
+    expect(() => parsePyprojectDeps('[tool.uv]\nx = 1\n')).toThrow(/no \[project\] table/);
+    expect(() => parsePyprojectDeps('[project]\ndependencies = "a==1"\n')).toThrow(/array of strings/);
+    expect([...parsePyprojectDeps('[project]\nname = "x"\n')]).toEqual([]);
+  });
+
   it('lists direct packages only without uv.lock and states the coverage', () => {
     const input = { pyproject: read('pyproject.toml'), licences };
     expect(buildPythonComponents(input).map((c) => c.name)).toEqual(['alpha', 'beta-pkg']);

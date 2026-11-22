@@ -26,7 +26,7 @@ if (values.write === values.check) {
 }
 
 const ctx = await loadContext();
-const images = checkImages(await findImageUses(REPO_ROOT), await loadImageSpecs(REPO_ROOT), ctx.policy);
+const images = checkImages(await findImageUses(REPO_ROOT), await loadImageSpecs(REPO_ROOT), ctx.policy, ctx.exceptions);
 const generated = renderLicensesDoc({
   npm: ctx.npm,
   python: ctx.python,

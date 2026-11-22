@@ -27,7 +27,11 @@ export interface PythonInput {
 
 /** `dependencies = ["fastapi==0.165.0", ...]` of [project] → name → pinned version. */
 export function parsePyprojectDeps(pyproject: string): Map<string, string> {
-  const section = /^\[project\]\s*$([\s\S]*?)(?=^\[|(?![\s\S]))/m.exec(pyproject)?.[1] ?? '';
+  const header = /^[ \t]*\[project\][ \t]*(?:#.*)?$/m.exec(pyproject);
+  if (!header) throw new Error('pyproject.toml: no [project] table found');
+  const rest = pyproject.slice(header.index + header[0].length);
+  const next = /^[ \t]*\[/m.exec(rest);
+  const section = next ? rest.slice(0, next.index) : rest;
   const deps = new Map<string, string>();
   for (const entry of quotedList(section, 'dependencies')) {
     const spec = /^([A-Za-z0-9][A-Za-z0-9._-]*)\s*(?:\[[^\]]*\])?\s*==\s*([^\s;,]+)/.exec(entry.trim());
@@ -43,8 +47,10 @@ export function parsePyprojectDeps(pyproject: string): Map<string, string> {
  * partial list.
  */
 function quotedList(section: string, key: string): string[] {
-  const start = new RegExp(`^${key}\\s*=\\s*\\[`, 'm').exec(section);
-  if (!start) return [];
+  const assignment = new RegExp(`^[ \\t]*${key}[ \\t]*=`, 'm').exec(section);
+  if (!assignment) return [];
+  const start = new RegExp(`^[ \\t]*${key}[ \\t]*=\\s*\\[`, 'm').exec(section);
+  if (!start) throw new Error(`pyproject.toml: "${key}" must be an array of strings`);
   const out: string[] = [];
   let i = start.index + start[0].length;
   for (;;) {

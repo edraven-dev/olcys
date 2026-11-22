@@ -12,6 +12,7 @@ const specs: Record<string, ImageSpec> = {
   'gotenberg/gotenberg': { licence: 'MIT', purpose: 'pdf' },
   'acme/agpl-tool': { licence: 'AGPL-3.0-only', purpose: 'x' },
   'acme/agpl-service': { licence: 'AGPL-3.0-only', purpose: 'x', separateService: true },
+  'acme/custom-copyleft': { licence: 'GPL-3.0-only AND LicenseRef-Custom', purpose: 'x', separateService: true },
   'acme/sspl-db': { licence: 'SSPL-1.0', purpose: 'x', separateService: true },
 };
 
@@ -48,6 +49,19 @@ describe('image licence check', () => {
   it('fails an AGPL image without separateService and passes it with the flag', () => {
     expect(checkImages(use('acme/agpl-tool:1'), specs, policy)[0]?.decision.verdict).toBe('deny');
     expect(checkImages(use('acme/agpl-service:1'), specs, policy)[0]?.decision.verdict).toBe('allow');
+  });
+
+  it('applies a reviewed exception to an image', () => {
+    const exception = {
+      package: 'acme/custom-copyleft@1',
+      licence: 'GPL-3.0-only AND MIT',
+      decision: 'allow' as const,
+      reason: 'read the text',
+      approvedBy: 'x',
+      date: '2026-01-01',
+    };
+    expect(checkImages(use('acme/custom-copyleft:1'), specs, policy)[0]?.decision.verdict).toBe('review');
+    expect(checkImages(use('acme/custom-copyleft:1'), specs, policy, [exception])[0]?.decision.verdict).toBe('allow');
   });
 
   it('never waives a denied licence with the separateService flag', () => {
