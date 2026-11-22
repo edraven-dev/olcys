@@ -144,6 +144,11 @@ export function createMemoryRepositories(): Repositories {
       async addExtraction(runId, result) {
         store.extractions.push({ runId, result: copy(result) });
       },
+      async addExtractions(runId, results) {
+        // Copy everything first: a failure part-way stores nothing.
+        const copies = results.map((result) => ({ runId, result: copy(result) }));
+        store.extractions.push(...copies);
+      },
       async listEgressLog(runId) {
         return byRun(store.egress, runId);
       },

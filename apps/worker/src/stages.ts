@@ -258,8 +258,15 @@ export function createExtractStage(): Stage {
         candidates += result.candidates.length;
         rejected += result.rejected.length;
         for (const s of result.secrets) secretsByKind[s.kind] = (secretsByKind[s.kind] ?? 0) + 1;
-        // oxlint-disable-next-line no-await-in-loop
-        await ctx.repos.evidence.addExtraction(ctx.run.id, result);
+      }
+      // One all-or-nothing write; a repository without the batch method falls back to one write per capture.
+      const evidence = ctx.repos.evidence;
+      if (evidence.addExtractions) await evidence.addExtractions(ctx.run.id, results);
+      else {
+        for (const result of results) {
+          // oxlint-disable-next-line no-await-in-loop
+          await evidence.addExtraction(ctx.run.id, result);
+        }
       }
       // Counts only: nothing extracted from a page (and certainly no secret) goes to the log.
       ctx.logger.info('extraction finished', {
