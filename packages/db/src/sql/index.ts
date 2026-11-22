@@ -9,6 +9,7 @@ import { sqlCustodyRepository } from './custody.ts';
 import { sqlEvidenceRepository } from './evidence.ts';
 import { sqlRunRepository } from './runs.ts';
 import { sqlScheduleRepository } from './schedules.ts';
+import { sqlTimestampRepository } from './timestamps.ts';
 
 /** PostgreSQL (Kysely) implementations of every repository port. */
 export function createSqlRepositories(db: Db): Repositories {
@@ -25,6 +26,7 @@ export function createSqlRepositories(db: Db): Repositories {
     judgements: sqlJudgementRepository(db),
     overrides: sqlOverrideRepository(db),
     custody: sqlCustodyRepository(db),
+    timestamps: sqlTimestampRepository(db),
   };
 }
 
@@ -37,3 +39,4 @@ export { sqlCustodyRepository } from './custody.ts';
 export { sqlEvidenceRepository } from './evidence.ts';
 export { sqlRunRepository } from './runs.ts';
 export { sqlScheduleRepository } from './schedules.ts';
+export { attachTimestamps, sqlTimestampRepository } from './timestamps.ts';

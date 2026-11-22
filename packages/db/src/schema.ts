@@ -27,6 +27,8 @@ import type {
   CustodyEvent,
   AnalystOverrideTarget,
   ScheduleTickOutcome,
+  TimestampRequestOutcome,
+  TimestampSubjectType,
 } from '@olcys/core';
 import type { ColumnType, Generated } from 'kysely';
 
@@ -280,6 +282,47 @@ export interface CustodyEventTable {
   created_at: GeneratedTimestamp;
 }
 
+/** migrations/0009_timestamps.sql (append-only: a retry is a new request row) */
+export interface TimestampRequestTable {
+  id: string;
+  subject_type: TimestampSubjectType;
+  subject_id: string;
+  digest_sha256: string;
+  run_id: string | null;
+  reference_time: Timestamp | null;
+  tsa_source_id: string;
+  tsa_url: string;
+  policy_oid: string | null;
+  /** numeric(20): returned by the driver as a decimal string. */
+  nonce: string | null;
+  outcome: TimestampRequestOutcome;
+  reason: string | null;
+  http_status: number | null;
+  fetch_id: string | null;
+  at: Timestamp;
+  created_at: GeneratedTimestamp;
+}
+
+/** migrations/0009_timestamps.sql (unique per subject type, subject id and digest) */
+export interface TimestampTokenTable {
+  id: string;
+  subject_type: TimestampSubjectType;
+  subject_id: string;
+  digest_sha256: string;
+  tsa_url: string;
+  gen_time: Timestamp;
+  serial_number: string | null;
+  policy_oid: string | null;
+  tsa_name: string | null;
+  qualified: boolean;
+  skew_seconds: number | null;
+  response_blob: string;
+  response_bytes: number;
+  verification: Json<unknown>;
+  request_id: string;
+  created_at: GeneratedTimestamp;
+}
+
 /** migrations/0003_analyst_overrides.sql */
 export interface AnalystOverridesTable {
   id: string;
@@ -338,6 +381,8 @@ export interface Database {
   analyst_judgements: AnalystJudgementsTable;
   analyst_overrides: AnalystOverridesTable;
   custody_event: CustodyEventTable;
+  timestamp_request: TimestampRequestTable;
+  timestamp_token: TimestampTokenTable;
   change_events: ChangeEventsTable;
   reports: ReportsTable;
   schema_migrations: SchemaMigrationsTable;

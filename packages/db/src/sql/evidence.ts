@@ -1,6 +1,7 @@
 import type { EvidenceRepository, Observation } from '@olcys/core';
 import { json, type Db } from '../client.ts';
 import { insertCustodyEvents } from './custody.ts';
+import { attachTimestamps } from './timestamps.ts';
 
 export function sqlEvidenceRepository(db: Db): EvidenceRepository {
   return {
@@ -129,13 +130,16 @@ export function sqlEvidenceRepository(db: Db): EvidenceRepository {
     },
 
     async listCaptures(runId) {
-      return (await db.selectFrom('captures').select('record').where('run_id', '=', runId).execute()).map(
-        (r) => r.record,
+      const rows = await db.selectFrom('captures').select('record').where('run_id', '=', runId).execute();
+      return attachTimestamps(
+        db,
+        rows.map((r) => r.record),
       );
     },
 
     async getCapture(id) {
-      return (await db.selectFrom('captures').select('record').where('id', '=', id).executeTakeFirst())?.record;
+      const row = await db.selectFrom('captures').select('record').where('id', '=', id).executeTakeFirst();
+      return row ? (await attachTimestamps(db, [row.record]))[0] : undefined;
     },
 
     async listAccounts(runId) {

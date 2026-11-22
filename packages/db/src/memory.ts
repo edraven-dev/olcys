@@ -22,6 +22,7 @@ import { addressKey, newId, nowIso, uniqueTransfers } from '@olcys/core';
 import { memoryClusterRepository } from './memory-clusters.ts';
 import { memoryAddressTypeRepository } from './memory-address-types.ts';
 import { memoryScheduleRepository } from './memory-schedules.ts';
+import { memoryTimestamps } from './memory-timestamps.ts';
 import { labelContentSha256 } from './sql/analysis.ts';
 
 const copy = <T>(value: T): T => structuredClone(value);
@@ -55,6 +56,8 @@ export function createMemoryRepositories(): Repositories {
     overrides: [] as AnalystOverride[],
     custody: [] as CustodyEvent[],
   };
+
+  const timestamps = memoryTimestamps(store.custody);
 
   return {
     cases: {
@@ -148,11 +151,11 @@ export function createMemoryRepositories(): Repositories {
         return byRun(store.egress, runId);
       },
       async listCaptures(runId) {
-        return byRun(store.captures, runId);
+        return timestamps.attach(byRun(store.captures, runId));
       },
       async getCapture(id) {
         const found = store.captures.find((c) => c.id === id);
-        return found ? copy(found) : undefined;
+        return found ? timestamps.attach([copy(found)])[0] : undefined;
       },
       async listAccounts(runId) {
         return byRun(store.accounts, runId);
@@ -274,5 +277,6 @@ export function createMemoryRepositories(): Repositories {
         return chronological(store.custody.filter((e) => wanted.has(e.subject.id)));
       },
     },
+    timestamps: timestamps.repository,
   };
 }
