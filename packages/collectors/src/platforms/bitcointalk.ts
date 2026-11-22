@@ -17,6 +17,7 @@ import { ResultBuilder } from '../framework/result.ts';
 import { bitcointalkProfileUrl, recogniseAccountUrl } from '../framework/urls.ts';
 import { all, blockText, childElements, parseHtml, rawText, squash, textOf, type DomElement } from '../html/dom.ts';
 import { fetchPage } from '../html/page.ts';
+import { namesPages } from './common.ts';
 
 export const BITCOINTALK_PARSER_VERSION = 'smf1.v1';
 const SOFTWARE = [{ name: 'parser:bitcointalk', version: BITCOINTALK_PARSER_VERSION }];
@@ -380,6 +381,8 @@ function targetOf(input: CollectorInput, resolveByName: boolean): Target | undef
       if (target) return target;
     }
   }
+  // A task that names pages is about those pages only: its identifiers are for matching, never a fallback.
+  if (namesPages(input)) return undefined;
   for (const account of input.accounts) {
     if (account.platform !== 'bitcointalk') continue;
     if (account.platformUserId && UID.test(account.platformUserId)) {

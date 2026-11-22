@@ -171,7 +171,9 @@ kolektorom platform. Wyniki wyszukiwania (E3) trafiają do kolektora strony z li
 tym samym kluczem co zadanie I3, więc strona znaleziona obiema drogami jest zbierana raz — a w przeciwnym razie do
 kolektora rozpoznanego konta (jak E1); strony bez kolektora (np. wątki forum) nie są pobierane. Strona z listy
 obserwowanych albo z wyników, która jest stroną konta tej platformy (np. podgląd kanału), ma też klucze tego konta:
-próba nicku, odnośnik i wynik wyszukiwania prowadzą wtedy do jednego zadania.
+próba nicku, odnośnik i wynik wyszukiwania prowadzą wtedy do jednego zadania. Kolektor strony wybiera sam jej adres —
+identyfikatory sprawy idą z zadaniem tylko do dopasowania na stronie. Zadanie wskazujące strony (adresy URL) dotyczy
+wyłącznie tych stron: kolektor nie sięga wtedy po identyfikatory ani konta swojej platformy.
 
 Każde zadanie ma klucz `<sourceId>|<podmiot>` (np. `bitcointalk|handle:bitcointalk:fikcyjny_kacper`,
 `bitcointalk|id:bitcointalk:900001`, `mock_search|query:kacper fikcyjny` — zapytanie małymi literami, odstępy scalone;

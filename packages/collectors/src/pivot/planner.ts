@@ -144,6 +144,13 @@ export function accountAliasKeys(
 
 const emptyInput = (depth: number): CollectorInput => ({ identifiers: [], accounts: [], addresses: [], depth });
 
+/** Input naming one page (watch list, search result); a collector must support it without any identifier. */
+const pageInput = (url: string, depth: number, value: Omit<PivotValue, 'kind' | 'value' | 'method'> = {}) =>
+  ({
+    ...emptyInput(depth),
+    values: [{ kind: 'url', value: url, method: 'search', ...value }],
+  }) satisfies CollectorInput;
+
 class Planner {
   readonly #ctx: PlannerContext;
   readonly tasks: PlannedTask[] = [];
@@ -153,7 +160,8 @@ class Planner {
     this.#ctx = ctx;
   }
 
-  consider(task: PlannedTask): void {
+  /** `subject`: what the collector must support by itself (default the task input; page tasks: the page alone). */
+  consider(task: PlannedTask, subject: CollectorInput = task.input): void {
     const ctx = this.#ctx;
     const skip = (reason: SkipReason): void => {
       const { key, sourceId, platform, subjectKey, depth, provenance } = task;
@@ -164,7 +172,7 @@ class Planner {
     if (!ctx.scope.isEnabled(task.sourceId)) return skip('source_not_enabled');
     const instance = ctx.collectors.get(task.sourceId);
     if (!instance) return skip('not_registered');
-    if (!instance.collector.supports(task.input)) return skip('unsupported');
+    if (!instance.collector.supports(subject)) return skip('unsupported');
     if (task.depth > ctx.maxPivotDepth) return skip('depth_exceeded');
     const aliases = this.#aliases(task);
     if (ctx.known.has(task.key) || aliases.some((k) => ctx.known.has(k))) return skip('duplicate');
@@ -242,7 +250,8 @@ class Planner {
 
   /**
    * A page found by web search: the watch-page collector that reads it, under the same key as a watch-list task (so a
-   * page reached both ways is collected once), else the collector of the recognised account it shows (as E1).
+   * page reached both ways is collected once), else the collector of the recognised account it shows (as E1). The
+   * page alone chooses the collector; the case identifiers only go along, for matching on the page.
    */
   searchResult(
     url: string,
@@ -252,21 +261,22 @@ class Planner {
     identifiers: readonly Identifier[],
   ): void {
     const logical = toLogicalUrl(url, this.#ctx.fixture);
-    const pageValue: PivotValue = { kind: 'url', value: logical, method: 'search', ...value };
+    const page = pageInput(logical, depth, value);
     for (const factory of this.#ctx.factories) {
-      if (!factory.watchesPages) continue;
-      const input: CollectorInput = { ...emptyInput(depth), identifiers: [...identifiers], values: [pageValue] };
-      if (!this.#ctx.collectors.get(factory.sourceId)?.collector.supports(input)) continue;
+      if (!factory.watchesPages || !this.#ctx.collectors.get(factory.sourceId)?.collector.supports(page)) continue;
       const subjectKey = `url:${logical}`;
-      this.consider({
-        key: taskKey(factory.sourceId, subjectKey),
-        sourceId: factory.sourceId,
-        platform: factory.platform,
-        subjectKey,
-        depth,
-        input,
-        provenance: { ...provenance, detail: logical },
-      });
+      this.consider(
+        {
+          key: taskKey(factory.sourceId, subjectKey),
+          sourceId: factory.sourceId,
+          platform: factory.platform,
+          subjectKey,
+          depth,
+          input: { ...page, identifiers: [...identifiers] },
+          provenance: { ...provenance, detail: logical },
+        },
+        page,
+      );
       return;
     }
     this.linked(logical, depth, provenance, { ...value, method: 'search' });
@@ -334,15 +344,20 @@ export function planInitial(identifiers: readonly Identifier[], ctx: PlannerCont
       if (!factory) continue;
       const url = toLogicalUrl(page.url, ctx.fixture);
       const subjectKey = `url:${url}`;
-      planner.consider({
-        key: taskKey(factory.sourceId, subjectKey),
-        sourceId: factory.sourceId,
-        platform: factory.platform,
-        subjectKey,
-        depth: 0,
-        input: { ...emptyInput(0), identifiers: matchable, values: [{ kind: 'url', value: url, method: 'search' }] },
-        provenance: { reason: 'watch_list', rule: 'I3', detail: url },
-      });
+      // The page alone must be readable by the collector; the identifiers go along for matching only.
+      const subject = pageInput(url, 0);
+      planner.consider(
+        {
+          key: taskKey(factory.sourceId, subjectKey),
+          sourceId: factory.sourceId,
+          platform: factory.platform,
+          subjectKey,
+          depth: 0,
+          input: { ...subject, identifiers: matchable },
+          provenance: { reason: 'watch_list', rule: 'I3', detail: url },
+        },
+        subject,
+      );
     }
   }
   // Searches last: they never take the task budget from the platform tasks of an identifier.

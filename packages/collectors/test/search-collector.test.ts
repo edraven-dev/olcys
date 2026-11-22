@@ -375,6 +375,87 @@ describe('search on the fixture site', () => {
     );
   });
 
+  it('sends an unrelated result URL to its own collector, never to Telegram through a Telegram identifier', async () => {
+    const { result } = await run(WITH_SEARCH, [
+      identifier('nickname', 'fikcyjny_kacper', { platform: 'bitcointalk', isAnchor: true }),
+      identifier('nickname', 'olcys_test_ostrzezenia', { platform: 'telegram' }),
+    ]);
+    const telegram = [...result.tasks, ...result.skipped].filter((t) => t.sourceId === 'telegram_preview');
+    expect(
+      telegram.filter((t) => t.subjectKey.startsWith('url:') && !t.subjectKey.startsWith('url:https://t.me/')),
+    ).toEqual([]);
+    // The channel is read once (by its I1 task); the other Telegram capture is the same-nick probe's 404.
+    expect(result.captures.filter((c) => c.url.endsWith('/telegram/s/olcys_test_ostrzezenia'))).toHaveLength(1);
+    expect(result.tasks.filter((t) => t.sourceId === 'telegram_preview').map((t) => t.key)).toEqual([
+      'telegram_preview|handle:telegram:fikcyjny_kacper',
+      'telegram_preview|handle:telegram:olcys_test_ostrzezenia',
+    ]);
+    expect(result.skipped).toContainEqual(
+      expect.objectContaining({
+        key: 'bitcointalk|id:bitcointalk:900001',
+        skip: 'duplicate',
+        provenance: expect.objectContaining({ rule: 'E3' }),
+      }),
+    );
+  });
+
+  it('page tasks name their page: no collector falls back to an identifier of its platform', () => {
+    const deps: CollectorDeps = {
+      mode: 'offline',
+      config,
+      robots: { check: async () => ({ allowed: true }) },
+      breaker: new SourceCircuitBreaker(),
+      redactor: TEST_REDACTOR,
+    };
+    const collectors = createDefaultCollectorRegistry({ mode: 'offline' });
+    const cases = [
+      ['bitcointalk', 'fikcyjny_kacper', 'https://bitcointalk.org/index.php?action=profile;u=900001'],
+      ['wykop', 'fikcyjny_kacper', 'https://wykop.pl/ludzie/fikcyjny_kacper/'],
+      ['github', 'fikcyjny-kacper', 'https://github.com/fikcyjny-kacper'],
+      ['telegram_preview', 'olcys_test_ostrzezenia', 'https://t.me/s/olcys_test_ostrzezenia'],
+    ] as const;
+    const elsewhere = 'https://example.org/strona-bez-konta';
+    for (const [sourceId, handle, ownUrl] of cases) {
+      const factory = collectors.get(sourceId)!;
+      const collector = factory.create(registry.require(sourceId), deps);
+      const mine = identifier('nickname', handle, { platform: factory.platform });
+      const page = (url: string): CollectorInput => ({
+        identifiers: [mine],
+        accounts: [],
+        addresses: [],
+        depth: 1,
+        values: [{ kind: 'url', value: url, method: 'search' }],
+      });
+      const otherUrls = [elsewhere, ...cases.filter((c) => c[0] !== sourceId).map((c) => c[2])];
+      expect([sourceId, otherUrls.map((url) => collector.supports(page(url)))]).toEqual([
+        sourceId,
+        otherUrls.map(() => false),
+      ]);
+      expect([sourceId, collector.supports(page(ownUrl))]).toEqual([sourceId, true]);
+      // Without page values the identifier still addresses the account (rule I1).
+      expect([sourceId, collector.supports({ ...page(ownUrl), values: [] })]).toEqual([sourceId, true]);
+    }
+  });
+
+  it('a watch-list entry whose page its platform cannot read is not planned', async () => {
+    const { result } = await run(
+      WITH_SEARCH,
+      [identifier('nickname', 'olcys_test_ostrzezenia', { platform: 'telegram' })],
+      {
+        ...config,
+        watchList: [{ platform: 'telegram', url: `${server.url}/wykop/ludzie/fikcyjny_kacper/` }],
+      },
+    );
+    expect(result.skipped).toContainEqual(
+      expect.objectContaining({
+        key: 'telegram_preview|url:https://wykop.pl/ludzie/fikcyjny_kacper/',
+        skip: 'unsupported',
+        provenance: expect.objectContaining({ rule: 'I3' }),
+      }),
+    );
+    expect(result.tasks.filter((t) => t.provenance.rule === 'I3')).toEqual([]);
+  });
+
   it('follows result URLs only into sources the case enables', async () => {
     const { result } = await run(['mock_search'], [identifier('nickname', 'fikcyjny_kacper')], {
       ...config,
