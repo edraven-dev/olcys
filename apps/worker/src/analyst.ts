@@ -12,11 +12,21 @@ import type {
   Id,
   Logger,
   Repositories,
+  RoleCue,
   RunConfigSnapshot,
 } from '@olcys/core';
-import { applyOverrides, overridesAt, overridesVersion, type FeatureExtractionInput } from '@olcys/scoring';
+import { ROLE_CUES } from '@olcys/core';
+import { ADDRESS_ROLE_TASK } from '@olcys/llm';
+import {
+  applyOverrides,
+  overridesAt,
+  overridesVersion,
+  type AnalystCue,
+  type FeatureExtractionInput,
+} from '@olcys/scoring';
 
-type RunRef = Pick<AnalysisRun, 'id' | 'caseId' | 'trigger' | 'config'>;
+type RunRef = Pick<AnalysisRun, 'id' | 'caseId' | 'trigger' | 'config'> &
+  Partial<Pick<AnalysisRun, 'rescoreOfRunId' | 'queuedAt'>>;
 
 /**
  * The config snapshot of a new run. A rescore fixes the overrides it applies — those recorded until it was queued —
@@ -73,6 +83,26 @@ async function namedCandidates(
   return lists.flat().filter((c) => wanted.has(c.id));
 }
 
+/**
+ * Role cues of the suggestions an analyst confirmed for the rescored run before this rescore was queued. Only a
+ * confirmed suggestion is a cue (pending and rejected ones never are), and only a rescore applies it: a collecting run
+ * never reads suggestions. The model's word alone never reaches the score.
+ */
+async function confirmedCues(repos: Repositories, run: RunRef): Promise<AnalystCue[]> {
+  if (run.trigger !== 'rescore' || !run.rescoreOfRunId || !repos.llm) return [];
+  const limit = run.queuedAt ? Date.parse(run.queuedAt) : Number.POSITIVE_INFINITY;
+  return (await repos.llm.listSuggestionsByRun(run.rescoreOfRunId))
+    .filter(
+      (s) =>
+        s.task === ADDRESS_ROLE_TASK &&
+        s.status === 'confirmed' &&
+        s.target.candidateId !== undefined &&
+        ROLE_CUES.includes(s.label as RoleCue) &&
+        (s.decidedAt === undefined || Date.parse(s.decidedAt) <= limit),
+    )
+    .map((s) => ({ candidateId: s.target.candidateId as Id, cue: s.label as RoleCue, suggestionId: s.id }));
+}
+
 /** The scoring input of a run with the analyst overrides it applies; `applied` counts them. */
 export async function withAnalystOverrides(
   repos: Repositories,
@@ -81,13 +111,24 @@ export async function withAnalystOverrides(
   logger?: Logger,
 ): Promise<{ input: FeatureExtractionInput; applied: number }> {
   const overrides = await runOverrides(repos, run);
-  if (overrides.length === 0) return { input, applied: 0 };
+  const cues = await confirmedCues(repos, run);
+  if (overrides.length === 0 && cues.length === 0) return { input, applied: 0 };
   const current = new Set(input.extractions.flatMap((e) => e.candidates.map((c) => c.id)));
-  const candidates = await namedCandidates(repos, run.caseId, overrides, current);
+  const named = await namedCandidates(repos, run.caseId, overrides, current);
+  // The candidates the cues name were extracted by the rescored run: their ids are looked up again by position.
+  const cued = new Set(cues.map((c) => c.candidateId));
+  const earlier =
+    cued.size > 0 && run.rescoreOfRunId
+      ? (await repos.evidence.listCandidates(run.rescoreOfRunId)).filter((c) => cued.has(c.id))
+      : [];
   logger?.info('analyst overrides applied', {
     runId: run.id,
     overrides: overrides.length,
+    confirmedSuggestions: cues.length,
     version: overridesVersion(overrides),
   });
-  return { input: applyOverrides(input, overrides, { candidates }), applied: overrides.length };
+  return {
+    input: applyOverrides(input, overrides, { candidates: [...named, ...earlier], cues }),
+    applied: overrides.length,
+  };
 }

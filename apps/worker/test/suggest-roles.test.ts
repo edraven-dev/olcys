@@ -15,8 +15,10 @@ import type {
 } from '@olcys/core';
 import { newId, nowIso, readPartialReasons } from '@olcys/core';
 import { createMemoryRepositories } from '@olcys/db';
+import type { FeatureExtractionInput } from '@olcys/scoring';
 import { InMemoryBlobStore } from '@olcys/evidence';
 import { describe, expect, it } from 'vitest';
+import { withAnalystOverrides } from '../src/analyst.ts';
 import {
   createRun,
   createSuggestRolesStage,
@@ -213,5 +215,48 @@ describe('llm.suggest step', () => {
     expect(maxMentionsFromEnv({})).toBe(20);
     expect(maxMentionsFromEnv({ LLM_MAX_MENTIONS_PER_RUN: '5' })).toBe(5);
     expect(maxMentionsFromEnv({ LLM_MAX_MENTIONS_PER_RUN: 'x' })).toBe(20);
+  });
+});
+
+describe('confirmed suggestions in a rescore', () => {
+  it('only a confirmed suggestion becomes a cue of a later rescore, found again under the re-extracted id', async () => {
+    const { repos, run, deps } = await setup({ wykop: 2, telegram: 0 });
+    await runPipeline(run.id, deps(createSuggestRolesStage({ sources: SOURCES, llm: fakeModel().client })));
+    const [first, second] = await repos.llm!.listSuggestionsByRun(run.id);
+    await repos.llm!.decide({
+      id: newId(),
+      suggestionId: first!.id,
+      decision: 'confirmed',
+      justification: 'Zgodne z treścią wpisu',
+      decidedBy: 'Analityk Testowy',
+      decidedAt: nowIso(),
+    });
+    await repos.llm!.decide({
+      id: newId(),
+      suggestionId: second!.id,
+      decision: 'rejected',
+      justification: 'Nietrafiona rola, wpis jest cytatem',
+      decidedBy: 'Analityk Testowy',
+      decidedAt: nowIso(),
+    });
+    const rescore = await createRun(
+      repos,
+      { caseId: run.caseId, mode: 'offline', trigger: 'rescore', rescoreOfRunId: run.id },
+      CONFIG,
+    );
+    // The rescore re-extracts the same captures under new candidate ids.
+    const stored = await repos.evidence.listCandidates(run.id);
+    const candidates = stored.map((c) => ({ ...c, id: newId() }));
+    const input = { extractions: [{ captureId: 'x', candidates, rejected: [], secrets: [], extractorVersion: 't' }] };
+    const { input: applied } = await withAnalystOverrides(repos, rescore, input as unknown as FeatureExtractionInput);
+    const original = stored.find((c) => c.id === first!.target.candidateId)!;
+    const reextracted = candidates.find((c) => c.address.address === original.address.address)!;
+    expect(applied.analyst?.cues).toEqual([
+      { candidateId: reextracted.id, cue: 'first_person_owner', suggestionId: first!.id },
+    ]);
+    // A collecting run reads no suggestions at all.
+    const manual = await createRun(repos, { caseId: run.caseId, mode: 'offline' }, CONFIG);
+    const { input: plain } = await withAnalystOverrides(repos, manual, input as unknown as FeatureExtractionInput);
+    expect(plain.analyst).toBeUndefined();
   });
 });
