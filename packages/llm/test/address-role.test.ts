@@ -140,7 +140,7 @@ describe('classifyAddressMention', () => {
       candidate: {
         id: 'c',
         address: { chain: 'tron', address: ADDRESS },
-        context: { snippet: 'krótko', inCode: false, roleCues: [] },
+        context: { snippet: 'krótko', inCode: false, roleCues: [], pageAddressDensity: 1, occurrencesInCapture: 1 },
       },
     });
     expect(await classifyAddressMention(short, { llm: on.client })).toEqual({
@@ -166,7 +166,7 @@ describe('classifyAddressMention', () => {
       candidate: {
         id: 'c',
         address: { chain: 'tron', address: ADDRESS },
-        context: { snippet: long, inCode: false, roleCues: [] },
+        context: { snippet: long, inCode: false, roleCues: [], pageAddressDensity: 1, occurrencesInCapture: 1 },
       },
     });
     const out = await classifyAddressMention(i, { llm: client });

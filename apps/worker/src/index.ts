@@ -44,3 +44,10 @@ export {
   USER_AGENT,
   type StageOptions,
 } from './stages.ts';
+export {
+  createSuggestRolesStage,
+  DEFAULT_MAX_MENTIONS,
+  maxMentionsFromEnv,
+  MAX_CONSECUTIVE_FAILURES,
+  type SuggestRolesOptions,
+} from './suggest-roles.ts';

@@ -167,7 +167,7 @@ export function lexiconAgreement(
   role: RoleCue,
   lexiconCues: readonly RoleCue[],
 ): 'agrees' | 'differs' | 'lexicon_silent' {
-  const cues = lexiconCues.filter((c) => c !== 'unclear');
+  const cues: RoleCue[] = lexiconCues.filter((c) => c !== 'unclear');
   if (cues.length === 0) return 'lexicon_silent';
   return cues.includes(role) ? 'agrees' : 'differs';
 }

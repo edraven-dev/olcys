@@ -6,8 +6,13 @@ import type { RunWithProgress } from '@olcys/core';
 import type { Runtime, Stage } from '@olcys/worker';
 import { defaultStages as workerStages, evidenceRunIdOf } from '@olcys/worker';
 
-export function defaultStages(runtime: Pick<Runtime, 'sources' | 'mode'>): Stage[] {
-  return workerStages({ mode: runtime.mode, sources: runtime.sources, env: process.env });
+export function defaultStages(runtime: Pick<Runtime, 'sources' | 'mode'> & Partial<Pick<Runtime, 'llm'>>): Stage[] {
+  return workerStages({
+    mode: runtime.mode,
+    sources: runtime.sources,
+    env: process.env,
+    ...(runtime.llm ? { llm: runtime.llm } : {}),
+  });
 }
 
 /**
