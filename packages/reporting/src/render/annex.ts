@@ -203,6 +203,9 @@ export function evidenceSection(view: View): SafeHtml {
     pl.sections.evidence,
     join([
       para(pl.evidence.intro),
+      view.captures.some((capture) => !(capture.artifacts ?? []).some((a) => a.kind === 'screenshot'))
+        ? para(pl.evidence.noScreenshot)
+        : '',
       block('facts', register),
       markup`<h3>${pl.evidence.egressTitle}</h3>`,
       block('facts', egressSummary(view)),

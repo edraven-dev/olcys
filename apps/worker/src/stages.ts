@@ -4,6 +4,7 @@
  * provenance written to the store); page bodies are redacted before they are stored.
  */
 import { readFile } from 'node:fs/promises';
+import { hostname, networkInterfaces } from 'node:os';
 import { join } from 'node:path';
 import type {
   ActivityIndicators,
@@ -51,6 +52,12 @@ import {
 import { parse as parseYaml } from 'yaml';
 import { createSecretRedactor, extractCapture, parseDenyList, type CaptureContent } from '@olcys/address-extractor';
 import { collectCase, loadCollectorConfig, loadSourceRegistry, type SourceRegistry } from '@olcys/collectors';
+import {
+  createCaptureRecorder,
+  createClockSyncCheck,
+  custodyCollected,
+  resolveCollectorIdentity,
+} from '@olcys/evidence';
 import { createEgressClient, RobotsCache } from '@olcys/http';
 import { createReportStage } from '@olcys/reporting';
 import { loadWeights, scoreRun } from '@olcys/scoring';
@@ -86,6 +93,17 @@ export function createCollectStage(options: StageOptions): Stage {
   const registry = lazy<SourceRegistry>(() => loadSourceRegistry());
   const redactor = createSecretRedactor();
   const env = options.env ?? process.env;
+  // One clock check (cached 60 s) and one recorder per process; the collector identity is resolved from local state.
+  const maxOffsetMs = Number(env['OLCYS_CLOCK_MAX_OFFSET_MS']);
+  const collector = resolveCollectorIdentity({ ...env }, { hostname, networkInterfaces });
+  const recorder = createCaptureRecorder({
+    clockSync: createClockSyncCheck({
+      clock: systemClock,
+      ...(Number.isFinite(maxOffsetMs) && maxOffsetMs > 0 ? { maxOffsetMs } : {}),
+    }),
+    collector,
+    toolVersion: TOOL_VERSION,
+  });
   return {
     step: 'collect.source',
     async run(ctx: StageContext) {
@@ -124,6 +142,7 @@ export function createCollectStage(options: StageOptions): Stage {
           blobs: ctx.blobs,
           clock: systemClock,
           logger: ctx.logger,
+          evidence: recorder,
         },
         config,
         robots: new RobotsCache(http, USER_AGENT),
@@ -132,6 +151,9 @@ export function createCollectStage(options: StageOptions): Stage {
         onTask: (event) => ctx.progress({ tasksDone: event.done, tasksPlanned: event.planned }),
       });
       await ctx.repos.evidence.addCaptures(result.captures);
+      await ctx.repos.custody?.add(
+        result.captures.map((c) => ({ id: newId(), ...custodyCollected(c, collector.name) })),
+      );
       await ctx.repos.evidence.addAccounts(result.accounts);
       await ctx.repos.evidence.addObservations(result.observations);
       if (result.partial) {

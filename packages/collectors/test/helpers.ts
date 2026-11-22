@@ -16,10 +16,21 @@ import type {
   SecretRedactor,
   SourceDescriptor,
 } from '@olcys/core';
+import { createCaptureRecorder, injectedClockSync } from '@olcys/evidence';
 import { createEgressClient, RobotsCache } from '@olcys/http';
 import { createFixtureServer, type FixtureServer } from '../../../apps/fixture-site/src/fixture-server.ts';
 import { createCollectorConfig, loadFixtureManifest, type CollectorConfig } from '../src/framework/config.ts';
 import { loadSourceRegistry, type ResolvedScope, type SourceRegistry } from '../src/framework/source-registry.ts';
+
+/** A capture recorder like the worker's, with a fixed collector identity and an injected clock status. */
+export function testRecorder() {
+  const clock = { now: () => new Date() };
+  return createCaptureRecorder({
+    clockSync: injectedClockSync(true, clock),
+    collector: { name: 'test-analyst', host: 'test-host', ipSource: 'unknown' },
+    toolVersion: '0.1.0-test',
+  });
+}
 
 export const REPO = resolve(import.meta.dirname, '..', '..', '..');
 export const PUBLIC = resolve(REPO, 'apps', 'fixture-site', 'public');
@@ -160,6 +171,7 @@ export function createTestRun(
     blobs,
     clock: { now: () => new Date() },
     logger,
+    evidence: testRecorder(),
   };
   return { ctx, logs, envelopes, blobs, robots: new RobotsCache(http, USER_AGENT), logger };
 }

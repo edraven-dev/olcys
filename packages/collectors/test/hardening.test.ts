@@ -34,6 +34,7 @@ import {
   JUSTIFICATION,
   MemoryBlobs,
   memoryLogger,
+  testRecorder,
   PERSONA_IDENTIFIERS,
   startFixture,
   testConfig,
@@ -277,6 +278,7 @@ describe('malformed links are skipped, not fatal', () => {
       '<a href="/bitcointalk/index.php?action=profile;u=1%zz">bad</a> ' +
       '<a href="/bitcointalk/index.php?action=profile;u=777">ok</a></p></section></main></body></html>';
     const egress = fakeEgress(() => ({ status: 200, body: page }));
+    const logger = memoryLogger();
     const ctx: RunContext = {
       runId: 'r',
       caseId: 'c',
@@ -284,7 +286,8 @@ describe('malformed links are skipped, not fatal', () => {
       http: egress,
       blobs: new MemoryBlobs(),
       clock: { now: () => new Date() },
-      logger: memoryLogger(),
+      logger,
+      evidence: testRecorder(),
     };
     const deps: CollectorDeps = {
       mode: 'offline',
