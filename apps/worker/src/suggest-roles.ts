@@ -76,29 +76,24 @@ export function createSuggestRolesStage(options: SuggestRolesOptions): Stage {
           counts.overLimit += 1;
           continue;
         }
-        let outcome;
-        try {
-          // Sequential on purpose: one local model, one request at a time.
-          // oxlint-disable-next-line no-await-in-loop
-          outcome = await classifyAddressMention(
-            {
-              candidate,
-              capture,
-              source: byId.get(capture.sourceId),
-              platform: capture.sourceId,
-              ...(linkByAddress.get(addressKey(candidate.address))
-                ? { linkAssessmentId: linkByAddress.get(addressKey(candidate.address)) as Id }
-                : {}),
-              runId: ctx.run.id,
-              caseId: ctx.case.id,
-            },
-            { llm: options.llm },
-          );
-        } catch (error) {
-          // A bug in the step must not take the analysis down with it: recorded like an unreachable model.
-          ctx.logger.error('role suggestion failed unexpectedly', { runId: ctx.run.id, error: String(error) });
-          outcome = { status: 'failed' as const, reason: 'http_error' as const };
-        }
+        // `complete` returns typed results for model outages; storage and code errors are thrown and must reach the
+        // pipeline (the run fails), so nothing is caught here.
+        // Sequential on purpose: one local model, one request at a time.
+        // oxlint-disable-next-line no-await-in-loop
+        const outcome = await classifyAddressMention(
+          {
+            candidate,
+            capture,
+            source: byId.get(capture.sourceId),
+            platform: capture.sourceId,
+            ...(linkByAddress.get(addressKey(candidate.address))
+              ? { linkAssessmentId: linkByAddress.get(addressKey(candidate.address)) as Id }
+              : {}),
+            runId: ctx.run.id,
+            caseId: ctx.case.id,
+          },
+          { llm: options.llm },
+        );
         if (outcome.status === 'skipped') {
           counts.skipped += 1;
           continue;

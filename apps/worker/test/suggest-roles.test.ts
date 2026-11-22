@@ -19,6 +19,8 @@ import type { FeatureExtractionInput } from '@olcys/scoring';
 import { InMemoryBlobStore } from '@olcys/evidence';
 import { describe, expect, it } from 'vitest';
 import { withAnalystOverrides } from '../src/analyst.ts';
+import { loadConfig } from '../src/config.ts';
+import { createLlmRuntime } from '../src/llm.ts';
 import {
   createRun,
   createSuggestRolesStage,
@@ -186,14 +188,41 @@ describe('llm.suggest step', () => {
     expect(reason).toMatchObject({ code: 'llm_unavailable', params: { count: 6 } });
   });
 
-  it('survives an exception from the client the same way', async () => {
+  it('lets an unexpected error reach the pipeline: the run fails, it is not counted as an unreachable model', async () => {
     const { repos, run, deps } = await setup({ wykop: 2, telegram: 0 });
     const finished = await runPipeline(
       run.id,
       deps(createSuggestRolesStage({ sources: SOURCES, llm: fakeModel('throws').client })),
     );
-    expect(finished.status).toBe('partial');
+    expect(finished.status).toBe('failed');
+    expect(readPartialReasons(finished.progress)).toEqual([]);
     expect(await repos.llm!.listSuggestionsByRun(run.id)).toEqual([]);
+  });
+
+  it('propagates a failing call log and a failing blob store of the real client', async () => {
+    const sources = (await loadConfig()).sources;
+    const env = { LLM_ENABLED: 'true', LLM_BASE_URL: 'http://localhost:2140/v3', LLM_MODEL: 'm' };
+    const broken = async (mutate: (repos: Repositories) => void, blobs: InMemoryBlobStore) => {
+      const { repos, run, deps } = await setup({ wykop: 1, telegram: 0 });
+      mutate(repos);
+      const llm = createLlmRuntime({ env, repos, blobs, sources, mode: 'offline' }).client;
+      return runPipeline(run.id, deps(createSuggestRolesStage({ sources, llm })));
+    };
+    class BrokenBlobs extends InMemoryBlobStore {
+      override put(): never {
+        throw new Error('disk full');
+      }
+    }
+    const noBlobs = await broken(() => {}, new BrokenBlobs());
+    expect(noBlobs.status).toBe('failed');
+    expect(noBlobs.error).toContain('disk full');
+    const noLog = await broken((repos) => {
+      repos.llm!.addCall = async () => {
+        throw new Error('log down');
+      };
+    }, new InMemoryBlobStore());
+    expect(noLog.status).toBe('failed');
+    expect(noLog.error).toContain('log down');
   });
 
   it('drops an answer whose span is not in the text, without failing or marking the run partial', async () => {
