@@ -7,7 +7,7 @@ import { newId } from '@olcys/core';
 import { createMemoryRepositories } from '@olcys/db';
 import { InMemoryBlobStore } from '@olcys/evidence';
 import { describe, expect, it } from 'vitest';
-import { chainSelected, createChainStage, createRuntime, noPriceSource } from '../src/index.ts';
+import { chainSelected, createChainStage, createRuntime, noPriceSource, trackUnpriced } from '../src/index.ts';
 
 const silent: Logger = { debug() {}, info() {}, warn() {}, error() {} };
 
@@ -109,5 +109,30 @@ describe('chainSelected', () => {
   it('analyses an address of unknown EVM chain when any EVM chain is selected', () => {
     expect(chainSelected('evm:unknown', ['evm:137'])).toBe(true);
     expect(chainSelected('evm:unknown', ['bitcoin'])).toBe(false);
+  });
+});
+
+describe('missing valuations', () => {
+  it('counts transfers, not price calculations: equal transfers of two transactions are two missing values', async () => {
+    const asset = { chain: 'evm:1', symbol: 'ETH', decimals: 18 } as const;
+    const transfer = (txHash: string) => ({
+      chain: 'evm:1' as const,
+      txHash,
+      blockHeight: 1,
+      blockTime: '2026-11-01T10:00:00.000Z',
+      from: '0xa',
+      to: '0xb',
+      asset,
+      amount: '1',
+      kind: 'native' as const,
+      fetchId: 'f',
+    });
+    const tracked = trackUnpriced({
+      value: async () => ({ status: 'unpriced', reason: 'no_candle' }) as const,
+    });
+    const [one, two] = [transfer('0x1'), transfer('0x2')];
+    await tracked.valuator.value({ asset, amount: '1', at: one.blockTime }, {} as never);
+    expect(tracked.unpricedTransfers([one, two, one])).toBe(2);
+    expect(tracked.unpricedTransfers([])).toBe(0);
   });
 });

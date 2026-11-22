@@ -176,4 +176,29 @@ describe('chain stage', () => {
     const listed = (await runtime.repos.chain.listTransfers(started.id)).map(transferKey);
     expect(new Set(listed).size).toBe(listed.length);
   });
+
+  it('looks an address of unknown EVM chain up on the selected EVM chain, not on Ethereum', async () => {
+    const kase = await runtime.repos.cases.create(
+      {
+        title: 'Wybrany łańcuch EVM (test)',
+        purpose: 'Test zapytań o adres bez znanego łańcucha EVM',
+        legalBasis: 'test',
+        identifiers: [{ kind: 'crypto_address', value: addressOf('ETH-2'), chain: 'evm:unknown', isAnchor: true }],
+        scope: {
+          enabledSources: ['etherscan_v2'],
+          amberJustifications: { etherscan_v2: 'Test: adres syntetyczny, zapytania do strony testowej' },
+          chains: ['evm:137'],
+          maxPivotDepth: 0,
+        },
+      },
+      'test',
+    );
+    const started = await runtime.startRun(kase.id, {});
+    await runtime.idle();
+    const urls = (await runtime.repos.evidence.listEgressLog(started.id))
+      .filter((e) => e.sourceId === 'etherscan_v2')
+      .map((e) => e.urlRedacted);
+    expect(urls.length).toBeGreaterThan(0);
+    expect(urls.every((u) => u.includes('chainid=137'))).toBe(true);
+  });
 });

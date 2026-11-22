@@ -20,7 +20,7 @@ import type {
   SourceDescriptor,
   SourceKind,
 } from '@olcys/core';
-import { addressKey, chainFamily, newId, transferKey } from '@olcys/core';
+import { addressKey, chainFamily, newId, transferKey, uniqueTransfers } from '@olcys/core';
 import {
   analyseAddress,
   createAssetRegistry,
@@ -297,23 +297,31 @@ export function chainSelected(chain: ChainId, selected: readonly ChainId[]): boo
   return selected.includes(chain);
 }
 
+/** Identity of a price calculation (what the valuator memoises); equal transfers of different transactions share it. */
+const calculationKey = (t: NormalizedTransfer): string =>
+  `${t.chain}|${t.asset.contract ?? t.asset.symbol}|${t.amount}|${t.blockTime}`;
+
 /**
- * Counts the distinct legs the valuator could not price for lack of a price or an NBP rate (an unknown token is a
- * known limitation, not a failure). Results are memoised per leg by the valuator, so a leg is counted once.
+ * Records the price calculations the valuator could not complete for lack of a price or an NBP rate (an unknown token
+ * is a known limitation, not a failure). `unpricedTransfers` then counts the transfers, by `transferKey`, whose
+ * calculation failed: two equal transfers of different transactions are two missing values, not one.
  */
-function countUnpriced(inner: Valuator): { valuator: Valuator; unpriced(): number } {
-  const missing = new Set<string>();
+export function trackUnpriced(inner: Valuator): {
+  valuator: Valuator;
+  unpricedTransfers(transfers: readonly NormalizedTransfer[]): number;
+} {
+  const failed = new Set<string>();
   return {
     valuator: {
       async value(input, ctx) {
         const result = await inner.value(input, ctx);
         if (result.status === 'unpriced' && result.reason !== 'unknown_asset') {
-          missing.add(`${input.asset.chain}|${input.asset.contract ?? input.asset.symbol}|${input.amount}|${input.at}`);
+          failed.add(`${input.asset.chain}|${input.asset.contract ?? input.asset.symbol}|${input.amount}|${input.at}`);
         }
         return result;
       },
     },
-    unpriced: () => missing.size,
+    unpricedTransfers: (transfers) => uniqueTransfers(transfers).filter((t) => failed.has(calculationKey(t))).length,
   };
 }
 
@@ -475,11 +483,16 @@ export function createChainStage(options: StageOptions): Stage {
         if (effectiveOutcome(pre).outcome !== 'excluded') toFetch.push(candidate);
       }
       const tips = new TipCache();
+      // An address of unknown EVM chain is looked up on the EVM chains the case selects (default: Ethereum).
+      const selectedEvm = ctx.case.scope.chains.filter(
+        (chain) => chainFamily(chain) === 'evm' && chain !== 'evm:unknown',
+      );
+      const unknownEvmChains = selectedEvm.length ? { unknownEvmChains: selectedEvm } : {};
       const fetched = await runChainFetch(
         toFetch.map((address) => ({ address })),
         providers,
         runCtx,
-        { enabledSources: chainSources, tips },
+        { enabledSources: chainSources, tips, ...unknownEvmChains },
       );
       const gaps = historyGaps(fetched.outcomes);
       if (gaps) {
@@ -566,7 +579,7 @@ export function createChainStage(options: StageOptions): Stage {
             [...expansion.values()].map((address) => ({ address, want: { summary: false, code: false } })),
             providers,
             runCtx,
-            { enabledSources: chainSources, tips },
+            { enabledSources: chainSources, tips, ...unknownEvmChains },
           )
         : undefined;
       const hopGaps = hop ? historyGaps(hop.outcomes) : undefined;
@@ -581,7 +594,7 @@ export function createChainStage(options: StageOptions): Stage {
       );
 
       // 4. Activity, cash-out indicators and flows, valued in PLN at the NBP rate.
-      const counted = countUnpriced(
+      const counted = trackUnpriced(
         createValuator({
           fx: createNbpFxRateSource({ http, ...(c.nbpBaseUrl ? { baseUrl: c.nbpBaseUrl } : {}) }),
           prices: c.prices,
@@ -632,7 +645,7 @@ export function createChainStage(options: StageOptions): Stage {
         );
       }
       // A leg without a price or NBP rate leaves its PLN value missing: say so instead of staying silent.
-      const unpriced = counted.unpriced();
+      const unpriced = counted.unpricedTransfers(analysed.flatMap(ownTransfers));
       if (unpriced) {
         ctx.markPartial(`PLN valuation unavailable for ${unpriced} transfer(s): no price or NBP rate`, {
           code: 'valuation_unavailable',

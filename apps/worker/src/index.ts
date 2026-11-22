@@ -35,6 +35,7 @@ export {
   chainSelected,
   createChainStage,
   noPriceSource,
+  trackUnpriced,
   createCollectStage,
   createExtractStage,
   createScoreStage,
