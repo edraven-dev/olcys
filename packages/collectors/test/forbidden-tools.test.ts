@@ -95,6 +95,32 @@ describe('forbidden dependency scan', () => {
     ]);
   });
 
+  it('reads only the dependency fields of a pyproject.toml, not comments or other settings', async () => {
+    const toml = [
+      '# Do not install "holehe".',
+      '[project]',
+      'name = "osint-py"',
+      'description = "no holehe here" # also "sherlock"',
+      'dependencies = [',
+      '  "maigret==0.5.0", # not "ghunt"',
+      ']',
+      '[tool.other]',
+      'note = "holehe"',
+      'extra = ["ghunt"]',
+      '',
+    ].join('\n');
+    expect(await scanTemp({ 'services/osint-py/pyproject.toml': toml })).toEqual([]);
+    const groups = '[dependency-groups]\ndev = ["pytest==8.0.0", {include-group = "holehe"}]\nscan = ["holehe==1.0"]\n';
+    const hits = await scanTemp({
+      'a/pyproject.toml': groups,
+      'b/pyproject.toml': '[project]\nname = "x"\n[project.optional-dependencies]\nextra = ["holehe"]\n',
+    });
+    expect(hits.map((h) => [h.dependency, h.file])).toEqual([
+      ['holehe', 'a/pyproject.toml'],
+      ['holehe', 'b/pyproject.toml'],
+    ]);
+  });
+
   it('finds redis 8 in a compose file but not redis 7 or a similarly named image', async () => {
     expect((await scanTemp({ 'compose.yml': compose('redis:8.2') })).map((h) => h.dependency)).toEqual(['redis:8.2']);
     expect((await scanTemp({ 'compose.yml': compose('docker.io/library/redis:8-alpine') })).length).toBe(1);

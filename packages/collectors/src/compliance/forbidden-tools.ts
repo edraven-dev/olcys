@@ -135,15 +135,86 @@ export function npmAliasTarget(spec: string): string | undefined {
   return (at === -1 ? target : target.slice(0, at)) || undefined;
 }
 
-/** Python requirement names in a pyproject.toml, requirements*.txt or uv.lock (no TOML parser: quoted/plain lines). */
+/** The text without TOML comments (a `#` inside a quoted string stays). */
+function stripTomlComments(text: string): string {
+  let out = '';
+  let quote = '';
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text[i] ?? '';
+    if (quote) {
+      if (ch === quote || ch === '\n') quote = '';
+    } else if (ch === '"' || ch === "'") {
+      quote = ch;
+    } else if (ch === '#') {
+      while (i + 1 < text.length && text[i + 1] !== '\n') i += 1;
+      continue;
+    }
+    out += ch;
+  }
+  return out;
+}
+
+/** The quoted strings of the TOML value (array or inline table) that starts at `from` (brackets balanced, quote-aware). */
+function tomlStrings(text: string, from: number): string[] {
+  const out: string[] = [];
+  let depth = 0;
+  for (let i = from; i < text.length; i += 1) {
+    const ch = text[i] ?? '';
+    if (ch === '"' || ch === "'") {
+      const end = text.indexOf(ch, i + 1);
+      if (end === -1) break;
+      if (depth > 0) out.push(text.slice(i + 1, end));
+      i = end;
+    } else if (ch === '[' || ch === '{') {
+      depth += 1;
+    } else if ((ch === ']' || ch === '}') && --depth <= 0) {
+      break;
+    }
+  }
+  return out;
+}
+
+/**
+ * Dependency strings of a pyproject.toml: `[project]` `dependencies` and `optional-dependencies`,
+ * `[project.optional-dependencies]` and `[dependency-groups]` only; comments and other settings are not dependencies.
+ */
+function pyprojectRequirements(text: string): string[] {
+  const clean = stripTomlComments(text);
+  const header = /^[ \t]*\[[ \t]*([A-Za-z0-9_.-]+)[ \t]*\][ \t]*$/gm;
+  const marks = [...clean.matchAll(header)];
+  const out: string[] = [];
+  marks.forEach((mark, n) => {
+    const body = clean.slice(mark.index + mark[0].length, marks[n + 1]?.index ?? clean.length);
+    const table = mark[1];
+    if (table === 'project') {
+      for (const key of ['dependencies', 'optional-dependencies']) {
+        const assignment = new RegExp(`^[ \\t]*${key}[ \\t]*=[ \\t]*`, 'm').exec(body);
+        if (assignment) out.push(...tomlStrings(body, assignment.index + assignment[0].length));
+      }
+    } else if (table === 'project.optional-dependencies') {
+      for (const m of body.matchAll(/^[ \t]*[A-Za-z0-9_.-]+[ \t]*=[ \t]*/gm)) {
+        out.push(...tomlStrings(body, m.index + m[0].length));
+      }
+    } else if (table === 'dependency-groups') {
+      // `{ include-group = "name" }` entries refer to groups, not to packages.
+      const groups = body.replace(/\{[^{}]*\}/g, '');
+      for (const m of groups.matchAll(/^[ \t]*[A-Za-z0-9_.-]+[ \t]*=[ \t]*/gm)) {
+        out.push(...tomlStrings(groups, m.index + m[0].length));
+      }
+    }
+  });
+  return out;
+}
+
+/** Python requirement names in a pyproject.toml, requirements*.txt or uv.lock (no TOML parser: dependency fields only). */
 function pythonNames(file: string, text: string): string[] {
   const names: string[] = [];
   const requirement = /^([A-Za-z0-9][A-Za-z0-9._-]*)\s*(?:\[[^\]]*\])?\s*(?:[<>=!~;@(].*)?$/;
   if (basename(file) === 'uv.lock') {
     for (const m of text.matchAll(/^name = "([^"]+)"/gm)) names.push(m[1] ?? '');
   } else if (file.endsWith('.toml')) {
-    for (const m of text.matchAll(/"([^"\n]+)"|'([^'\n]+)'/g)) {
-      const m2 = requirement.exec((m[1] ?? m[2] ?? '').trim());
+    for (const entry of pyprojectRequirements(text)) {
+      const m2 = requirement.exec(entry.trim());
       if (m2) names.push(m2[1] ?? '');
     }
   } else {
