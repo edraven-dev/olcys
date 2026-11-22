@@ -30,7 +30,7 @@ między śladami Web2 a aktywnością Web3, oraz to, co otrzymuje analityk._
 
 Zob. [`docs/architecture.md`](docs/architecture.md) oraz [`docs/adr/0001-technology-stack.md`](docs/adr/0001-technology-stack.md).
 TypeScript na Node.js 26 (API, procesy w tle, interfejs React w języku polskim), PostgreSQL 19, pg-boss, Gotenberg,
-niewielki serwis w Pythonie (Maigret, socid-extractor, pyHanko), opcjonalny lokalny model językowy (Ollama).
+niewielki serwis w Pythonie (Maigret, socid-extractor, pyHanko), opcjonalny lokalny model językowy (domyślnie OpenVINO Model Server, API zgodne z OpenAI).
 
 ## Parametry wyszukiwania
 
