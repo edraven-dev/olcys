@@ -34,6 +34,11 @@ Serwer (`src/`) używa wyłącznie wbudowanych modułów Node, bo kontener nie m
 | `/robots.txt`, `/private/`                                                  | test zgodności z robots.txt (kanarek BTC-CANARY)                                                                                    |
 | `/sitemap.xml`                                                              | mapa witryny dla wyszukiwarki testowej: strony persony z manifestu bez `/private/` i `/barriers/` (osobno `v1`, `v2`)               |
 | `/chain/esplora/api/…`, `/chain/etherscan/v2/api?…`, `/chain/trongrid/v1/…` | syntetyczne historie transakcji, w tym depozyt giełdowy, przelewy P2P i kod kontraktu                                               |
+| `/nbp/api/exchangerates/rates/a/usd/<RRRR-MM>-01/…`                         | syntetyczne kursy średnie NBP (tabela A, USD) w kształcie odpowiedzi NBP; wartości zmyślone, numery tabel `SYN…`                    |
+
+Kursy NBP: trasa dopasowuje prefiks ścieżki (`pathPrefix` w `routes.json`) i pomija koniec zakresu dat, więc zapytanie
+o bieżący miesiąc (koniec zakresu = dzisiaj) działa w każdym dniu. Pliki miesięczne (`nbp/api/…/usd/<RRRR-MM>.json`)
+obejmują miesiące od 2025-02 do 2026-11 — z zapasem na dziesięciodniowy odstęp wyceny od transakcji.
 
 Sondy typu adresu odpowiadają jak u prawdziwych dostawców: `eth_getStorageAt` zwraca słowo zerowe (brak singletonu
 Safe i implementacji proxy), `eth_call` do CONTRACT-1 kończy się wycofaniem (`execution reverted` — zwykły kontrakt,

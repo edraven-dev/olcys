@@ -50,6 +50,12 @@ export function transfersOf(
  * leaves no gap.
  */
 export function incompleteHistories(outcomes: readonly ChainFetchOutcome[]): string | undefined {
+  const gaps = historyGaps(outcomes);
+  return gaps ? `${gaps.count} address(es): ${gaps.details}` : undefined;
+}
+
+/** The same gaps as numbers and a technical summary (`tron no enabled provider (1)`), for coded partial reasons. */
+export function historyGaps(outcomes: readonly ChainFetchOutcome[]): { count: number; details: string } | undefined {
   const last = new Map<string, ChainFetchOutcome>();
   for (const outcome of outcomes) last.set(`${addressKey(outcome.address)}|${outcome.chain}`, outcome);
   const counts = new Map<string, number>();
@@ -61,6 +67,6 @@ export function incompleteHistories(outcomes: readonly ChainFetchOutcome[]): str
     counts.set(key, (counts.get(key) ?? 0) + 1);
   }
   if (counts.size === 0) return undefined;
-  const total = [...counts.values()].reduce((sum, n) => sum + n, 0);
-  return `${total} address(es): ${[...counts].map(([key, n]) => `${key} (${n})`).join(', ')}`;
+  const count = [...counts.values()].reduce((sum, n) => sum + n, 0);
+  return { count, details: [...counts].map(([key, n]) => `${key} (${n})`).join(', ') };
 }

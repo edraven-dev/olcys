@@ -115,6 +115,116 @@
       }
     },
     {
+      "path": "/nbp/api/exchangerates/rates/a/usd/2025-02-01/",
+      "pathPrefix": "/nbp/api/exchangerates/rates/a/usd/2025-02-01/",
+      "file": "nbp/api/exchangerates/rates/a/usd/2025-02.json"
+    },
+    {
+      "path": "/nbp/api/exchangerates/rates/a/usd/2025-03-01/",
+      "pathPrefix": "/nbp/api/exchangerates/rates/a/usd/2025-03-01/",
+      "file": "nbp/api/exchangerates/rates/a/usd/2025-03.json"
+    },
+    {
+      "path": "/nbp/api/exchangerates/rates/a/usd/2025-04-01/",
+      "pathPrefix": "/nbp/api/exchangerates/rates/a/usd/2025-04-01/",
+      "file": "nbp/api/exchangerates/rates/a/usd/2025-04.json"
+    },
+    {
+      "path": "/nbp/api/exchangerates/rates/a/usd/2025-05-01/",
+      "pathPrefix": "/nbp/api/exchangerates/rates/a/usd/2025-05-01/",
+      "file": "nbp/api/exchangerates/rates/a/usd/2025-05.json"
+    },
+    {
+      "path": "/nbp/api/exchangerates/rates/a/usd/2025-06-01/",
+      "pathPrefix": "/nbp/api/exchangerates/rates/a/usd/2025-06-01/",
+      "file": "nbp/api/exchangerates/rates/a/usd/2025-06.json"
+    },
+    {
+      "path": "/nbp/api/exchangerates/rates/a/usd/2025-07-01/",
+      "pathPrefix": "/nbp/api/exchangerates/rates/a/usd/2025-07-01/",
+      "file": "nbp/api/exchangerates/rates/a/usd/2025-07.json"
+    },
+    {
+      "path": "/nbp/api/exchangerates/rates/a/usd/2025-08-01/",
+      "pathPrefix": "/nbp/api/exchangerates/rates/a/usd/2025-08-01/",
+      "file": "nbp/api/exchangerates/rates/a/usd/2025-08.json"
+    },
+    {
+      "path": "/nbp/api/exchangerates/rates/a/usd/2025-09-01/",
+      "pathPrefix": "/nbp/api/exchangerates/rates/a/usd/2025-09-01/",
+      "file": "nbp/api/exchangerates/rates/a/usd/2025-09.json"
+    },
+    {
+      "path": "/nbp/api/exchangerates/rates/a/usd/2025-10-01/",
+      "pathPrefix": "/nbp/api/exchangerates/rates/a/usd/2025-10-01/",
+      "file": "nbp/api/exchangerates/rates/a/usd/2025-10.json"
+    },
+    {
+      "path": "/nbp/api/exchangerates/rates/a/usd/2025-11-01/",
+      "pathPrefix": "/nbp/api/exchangerates/rates/a/usd/2025-11-01/",
+      "file": "nbp/api/exchangerates/rates/a/usd/2025-11.json"
+    },
+    {
+      "path": "/nbp/api/exchangerates/rates/a/usd/2025-12-01/",
+      "pathPrefix": "/nbp/api/exchangerates/rates/a/usd/2025-12-01/",
+      "file": "nbp/api/exchangerates/rates/a/usd/2025-12.json"
+    },
+    {
+      "path": "/nbp/api/exchangerates/rates/a/usd/2026-01-01/",
+      "pathPrefix": "/nbp/api/exchangerates/rates/a/usd/2026-01-01/",
+      "file": "nbp/api/exchangerates/rates/a/usd/2026-01.json"
+    },
+    {
+      "path": "/nbp/api/exchangerates/rates/a/usd/2026-02-01/",
+      "pathPrefix": "/nbp/api/exchangerates/rates/a/usd/2026-02-01/",
+      "file": "nbp/api/exchangerates/rates/a/usd/2026-02.json"
+    },
+    {
+      "path": "/nbp/api/exchangerates/rates/a/usd/2026-03-01/",
+      "pathPrefix": "/nbp/api/exchangerates/rates/a/usd/2026-03-01/",
+      "file": "nbp/api/exchangerates/rates/a/usd/2026-03.json"
+    },
+    {
+      "path": "/nbp/api/exchangerates/rates/a/usd/2026-04-01/",
+      "pathPrefix": "/nbp/api/exchangerates/rates/a/usd/2026-04-01/",
+      "file": "nbp/api/exchangerates/rates/a/usd/2026-04.json"
+    },
+    {
+      "path": "/nbp/api/exchangerates/rates/a/usd/2026-05-01/",
+      "pathPrefix": "/nbp/api/exchangerates/rates/a/usd/2026-05-01/",
+      "file": "nbp/api/exchangerates/rates/a/usd/2026-05.json"
+    },
+    {
+      "path": "/nbp/api/exchangerates/rates/a/usd/2026-06-01/",
+      "pathPrefix": "/nbp/api/exchangerates/rates/a/usd/2026-06-01/",
+      "file": "nbp/api/exchangerates/rates/a/usd/2026-06.json"
+    },
+    {
+      "path": "/nbp/api/exchangerates/rates/a/usd/2026-07-01/",
+      "pathPrefix": "/nbp/api/exchangerates/rates/a/usd/2026-07-01/",
+      "file": "nbp/api/exchangerates/rates/a/usd/2026-07.json"
+    },
+    {
+      "path": "/nbp/api/exchangerates/rates/a/usd/2026-08-01/",
+      "pathPrefix": "/nbp/api/exchangerates/rates/a/usd/2026-08-01/",
+      "file": "nbp/api/exchangerates/rates/a/usd/2026-08.json"
+    },
+    {
+      "path": "/nbp/api/exchangerates/rates/a/usd/2026-09-01/",
+      "pathPrefix": "/nbp/api/exchangerates/rates/a/usd/2026-09-01/",
+      "file": "nbp/api/exchangerates/rates/a/usd/2026-09.json"
+    },
+    {
+      "path": "/nbp/api/exchangerates/rates/a/usd/2026-10-01/",
+      "pathPrefix": "/nbp/api/exchangerates/rates/a/usd/2026-10-01/",
+      "file": "nbp/api/exchangerates/rates/a/usd/2026-10.json"
+    },
+    {
+      "path": "/nbp/api/exchangerates/rates/a/usd/2026-11-01/",
+      "pathPrefix": "/nbp/api/exchangerates/rates/a/usd/2026-11-01/",
+      "file": "nbp/api/exchangerates/rates/a/usd/2026-11.json"
+    },
+    {
       "path": "/chain/esplora/api/blocks/tip/height",
       "file": "chain/esplora/api/blocks/tip/height.txt",
       "headers": {

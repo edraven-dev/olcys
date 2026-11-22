@@ -6,7 +6,8 @@
  */
 import { readFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
-import type { Logger } from '@olcys/core';
+import type { Logger, NormalizedTransfer } from '@olcys/core';
+import { transferKey } from '@olcys/core';
 import { createMemoryRepositories } from '@olcys/db';
 import { InMemoryBlobStore } from '@olcys/evidence';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -18,6 +19,10 @@ const silent: Logger = { debug() {}, info() {}, warn() {}, error() {} };
 
 let server: FixtureServer;
 let runtime: Runtime;
+/** Every `addTransfers` call of the shared repositories, in order. */
+const stored: NormalizedTransfer[][] = [];
+/** Every progress record written to a run (the last one replaces the stage details with the finish summary). */
+const progressLog: Record<string, unknown>[] = [];
 let manifest: { addresses: Record<string, { address: string }> };
 const addressOf = (slot: string): string => manifest.addresses[slot]?.address ?? '';
 
@@ -30,9 +35,20 @@ beforeAll(async () => {
     port: 0,
     allowVariantSwitch: false,
   });
+  const repos = createMemoryRepositories();
+  const addTransfers = repos.chain.addTransfers.bind(repos.chain);
+  repos.chain.addTransfers = async (runId, address, transfers) => {
+    stored.push(transfers);
+    await addTransfers(runId, address, transfers);
+  };
+  const updateRun = repos.runs.update.bind(repos.runs);
+  repos.runs.update = async (id, patch) => {
+    if (patch.progress) progressLog.push(patch.progress);
+    await updateRun(id, patch);
+  };
   runtime = await createRuntime({
     env: { OLCYS_MODE: 'offline' },
-    repos: createMemoryRepositories(),
+    repos,
     blobs: new InMemoryBlobStore(),
     logger: silent,
     stages: (rt) => [
@@ -74,8 +90,14 @@ describe('chain stage', () => {
       await runtime.idle();
       const run = await runtime.repos.runs.get(first.id);
       expect(run?.status).toBe('partial');
+      // The NBP source is not enabled for this case either, so no transfer has a PLN value: stated, not silent.
       expect(run?.progress['partial']).toEqual([
         'chain data incomplete for 1 address(es): tron no enabled provider (1)',
+        expect.stringMatching(/^PLN valuation unavailable for \d+ transfer\(s\)/),
+      ]);
+      expect((run?.progress['partialCodes'] as { code: string }[]).map((r) => r.code)).toEqual([
+        'chain_incomplete',
+        'valuation_unavailable',
       ]);
 
       const egress = await runtime.repos.evidence.listEgressLog(first.id);
@@ -94,4 +116,63 @@ describe('chain stage', () => {
       expect(await runtime.repos.evidence.listEgressLog(rescore.id)).toEqual([]);
     },
   );
+
+  it('analyses only the chains the case selects and notes the skipped ones without making the run partial', async () => {
+    const kase = await runtime.repos.cases.create(
+      {
+        title: 'Wybór łańcuchów (test)',
+        purpose: 'Test wyboru łańcuchów sprawy na danych syntetycznych',
+        legalBasis: 'test',
+        identifiers: [
+          { kind: 'crypto_address', value: addressOf('BTC-1'), chain: 'bitcoin', isAnchor: true },
+          { kind: 'crypto_address', value: addressOf('TRON-1'), chain: 'tron', isAnchor: false },
+        ],
+        scope: {
+          enabledSources: ['mempool_space', 'nbp_api'],
+          amberJustifications: {},
+          chains: ['bitcoin'],
+          maxPivotDepth: 0,
+        },
+      },
+      'test',
+    );
+    progressLog.length = 0;
+    const started = await runtime.startRun(kase.id, {});
+    await runtime.idle();
+    const run = await runtime.repos.runs.get(started.id);
+    expect(progressLog.find((p) => p['skippedByChain'] !== undefined)).toMatchObject({
+      skippedByChain: 1,
+      skippedChains: ['tron'],
+    });
+    expect(run?.status).toBe('succeeded');
+    // TRON was not selected, so its missing provider is not an incomplete history either.
+    expect(JSON.stringify(run?.progress['partial'] ?? [])).not.toContain('tron');
+    const activity = await runtime.repos.analysis.listActivity(started.id);
+    expect(activity.map((a) => a.address.chain)).toEqual(['bitcoin']);
+  });
+
+  it('stores a transfer between two analysed addresses once per run', async () => {
+    const kase = await runtime.repos.cases.create(
+      {
+        title: 'Wspólny transfer (test)',
+        purpose: 'Test jednokrotnego zapisu transferu między analizowanymi adresami',
+        legalBasis: 'test',
+        identifiers: [
+          { kind: 'crypto_address', value: addressOf('BTC-1'), chain: 'bitcoin', isAnchor: true },
+          { kind: 'crypto_address', value: addressOf('BTC-2'), chain: 'bitcoin', isAnchor: false },
+        ],
+        scope: { enabledSources: ['mempool_space', 'nbp_api'], amberJustifications: {}, chains: [], maxPivotDepth: 0 },
+      },
+      'test',
+    );
+    stored.length = 0;
+    const started = await runtime.startRun(kase.id, {});
+    await runtime.idle();
+    expect((await runtime.repos.analysis.listActivity(started.id)).length).toBe(2);
+    const keys = stored.flat().map(transferKey);
+    expect(keys.length).toBeGreaterThan(0);
+    expect(new Set(keys).size).toBe(keys.length);
+    const listed = (await runtime.repos.chain.listTransfers(started.id)).map(transferKey);
+    expect(new Set(listed).size).toBe(listed.length);
+  });
 });

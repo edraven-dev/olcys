@@ -57,6 +57,7 @@ const HOST_PREFIXES: Record<string, string> = {
   'blockstream.info/api': '/chain/esplora/api',
   'api.etherscan.io/v2/api': '/chain/etherscan/v2/api',
   'api.trongrid.io': '/chain/trongrid',
+  'api.nbp.pl/api': '/nbp/api',
 };
 
 const BT = '/bitcointalk/index.php';

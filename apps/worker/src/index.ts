@@ -32,7 +32,9 @@ export {
   type SchedulingSettings,
 } from './scheduler.ts';
 export {
+  chainSelected,
   createChainStage,
+  noPriceSource,
   createCollectStage,
   createExtractStage,
   createScoreStage,

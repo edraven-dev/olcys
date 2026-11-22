@@ -10,21 +10,25 @@ import type {
   ActivityIndicators,
   AddressRef,
   CashOutEvent,
+  ChainId,
   Clock,
   ExclusionDecision,
   FetchMode,
   NormalizedTransfer,
+  PriceSource,
   RunContext,
   SourceDescriptor,
   SourceKind,
 } from '@olcys/core';
-import { addressKey, newId, nowIso } from '@olcys/core';
+import { addressKey, chainFamily, newId, transferKey } from '@olcys/core';
 import {
   analyseAddress,
   createAssetRegistry,
   createNbpFxRateSource,
   createSeriesPriceSource,
   createValuator,
+  ValuationUnavailableError,
+  type Valuator,
   loadCashOutRules,
   loadCashOutScoreConfig,
   loadPriceDataset,
@@ -32,6 +36,7 @@ import {
 } from '@olcys/analytics';
 import {
   createChainProviderRegistry,
+  fixtureUrlFor,
   loadChainProviderConfig,
   runChainFetch,
   TipCache,
@@ -73,7 +78,7 @@ import { createReportStage } from '@olcys/reporting';
 import { loadWeights, scoreRun } from '@olcys/scoring';
 import { classifyFetched } from './address-types.ts';
 import { withAnalystOverrides } from './analyst.ts';
-import { incompleteHistories, isOwnStatement, transfersOf } from './chain-data.ts';
+import { historyGaps, isOwnStatement, transfersOf } from './chain-data.ts';
 import { REPO_ROOT, TOOL_VERSION } from './config.ts';
 import type { Stage, StageContext } from './pipeline.ts';
 
@@ -177,7 +182,11 @@ export function createCollectStage(options: StageOptions): Stage {
       await ctx.repos.evidence.addObservations(result.observations);
       if (result.partial) {
         const unavailable = result.sources.filter((s) => s.status !== 'ok' && s.status !== 'not_found');
-        ctx.markPartial(`unavailable sources: ${unavailable.map((s) => s.sourceId).join(', ') || 'some pages'}`);
+        const ids = unavailable.map((s) => s.sourceId).join(', ');
+        ctx.markPartial(
+          `unavailable sources: ${ids || 'some pages'}`,
+          ids ? { code: 'sources_unavailable', params: { sources: ids } } : { code: 'pages_unavailable' },
+        );
       }
       await ctx.progress({
         captures: result.captures.length,
@@ -268,6 +277,46 @@ export function createScoreStage(options: Pick<StageOptions, 'sources'>): Stage 
   };
 }
 
+const NBP_BASE_URL = 'https://api.nbp.pl/api';
+
+/** Price source of live runs without a configured price feed: every price is unavailable (never a synthetic one). */
+export function noPriceSource(): PriceSource {
+  return {
+    price: (asset, quote, at) =>
+      Promise.reject(
+        new ValuationUnavailableError('no_candle', `no price source configured for ${asset}/${quote} at ${at}`),
+      ),
+  };
+}
+
+/** Whether a candidate's chain is selected by the case (an empty selection means all chains). */
+export function chainSelected(chain: ChainId, selected: readonly ChainId[]): boolean {
+  if (selected.length === 0) return true;
+  // An address found without a chain marker is analysed when any EVM chain is selected.
+  if (chain === 'evm:unknown') return selected.some((c) => chainFamily(c) === 'evm');
+  return selected.includes(chain);
+}
+
+/**
+ * Counts the distinct legs the valuator could not price for lack of a price or an NBP rate (an unknown token is a
+ * known limitation, not a failure). Results are memoised per leg by the valuator, so a leg is counted once.
+ */
+function countUnpriced(inner: Valuator): { valuator: Valuator; unpriced(): number } {
+  const missing = new Set<string>();
+  return {
+    valuator: {
+      async value(input, ctx) {
+        const result = await inner.value(input, ctx);
+        if (result.status === 'unpriced' && result.reason !== 'unknown_asset') {
+          missing.add(`${input.asset.chain}|${input.asset.contract ?? input.asset.symbol}|${input.amount}|${input.at}`);
+        }
+        return result;
+      },
+    },
+    unpriced: () => missing.size,
+  };
+}
+
 const read = (path: string): Promise<string> => readFile(join(REPO_ROOT, path), 'utf8');
 /** The register entries the chain stage may contact: chain data providers and exchange rates. */
 const CHAIN_STAGE_KINDS: ReadonlySet<SourceKind> = new Set<SourceKind>(['chain_data', 'price_fx']);
@@ -282,6 +331,8 @@ const CHAIN_STAGE_KINDS: ReadonlySet<SourceKind> = new Set<SourceKind>(['chain_d
 export function createChainStage(options: StageOptions): Stage {
   const env = options.env ?? process.env;
   const sourceRegistry = lazy<SourceRegistry>(() => loadSourceRegistry());
+  /** Offline and replay modes run on the synthetic demo world; live runs use real data only. */
+  const synthetic = options.mode !== 'live';
   const setup = lazy(async () => {
     const [
       sourcesText,
@@ -297,31 +348,39 @@ export function createChainStage(options: StageOptions): Stage {
     ] = await Promise.all([
       read('config/sources.yaml'),
       read('config/chain-providers.yaml'),
-      read('fixtures/labels/demo-curated.json'),
+      // The synthetic labels and prices must never decide about, or value, real addresses and transactions.
+      synthetic ? read('fixtures/labels/demo-curated.json') : Promise.resolve(undefined),
       read('config/rules/exclusion.v1.yaml'),
       read('config/rules/deny-list.v1.yaml'),
       read('config/rules/cashout.v1.yaml'),
       read('config/rules/cashout-score.v1.yaml'),
-      read('fixtures/prices/demo-prices.v1.json'),
+      synthetic ? read('fixtures/prices/demo-prices.v1.json') : Promise.resolve(undefined),
       read('config/labels/eip7702-delegates.v1.yaml'),
       read('config/labels/erc4337-entrypoints.v1.yaml'),
     ]);
     let providers = loadChainProviderConfig(providersText, parseYaml(sourcesText));
+    let nbpBaseUrl: string | undefined;
     const fixture = env['OLCYS_FIXTURE_BASE_URL'] ?? env['FIXTURE_SITE_URL'];
-    if (options.mode !== 'live' && fixture) {
+    if (synthetic && fixture) {
       const manifest = JSON.parse(await read('fixtures/persona/manifest.json')) as {
         hostPrefixes: Record<string, string>;
       };
       providers = withFixtureSite(providers, fixture, manifest.hostPrefixes);
+      // Synthetic NBP Table A answers come from the fixture site like the chain data (offline, replay).
+      nbpBaseUrl = fixtureUrlFor(NBP_BASE_URL, fixture, manifest.hostPrefixes);
     }
     return {
       providers,
-      datasetLabels: loadLabelDataset(labelsText, DEMO_CURATED_DATASET, { retrievedAt: nowIso() }),
+      datasetLabels: labelsText
+        ? loadLabelDataset(labelsText, DEMO_CURATED_DATASET, { retrievedAt: new Date().toISOString() })
+        : [],
       rules: loadExclusionRules(exclusionText),
       denyList: loadDenyList(denyText),
       cashOutRules: loadCashOutRules(cashOutText),
       score: loadCashOutScoreConfig(scoreText),
-      prices: createSeriesPriceSource(loadPriceDataset(pricesText)),
+      // Live: no price source, so every leg that needs a price is "unpriced" (and the run partial).
+      prices: pricesText ? createSeriesPriceSource(loadPriceDataset(pricesText)) : noPriceSource(),
+      nbpBaseUrl,
       delegates: loadDelegateRegistry(delegatesText),
       entryPoints: loadEntryPoints(entryPointsText),
       safeSingletons: loadSafeSingletons(),
@@ -368,7 +427,7 @@ export function createChainStage(options: StageOptions): Stage {
         logger: ctx.logger,
       };
       // The labels used are stored (the report and the API show them); labels already in the store apply too.
-      await ctx.repos.labels.upsert(c.datasetLabels);
+      if (c.datasetLabels.length) await ctx.repos.labels.upsert(c.datasetLabels);
       const labels = new MemoryLabelLookup(await ctx.repos.labels.list());
 
       // Candidates found in the evidence and crypto addresses given as case identifiers, in canonical form.
@@ -384,7 +443,19 @@ export function createChainStage(options: StageOptions): Stage {
           add({ chain: identifier.chain, address: identifier.value });
         }
       }
-      const candidates = [...byKey.values()];
+      // The case's chain selection is the analyst's choice: other chains are skipped without making the run partial.
+      const everything = [...byKey.values()];
+      const candidates = everything.filter((a) => chainSelected(a.chain, ctx.case.scope.chains));
+      const skippedByChain = everything.length - candidates.length;
+      if (skippedByChain) {
+        const skipped = [...new Set(everything.filter((a) => !candidates.includes(a)).map((a) => a.chain))];
+        ctx.logger.info('chain stage: candidates outside the selected chains skipped', {
+          runId,
+          skipped: skippedByChain,
+          chains: skipped,
+        });
+        await ctx.progress({ skippedByChain, skippedChains: skipped });
+      }
       const exclusionDeps = { labels, rules: c.rules, denyList: c.denyList, runId, delegates: c.delegates };
 
       // 1. Pre-screen: deny list and labels decide without chain data.
@@ -402,8 +473,13 @@ export function createChainStage(options: StageOptions): Stage {
         runCtx,
         { enabledSources: chainSources, tips },
       );
-      const gaps = incompleteHistories(fetched.outcomes);
-      if (gaps) ctx.markPartial(`chain data incomplete for ${gaps}`);
+      const gaps = historyGaps(fetched.outcomes);
+      if (gaps) {
+        ctx.markPartial(`chain data incomplete for ${gaps.count} address(es): ${gaps.details}`, {
+          code: 'chain_incomplete',
+          params: { count: gaps.count, details: gaps.details },
+        });
+      }
 
       // 2. Exclusions with chain data; evm:unknown candidates use the fetch's explicit resolution.
       const resolvedOf = (a: AddressRef): AddressRef => {
@@ -420,7 +496,12 @@ export function createChainStage(options: StageOptions): Stage {
       );
       await ctx.repos.addressTypes?.add(runId, [...types.values()]);
       const unprobed = [...types.values()].filter((t) => t.failedProbe).length;
-      if (unprobed) ctx.markPartial(`address type probes failed for ${unprobed} address(es)`);
+      if (unprobed) {
+        ctx.markPartial(`address type probes failed for ${unprobed} address(es)`, {
+          code: 'address_type_probes_failed',
+          params: { count: unprobed },
+        });
+      }
       /** One key per on-chain account: the chain (as fetched for `evm:unknown`) and the canonical address. */
       const targetOf = (a: AddressRef): string => addressKey(resolvedOf(a));
       const published = new Set(
@@ -480,23 +561,37 @@ export function createChainStage(options: StageOptions): Stage {
             { enabledSources: chainSources, tips },
           )
         : undefined;
-      const hopGaps = hop ? incompleteHistories(hop.outcomes) : undefined;
-      if (hopGaps) ctx.markPartial(`counterparty chain data incomplete for ${hopGaps}`);
+      const hopGaps = hop ? historyGaps(hop.outcomes) : undefined;
+      if (hopGaps) {
+        ctx.markPartial(`counterparty chain data incomplete for ${hopGaps.count} address(es): ${hopGaps.details}`, {
+          code: 'counterparty_chain_incomplete',
+          params: { count: hopGaps.count, details: hopGaps.details },
+        });
+      }
       const counterpartyTransfers = new Map(
         [...expansion].map(([key, a]) => [key, transfersOf(a, hop?.transfers ?? [], hop?.utxoTxs ?? [])]),
       );
 
       // 4. Activity, cash-out indicators and flows, valued in PLN at the NBP rate.
+      const counted = countUnpriced(
+        createValuator({
+          fx: createNbpFxRateSource({ http, ...(c.nbpBaseUrl ? { baseUrl: c.nbpBaseUrl } : {}) }),
+          prices: c.prices,
+          assets,
+        }),
+      );
       const deps = {
         labels,
         assets,
-        valuator: createValuator({ fx: createNbpFxRateSource({ http }), prices: c.prices, assets }),
+        valuator: counted.valuator,
         forwarding: c.rules.a4,
         rules: c.cashOutRules,
         score: c.score,
         runId,
       };
       const indicators: ActivityIndicators[] = [];
+      // A transfer between two analysed addresses is stored once per run (under the first address analysed).
+      const stored = new Set<string>();
       const events: CashOutEvent[] = [];
       for (const a of analysed) {
         const requested = requestedOf.get(addressKey(a));
@@ -517,7 +612,24 @@ export function createChainStage(options: StageOptions): Stage {
         indicators.push(analysis.indicators);
         events.push(...analysis.events);
         // oxlint-disable-next-line no-await-in-loop
-        await ctx.repos.chain.addTransfers(runId, a, ownTransfers(a));
+        await ctx.repos.chain.addTransfers(
+          runId,
+          a,
+          ownTransfers(a).filter((t) => {
+            const key = transferKey(t);
+            if (stored.has(key)) return false;
+            stored.add(key);
+            return true;
+          }),
+        );
+      }
+      // A leg without a price or NBP rate leaves its PLN value missing: say so instead of staying silent.
+      const unpriced = counted.unpriced();
+      if (unpriced) {
+        ctx.markPartial(`PLN valuation unavailable for ${unpriced} transfer(s): no price or NBP rate`, {
+          code: 'valuation_unavailable',
+          params: { count: unpriced },
+        });
       }
       await ctx.repos.analysis.addActivity(runId, indicators);
       await ctx.repos.analysis.addCashOuts(events);
@@ -527,6 +639,7 @@ export function createChainStage(options: StageOptions): Stage {
         addressTypes: types.size,
         exclusions: decisions.length,
         cashOutEvents: events.length,
+        unpricedTransfers: unpriced,
       });
     },
   };
