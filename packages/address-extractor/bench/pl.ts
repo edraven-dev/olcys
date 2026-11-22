@@ -149,7 +149,7 @@ export const REPORT_PL = {
     `- Dokumenty: ${docs} (${mb} MB), oznaczone wystąpienia: ${rows} — pozytywne ${positives}, trudne negatywy ${negatives}, niesprawdzalne ${unverifiable}, sekrety ${secrets}.`,
   templates: (list: string): string => `- Szablony: ${list}.`,
   matching:
-    '- Dopasowanie: na poziomie adresów w obrębie dokumentu (sieć z listy sieci, na których bajty są poprawne) oraz na poziomie wystąpień (zakres w źródle dokumentu, tolerancja ±2 znaki). Przedziały ufności: bootstrap po dokumentach, 1000 prób, stałe ziarno; próby, w których wskaźnik jest nieokreślony, są pomijane.',
+    '- Dopasowanie: na poziomie adresów w obrębie dokumentu (sieć z listy sieci, na których bajty są poprawne) oraz na poziomie wystąpień (obie granice zakresu w źródle dokumentu, tolerancja ±2 znaki). Przedziały ufności: bootstrap po dokumentach, 1000 prób, stałe ziarno; próby, w których wskaźnik jest nieokreślony, są pomijane.',
   summary: '## Podsumowanie',
   summaryHeader: ['| Narzędzie | Zakres | Precyzja | Czułość | F1 |', '| --- | --- | --: | --: | --: |'],
   ours: 'OŁCyŚ',

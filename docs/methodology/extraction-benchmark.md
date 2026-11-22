@@ -27,9 +27,10 @@ Lightning, `xpub`) są w raporcie oznaczone „nieobsługiwane — nie mierzono�
   w wyniku spoza prawdy wzorcowej; pominięcie (FN) — adres z prawdy wzorcowej, którego brak w wyniku. Wektory
   z dokumentacji (`example`) i wartości niesprawdzalne (`unverifiable`, np. adres EVM jednej wielkości liter
   z podmienionym znakiem) raportujemy osobno, nie jako FP.
-- **Poziom wystąpień:** zakres wyniku w źródle dokumentu (z map pozycji widoków) musi pokrywać się z zakresem z prawdy
-  wzorcowej z tolerancją ±2 znaki. Na tym poziomie liczymy wyniki według zaciemnienia i kanału, przypisanie sieci
-  i role.
+- **Poziom wystąpień:** obie granice zakresu wyniku w źródle dokumentu (z map pozycji widoków) muszą zgadzać się
+  z granicami wystąpienia z prawdy wzorcowej z tolerancją ±2 znaki; wynik, który tylko zachodzi na wystąpienie (np.
+  skrócony zakres), jest fałszywym alarmem w złym miejscu. Na tym poziomie liczymy wyniki według zaciemnienia
+  i kanału, przypisanie sieci i role.
 - **Przypisanie sieci:** trafność wybranej sieci względem sieci oczekiwanej z treści (URI płatności, eksplorator,
   słowo kluczowe, domyślna dla formatu), osobno dla identyfikatora sieci EVM i adresów `1…`/`3…`. Adres z siecią spoza
   `chainSet` liczy się jako pominięcie i fałszywy alarm, a także jako błąd przypisania.
@@ -37,8 +38,10 @@ Lightning, `xpub`) są w raporcie oznaczone „nieobsługiwane — nie mierzono�
   w prawdzie wzorcowej.
 - **Sekrety:** sekret jest zamaskowany, gdy wyniki (`SecretFinding`) pokrywają każdy znak klucza — we frazie seed
   każdą literę słów (separatory i numery listy mogą zostać poza zakresem). Kontrola wycieków przegląda każde pole
-  każdego `ExtractionResult`, przechwycone logi i gotowy raport i szuka każdego 12-znakowego fragmentu każdego sekretu,
-  także we frazie zapisanej innymi separatorami (nowe wiersze, numeracja, przecinki, sekwencje ucieczki JSON).
+  każdego `ExtractionResult`, logi postępu, każde wywołanie konsoli w czasie wyodrębniania (argumenty przeglądane
+  rekurencyjnie i w postaci, w jakiej wypisałaby je konsola) i gotowy raport i szuka każdego 12-znakowego fragmentu
+  każdego sekretu, także we frazie zapisanej innymi separatorami (nowe wiersze, numeracja, przecinki, sekwencje
+  ucieczki JSON).
 - **Przedziały ufności:** bootstrap po dokumentach, 1 000 prób, stałe ziarno (raport jest powtarzalny); próby,
   w których wskaźnik jest nieokreślony (brak przewidywań lub pozytywów w próbie), są dla niego pomijane.
 - **SpiderFoot:** wyrażenia regularne modułów `sfp_bitcoin` i `sfp_ethereum` przepisane w TypeScript (licencja MIT,

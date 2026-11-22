@@ -3,6 +3,7 @@
  * every corpus document, matches the results against the ground truth (address level per document and span level
  * via the views' source maps) and assembles the `BenchReport`. Offline and deterministic except for timings.
  */
+import { inspect } from 'node:util';
 import { chainFamily, type ChainAttributionMethod, type ChainId, type TextSpan, type TextView } from '@olcys/core';
 import type { DenyList } from '../src/deny-list.ts';
 import {
@@ -83,9 +84,35 @@ interface Classified {
   p: Prediction;
   cls: PredictionClass;
   row?: TruthRow;
+  /** A false positive that has a positive's address and overlaps it, but not at its boundaries. */
+  misplaced?: boolean;
 }
 
 const TOLERANCE = 2;
+/** Console methods replaced while the extractor runs. */
+const CONSOLE_METHODS = [
+  'log',
+  'info',
+  'warn',
+  'error',
+  'debug',
+  'trace',
+  'dir',
+  'dirxml',
+  'table',
+  'group',
+  'groupCollapsed',
+  'assert',
+  'count',
+  'timeLog',
+] as const;
+const INSPECT = {
+  depth: Number.POSITIVE_INFINITY,
+  showHidden: true,
+  maxArrayLength: Number.POSITIVE_INFINITY,
+  maxStringLength: Number.POSITIVE_INFINITY,
+  breakLength: Number.POSITIVE_INFINITY,
+} as const;
 const CORROBORATED = new Set<ChainAttributionMethod>([
   'uri_chain_id',
   'caip10',
@@ -107,12 +134,40 @@ function formatFamily(format: string, chain: ChainId): string {
   return chainFamily(chain);
 }
 
+/** Ranges that share at least one character, give or take the tolerance (attributing a result to a row). */
 function overlaps(a: Range, b: Range): boolean {
   return a.start < b.end + TOLERANCE && b.start < a.end + TOLERANCE;
 }
 
-/** Exact source range of a view span (per-character source map), as the extractor computes it. */
-function sourceOf(views: ReadonlyMap<TextView, ViewText>, view: TextView, span: TextSpan): Range | undefined {
+/** Both boundaries within the tolerance: the result points at the labelled occurrence, not just into it. */
+function sameSpan(a: Range, b: Range): boolean {
+  return Math.abs(a.start - b.start) <= TOLERANCE && Math.abs(a.end - b.end) <= TOLERANCE;
+}
+
+const CHARACTER_REFERENCE = /&(?:#[xX][0-9a-fA-F]+;?|#\d+;?|[A-Za-z][A-Za-z0-9]*;?)/y;
+
+/** End of the source text behind the character at `offset` (a whole HTML reference or JSON escape, else 1 unit). */
+function characterEnd(document: { text: string; type: string }, offset: number): number {
+  const char = document.text[offset];
+  if (document.type === 'html' && char === '&') {
+    CHARACTER_REFERENCE.lastIndex = offset;
+    const reference = CHARACTER_REFERENCE.exec(document.text);
+    if (reference) return offset + reference[0].length;
+  }
+  if (document.type === 'json' && char === '\\') return offset + (document.text[offset + 1] === 'u' ? 6 : 2);
+  return offset + 1;
+}
+
+/**
+ * Source range of a view span, from the views' per-character source maps (the extractor's own mapping). Units decoded
+ * from one character reference map to its `&`, so the end extends over the whole reference of the last character.
+ */
+function sourceOf(
+  views: ReadonlyMap<TextView, ViewText>,
+  document: { text: string; type: string },
+  view: TextView,
+  span: TextSpan,
+): Range | undefined {
   const v = views.get(view === 'code' ? 'visible_text' : view);
   const map = v?.sourceMap;
   if (!map) return undefined;
@@ -124,12 +179,14 @@ function sourceOf(views: ReadonlyMap<TextView, ViewText>, view: TextView, span: 
     min = Math.min(min, offset);
     max = Math.max(max, offset);
   }
-  return max >= 0 ? { start: min, end: max + 1 } : undefined;
+  return max >= 0 ? { start: min, end: characterEnd(document, max) } : undefined;
 }
 
 /**
- * Span-level classification of one tool's predictions against the labelled rows of a document. `wrongChain` holds
- * predictions that found a positive's span and address but with a chain the bytes are not valid on (not a TP).
+ * Span-level classification of one tool's predictions against the labelled rows of a document. A TP needs the
+ * address, a chain its bytes are valid on and both boundaries of the occurrence (±2 characters); a result that only
+ * overlaps the occurrence is a misplaced FP. `wrongChain` holds results at the right place with the right address but
+ * a chain the bytes are not valid on (not a TP; an attribution error).
  */
 function classify(
   predictions: readonly Prediction[],
@@ -145,7 +202,9 @@ function classify(
   for (const p of predictions) {
     const over = p.source ? labelled.filter((r) => r.source && overlaps(p.source as Range, r.source)) : [];
     const same = (r: TruthRow): boolean => r.canonical !== undefined && canonicalKey(r.canonical) === p.key;
-    const positive = over.find((r) => r.expected === 'positive' && same(r) && r.chainSet.includes(p.chain));
+    const at = (r: TruthRow): boolean =>
+      p.source !== undefined && r.source !== undefined && sameSpan(p.source, r.source);
+    const positive = over.find((r) => r.expected === 'positive' && same(r) && at(r) && r.chainSet.includes(p.chain));
     if (positive) {
       if (matched.has(positive.occurrence)) list.push({ p, cls: 'duplicate', row: positive });
       else {
@@ -164,10 +223,11 @@ function classify(
       list.push({ p, cls: 'unverifiable', row: unverifiable });
       continue;
     }
-    const misattributed = over.find((r) => r.expected === 'positive' && same(r));
+    const misattributed = over.find((r) => r.expected === 'positive' && same(r) && at(r));
     if (misattributed && !wrongChain.has(misattributed.occurrence)) wrongChain.set(misattributed.occurrence, p);
-    const row = misattributed ?? over.find((r) => r.expected !== 'positive') ?? over[0];
-    if (row) list.push({ p, cls: 'fp', row });
+    const misplaced = misattributed ? undefined : over.find((r) => r.expected === 'positive' && same(r));
+    const row = misattributed ?? misplaced ?? over.find((r) => r.expected !== 'positive') ?? over[0];
+    if (row) list.push({ p, cls: 'fp', row, ...(misplaced ? { misplaced: true } : {}) });
     else list.push({ p, cls: positiveKeys.has(p.key) ? 'unlabelled' : 'fp' });
   }
   return { list, matched, wrongChain };
@@ -211,12 +271,13 @@ function evaluateDocument(
   });
   const views = new Map<TextView, ViewText>();
   for (const v of buildViews(content)) if (!views.has(v.view)) views.set(v.view, v);
+  const source = { text: filled.text, type: doc.type };
   const ours: Prediction[] = (result?.candidates ?? []).map((c) => ({
     key: canonicalKey(c.address.address),
     chain: c.address.chain,
     family: formatFamily(c.format, c.address.chain),
     format: c.format,
-    source: sourceOf(views, c.view, c.span),
+    source: sourceOf(views, source, c.view, c.span),
     method: c.chainAttribution.method,
     role: c.context.roleCues[0] ?? 'unclear',
     view: c.view,
@@ -230,9 +291,12 @@ function evaluateDocument(
   }));
   const a = classify(ours, rows);
   const b = classify(sf, rows);
-  const rejected = (result?.rejected ?? []).map((r) => ({ reason: r.reason, source: sourceOf(views, r.view, r.span) }));
+  const rejected = (result?.rejected ?? []).map((r) => ({
+    reason: r.reason,
+    source: sourceOf(views, source, r.view, r.span),
+  }));
   const findings = (result?.secrets ?? [])
-    .map((s) => sourceOf(views, s.view, s.span))
+    .map((s) => sourceOf(views, source, s.view, s.span))
     .filter((s): s is Range => s !== undefined);
   const redactedSecrets = new Set<number>();
   for (const secret of filled.secrets) {
@@ -336,12 +400,16 @@ export async function runBenchmark(options: BenchOptions): Promise<BenchRun> {
   let extractionMs = 0;
   let bytes = 0;
   let leaks = 0;
-  // Console output during extraction is captured (not echoed: it could carry a secret) and leak-checked.
-  const captured: string[] = [];
+  // Console output during extraction is captured (never echoed: it could carry a secret) and leak-checked as it is
+  // written: the arguments are walked recursively and also rendered the way the console would print them.
+  let capturedLines = 0;
   const originalConsole = { ...console };
   const capture = (...args: unknown[]): void => {
-    captured.push(args.map(String).join(' '));
+    capturedLines += 1;
+    const rendered = args.map((a) => (typeof a === 'string' ? a : inspect(a, INSPECT))).join(' ');
+    leaks += countLeaksIn(args, fragments) + countLeaks(rendered, fragments);
   };
+  const captureAll = Object.fromEntries(CONSOLE_METHODS.map((method) => [method, capture]));
 
   log(`bench: ${corpus.documents.length} documents, corpus ${corpus.manifest.corpusVersion}, ${EXTRACTOR_VERSION}`);
   for (const [index, doc] of corpus.documents.entries()) {
@@ -353,7 +421,7 @@ export async function runBenchmark(options: BenchOptions): Promise<BenchRun> {
     let error: string | undefined;
     let n = 0;
     const started = performance.now();
-    Object.assign(console, { log: capture, info: capture, warn: capture, error: capture, debug: capture });
+    Object.assign(console, captureAll);
     try {
       // oxlint-disable-next-line no-await-in-loop
       result = await (options.extract ?? extractCapture)(content, {
@@ -373,8 +441,8 @@ export async function runBenchmark(options: BenchOptions): Promise<BenchRun> {
     evals.push(evaluateDocument(doc, result, content, filled, error));
     if ((index + 1) % 100 === 0) log(`bench: ${index + 1}/${corpus.documents.length} documents`);
   }
-  leaks += countLeaks([...logs, ...captured].join('\n'), fragments);
-  if (captured.length > 0) log(`bench: ${captured.length} console line(s) written during extraction (leak-checked)`);
+  leaks += countLeaks(logs.join('\n'), fragments);
+  if (capturedLines > 0) log(`bench: ${capturedLines} console call(s) during extraction (leak-checked, not shown)`);
 
   const report = assemble(corpus, evals, {
     extractionMs,
@@ -516,7 +584,11 @@ function assemble(
         docId: e.doc.docId,
         address: c.p.key,
         format: c.p.format,
-        reason: c.row ? `${c.row.expected}:${c.row.negativeKind ?? c.row.subtype ?? ''}` : 'unexpected',
+        reason: c.misplaced
+          ? `misplaced:${c.row?.subtype ?? ''}`
+          : c.row
+            ? `${c.row.expected}:${c.row.negativeKind ?? c.row.subtype ?? ''}`
+            : 'unexpected',
       });
     }
 

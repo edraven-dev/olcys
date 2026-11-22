@@ -130,6 +130,35 @@ describe('benchmark scoring rules', () => {
     expect(report.gates.find((g) => g.id === 'secret_leaks')?.passed).toBe(false);
   });
 
+  it('does not count a result that only points into the occurrence as a span-level hit', async () => {
+    const report = await run(async (content, options) => {
+      const result = await extractCapture(content, options);
+      const candidates = result.candidates.map((c) =>
+        Object.assign({}, c, { span: { start: c.span.start, end: c.span.start + 1 } }),
+      );
+      return { ...result, candidates };
+    });
+    expect(report.overall).toMatchObject({ tp: 1, fn: 0 });
+    expect(report.gateMetrics.cleanMetrics['bitcoin']).toMatchObject({ tp: 0, fp: 1, fn: 1 });
+    expect(report.byChannel['text']).toMatchObject({ tp: 0, fn: 1 });
+    expect(report.gates.find((g) => g.id === 'clean_recall:bitcoin')?.passed).toBe(false);
+    expect(report.failures.falsePositives).toEqual([expect.objectContaining({ reason: 'misplaced:p2sh' })]);
+  });
+
+  it('finds a secret logged inside nested objects, maps and error causes', async () => {
+    const report = await run(async (content, options) => {
+      const result = await extractCapture(content, options);
+      const text = new TextDecoder().decode(content.artifacts[0]?.bytes);
+      const from = text.indexOf('Fraza: ') + 7;
+      const phrase = text.slice(from, text.indexOf('</p>', from));
+      console.info({ context: { snippet: phrase } });
+      console.warn(new Map([['found', [new Error('boom', { cause: { phrase } })]]]));
+      return result;
+    });
+    expect(report.secrets.leaks).toBeGreaterThan(0);
+    expect(report.gates.find((g) => g.id === 'secret_leaks')?.passed).toBe(false);
+  });
+
   it('fails the gates whose data is missing from the corpus instead of dropping them', async () => {
     const report = await run();
     const byId = new Map(report.gates.map((g) => [g.id, g]));

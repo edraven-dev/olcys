@@ -177,14 +177,35 @@ export function countLeaks(text: string, fragments: LeakFragments): number {
   );
 }
 
-/** Leak count over every string inside a value (checked one by one, never through an escaping serialisation). */
-export function countLeaksIn(value: unknown, fragments: LeakFragments): number {
+/**
+ * Leak count over every string inside a value, walked recursively and never through an escaping serialisation:
+ * object keys and own property values (getters are not invoked), arrays, `Map`/`Set` entries, `Error` messages,
+ * stacks and causes, and UTF-8 byte arrays. Cycles are visited once.
+ */
+export function countLeaksIn(value: unknown, fragments: LeakFragments, seen: WeakSet<object> = new WeakSet()): number {
   if (typeof value === 'string') return countLeaks(value, fragments);
-  if (Array.isArray(value)) return value.reduce((n: number, v: unknown) => n + countLeaksIn(v, fragments), 0);
-  if (value !== null && typeof value === 'object') {
-    let n = 0;
-    for (const [k, v] of Object.entries(value)) n += countLeaks(k, fragments) + countLeaksIn(v, fragments);
+  if (value === null || typeof value !== 'object') return 0;
+  if (seen.has(value)) return 0;
+  seen.add(value);
+  if (value instanceof Uint8Array) return countLeaks(new TextDecoder().decode(value), fragments);
+  if (ArrayBuffer.isView(value)) return 0;
+  let n = 0;
+  if (value instanceof Map) {
+    for (const [k, v] of value) n += countLeaksIn(k, fragments, seen) + countLeaksIn(v, fragments, seen);
     return n;
   }
-  return 0;
+  if (value instanceof Set) {
+    for (const v of value) n += countLeaksIn(v, fragments, seen);
+    return n;
+  }
+  if (value instanceof Error) {
+    n += countLeaks(value.message, fragments) + countLeaks(value.stack ?? '', fragments);
+    n += countLeaksIn(value.cause, fragments, seen);
+  }
+  for (const key of Reflect.ownKeys(value)) {
+    if (typeof key === 'string') n += countLeaks(key, fragments);
+    const descriptor = Object.getOwnPropertyDescriptor(value, key);
+    if (descriptor && 'value' in descriptor) n += countLeaksIn(descriptor.value, fragments, seen);
+  }
+  return n;
 }
