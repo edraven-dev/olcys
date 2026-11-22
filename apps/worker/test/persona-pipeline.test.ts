@@ -7,7 +7,7 @@ import { readFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import type { Logger } from '@olcys/core';
 import { createMemoryRepositories } from '@olcys/db';
-import { InMemoryBlobStore, verifyCapture } from '@olcys/evidence';
+import { buildPropertyTimelines, InMemoryBlobStore, verifyCapture } from '@olcys/evidence';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createFixtureServer, type FixtureServer } from '../../fixture-site/src/fixture-server.ts';
 import { buildWaybackHistory } from '@olcys/collectors';
@@ -308,6 +308,48 @@ describe('demo scenario on the synthetic persona', () => {
         before: manifest.addresses['BTC-1']?.address,
         after: manifest.addresses['BTC-2']?.address,
       });
+
+      // History timelines (wallets only): the archived copies of the forum profile come first (2024 without a wallet,
+      // 2025 with BTC-1), then the live runs' own timeline of the profile's Bitcoin address (BTC-1, then the swap). The
+      // live profile is fetched by nickname, the archive lists the canonical member URL, so they are two timelines.
+      const runIds = [first.id, second.id];
+      const load = async <T>(read: (runId: string) => Promise<T[]>): Promise<T[]> =>
+        (await Promise.all(runIds.map(read))).flat();
+      const timelineCaptures = await load((id) => runtime.repos.evidence.listCaptures(id));
+      const timelineObservations = await load((id) => runtime.repos.evidence.listObservations(id));
+      const timelines = buildPropertyTimelines(
+        {
+          captures: timelineCaptures,
+          candidates: await load((id) => runtime.repos.evidence.listCandidates(id)),
+          archive: buildWaybackHistory(timelineCaptures, timelineObservations),
+          observations: timelineObservations,
+        },
+        { walletOnly: true },
+      );
+      const profile = timelines[0];
+      const live = timelines.find((t) => t.key.property === 'profile.bitcoin_address');
+      expect(profile?.key.locator).toBe('web:https://bitcointalk.org/index.php?action=profile;u=900001#page.address');
+      expect(profile?.points.map((p) => [p.provenance, p.archive?.snapshotTimestamp, p.values?.length])).toEqual([
+        ['archive', '20240312101500', 0],
+        ['archive', '20250102030405', 1],
+      ]);
+      expect(profile?.changes).toEqual([
+        expect.objectContaining({
+          before: [],
+          wallet: true,
+          lastSeenBefore: expect.objectContaining({ observedAt: '2024-03-12T10:15:00.000Z' }),
+          firstSeenAfter: expect.objectContaining({ observedAt: '2025-01-02T03:04:05.000Z' }),
+        }),
+      ]);
+      expect(live?.key.property).toBe('profile.bitcoin_address');
+      expect(live?.points.every((p) => p.provenance === 'live')).toBe(true);
+      expect(live?.points[0]?.observedAt.localeCompare(profile!.points.at(-1)!.observedAt)).toBe(1);
+      expect(live?.changes).toEqual([
+        expect.objectContaining({
+          before: [manifest.addresses['BTC-1']?.address],
+          after: [manifest.addresses['BTC-2']?.address],
+        }),
+      ]);
 
       // A rescore of the first run re-scores its saved evidence: no fetching, the v1 data, no data changes.
       const rescore = await runtime.startRun(kase.id, { trigger: 'rescore', rescoreOfRunId: first.id });
