@@ -18,6 +18,7 @@ export * from './extraction.ts';
 export * from './heuristics.ts';
 export * from './ids.ts';
 export * from './labels.ts';
+export * from './partial.ts';
 export * from './ports.ts';
 export * from './provenance.ts';
 export * from './report.ts';

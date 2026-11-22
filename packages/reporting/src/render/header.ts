@@ -1,4 +1,5 @@
 /** Chapter 1 (metadata and reproducibility) and chapter 2 (summary for readers without IT background). */
+import { readPartialReasons, renderPartialReason } from '@olcys/core';
 import { formatLongDate, formatPln, formatUtc, plural } from '../format.ts';
 import { join, markup, t, type SafeHtml } from '../html.ts';
 import { pl } from '../i18n/pl.ts';
@@ -96,7 +97,13 @@ function unavailableCaptures(view: View) {
 
 /** What made the analysis incomplete, or `undefined` when nothing was reported missing. */
 function incompleteDetails(view: View): SafeHtml | undefined {
-  const reasons = view.data.partialReasons ?? [];
+  const reasons = readPartialReasons({ partial: view.data.partialReasons, partialCodes: view.data.partialCodes }).map(
+    (reason) =>
+      renderPartialReason(reason, pl.summary.partialReasons, {
+        item: pl.summary.partialItem,
+        labels: { status: pl.summary.partialStatuses },
+      }),
+  );
   const pages = unavailableCaptures(view);
   if (!reasons.length && !pages.length && view.data.run.status !== 'partial') return undefined;
   const sources = [...new Set(pages.map((c) => view.sourceName(c.sourceId)))].toSorted(cmp).join(', ');

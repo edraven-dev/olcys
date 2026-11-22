@@ -22,6 +22,7 @@ export interface GeneratedFile {
 
 export interface FixtureRouteOut {
   path: string;
+  pathPrefix?: string;
   query?: string;
   params?: Record<string, string>;
   queryPrefix?: string;
@@ -558,6 +559,58 @@ function renderTrongrid(seed: string, slots: Slots, tronSlots: readonly string[]
   return files;
 }
 
+// --- NBP Table A (synthetic) ---------------------------------------------------------------------------------------
+
+/** Months of USD rates served: they cover the lookback before every transfer of the stories. */
+export const NBP_FIRST_MONTH = '2025-02';
+export const NBP_LAST_MONTH = '2026-11';
+const NBP_PREFIX = '/nbp/api/exchangerates/rates/a/usd';
+
+function nbpMonths(): string[] {
+  const months: string[] = [];
+  let [y, m] = NBP_FIRST_MONTH.split('-').map(Number) as [number, number];
+  for (;;) {
+    const month = `${y}-${String(m).padStart(2, '0')}`;
+    months.push(month);
+    if (month === NBP_LAST_MONTH) return months;
+    m += 1;
+    if (m > 12) [y, m] = [y + 1, 1];
+  }
+}
+
+/**
+ * Made-up USD/PLN Table A averages in the real NBP JSON shape: one table per business day (Mon-Fri), numbering and
+ * values are synthetic (a deterministic wave around 3.9), never real NBP data. The routes ignore the end of the
+ * requested range, so the current month works on any day.
+ */
+function renderNbp(): { files: GeneratedFile[]; routes: FixtureRouteOut[] } {
+  const files: GeneratedFile[] = [];
+  const routes: FixtureRouteOut[] = [];
+  let tableNo = 0;
+  for (const month of nbpMonths()) {
+    const [y, m] = month.split('-').map(Number) as [number, number];
+    const days = new Date(Date.UTC(y, m, 0)).getUTCDate();
+    const rates: string[] = [];
+    for (let d = 1; d <= days; d++) {
+      const date = new Date(Date.UTC(y, m - 1, d));
+      const weekday = date.getUTCDay();
+      if (weekday === 0 || weekday === 6) continue;
+      tableNo += 1;
+      const mid = (3.8 + (((tableNo * 37) % 400) + 1) / 10_000 + 0.0001).toFixed(4);
+      rates.push(
+        `    { "no": "SYN${String(tableNo).padStart(3, '0')}/A/NBP/${y}", "effectiveDate": "${date.toISOString().slice(0, 10)}", "mid": ${mid} }`,
+      );
+    }
+    const file = `nbp/api/exchangerates/rates/a/usd/${month}.json`;
+    files.push({
+      path: file,
+      content: `{\n  "_synthetic": "${SYNTHETIC_MARK}",\n  "table": "A",\n  "currency": "dolar amerykański (SYNTHETIC)",\n  "code": "USD",\n  "rates": [\n${rates.join(',\n')}\n  ]\n}\n`,
+    });
+    routes.push({ path: `${NBP_PREFIX}/${month}-01/`, pathPrefix: `${NBP_PREFIX}/${month}-01/`, file });
+  }
+  return { files, routes };
+}
+
 export function renderChain(
   seed: string,
   slots: Slots,
@@ -565,13 +618,16 @@ export function renderChain(
   contractCode: Readonly<Record<string, string>> = {},
 ): { files: GeneratedFile[]; routes: FixtureRouteOut[] } {
   const etherscan = renderEtherscan(seed, slots, bySlotChain.evm, contractCode);
+  const nbp = renderNbp();
   return {
     files: [
+      ...nbp.files,
       ...renderEsplora(seed, slots, bySlotChain.btc),
       ...etherscan.files,
       ...renderTrongrid(seed, slots, bySlotChain.tron),
     ],
     routes: [
+      ...nbp.routes,
       {
         path: '/chain/esplora/api/blocks/tip/height',
         file: 'chain/esplora/api/blocks/tip/height.txt',

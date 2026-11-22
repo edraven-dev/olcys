@@ -18,7 +18,7 @@ import type {
   Repositories,
   RunWithProgress,
 } from '@olcys/core';
-import { addressKey, newId, nowIso } from '@olcys/core';
+import { addressKey, newId, nowIso, uniqueTransfers } from '@olcys/core';
 import { memoryAddressTypeRepository } from './memory-address-types.ts';
 import { memoryScheduleRepository } from './memory-schedules.ts';
 import { labelContentSha256 } from './sql/analysis.ts';
@@ -170,7 +170,8 @@ export function createMemoryRepositories(): Repositories {
         store.transfers.push(...transfers.map((transfer) => ({ runId, transfer: copy(transfer) })));
       },
       async listTransfers(runId) {
-        return copy(store.transfers.filter((t) => t.runId === runId).map((t) => t.transfer));
+        // A transfer between two analysed addresses is stored under both; the run has it once.
+        return copy(uniqueTransfers(store.transfers.filter((t) => t.runId === runId).map((t) => t.transfer)));
       },
     },
     analysis: {

@@ -91,14 +91,21 @@ export function withFixtureSite(
   fixtureBaseUrl: string,
   hostPrefixes: Readonly<Record<string, string>>,
 ): ChainProviderConfig[] {
+  return configs.map((config) => ({ ...config, baseUrl: fixtureUrlFor(config.baseUrl, fixtureBaseUrl, hostPrefixes) }));
+}
+
+/** One URL mapped like `withFixtureSite` does for provider base URLs (unmapped URLs are returned unchanged). */
+export function fixtureUrlFor(
+  baseUrl: string,
+  fixtureBaseUrl: string,
+  hostPrefixes: Readonly<Record<string, string>>,
+): string {
   const fixture = fixtureBaseUrl.replace(/\/+$/, '');
-  return configs.map((config) => {
-    const url = new URL(config.baseUrl);
-    const target = `${url.host}${url.pathname}`.replace(/\/+$/, '');
-    const match = Object.keys(hostPrefixes)
-      .filter((prefix) => target === prefix || target.startsWith(`${prefix}/`))
-      .toSorted((a, b) => b.length - a.length)[0];
-    if (match === undefined) return { ...config };
-    return { ...config, baseUrl: `${fixture}${hostPrefixes[match]}${target.slice(match.length)}` };
-  });
+  const url = new URL(baseUrl);
+  const target = `${url.host}${url.pathname}`.replace(/\/+$/, '');
+  const match = Object.keys(hostPrefixes)
+    .filter((prefix) => target === prefix || target.startsWith(`${prefix}/`))
+    .toSorted((a, b) => b.length - a.length)[0];
+  if (match === undefined) return baseUrl;
+  return `${fixture}${hostPrefixes[match]}${target.slice(match.length)}`;
 }

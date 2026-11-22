@@ -1,0 +1,30 @@
+{
+  "_synthetic": "SYNTHETIC TEST DATA (OŁCyŚ fixture)",
+  "table": "A",
+  "currency": "dolar amerykański (SYNTHETIC)",
+  "code": "USD",
+  "rates": [
+    { "no": "SYN042/A/NBP/2025", "effectiveDate": "2025-04-01", "mid": 3.8356 },
+    { "no": "SYN043/A/NBP/2025", "effectiveDate": "2025-04-02", "mid": 3.8393 },
+    { "no": "SYN044/A/NBP/2025", "effectiveDate": "2025-04-03", "mid": 3.8030 },
+    { "no": "SYN045/A/NBP/2025", "effectiveDate": "2025-04-04", "mid": 3.8067 },
+    { "no": "SYN046/A/NBP/2025", "effectiveDate": "2025-04-07", "mid": 3.8104 },
+    { "no": "SYN047/A/NBP/2025", "effectiveDate": "2025-04-08", "mid": 3.8141 },
+    { "no": "SYN048/A/NBP/2025", "effectiveDate": "2025-04-09", "mid": 3.8178 },
+    { "no": "SYN049/A/NBP/2025", "effectiveDate": "2025-04-10", "mid": 3.8215 },
+    { "no": "SYN050/A/NBP/2025", "effectiveDate": "2025-04-11", "mid": 3.8252 },
+    { "no": "SYN051/A/NBP/2025", "effectiveDate": "2025-04-14", "mid": 3.8289 },
+    { "no": "SYN052/A/NBP/2025", "effectiveDate": "2025-04-15", "mid": 3.8326 },
+    { "no": "SYN053/A/NBP/2025", "effectiveDate": "2025-04-16", "mid": 3.8363 },
+    { "no": "SYN054/A/NBP/2025", "effectiveDate": "2025-04-17", "mid": 3.8400 },
+    { "no": "SYN055/A/NBP/2025", "effectiveDate": "2025-04-18", "mid": 3.8037 },
+    { "no": "SYN056/A/NBP/2025", "effectiveDate": "2025-04-21", "mid": 3.8074 },
+    { "no": "SYN057/A/NBP/2025", "effectiveDate": "2025-04-22", "mid": 3.8111 },
+    { "no": "SYN058/A/NBP/2025", "effectiveDate": "2025-04-23", "mid": 3.8148 },
+    { "no": "SYN059/A/NBP/2025", "effectiveDate": "2025-04-24", "mid": 3.8185 },
+    { "no": "SYN060/A/NBP/2025", "effectiveDate": "2025-04-25", "mid": 3.8222 },
+    { "no": "SYN061/A/NBP/2025", "effectiveDate": "2025-04-28", "mid": 3.8259 },
+    { "no": "SYN062/A/NBP/2025", "effectiveDate": "2025-04-29", "mid": 3.8296 },
+    { "no": "SYN063/A/NBP/2025", "effectiveDate": "2025-04-30", "mid": 3.8333 }
+  ]
+}

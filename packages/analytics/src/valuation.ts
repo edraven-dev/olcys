@@ -80,6 +80,8 @@ export interface NbpRate {
   currency: string;
   /** Exact source text of the NBP `mid` value, e.g. `3.6500`. */
   mid: DecimalString;
+  /** The answer came from a synthetic source (the fixture site marks its responses). */
+  synthetic?: boolean;
 }
 
 export interface NbpOptions {
@@ -155,11 +157,13 @@ export function createNbpFxRateSource(options: NbpOptions = {}): FxRateSource {
       code?: string;
       rates?: { no: string; effectiveDate: string; mid: unknown }[];
     };
-    return (body.rates ?? []).map((r) => ({
+    const synthetic = response.provenance.synthetic === true;
+    return (body.rates ?? []).map((r): NbpRate => ({
       table: r.no,
       effectiveDate: r.effectiveDate,
       currency: (body.code ?? code).toUpperCase(),
       mid: String(r.mid),
+      synthetic: synthetic || undefined,
     }));
   }
 
@@ -201,7 +205,13 @@ export function createNbpFxRateSource(options: NbpOptions = {}): FxRateSource {
         .filter((r) => r.effectiveDate < day && r.effectiveDate >= earliest)
         .toSorted((a, b) => (a.effectiveDate < b.effectiveDate ? 1 : -1))[0];
       if (!best) throw new ValuationUnavailableError('no_fx_rate', `no NBP ${currency} table before ${day}`);
-      return { table: best.table, effectiveDate: best.effectiveDate, currency: best.currency, rate: best.mid };
+      return {
+        table: best.table,
+        effectiveDate: best.effectiveDate,
+        currency: best.currency,
+        rate: best.mid,
+        ...(best.synthetic ? { synthetic: true } : {}),
+      };
     },
   };
 }

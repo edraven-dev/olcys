@@ -1,14 +1,15 @@
+import { resolve } from 'node:path';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
+import { serverSettings } from './vite.settings.ts';
 
-export default defineConfig({
-  plugins: [react()],
-  server: {
-    host: '127.0.0.1',
-    port: Number(process.env.WEB_PORT ?? 5173),
-    strictPort: true,
-    proxy: {
-      '/api': `http://127.0.0.1:${process.env.API_PORT ?? 4000}`,
-    },
-  },
+/** The repository root: `WEB_PORT` and `API_PORT` live in the root `.env`, shared with the API (its origin guard). */
+const ROOT = resolve(import.meta.dirname, '..', '..');
+
+export default defineConfig(({ mode }) => {
+  const { port, apiTarget } = serverSettings(mode, ROOT, process.env);
+  return {
+    plugins: [react()],
+    server: { host: '127.0.0.1', port, strictPort: true, proxy: { '/api': apiTarget } },
+  };
 });

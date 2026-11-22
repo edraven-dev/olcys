@@ -61,6 +61,7 @@ const HOST_PREFIXES: Record<string, string> = {
   'blockstream.info/api': '/chain/esplora/api',
   'api.etherscan.io/v2/api': '/chain/etherscan/v2/api',
   'api.trongrid.io': '/chain/trongrid',
+  'api.nbp.pl/api': '/nbp/api',
   'dane.biznes.gov.pl/api/ceidg/v3': '/registries/ceidg/v3',
   'wykazpodatnikowvat.mf.gov.pl/api': '/registries/vat-whitelist/api',
   'api-krs.ms.gov.pl/api/krs': '/registries/krs/api',

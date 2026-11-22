@@ -133,6 +133,16 @@ describe('demo scenario on the synthetic persona', () => {
         cashOuts.filter((e) => e.address.address.toLowerCase() === addressOf(slot)).map((e) => e.ruleId);
       for (const { slot, rule } of manifest.expected.v1.cashOut)
         expect([slot, cashOutOf(slot)]).toEqual([slot, expect.arrayContaining([rule])]);
+      // PLN values come from the synthetic NBP Table A the fixture site serves (the table number says SYN), with the
+      // NBP table reference on every valuation; the run is not partial for lack of rates.
+      const valued = cashOuts.filter((e) => e.valuation);
+      expect(valued.length).toBeGreaterThan(0);
+      for (const event of valued)
+        expect(event.valuation?.nbp).toMatchObject({ table: expect.stringMatching(/^SYN\d+\/A\/NBP\/\d{4}$/) });
+      // The rate came from the fixture site, so the valuation says it is synthetic.
+      expect(valued.every((e) => e.valuation?.nbp.synthetic === true)).toBe(true);
+      expect(valued.every((e) => e.valuation?.pln && e.valuation.nbp.currency === 'USD')).toBe(true);
+      expect(run1?.progress['partialCodes']).toBeUndefined();
       // Address types are stored with the run: CONTRACT-1 stays a plain contract (every probe negative), the persona's
       // accounts stay EOAs, Bitcoin is classified locally.
       const types = await runtime.repos.addressTypes!.list(first.id);
@@ -157,6 +167,9 @@ describe('demo scenario on the synthetic persona', () => {
       // The exchange label that rejected the deposit address is shown with it, the contract with its address type.
       expect(html).toContain('Giełda Testowa (SYNTHETIC)');
       expect(html).toContain('Typ adresu: <strong>kontrakt</strong>');
+      // Valuations cite the synthetic NBP table, so they cannot pass for real rates.
+      expect(html).toContain('(kurs syntetyczny — dane demonstracyjne)');
+      expect(html).toMatch(/tabela SYN\d+\/A\/NBP\/\d{4} z dnia/);
 
       // Every capture has its manifest blob (verifiable down to the artifacts) and exactly one `collected` custody event.
       const captures = await runtime.repos.evidence.listCaptures(first.id);
@@ -178,6 +191,8 @@ describe('demo scenario on the synthetic persona', () => {
       // rates without recordings) was refused before sending.
       expect(egress.filter((e) => e.allowed).every((e) => e.host === '127.0.0.1')).toBe(true);
       expect(egress.filter((e) => e.host !== '127.0.0.1').every((e) => !e.allowed)).toBe(true);
+      // NBP rates were served by the fixture site, not by the real NBP.
+      expect(egress.some((e) => e.sourceId === 'nbp_api' && e.allowed && e.host === '127.0.0.1')).toBe(true);
       // Only sources the case enables were contacted; the labels the chain analysis used are stored for the report.
       const contacted = new Set(egress.filter((e) => e.allowed).map((e) => e.sourceId));
       expect([...contacted].filter((id) => id !== 'fixture_site' && !kase.scope.enabledSources.includes(id))).toEqual(

@@ -5,6 +5,10 @@ w procesie API: etapy wykonują się po kolei, zapisują wyniki przez repozytori
 przebiegu. Porównanie z poprzednim zakończonym przebiegiem sprawy jest wbudowanym krokiem `diff.previous`; etapy
 późniejszych kroków według `RUN_STEPS` (raport) wykonują się po nim i widzą wykryte zmiany. Powody niepełności
 zgłoszone przez etapy (`markPartial`) są od razu zapisywane w `progress.partial`, więc raport może je pokazać.
+Każdy powód ma angielskie zdanie (do logów i narzędzi) oraz — gdy przyczyna jest znana — stabilny kod z parametrami
+(`progress.partialCodes`, kody w `PARTIAL_CODES` z `@olcys/core`); interfejs i raport składają z kodu polski tekst
+z własnych katalogów (`pl.overview.partialReasons`, `pl.summary.partialReasons`), a nieznany kod pokazują jako zdanie
+z etapu.
 
 ## Publiczne API
 
@@ -15,7 +19,9 @@ zgłoszone przez etapy (`markPartial`) są od razu zapisywane w `progress.partia
   planista).
 - `runPipeline(runId, deps)` — wykonuje etapy (`Stage`: `step` + `run(ctx)`), aktualizuje status (`running` →
   `succeeded`, `partial` gdy część źródeł lub danych łańcucha była niedostępna, albo `failed` z komunikatem błędu)
-  i zapisuje zmiany. Ponowna ocena dziedziczy powody niepełności ocenianego przebiegu.
+  i zapisuje zmiany. Ponowna ocena dziedziczy powody niepełności ocenianego przebiegu (razem z kodami). Błąd na
+  dowolnym etapie przygotowania — także odczyt ocenianego przebiegu — kończy przebieg jako `failed` z komunikatem;
+  przebieg nigdy nie zostaje w stanie `queued`.
 - `diffWithPrevious(repos, run)` — porównanie z poprzednim przebiegiem przez `diffRuns` z `@olcys/evidence`.
 - `loadConfig()` — rejestr źródeł i migawka konfiguracji.
 - `createScheduler({ runtime, settings?, clock? })` — planista analiz okresowych (zob. `docs/architecture.md`,
@@ -69,3 +75,26 @@ Ponowna ocena (`rescore`) niczego nie pobiera: używa zebranych dowodów i anali
 ponownie wyodrębnia adresy i liczy wskaźniki. Braki danych ocenianego przebiegu pozostają widoczne (status `partial`
 z tymi samymi powodami). Wykryte adresy mają w niej nowe identyfikatory; korekty wskazujące adresy wcześniejszego
 przebiegu są odnajdywane po zabezpieczeniu i położeniu w tekście. Oceny analityka nie uruchamiają żadnego przebiegu.
+
+## Dane syntetyczne a tryb `live`
+
+Etykiety demonstracyjne (`fixtures/labels/demo-curated.json`) i syntetyczny zbiór cen (`fixtures/prices/demo-prices.v1.json`)
+ładuje wyłącznie etap analizy łańcucha w trybach `offline` i `replay`. W trybie `live` obowiązuje zasada: syntetyczne
+etykiety nie rozstrzygają o prawdziwych adresach, a syntetyczne ceny nigdy nie wyceniają prawdziwych transakcji — używa
+się tylko etykiet z magazynu (bez etykiet oznaczonych jako syntetyczne, np. zbioru `demo-curated` pozostawionego w bazie przez przebieg offline) i nie ma źródła cen, więc przepływy wymagające ceny są „bez wyceny”. Brak wyceny w PLN
+(brak ceny albo kursu NBP, np. gdy `nbp_api` nie jest włączone lub NBP nie odpowiada) oznacza przebieg jako `partial`
+z kodem `valuation_unavailable` i liczbą transferów bez wyceny (token spoza rejestru aktywów nie jest błędem wyceny).
+
+Offline i w nagraniach kursy NBP (tabela A) pochodzą ze strony testowej (`/nbp/api/…`, prefiks `api.nbp.pl/api`
+w `hostPrefixes` manifestu): wartości są syntetyczne, a numer tabeli ma przedrostek `SYN`, więc raport pokazuje, że
+wycena nie opiera się na prawdziwych kursach. Wycena oparta na odpowiedzi ze źródła syntetycznego ma w odnośniku do
+NBP znacznik `synthetic: true`; raport i interfejs dodają przy niej „(kurs syntetyczny — dane demonstracyjne)”.
+
+## Wybór łańcuchów i zapis transferów
+
+`scope.chains` sprawy ogranicza analizę łańcucha: pomijani są kandydaci z innych łańcuchów (adres `evm:unknown` jest
+analizowany, gdy wybrano dowolny łańcuch EVM; pusta lista oznacza wszystkie). Pominięcie to decyzja analityka, więc
+nie czyni przebiegu `partial` — etap zapisuje tylko notatkę w postępie (`skippedByChain`, `skippedChains`) i w logu.
+
+Transfer między dwoma analizowanymi adresami jest zapisywany raz na przebieg (klucz `transferKey` z `@olcys/core`);
+odczyt `listTransfers` także usuwa powtórzenia, więc raport i API nie liczą go podwójnie.

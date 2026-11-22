@@ -9,6 +9,7 @@ export {
   apiKeyOf,
   CHAIN_PROVIDER_KINDS,
   loadChainProviderConfig,
+  fixtureUrlFor,
   withFixtureSite,
   type ChainProviderConfig,
   type ChainProviderKind,
