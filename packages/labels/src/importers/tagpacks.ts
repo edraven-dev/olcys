@@ -117,7 +117,7 @@ export function parseTagPack(
     const categoryKey = text(tag['category']) ?? text(doc['category']) ?? '';
     const category: EntityCategory =
       actorId && P2P_ACTORS.has(actorId) ? 'p2p_exchange' : (CATEGORY[categoryKey] ?? 'unknown_service');
-    const entity = actor?.label ?? text(tag['label']) ?? actorId;
+    const entity = actor?.label ?? text(tag['label']) ?? text(doc['label']) ?? actorId;
     if (!entity) {
       warnings.push(`tagpack ${title}: tags[${i}] has no label or actor, skipped`);
       continue;
@@ -129,6 +129,7 @@ export function parseTagPack(
       unknownConfidence.add(confidenceId || '(none)');
     }
     const lastmod = text(tag['lastmod']) ?? text(doc['lastmod']);
+    const source = text(tag['source']) ?? text(doc['source']);
     rows.push(
       makeLabel(ctx, {
         chain,
@@ -141,7 +142,7 @@ export function parseTagPack(
           ...(actor?.endActivity ? { activeTo: actor.endActivity } : {}),
         },
         ...(lastmod ? { lastmod: toDateTime(lastmod) } : {}),
-        ...(text(tag['source']) ? { url: text(tag['source']) as string } : {}),
+        ...(source ? { url: source } : {}),
       }),
     );
   }

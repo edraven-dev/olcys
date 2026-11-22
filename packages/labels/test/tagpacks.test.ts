@@ -40,4 +40,13 @@ describe('GraphSense TagPacks', () => {
     expect(rows[0]?.confidence).toBe(10);
     expect(warnings.join()).toContain('mystery');
   });
+
+  it('falls back to the header label and source', () => {
+    const yaml = `title: t\ncurrency: BTC\ncategory: exchange\nconfidence: ownership\nlabel: Header Label (SYNTHETIC)\nsource: https://header.example/pack\ntags:\n  - {address: bc1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq}\n`;
+    const { rows } = parseTagPack(yaml, ctx, { actors: new Map(), confidence });
+    expect(rows[0]).toMatchObject({ entity: 'Header Label (SYNTHETIC)' });
+    expect(rows[0]?.provenance.url).toBe('https://header.example/pack');
+    const noSource = parseTagPack(yaml.replace(/source: .*\n/, ''), ctx, { actors: new Map(), confidence });
+    expect(noSource.rows[0]?.provenance.url).toBe(ctx.url);
+  });
 });
