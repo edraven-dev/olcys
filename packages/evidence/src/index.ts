@@ -24,6 +24,17 @@ export { OutputDirectoryNotEmptyError, READ_ME_FILE, writeCollectionPackage } fr
 export { readDefaultRouteInterface, resolveCollectorIdentity, type CollectorIdentity } from './collector-identity.ts';
 export { custodyCollected } from './custody.ts';
 export { readManifest, verifyCapture, type CaptureVerification } from './verify-capture.ts';
+export {
+  buildPropertyTimelines,
+  latestExtractions,
+  normalisePageUrl,
+  PAGE_ADDRESS_PROPERTY,
+  snapshotTimestampToIso,
+  type ArchiveSnapshotEntry,
+  type TimelineFilter,
+  type TimelineInput,
+  type TimelineOptions,
+} from './timeline.ts';
 export { loadTrustAnchors, parseCertificates, pemToDer } from './tsa-anchors.ts';
 export {
   createRfc3161Client,

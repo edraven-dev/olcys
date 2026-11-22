@@ -490,6 +490,7 @@ export function createBitcointalkCollector(): CollectorFactory {
             handle,
             platformUserId: uid,
             profileUrl: bitcointalkUrl('profile', { uid }),
+            profileCaptureId: capture.id,
             ...(profile.name ? { displayName: profile.name } : {}),
             discoveredVia: { sourceId: descriptor.id, method: target.method, captureId: target.foundIn ?? capture.id },
           });

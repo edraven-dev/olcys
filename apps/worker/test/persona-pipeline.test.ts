@@ -7,7 +7,7 @@ import { readFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import type { Logger } from '@olcys/core';
 import { createMemoryRepositories } from '@olcys/db';
-import { InMemoryBlobStore, verifyCapture } from '@olcys/evidence';
+import { buildPropertyTimelines, InMemoryBlobStore, latestExtractions, verifyCapture } from '@olcys/evidence';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createFixtureServer, type FixtureServer } from '../../fixture-site/src/fixture-server.ts';
 import { buildWaybackHistory } from '@olcys/collectors';
@@ -375,6 +375,65 @@ describe('demo scenario on the synthetic persona', () => {
         before: manifest.addresses['BTC-1']?.address,
         after: manifest.addresses['BTC-2']?.address,
       });
+
+      // Page timeline (wallets only) of the persona's forum profile: the live profile is fetched by nickname, but its
+      // account is the canonical member page the archive lists, so archived copies and runs form one timeline: 2024
+      // without a wallet, 2025 with BTC-1, run 1 with BTC-1, run 2 with the swapped wallet.
+      const runIds = [first.id, second.id];
+      const load = async <T>(read: (runId: string) => Promise<T[]>): Promise<T[]> =>
+        (await Promise.all(runIds.map(read))).flat();
+      const timelineCaptures = await load((id) => runtime.repos.evidence.listCaptures(id));
+      const timelineObservations = await load((id) => runtime.repos.evidence.listObservations(id));
+      const timelines = buildPropertyTimelines(
+        {
+          captures: timelineCaptures,
+          extractions: latestExtractions(
+            await Promise.all(runIds.map((id) => runtime.repos.evidence.listExtractionResults(id))),
+          ),
+          archive: buildWaybackHistory(timelineCaptures, timelineObservations),
+          observations: timelineObservations,
+          accounts: await load((id) => runtime.repos.evidence.listAccounts(id)),
+        },
+        { walletOnly: true },
+      );
+      // The account records the capture that read its profile (not the page that linked to it).
+      const bitcointalkAccounts = (await runtime.repos.evidence.listAccounts(first.id)).filter(
+        (acct) => acct.platform === 'bitcointalk' && acct.platformUserId === '900001',
+      );
+      expect(bitcointalkAccounts.length).toBeGreaterThan(0);
+      for (const acct of bitcointalkAccounts) {
+        const read = timelineCaptures.find((c) => c.id === acct.profileCaptureId);
+        expect(read?.technical?.logicalUrl ?? read?.url).toMatch(/action=profile;(u|user)=/);
+      }
+      const profile = timelines.find((t) => t.key.property === 'page.address');
+      expect(profile?.key.locator).toBe('web:https://bitcointalk.org/index.php?action=profile;u=900001#page.address');
+      expect(profile?.points.map((p) => [p.provenance, p.archive?.snapshotTimestamp, p.values?.length])).toEqual([
+        ['archive', '20240312101500', 0],
+        ['archive', '20250102030405', 1],
+        ['live', undefined, 1],
+        ['live', undefined, 1],
+      ]);
+      expect(profile?.points.filter((p) => p.provenance === 'live').map((p) => p.runId)).toEqual([first.id, second.id]);
+      expect(profile?.changes).toHaveLength(2);
+      expect(profile?.changes.every((c) => c.wallet)).toBe(true);
+      expect(profile?.changes[0]).toMatchObject({
+        before: [],
+        lastSeenBefore: { provenance: 'archive', observedAt: '2024-03-12T10:15:00.000Z' },
+        firstSeenAfter: { provenance: 'archive', observedAt: '2025-01-02T03:04:05.000Z' },
+      });
+      expect(profile?.changes[1]).toMatchObject({
+        lastSeenBefore: { provenance: 'live', runId: first.id },
+        firstSeenAfter: { provenance: 'live', runId: second.id },
+      });
+      // The live property timeline of the profile's Bitcoin address stays separate.
+      const field = timelines.find((t) => t.key.property === 'profile.bitcoin_address');
+      expect(field?.points.every((p) => p.provenance === 'live')).toBe(true);
+      expect(field?.changes).toEqual([
+        expect.objectContaining({
+          before: [manifest.addresses['BTC-1']?.address],
+          after: [manifest.addresses['BTC-2']?.address],
+        }),
+      ]);
 
       // A rescore of the first run re-scores its saved evidence: no fetching, the v1 data, no data changes.
       const rescore = await runtime.startRun(kase.id, { trigger: 'rescore', rescoreOfRunId: first.id });
