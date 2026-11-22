@@ -1,0 +1,24 @@
+{
+  "_synthetic": "SYNTHETIC TEST DATA (OŁCyŚ fixture)",
+  "result": {
+    "subject": {
+      "name": "Kacper Fikcyjny Usługi Testowe",
+      "nip": "0001234562",
+      "statusVat": "Czynny",
+      "regon": "001234562",
+      "pesel": null,
+      "krs": null,
+      "residenceAddress": null,
+      "workingAddress": "Fikcyjna 1/2, 00-000 Testowo",
+      "representatives": [],
+      "authorizedClerks": [],
+      "partners": [],
+      "registrationLegalDate": "2024-02-01",
+      "removalDate": null,
+      "accountNumbers": ["25000000000000000000010001", "95000000000000000000010002"],
+      "hasVirtualAccounts": false
+    },
+    "requestId": "olcys-test0001",
+    "requestDateTime": "22-11-2026 10:00:00"
+  }
+}

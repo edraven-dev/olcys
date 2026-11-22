@@ -21,19 +21,20 @@ Serwer (`src/`) używa wyłącznie wbudowanych modułów Node, bo kontener nie m
 
 ## Zawartość
 
-| Ścieżka                                                                     | Zawartość                                                                                                                           |
-| --------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `/bitcointalk/index.php?action=profile;u=900001`                            | profil forum persony (pole „Bitcoin address”)                                                                                       |
-| `/bitcointalk/index.php?topic=5500001.0`                                    | podpisana wiadomość BIP-137 dla BTC-1 i potwierdzenie innego użytkownika                                                            |
-| `/bitcointalk/index.php?topic=5500002.0`                                    | wpłata na giełdę (ETH-1; hash transakcji jako wabik D1), lista portfeli giełd (D4), adres z dokumentacji (D2), adres kontraktu (D5) |
-| `/wykop/ludzie/fikcyjny_kacper/`                                            | wpis z portfelem USDT TRC20 (TRON-1) i odnośnik do profilu forum                                                                    |
-| `/tablica/ogloszenie/81000001/`                                             | ogłoszenie P2P: sprzedaż USDT za PLN (TRON-1, imię i nazwisko, e-mail)                                                              |
-| `/github/fikcyjny-kacper/…`                                                 | konto z tym samym nickiem, niepowiązane z personą; `FUNDING.json` z ETH-2                                                           |
-| `/telegram/s/olcys_test_ostrzezenia/`                                       | kanał z ostrzeżeniami: adres oszusta TRON-2 (atrybucja przez stronę trzecią) i adres z homoglifem (D3)                              |
-| `/barriers/…`                                                               | CAPTCHA, logowanie, 403, 429, wyzwanie przeglądarki, przekierowania                                                                 |
-| `/robots.txt`, `/private/`                                                  | test zgodności z robots.txt (kanarek BTC-CANARY)                                                                                    |
-| `/sitemap.xml`                                                              | mapa witryny dla wyszukiwarki testowej: strony persony z manifestu bez `/private/` i `/barriers/` (osobno `v1`, `v2`)               |
-| `/chain/esplora/api/…`, `/chain/etherscan/v2/api?…`, `/chain/trongrid/v1/…` | syntetyczne historie transakcji, w tym depozyt giełdowy, przelewy P2P i kod kontraktu                                               |
+| Ścieżka                                                                              | Zawartość                                                                                                                                                                   |
+| ------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/bitcointalk/index.php?action=profile;u=900001`                                     | profil forum persony (pole „Bitcoin address”)                                                                                                                               |
+| `/bitcointalk/index.php?topic=5500001.0`                                             | podpisana wiadomość BIP-137 dla BTC-1 i potwierdzenie innego użytkownika                                                                                                    |
+| `/bitcointalk/index.php?topic=5500002.0`                                             | wpłata na giełdę (ETH-1; hash transakcji jako wabik D1), lista portfeli giełd (D4), adres z dokumentacji (D2), adres kontraktu (D5)                                         |
+| `/wykop/ludzie/fikcyjny_kacper/`                                                     | wpis z portfelem USDT TRC20 (TRON-1) i odnośnik do profilu forum                                                                                                            |
+| `/tablica/ogloszenie/81000001/`                                                      | ogłoszenie P2P: sprzedaż USDT za PLN (TRON-1, imię i nazwisko, e-mail)                                                                                                      |
+| `/github/fikcyjny-kacper/…`                                                          | konto z tym samym nickiem, niepowiązane z personą; `FUNDING.json` z ETH-2                                                                                                   |
+| `/telegram/s/olcys_test_ostrzezenia/`                                                | kanał z ostrzeżeniami: adres oszusta TRON-2 (atrybucja przez stronę trzecią) i adres z homoglifem (D3)                                                                      |
+| `/barriers/…`                                                                        | CAPTCHA, logowanie, 403, 429, wyzwanie przeglądarki, przekierowania                                                                                                         |
+| `/robots.txt`, `/private/`                                                           | test zgodności z robots.txt (kanarek BTC-CANARY)                                                                                                                            |
+| `/sitemap.xml`                                                                       | mapa witryny dla wyszukiwarki testowej: strony persony z manifestu bez `/private/` i `/barriers/` (osobno `v1`, `v2`)                                                       |
+| `/registries/ceidg/v3/…`, `/registries/vat-whitelist/api/…`, `/registries/krs/api/…` | syntetyczne odpowiedzi rejestrów (CEIDG v3, wykaz podatników VAT, KRS) w formatach dokumentacji: firma persony z NIP `0001234562`, dwa rachunki NRB, brak wpisu w KRS (404) |
+| `/chain/esplora/api/…`, `/chain/etherscan/v2/api?…`, `/chain/trongrid/v1/…`          | syntetyczne historie transakcji, w tym depozyt giełdowy, przelewy P2P i kod kontraktu                                                                                       |
 
 Pełny opis — adresy, wabiki, oczekiwane wyniki analizy i skróty plików — zawiera `fixtures/persona/manifest.json`.
 
