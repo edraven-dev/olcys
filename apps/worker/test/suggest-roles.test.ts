@@ -126,15 +126,16 @@ async function setup(counts: { wykop: number; telegram: number }) {
     ...Array.from({ length: counts.telegram }, (_, i) => candidate(telegram.id, 100 + i)),
     ...Array.from({ length: counts.wykop }, (_, i) => candidate(wykop.id, i)),
   ];
-  for (const c of candidates) {
-    await repos.evidence.addExtraction(run.id, {
+  await repos.evidence.addExtractions!(
+    run.id,
+    candidates.map((c) => ({
       captureId: c.captureId,
       candidates: [c],
       rejected: [],
       secrets: [],
       extractorVersion: 'test',
-    });
-  }
+    })),
+  );
   const deps = (stage: PipelineDeps['stages'][number]): PipelineDeps => ({
     repos,
     blobs: new InMemoryBlobStore(),
@@ -143,6 +144,9 @@ async function setup(counts: { wykop: number; telegram: number }) {
   });
   return { repos, run, wykop, telegram, deps };
 }
+
+const steps = (llm?: LlmClient) =>
+  defaultStages({ mode: 'offline', sources: SOURCES, env: {}, ...(llm ? { llm } : {}) }).map((s) => s.step);
 
 describe('llm.suggest step', () => {
   it('stores pending suggestions with zero score weight and never sends Telegram captures', async () => {
@@ -204,8 +208,6 @@ describe('llm.suggest step', () => {
   });
 
   it('is part of the default pipeline only when the model is enabled', () => {
-    const steps = (llm?: LlmClient) =>
-      defaultStages({ mode: 'offline', sources: SOURCES, env: {}, ...(llm ? { llm } : {}) }).map((s) => s.step);
     expect(steps()).not.toContain('llm.suggest');
     expect(steps(fakeModel('ok', false).client)).not.toContain('llm.suggest');
     expect(steps(fakeModel().client)).toContain('llm.suggest');

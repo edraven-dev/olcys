@@ -118,12 +118,10 @@ describe('classifyAddressMention', () => {
       },
       source: { id: 'wayback_cdx', llmAllowed: true },
     });
-    for (const i of [telegram, wrongRegister, wayback]) {
-      expect(await classifyAddressMention(i, { llm: client })).toEqual({
-        status: 'skipped',
-        reason: 'llm_not_allowed',
-      });
-    }
+    const outcomes = await Promise.all(
+      [telegram, wrongRegister, wayback].map((i) => classifyAddressMention(i, { llm: client })),
+    );
+    for (const outcome of outcomes) expect(outcome).toEqual({ status: 'skipped', reason: 'llm_not_allowed' });
     expect(requests).toHaveLength(0);
     expect(isLlmAllowed(input().capture, undefined)).toBe(false);
     expect(isLlmAllowed(input().capture, input().source)).toBe(true);
