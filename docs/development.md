@@ -125,9 +125,7 @@ Kroki i sprawdzenia:
    źródłowe”, „B. Wyniki obliczeń”, „C. Wnioski wymagające weryfikacji” w tej kolejności oraz listę pobrań ze skrótami
    SHA-256. Strona „Ustawienia” (`/ustawienia`) jest tylko do odczytu.
 
-Zrzuty (`--screenshots`) obejmują `01-sprawy` … `10-ustawienia`, w tym `08-zmiany-os-czasu`. Znany problem aplikacji,
-tolerowany w teście do czasu poprawki: widok grafu ustawia style inline, które ścisłe CSP buildu produkcyjnego blokuje
-(komunikat w konsoli tylko na `/graf`); każdy inny błąd konsoli nadal kończy test porażką.
+Zrzuty (`--screenshots`) obejmują `01-sprawy` … `10-ustawienia`, w tym `08-zmiany-os-czasu`.
 
 Przez cały test przeglądarka **nie może** połączyć się z hostem innym niż `127.0.0.1`/`localhost`/`[::1]`: każde takie
 żądanie jest przerywane i zapisywane, a test kończy się porażką (podobnie przy błędach strony i konsoli).

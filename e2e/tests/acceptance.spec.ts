@@ -29,9 +29,7 @@ test.beforeAll(async () => {
 
 test.beforeEach(async ({ context }) => {
   // One guard per test context; Playwright gives every test of the serial block a fresh context.
-  // Known issue, tolerated until fixed in the app: the graph view (Cytoscape) sets inline styles, which the strict
-  // style-src of the production build blocks. Any other console error still fails the test.
-  guard = await guardNetwork(context, [/inline style violates.*@ .*\/graf$/s]);
+  guard = await guardNetwork(context);
   await prepareContext(context);
 });
 
