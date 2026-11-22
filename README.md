@@ -151,10 +151,11 @@ potrzebny. [`compose.app.yml`](compose.app.yml) uruchamia całą aplikację: Pos
 worker i konsolę. Przy starcie wykonuje migracje bazy. Pierwsze uruchomienie buduje obraz aplikacji (kilka minut).
 
 ```bash
-cp .env.example .env                                   # wartości domyślne, bez edycji
 docker compose -f compose.app.yml up -d --build --wait  # cała aplikacja; polecenie kończy się, gdy wszystko działa
 docker compose -f compose.app.yml exec app pnpm demo    # opcjonalnie: cały scenariusz demo z podsumowaniem po polsku
 ```
+
+Plik `.env` nie jest potrzebny: aplikacja czyta wartości z `.env.example`, a `.env` (jeśli istnieje) je nadpisuje.
 
 **Konsola (GUI): <http://127.0.0.1:5173>** — jedyny port udostępniony na hoście (tylko 127.0.0.1). API, baza,
 Gotenberg i strona testowa działają we wspólnej sieci kontenerów i nie są dostępne z zewnątrz; konsola przekazuje
