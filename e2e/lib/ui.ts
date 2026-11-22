@@ -42,6 +42,8 @@ export async function createCaseThroughForm(
 
   // Scope: exactly the manifest's sources (everything else stays off), AMBER ones with a justification.
   const wanted = new Set(demoCase.scope.enabledSources);
+  // The optional local model (video `--llm`) is a GREEN source the case has to include.
+  if (process.env['E2E_LLM'] === '1') wanted.add('local_llm');
   const states = await form.evaluate((f: DomNode) =>
     [...f.querySelectorAll('input[type="checkbox"][id*="-src-"]:not([id$="-why"])')].map(
       (e) => [e.id, e.checked, e.disabled] as [string, boolean, boolean],

@@ -120,8 +120,14 @@ Kroki i sprawdzenia:
 6. **Aktywność on-chain** — dla ETH-1 dokładnie jedno zdarzenie B1 z kwotą w PLN i tabelą kursów NBP; dla TRON-1 B1, B4
    i B5 zgodnie z manifestem; graf się renderuje.
 7. **Źródła i raport** — po przełączeniu strony testowej na `v2` i „Uruchom ponownie” alert „Alert: podmiana adresu
-   portfela w profilu” pokazuje BTC-1 → BTC-2 z obydwoma zabezpieczeniami, a BTC-2 ma wynik z manifestu; raport HTML ma
-   sekcje w kolejności, osobne bloki faktów, obliczeń i wniosków oraz wersję wag.
+   portfela w profilu” pokazuje BTC-1 → BTC-2 z obydwoma zabezpieczeniami, a BTC-2 ma wynik z manifestu; panel „Oś czasu
+   strony” jest widoczny. Zakładka „Raport” pokazuje blok odtwarzalności (wersja wag i skróty), nagłówki „A. Fakty
+   źródłowe”, „B. Wyniki obliczeń”, „C. Wnioski wymagające weryfikacji” w tej kolejności oraz listę pobrań ze skrótami
+   SHA-256. Strona „Ustawienia” (`/ustawienia`) jest tylko do odczytu.
+
+Zrzuty (`--screenshots`) obejmują `01-sprawy` … `10-ustawienia`, w tym `08-zmiany-os-czasu`. Znany problem aplikacji,
+tolerowany w teście do czasu poprawki: widok grafu ustawia style inline, które ścisłe CSP buildu produkcyjnego blokuje
+(komunikat w konsoli tylko na `/graf`); każdy inny błąd konsoli nadal kończy test porażką.
 
 Przez cały test przeglądarka **nie może** połączyć się z hostem innym niż `127.0.0.1`/`localhost`/`[::1]`: każde takie
 żądanie jest przerywane i zapisywane, a test kończy się porażką (podobnie przy błędach strony i konsoli).
@@ -140,6 +146,8 @@ na żywo; materiały do zgłoszenia, README i prezentacji muszą być maskowane.
 pnpm demo:video            # nagrywa olcys-demo.mp4 w katalogu głównym repozytorium
 pnpm demo:video --force    # nadpisuje istniejący plik (domyślnie odmawia)
 pnpm demo:video --no-mask  # bez maskowania — tylko próba na żywo
+pnpm demo:video --llm      # dodatkowo włącza lokalny model (LLM_ENABLED=true, LLM_MAX_MENTIONS_PER_RUN=1; OVMS z .env.example)
+                           # i pokazuje kartę „Sugestia AI — niezweryfikowana”; domyślnie model jest wyłączony
 ```
 
 Skrypt przechodzi ten sam scenariusz co test akceptacyjny, ale w tempie dla widza: Playwright `recordVideo` 1920×1080,

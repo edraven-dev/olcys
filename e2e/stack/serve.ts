@@ -25,7 +25,19 @@ const fixture = await createFixtureServer({
   allowVariantSwitch: true,
 });
 const runtime = await createRuntime({
-  env: { OLCYS_MODE: 'offline' },
+  env: {
+    OLCYS_MODE: 'offline',
+    // Optional: the local model (OVMS from .env.example) suggests roles; it never decides.
+    ...(process.env['E2E_LLM'] === '1'
+      ? {
+          LLM_ENABLED: 'true',
+          LLM_MAX_MENTIONS_PER_RUN: '1',
+          LLM_BASE_URL: process.env['LLM_BASE_URL'] ?? 'http://localhost:2140/v3',
+          LLM_MODEL: process.env['LLM_MODEL'] ?? 'qwen3.6-35b-ov',
+          LLM_CHAT_TEMPLATE_KWARGS: '{"enable_thinking":false}',
+        }
+      : {}),
+  },
   repos: createMemoryRepositories(),
   blobs: new InMemoryBlobStore(),
   logger: silent,
@@ -33,7 +45,12 @@ const runtime = await createRuntime({
     defaultStages({
       mode: rt.mode,
       sources: rt.sources,
-      env: { OLCYS_FIXTURE_BASE_URL: fixture.url, FIXTURE_SITE_URL: fixture.url },
+      llm: rt.llm,
+      env: {
+        OLCYS_FIXTURE_BASE_URL: fixture.url,
+        FIXTURE_SITE_URL: fixture.url,
+        ...(process.env['E2E_LLM'] === '1' ? { LLM_MAX_MENTIONS_PER_RUN: '1' } : {}),
+      },
     }),
 });
 const app = buildApp({ ...runtime, renderReport: reportRenderer(runtime), guard: { webPort } });

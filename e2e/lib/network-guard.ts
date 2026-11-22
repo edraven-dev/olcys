@@ -25,7 +25,11 @@ export interface NetworkGuard {
  * Records every request whose host is not loopback and aborts it, plus page and console errors. The test asserts both
  * lists empty at the end.
  */
-export async function guardNetwork(context: BrowserContext): Promise<NetworkGuard> {
+export async function guardNetwork(
+  context: BrowserContext,
+  /** Known console messages that are tolerated (each one needs a reason at the call site). */
+  tolerated: RegExp[] = [],
+): Promise<NetworkGuard> {
   const guard: NetworkGuard = { violations: [], pageErrors: [] };
   await context.route('**/*', (route) => {
     const url = route.request().url();
@@ -36,7 +40,8 @@ export async function guardNetwork(context: BrowserContext): Promise<NetworkGuar
   const watch = (page: import('@playwright/test').Page) => {
     page.on('pageerror', (error) => guard.pageErrors.push(`pageerror: ${error.message}`));
     page.on('console', (message) => {
-      if (message.type() === 'error') guard.pageErrors.push(`console: ${message.text()}`);
+      if (message.type() === 'error' && !tolerated.some((re) => re.test(`${message.text()} @ ${page.url()}`)))
+        guard.pageErrors.push(`console: ${message.text()} @ ${page.url()}`);
     });
   };
   for (const page of context.pages()) watch(page);

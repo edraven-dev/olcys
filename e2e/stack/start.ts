@@ -9,13 +9,13 @@ import { E2E_ROOT, REPO_ROOT, type StackState } from '../state.ts';
 import { freePort } from './ports.ts';
 
 const children: ChildProcess[] = [];
-const quietEnv = {
+const quietEnv = (): NodeJS.ProcessEnv => ({
   ...process.env,
   OLCYS_TELEMETRY: 'off',
   DO_NOT_TRACK: '1',
   NEXT_TELEMETRY_DISABLED: '1',
   PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1',
-};
+});
 
 function run(command: string, args: string[], cwd: string, env: NodeJS.ProcessEnv): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -70,7 +70,7 @@ async function start(): Promise<{ state: StackState; stop: () => Promise<void> }
   const webPort = await freePort();
   const web = `${REPO_ROOT}/apps/web`;
   const viteBin = `${REPO_ROOT}/node_modules/.bin/vite`;
-  const env = { ...quietEnv, WEB_PORT: String(webPort) };
+  const env = { ...quietEnv(), WEB_PORT: String(webPort) };
 
   // Spawn the stack first, so the build overlaps with its start.
   const stack = spawn(process.execPath, [`${E2E_ROOT}/stack/serve.ts`], {

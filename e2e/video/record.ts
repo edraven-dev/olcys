@@ -35,6 +35,9 @@ const force = process.argv.includes('--force');
 /** Published material is masked; `--no-mask` is for live rehearsal only. */
 const mask = !process.argv.includes('--no-mask');
 const maskSource = await loadMaskSource();
+/** `--llm`: the local model (OVMS, see .env.example) suggests roles for one mention; default off. */
+const llm = process.argv.includes('--llm');
+if (llm) process.env['E2E_LLM'] = '1';
 if (existsSync(OUTPUT) && !force) {
   console.error(`olcys-demo.mp4 już istnieje — nie nadpisuję. Użyj --force, aby nagrać od nowa.`);
   process.exit(2);
@@ -144,7 +147,23 @@ async function record(): Promise<number> {
   await step('detection', c.detection, async () => {
     await openTab(page, pl.tabs.links);
     const card = linkCard(page, btc1.address);
-    await show(card.locator('.link-head'), 5);
+    await show(card.locator('.link-head'), 4);
+    if (llm) {
+      // The suggestion hangs on the evidence of the card that cites the classified mention: open the explanations.
+      const badge = page.getByText(pl.suggestion.badge).first();
+      let shown = false;
+      for (const address of [btc1.address, ...expected.v1.links.slice(1).map((l) => l.address)]) {
+        const summary = linkCard(page, address).locator('details.explain > summary');
+        await summary.click();
+        if (await badge.isVisible()) {
+          await show(badge, 4);
+          shown = true;
+          break;
+        }
+        await summary.click();
+      }
+      if (!shown) console.warn('Brak karty „Sugestia AI” — film nagrany bez niej.');
+    }
   });
 
   await step('score', { ...c.score, detail: fmt(c.score.detail, { scores }) }, async () => {
@@ -202,29 +221,22 @@ async function record(): Promise<number> {
       const change = expected.v2.changes[0]!;
       await show(page.getByRole('heading', { name: pl.changes.alertTitle }), 3);
       await show(page.getByText(change.to.address).first(), 4);
+      await show(page.getByRole('heading', { name: pl.pageTimeline.title }), 3.5);
       await openTab(page, pl.tabs.links);
       await show(linkCard(page, expected.v2.links[1]!.address).locator('.link-head'), 3);
     },
   );
 
-  let run2 = '';
   await step('report', c.report, async () => {
-    run2 = new URL(page.url()).pathname.split('/')[4]!;
     await openTab(page, pl.tabs.sources);
     await show(page.locator('section[aria-labelledby="egress-title"]'), 2);
     await openTab(page, pl.tabs.report);
-    await show(page.getByRole('link', { name: pl.report.open }), 2);
-    await page.goto(`/api/runs/${run2}/report`);
-    await pause(1);
-    for (const heading of [
-      'Adresy powiązane',
-      'Odrzucone przypisania',
-      'Aktywność on-chain',
-      'Zmiany od poprzedniego',
-      'Rejestr materiału',
-    ]) {
-      await show(page.locator('h2', { hasText: heading }), 2.5);
+    const main = page.locator('main');
+    await show(main.locator('section[aria-labelledby="report-repro"]'), 2.5);
+    for (const name of [pl.report.sections.facts, pl.report.sections.computed, pl.report.sections.inferences]) {
+      await show(main.getByRole('heading', { name }), 2);
     }
+    await show(main.locator('section[aria-labelledby="report-downloads"]'), 3);
   });
 
   await caption({ title: '', detail: '', fast: '' });
