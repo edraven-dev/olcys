@@ -3,6 +3,7 @@ import type { ChainProviderConfig, ProviderDeps } from './config.ts';
 import { createEsploraProvider } from './esplora.ts';
 import { createEtherscanProvider } from './etherscan.ts';
 import { createOtterscanProvider } from './otterscan.ts';
+import { createSolanaRpcProvider } from './solana.ts';
 import { createTronGridProvider } from './trongrid.ts';
 
 export function createChainProvider(config: ChainProviderConfig, deps: ProviderDeps = {}): ChainProvider {
@@ -15,6 +16,8 @@ export function createChainProvider(config: ChainProviderConfig, deps: ProviderD
       return createOtterscanProvider(config, deps);
     case 'trongrid':
       return createTronGridProvider(config, deps);
+    case 'solana_rpc':
+      return createSolanaRpcProvider(config, deps);
   }
 }
 

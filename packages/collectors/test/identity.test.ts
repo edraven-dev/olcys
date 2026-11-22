@@ -746,7 +746,7 @@ describe('ENS over JSON-RPC (fixture node)', () => {
   });
 });
 
-describe('planner rules pivot.v3 and the persona run', () => {
+describe('planner rules pivot.v4 and the persona run', () => {
   const all = ['keybase', 'bitlist', 'ens'];
 
   it('plans nick → BitList and Keybase, EVM address → ENS, .eth name → ENS', async () => {
@@ -765,7 +765,7 @@ describe('planner rules pivot.v3 and the persona run', () => {
       ctx,
     );
     expect(plan.rulesVersion).toBe(PIVOT_RULES_VERSION);
-    expect(PIVOT_RULES_VERSION).toBe('pivot.v3');
+    expect(PIVOT_RULES_VERSION).toBe('pivot.v4');
     const rules = plan.tasks.map((t) => `${t.sourceId}:${t.provenance.rule}`).toSorted();
     expect(rules).toContain('keybase:I2');
     expect(rules).toContain('bitlist:I2');

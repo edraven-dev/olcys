@@ -171,6 +171,8 @@ export interface TransferPage {
   truncated?: boolean;
   /** Rows the adapter could not represent (e.g. a token with more decimals than supported), skipped one by one. */
   skipped?: { txHash: string; reason: 'unsupported_decimals' | 'invalid_amount' }[];
+  /** Coded limits of this listing the analyst must know (e.g. `token_accounts_not_scanned`); not errors. */
+  notes?: string[];
 }
 
 /** Result of a read-only contract call (`eth_call` at `latest`). A revert is an answer, not an error. */

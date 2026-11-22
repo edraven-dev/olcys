@@ -75,7 +75,7 @@ Wszystkie zależności bezpośrednie wszystkich pakietów monorepo (34 pakietów
 
 | Komponent | Wersja | Licencja (SPDX) | Zastosowanie | Gdzie |
 | --- | --- | --- | --- | --- |
-| @noble/curves | 2.4.0 | MIT | podpisy secp256k1 i weryfikacja BIP-137; generator danych syntetycznych | apps/fixture-site (dev), packages/scoring |
+| @noble/curves | 2.4.0 | MIT | podpisy secp256k1 i weryfikacja BIP-137; generator danych syntetycznych | apps/fixture-site (dev), packages/collectors, packages/scoring |
 | @noble/hashes | 2.4.0 | MIT | SHA-256, RIPEMD-160 i Keccak-256 (sumy kontrolne adresów, BIP-137, skrót wag); generator danych | apps/fixture-site (dev), packages/address-extractor, packages/collectors, packages/labels (dev), packages/scoring |
 | @playwright/test | 1.65.1 | Apache-2.0 | testy akceptacyjne E2E i nagranie filmu demonstracyjnego (lokalny Chromium, bez pobierania przeglądarek) | root (dev) |
 | @safe-global/safe-deployments | 1.37.67 | MIT | adresy singletonów Safe (klasyfikacja typu adresu) | packages/labels |

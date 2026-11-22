@@ -1,0 +1,82 @@
+{
+  "_synthetic": "SYNTHETIC TEST DATA (OŁCyŚ fixture)",
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "slot": 380000000,
+    "blockTime": 1792497600,
+    "transaction": {
+      "signatures": [
+        "Fn6KNSKRCPZusMc7EZoGYD89xhLtoDPPcPTzArKrA5mr"
+      ],
+      "message": {
+        "accountKeys": [
+          {
+            "pubkey": "BJ6nPgVmKjkcCeCsT9pgPAWVHmvVtLRzy5y741S2aXkY",
+            "signer": false,
+            "writable": true
+          },
+          {
+            "pubkey": "FksyfD4rj1EFnEvq1o4mBQb3hLkYCrtDPXQCxpAPCVvN",
+            "signer": false,
+            "writable": true
+          },
+          {
+            "pubkey": "DgRSsjAQY64jCTMWUz6d7x2YzJm1GSxfwxWdSnLy78Tn",
+            "signer": false,
+            "writable": true
+          },
+          {
+            "pubkey": "3LpeZH47oMhcYzvNoHFNvsBX56aUfcsWXWk1ukytbNne",
+            "signer": false,
+            "writable": true
+          }
+        ],
+        "instructions": [
+          {
+            "program": "spl-token",
+            "programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+            "parsed": {
+              "type": "transferChecked",
+              "info": {
+                "source": "DgRSsjAQY64jCTMWUz6d7x2YzJm1GSxfwxWdSnLy78Tn",
+                "destination": "3LpeZH47oMhcYzvNoHFNvsBX56aUfcsWXWk1ukytbNne",
+                "authority": "BJ6nPgVmKjkcCeCsT9pgPAWVHmvVtLRzy5y741S2aXkY",
+                "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+                "tokenAmount": {
+                  "amount": "2500000",
+                  "decimals": 6
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    "meta": {
+      "err": null,
+      "innerInstructions": [],
+      "preTokenBalances": [
+        {
+          "accountIndex": 2,
+          "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "owner": "BJ6nPgVmKjkcCeCsT9pgPAWVHmvVtLRzy5y741S2aXkY",
+          "uiTokenAmount": {
+            "amount": "9000000",
+            "decimals": 6
+          }
+        },
+        {
+          "accountIndex": 3,
+          "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "owner": "FksyfD4rj1EFnEvq1o4mBQb3hLkYCrtDPXQCxpAPCVvN",
+          "uiTokenAmount": {
+            "amount": "0",
+            "decimals": 6
+          }
+        }
+      ],
+      "postTokenBalances": []
+    }
+  }
+}

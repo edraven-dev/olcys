@@ -338,3 +338,20 @@ export {
   type ForbiddenTool,
   type ForbiddenTools,
 } from './compliance/forbidden-tools.ts';
+
+export {
+  FARCASTER_DEFAULT_HUB,
+  FARCASTER_PARSER_VERSION,
+  createFarcasterCollector,
+  type FarcasterOptions,
+} from './farcaster/collector.ts';
+export { claimDigest, decodeHubBytes, farcasterTimeToIso, verifyEthClaim, type EthClaim } from './farcaster/claim.ts';
+export {
+  parseUserData,
+  parseUserNameProof,
+  parseVerifications,
+  type ClaimCheck,
+  type FarcasterVerification,
+} from './farcaster/parse.ts';
+export { NOSTR_PARSER_VERSION, createNostrCollector, nip05Url, parseNip05Answer } from './nostr/collector.ts';
+export { npubDecode, npubEncode, parseNip05, type Nip05 } from './nostr/nip05.ts';

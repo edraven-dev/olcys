@@ -1,0 +1,11 @@
+{
+  "_synthetic": "SYNTHETIC TEST DATA (OŁCyŚ fixture)",
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "context": {
+      "slot": 380000000
+    },
+    "value": 2500000000
+  }
+}

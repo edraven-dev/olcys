@@ -49,6 +49,8 @@ export interface ChainFetchOutcome {
   items: number;
   /** Rows the provider could not represent (e.g. unsupported token decimals): skipped, the rest is kept. */
   skipped?: { txHash: string; reason: string }[];
+  /** Coded limits of the listing (see `CHAIN_NOTE_TEXT_PL`), e.g. `token_accounts_not_scanned` for Solana. */
+  notes?: string[];
   /**
    * The contract code could not be read (e.g. a backend without the node endpoint); the history was still fetched.
    * The address type is then unknown.
@@ -152,6 +154,7 @@ interface Fetched {
   pages: number;
   truncated: boolean;
   skipped: { txHash: string; reason: string }[];
+  notes: string[];
 }
 
 async function fetchFrom(
@@ -162,7 +165,7 @@ async function fetchFrom(
   tip: ChainTip | undefined,
   ctx: RunContext,
 ): Promise<Fetched> {
-  const fetched: Fetched = { transfers: [], utxoTxs: [], pages: 0, truncated: false, skipped: [] };
+  const fetched: Fetched = { transfers: [], utxoTxs: [], pages: 0, truncated: false, skipped: [], notes: [] };
   if (want.summary) fetched.summary = await provider.getAddressSummary(address, ctx);
   if (want.code && provider.getCode) {
     try {
@@ -203,6 +206,7 @@ async function fetchFrom(
       fetched.transfers.push(...result.items);
       if (result.truncated) fetched.truncated = true;
       if (result.skipped) fetched.skipped.push(...result.skipped);
+      for (const note of result.notes ?? []) if (!fetched.notes.includes(note)) fetched.notes.push(note);
       cursor = result.nextCursor;
       if (!cursor) break;
     }
@@ -323,6 +327,7 @@ export async function runChainFetch(
           pages: fetched.pages,
           items: kept,
           ...(fetched.skipped.length > 0 ? { skipped: fetched.skipped } : {}),
+          ...(fetched.notes.length > 0 ? { notes: fetched.notes } : {}),
           ...(fetched.codeError ? { codeError: fetched.codeError } : {}),
         });
         break;
@@ -356,3 +361,9 @@ function deriveSummary(
   }
   return derived;
 }
+
+/** Polish texts of the coded listing notes, for the places that render partial reasons. */
+export const CHAIN_NOTE_TEXT_PL: Readonly<Record<string, string>> = {
+  token_accounts_not_scanned:
+    'Solana: wpływy tokenów SPL na konta tokenów adresu nie zostały pobrane (skanowane są tylko podpisy samego adresu); historia tokenów jest niepełna.',
+};
