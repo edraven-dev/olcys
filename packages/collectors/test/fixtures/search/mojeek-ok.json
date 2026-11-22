@@ -1,0 +1,19 @@
+{
+  "_synthetic": "SYNTHETIC TEST DATA: hand-written in the response shape this adapter documents for Mojeek (to be checked against the provider's API reference)",
+  "response": {
+    "status": "OK",
+    "head": { "query": "\"Kacper Fikcyjny\"", "results": 2, "start": 1, "return": 2 },
+    "results": [
+      {
+        "url": "https://example.org/profil/fikcyjny_kacper",
+        "title": "Kacper Fikcyjny — profil testowy",
+        "desc": "Profil testowy: Kacper Fikcyjny (dane syntetyczne)."
+      },
+      {
+        "url": "https://example.org/forum/watek/5500002",
+        "title": "Wątek testowy",
+        "desc": "Post użytkownika fikcyjny_kacper (dane syntetyczne)."
+      }
+    ]
+  }
+}

@@ -6,6 +6,7 @@
 import type {
   Capture,
   CollectorResult,
+  FetchMode,
   Id,
   Identifier,
   Observation,
@@ -16,7 +17,7 @@ import type {
 } from '@olcys/core';
 import { nowIso } from '@olcys/core';
 import { CollectorRegistry, runCollector } from '../framework/collector-registry.ts';
-import type { CollectorConfig } from '../framework/config.ts';
+import type { CollectorConfig, Env } from '../framework/config.ts';
 import { SourceCircuitBreaker, type CollectorDeps, type RobotsPolicy } from '../framework/http.ts';
 import type { ResolvedScope, SourceRegistry } from '../framework/source-registry.ts';
 import { isBarrierStatus, rollupOutcomes, type CollectorStatus } from '../framework/status.ts';
@@ -25,6 +26,7 @@ import { createBitcointalkCollector } from '../platforms/bitcointalk.ts';
 import { createGithubCollector } from '../platforms/code-hosting.ts';
 import { createWykopCollector } from '../platforms/social-profile.ts';
 import { createTelegramCollector } from '../platforms/telegram.ts';
+import { searchCollectorFactories } from '../search/mode.ts';
 import {
   accountAliasKeys,
   DEFAULT_MAX_TASKS,
@@ -36,14 +38,21 @@ import {
   type SkippedTask,
 } from './planner.ts';
 
-/** Forum, social profile, code hosting, channel previews and P2P ads (fixture), in planning order. */
-export function createDefaultCollectorRegistry(): CollectorRegistry {
-  return new CollectorRegistry()
+/**
+ * Forum, social profile, code hosting, channel previews and P2P ads (fixture), in planning order, then the web search
+ * collectors of `OLCYS_SEARCH_MODE` (default: the mock search over the fixture site).
+ */
+export function createDefaultCollectorRegistry(options: { mode?: FetchMode; env?: Env } = {}): CollectorRegistry {
+  const registry = new CollectorRegistry()
     .register(createBitcointalkCollector())
     .register(createWykopCollector())
     .register(createGithubCollector())
     .register(createTelegramCollector())
     .register(createClassifiedAdsCollector());
+  for (const factory of searchCollectorFactories({ mode: options.mode ?? 'offline', env: options.env ?? {} })) {
+    registry.register(factory);
+  }
+  return registry;
 }
 
 export interface CollectCaseOptions {
@@ -98,7 +107,7 @@ export interface CollectCaseResult {
 export async function collectCase(options: CollectCaseOptions): Promise<CollectCaseResult> {
   const { ctx, scope } = options;
   if (ctx.mode !== scope.mode) throw new Error(`run mode ${ctx.mode} differs from the scope mode ${scope.mode}`);
-  const registry = options.collectors ?? createDefaultCollectorRegistry();
+  const registry = options.collectors ?? createDefaultCollectorRegistry({ mode: ctx.mode });
   const deps: CollectorDeps = {
     mode: ctx.mode,
     config: options.config,
@@ -116,6 +125,7 @@ export async function collectCase(options: CollectCaseOptions): Promise<CollectC
     counter: { planned: 0 },
     watchList: options.config.watchList,
     fixture: options.config.fixture,
+    identifiers: options.identifiers.filter((i) => i.value.trim()),
   };
   for (const justification of Object.entries(scope.amberJustifications)) {
     ctx.logger.info('AMBER source enabled for the case', {
