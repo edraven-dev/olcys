@@ -4,8 +4,12 @@
  */
 import { createHash } from 'node:crypto';
 import type {
+  AnalysisRun,
   ApiMeta,
   BlobStore,
+  LegacyReportView,
+  ReportFile,
+  ReportView,
   FetchMode,
   LlmClient,
   Logger,
@@ -25,15 +29,29 @@ import {
   StartRunSchema,
   TimelineQuerySchema,
 } from '@olcys/core';
+import {
+  buildReportModel,
+  EXPORT_FILE_EXTENSIONS,
+  EXPORT_KINDS,
+  EXPORT_MEDIA_TYPES,
+  findExportSet,
+  findPublishedReport,
+  loadReportVersion,
+  REPORT_HTML_MEDIA_TYPE,
+  type ExportKind,
+  type ExportSet,
+  type ReportData,
+  isExportKind,
+  REPORT_DATA_MEDIA_TYPE,
+} from '@olcys/reporting';
 import { buildPropertyTimelines, latestExtractions } from '@olcys/evidence';
-import { EXPORT_FILE_EXTENSIONS, EXPORT_KINDS, findExportSet, isExportKind } from '@olcys/reporting';
 import { evidenceRunIdOf, TOOL_VERSION } from '@olcys/worker';
-import Fastify, { type FastifyInstance, type FastifyReply } from 'fastify';
+import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from 'fastify';
 import { DEFAULT_ANALYST, registerAnalystRoutes, supportsJudgements, withJudgements } from './analyst-routes.ts';
 import { registerGuard, type GuardOptions } from './guard.ts';
 import { idOf } from './ids.ts';
 import { registerScheduleRoutes } from './schedule-routes.ts';
-import { httpLogOptions, registerAccessLog, registerSecurityHeaders, reportCsp } from './security.ts';
+import { httpLogOptions, registerAccessLog, registerSecurityHeaders, reportCsp, statedPurpose } from './security.ts';
 import { registerSuggestionRoutes } from './suggestion-routes.ts';
 
 export interface ApiDeps {
@@ -73,9 +91,69 @@ export interface ApiDeps {
   logger?: Logger;
   /** Renders a new version of a finished run's report (`POST /api/runs/:runId/report`). */
   renderReport?(run: RunWithProgress): Promise<void>;
+  /** Read-only facts for `GET /api/meta` that only the composition root knows (never secrets). */
+  settings?: ApiSettings;
   /** Periodic re-runs: live-mode minimum interval (default 60 min), who changes schedules (default: `analyst`), clock. */
   schedule?: { minIntervalMinutes?: number; analyst?: string; clock?: () => Date };
 }
+
+/** What `GET /api/meta` shows about the swappable model and the environment; credentials never belong here. */
+export interface ApiSettings {
+  llm?: { baseUrl: string; model: string; modelDigest?: string };
+  extractorVersion?: string;
+  weightsStatus?: string;
+  /** Environment to report the telemetry opt-outs from (names only are exposed, never values). */
+  env?: Readonly<Record<string, string | undefined>>;
+}
+
+/** Telemetry opt-out variables of `.env.example` that apply to the tool and its containers. */
+export const TELEMETRY_OPT_OUTS = [
+  'DO_NOT_TRACK',
+  'NEXT_TELEMETRY_DISABLED',
+  'TURBO_TELEMETRY_DISABLED',
+  'DOTNET_CLI_TELEMETRY_OPTOUT',
+  'HF_HUB_OFFLINE',
+  'HF_HUB_DISABLE_TELEMETRY',
+  'VLLM_NO_USAGE_STATS',
+  'OLLAMA_NO_CLOUD',
+] as const;
+
+/** Host (with port) of a base URL; nothing else of it — no credentials, path or query. Unparseable input gives ''. */
+export function hostOfBaseUrl(baseUrl: string): string {
+  try {
+    return new URL(baseUrl).host;
+  } catch {
+    return '';
+  }
+}
+
+/** Files of a report in the old format, served by the run's current-report routes. */
+const legacyFiles = (runId: string, set: ExportSet): ReportFile[] => [
+  {
+    kind: 'html',
+    fileName: `olcys-raport-${runId}.html`,
+    mediaType: REPORT_HTML_MEDIA_TYPE,
+    available: true,
+    path: `/api/runs/${runId}/report`,
+    sha256: set.htmlSha256,
+  },
+  { kind: 'pdf', fileName: `olcys-raport-${runId}.pdf`, mediaType: 'application/pdf', available: false, path: '' },
+  ...EXPORT_KINDS.flatMap((format): ReportFile[] => {
+    const e = set.exports[format];
+    return e
+      ? [
+          {
+            kind: format,
+            fileName: `olcys-${runId}-${EXPORT_FILE_EXTENSIONS[format]}`,
+            mediaType: EXPORT_MEDIA_TYPES[format],
+            available: true,
+            path: `/api/runs/${runId}/exports/${format}`,
+            sha256: e.sha256,
+          },
+        ]
+      : [];
+  }),
+];
 
 const describeViolation = (v: ScopeViolation): string => {
   switch (v.code) {
@@ -132,6 +210,43 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
     return reply.code(500).send({ error: 'internal', message: 'internal error' });
   });
 
+  /** Sends one stored export after checking its digest; a download that leaves the tool is a custody event. */
+  const sendExport = async (
+    request: FastifyRequest,
+    reply: FastifyReply,
+    run: AnalysisRun,
+    format: ExportKind,
+    stored: { sha256: string; mediaType: string },
+  ) => {
+    if (!(await deps.blobs.has(stored.sha256))) return notFound(reply, 'export');
+    const bytes = await deps.blobs.get(stored.sha256);
+    if (createHash('sha256').update(bytes).digest('hex') !== stored.sha256) {
+      deps.logger?.error('stored export does not match its digest', { runId: run.id, format });
+      return reply.code(500).send({ error: 'integrity_error', message: 'stored export does not match its digest' });
+    }
+    if (request.method === 'GET') {
+      const kase = await repos.cases.get(run.caseId);
+      await repos.custody?.add([
+        {
+          id: newId(),
+          at: nowIso(),
+          actor: analyst,
+          action: 'exported',
+          runId: run.id,
+          subject: { type: 'report', id: run.id },
+          detail: { format, blobSha256: stored.sha256, purpose: statedPurpose(request) ?? kase?.purpose ?? '' },
+        },
+      ]);
+      deps.logger?.info('report export downloaded', { runId: run.id, format, analyst });
+    }
+    return reply
+      .header('content-type', stored.mediaType)
+      .header('content-disposition', `attachment; filename="olcys-${run.id}-${EXPORT_FILE_EXTENSIONS[format]}"`)
+      .header('x-content-type-options', 'nosniff')
+      .header('content-security-policy', "sandbox; default-src 'none'")
+      .send(Buffer.from(bytes));
+  };
+
   app.get('/api/health', async () => ({ status: 'ok', service: '@olcys/api', contracts: CORE_CONTRACTS_VERSION }));
 
   app.get('/api/meta', async (): Promise<ApiMeta> => {
@@ -154,9 +269,25 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
               weightsVersion: snapshot.weightsVersion,
               weightsSha256: snapshot.weightsSha256,
               rulesVersions: snapshot.rulesVersions,
+              weightsStatus: deps.settings?.weightsStatus ?? 'uncalibrated',
             },
           }
         : {}),
+      ...(deps.settings?.extractorVersion ? { extractorVersion: deps.settings.extractorVersion } : {}),
+      ...(deps.settings?.llm
+        ? {
+            llm: {
+              enabled: deps.llm?.enabled === true,
+              baseUrlHost: hostOfBaseUrl(deps.settings.llm.baseUrl),
+              model: deps.settings.llm.model,
+              ...(deps.settings.llm.modelDigest ? { modelDigest: deps.settings.llm.modelDigest } : {}),
+            },
+          }
+        : {}),
+      telemetryOptOuts: TELEMETRY_OPT_OUTS.map((name) => {
+        const value = deps.settings?.env?.[name];
+        return { name, set: value !== undefined && value !== '' && value !== '0' };
+      }),
     };
   });
 
@@ -371,6 +502,112 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
       .send(bytes);
   });
 
+  // The report model the HTML renderer is built from, plus the files of ONE published version with digests. Every
+  // download path is bound to that version (content-addressed blobs), so a later regeneration cannot change what a
+  // listed link serves. A version that is not completely published yet is not listed (404).
+  app.get<{ Params: { runId: string } }>('/api/runs/:runId/report/view', async (request, reply) => {
+    const runId = idOf(request.params.runId);
+    const published = runId ? await findPublishedReport(deps, runId) : undefined;
+    if (!runId || !published) return notFound(reply, 'report');
+    if (published.legacy) {
+      // Saved before versioned downloads: the run's current HTML and exports, without a version guarantee.
+      const legacy: LegacyReportView = { legacy: true, files: legacyFiles(runId, published.set) };
+      return legacy;
+    }
+    const { set, version } = published;
+    // A blob that cannot be read or parsed is a fault (500), never "no report".
+    const data = JSON.parse(new TextDecoder().decode(await deps.blobs.get(set.dataSha256))) as ReportData;
+    const base = `/api/runs/${runId}/report/versions/${version}`;
+    const name = (extension: string) => `olcys-raport-${runId}.${extension}`;
+    const size = async (sha: string) => (await deps.blobs.get(sha)).length;
+    const files: ReportFile[] = [
+      {
+        kind: 'html',
+        fileName: name('html'),
+        mediaType: REPORT_HTML_MEDIA_TYPE,
+        available: true,
+        path: `${base}/html`,
+        bytes: await size(set.htmlSha256),
+        sha256: set.htmlSha256,
+      },
+      // PDF/A is produced by a later pipeline step; until then the file is listed as unavailable.
+      { kind: 'pdf', fileName: name('pdf'), mediaType: 'application/pdf', available: false, path: '' },
+      {
+        kind: 'manifest',
+        fileName: name('json'),
+        mediaType: REPORT_DATA_MEDIA_TYPE,
+        available: true,
+        path: `${base}/manifest`,
+        bytes: await size(set.dataSha256),
+        sha256: set.dataSha256,
+      },
+    ];
+    for (const capture of data.captures) {
+      const token = capture.timestamp?.token;
+      if (!token) continue;
+      files.push({
+        kind: 'timestamp',
+        fileName: `olcys-znacznik-${capture.id}.tsr`,
+        mediaType: token.mediaType,
+        available: true,
+        path: `/api/blobs/${token.sha256}`,
+        bytes: token.bytes,
+        sha256: token.sha256,
+        captureId: capture.id,
+      });
+    }
+    for (const format of EXPORT_KINDS) {
+      const e = set.exports[format];
+      if (!e) continue;
+      files.push({
+        kind: format,
+        fileName: `olcys-${runId}-${EXPORT_FILE_EXTENSIONS[format]}`,
+        mediaType: EXPORT_MEDIA_TYPES[format],
+        available: true,
+        path: `${base}/${format}`,
+        // oxlint-disable-next-line no-await-in-loop
+        bytes: await size(e.sha256),
+        sha256: e.sha256,
+      });
+    }
+    const view: ReportView = { version, report: buildReportModel(data), files };
+    return view;
+  });
+
+  // One file of a published report version, named by the version id of a listing (`/report/view`).
+  app.get<{ Params: { runId: string; version: string; kind: string } }>(
+    '/api/runs/:runId/report/versions/:version/:kind',
+    async (request, reply) => {
+      const runId = idOf(request.params.runId);
+      const run = runId ? await repos.runs.get(runId) : undefined;
+      const { version, kind } = request.params;
+      if (!run || !/^[0-9a-f]{64}$/.test(version)) return notFound(reply, 'report');
+      const published = await loadReportVersion(deps, run.id, version);
+      if (!published) return notFound(reply, 'report');
+      if (isExportKind(kind)) {
+        const stored = published.set.exports[kind];
+        return stored ? sendExport(request, reply, run, kind, stored) : notFound(reply, 'export');
+      }
+      const files = {
+        html: { sha: published.set.htmlSha256, mediaType: REPORT_HTML_MEDIA_TYPE, extension: 'html' },
+        manifest: { sha: published.set.dataSha256, mediaType: REPORT_DATA_MEDIA_TYPE, extension: 'json' },
+      } as const;
+      const file = kind === 'html' || kind === 'manifest' ? files[kind] : undefined;
+      if (!file || !(await deps.blobs.has(file.sha))) return notFound(reply, 'report');
+      const bytes = await deps.blobs.get(file.sha);
+      if (createHash('sha256').update(bytes).digest('hex') !== file.sha) {
+        deps.logger?.error('stored report file does not match its digest', { runId: run.id, kind });
+        return reply.code(500).send({ error: 'integrity_error', message: 'stored file does not match its digest' });
+      }
+      return reply
+        .header('content-type', file.mediaType)
+        .header('content-disposition', `attachment; filename="olcys-raport-${run.id}.${file.extension}"`)
+        .header('x-content-type-options', 'nosniff')
+        .header('content-security-policy', "sandbox; default-src 'none'")
+        .send(Buffer.from(bytes));
+    },
+  );
+
   // Exports available for the run's current report (none for runs rendered before exports existed).
   app.get<{ Params: { runId: string } }>('/api/runs/:runId/exports', async (request, reply) => {
     const runId = idOf(request.params.runId);
@@ -396,33 +633,8 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
     }
     // Only files of the current report version; a missing or damaged blob is never recorded as an export.
     const stored = (await findExportSet(deps, run.id))?.exports[format];
-    if (!stored || !(await deps.blobs.has(stored.sha256))) return notFound(reply, 'export');
-    const bytes = await deps.blobs.get(stored.sha256);
-    if (createHash('sha256').update(bytes).digest('hex') !== stored.sha256) {
-      deps.logger?.error('stored export does not match its digest', { runId: run.id, format });
-      return reply.code(500).send({ error: 'integrity_error', message: 'stored export does not match its digest' });
-    }
-    if (request.method === 'GET') {
-      const kase = await repos.cases.get(run.caseId);
-      await repos.custody?.add([
-        {
-          id: newId(),
-          at: nowIso(),
-          actor: analyst,
-          action: 'exported',
-          runId: run.id,
-          subject: { type: 'report', id: run.id },
-          detail: { format, blobSha256: stored.sha256, purpose: kase?.purpose ?? '' },
-        },
-      ]);
-      deps.logger?.info('report export downloaded', { runId: run.id, format, analyst });
-    }
-    return reply
-      .header('content-type', stored.mediaType)
-      .header('content-disposition', `attachment; filename="olcys-${run.id}-${EXPORT_FILE_EXTENSIONS[format]}"`)
-      .header('x-content-type-options', 'nosniff')
-      .header('content-security-policy', "sandbox; default-src 'none'")
-      .send(Buffer.from(bytes));
+    if (!stored) return notFound(reply, 'export');
+    return sendExport(request, reply, run, format, stored);
   });
 
   registerAnalystRoutes(app, {

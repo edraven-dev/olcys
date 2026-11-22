@@ -14,9 +14,30 @@ export function labelContentSha256(label: AddressLabel): string {
     category: label.category,
     attributes: label.attributes,
     confidence: label.confidence,
-    provenance: { datasetId, url, license, lastmod },
+    provenance: {
+      datasetId,
+      url,
+      license,
+      lastmod,
+      ...(label.provenance.asset ? { asset: label.provenance.asset } : {}),
+    },
   };
   return createHash('sha256').update(canonicalJson(content)).digest('hex');
+}
+
+/**
+ * Identity of a label period: address, entity, dataset, asset and period start. A corrected or ended version of the
+ * same period supersedes it; a later listing (new `activeFrom`) is a separate period that stays readable.
+ */
+export function labelPeriodKey(label: AddressLabel): string {
+  const { datasetId, asset } = label.provenance;
+  return [
+    `${label.address.chain}:${label.address.address}`,
+    label.entity,
+    datasetId,
+    asset ?? '',
+    label.attributes.activeFrom ?? '',
+  ].join('|');
 }
 
 export function sqlChainDataRepository(db: Db): ChainDataRepository {
@@ -276,6 +297,9 @@ export function sqlAnalysisRepository(db: Db): AnalysisRepository {
   };
 }
 
+const PERIOD_ASSET = sql<string>`coalesce(record #>> '{provenance,asset}', '')`;
+const PERIOD_START = sql<string>`coalesce(record #>> '{attributes,activeFrom}', '')`;
+
 export function sqlLabelRepository(db: Db): LabelRepository {
   return {
     async upsert(labels) {
@@ -299,16 +323,18 @@ export function sqlLabelRepository(db: Db): LabelRepository {
         .execute();
     },
 
-    /** Current labels: the newest dataset version per (chain, address, entity, dataset). */
+    /** Current labels: the newest version per (chain, address, entity, dataset, asset, period start): every period is kept. */
     async list() {
       const rows = await db
         .selectFrom('address_labels')
-        .distinctOn(['chain', 'address', 'entity', 'dataset'])
+        .distinctOn(['chain', 'address', 'entity', 'dataset', PERIOD_ASSET, PERIOD_START])
         .select('record')
         .orderBy('chain')
         .orderBy('address')
         .orderBy('entity')
         .orderBy('dataset')
+        .orderBy(PERIOD_ASSET)
+        .orderBy(PERIOD_START)
         .orderBy('lastmod', 'desc')
         .orderBy('id', 'desc')
         .execute();

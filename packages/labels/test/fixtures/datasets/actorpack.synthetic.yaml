@@ -1,0 +1,8 @@
+# SYNTHETIC TEST DATA
+title: Synthetic actorpack
+actors:
+  - id: wygasla-gielda
+    label: Wygasła Giełda (SYNTHETIC)
+    end_activity: 2026-08-27
+  - id: bisq
+    label: Bisq (SYNTHETIC)

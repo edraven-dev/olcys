@@ -1,0 +1,98 @@
+# Registry of open label datasets and the policy for importing them. Every import is checked against this file:
+# refused datasets are never imported, and a dataset marked `deciding: true` must pass `decidingAllowed`
+# (open, public-domain or publisher-disclosed licence; Etherscan-derived data only corroborates).
+version: datasets.v1
+
+datasets:
+  - datasetId: graphsense-tagpacks
+    kind: labels
+    sourceType: graphsense_tagpack
+    url: https://github.com/graphsense/graphsense-tagpacks
+    license: MIT
+    licenseClass: open
+    deciding: true
+    enabledByDefault: true
+    sourceId: graphsense_tagpacks
+
+  - datasetId: ofac-0xb10c
+    kind: labels
+    sourceType: ofac
+    url: https://github.com/0xB10C/ofac-sanctioned-digital-currency-addresses
+    license: LicenseRef-US-Gov-Public-Domain
+    licenseClass: public_domain
+    deciding: true
+    enabledByDefault: true
+    sourceId: ofac_0xb10c
+
+  - datasetId: por-file
+    kind: labels
+    sourceType: por_file
+    url: '(published by each exchange)'
+    license: LicenseRef-Publisher-Disclosure
+    licenseClass: publisher_disclosure
+    deciding: true
+    enabledByDefault: true
+
+  - datasetId: eth-labels
+    kind: labels
+    sourceType: etherscan_derived
+    url: https://github.com/dawsbot/eth-labels
+    license: LicenseRef-Etherscan-Derived-Unknown
+    licenseClass: unknown
+    deciding: false
+    enabledByDefault: false
+
+  - datasetId: esma-casps
+    kind: entities
+    url: https://www.esma.europa.eu/esmas-role/interim-mica-register
+    license: LicenseRef-ESMA-Reuse-Policy
+    licenseClass: open
+    deciding: false
+    enabledByDefault: true
+    sourceId: esma_casps
+
+  - datasetId: pl-vasp-register
+    kind: entities
+    url: https://www.gov.pl/web/finanse/rejestr-dzialalnosci-w-zakresie-walut-wirtualnych
+    license: LicenseRef-PL-Public-Sector-Information
+    licenseClass: open
+    deciding: false
+    enabledByDefault: true
+    sourceId: pl_vasp_register
+
+  # Refused: kept in the registry so that the refusal is explicit and explained.
+  - datasetId: opensanctions
+    kind: labels
+    url: https://www.opensanctions.org/licensing/
+    license: CC-BY-NC-4.0
+    licenseClass: non_commercial
+    deciding: true
+    enabledByDefault: false
+    refused: Non-commercial licence (CC-BY-NC-4.0) excludes public bodies.
+
+  - datasetId: dune-spellbook
+    kind: labels
+    url: https://github.com/duneanalytics/spellbook
+    license: BUSL-1.1
+    licenseClass: source_available
+    deciding: true
+    enabledByDefault: false
+    refused: Business Source License (BUSL-1.1) is source-available, not open source.
+
+  - datasetId: arkham
+    kind: labels
+    url: https://www.arkm.com/
+    license: LicenseRef-Proprietary
+    licenseClass: proprietary
+    deciding: true
+    enabledByDefault: false
+    refused: Proprietary data for internal use only.
+
+  - datasetId: binance-vision
+    kind: labels
+    url: https://data.binance.vision/
+    license: CC-BY-NC-SA-4.0
+    licenseClass: non_commercial
+    deciding: true
+    enabledByDefault: false
+    refused: Non-commercial licence (CC-BY-NC-SA-4.0) excludes public bodies.

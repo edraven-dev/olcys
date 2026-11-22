@@ -1197,6 +1197,15 @@ details > summary {
   min-width: 0;
   overflow-wrap: anywhere;
 }
+.tag-ai {
+  color: var(--inference);
+  border-style: dashed;
+  font-weight: 600;
+}
+.button.small {
+  padding: 0.1rem 0.5rem;
+  font-size: 0.85rem;
+}
 
 /* --- page timeline (case timeline) ------------------------------------------------------------------------- */
 .timeline-moment {

@@ -60,7 +60,13 @@ export async function storeReport(
   const dataRef = await deps.blobs.put(encoder.encode(reportDataJson(data)), REPORT_DATA_MEDIA_TYPE);
   const htmlRef = await deps.blobs.put(encoder.encode(html), REPORT_HTML_MEDIA_TYPE);
   const exports: Record<string, BlobRef> = {};
-  const set: ExportSet = { version: 1, htmlSha256: htmlRef.sha256, exports: {} };
+  const set: ExportSet = {
+    version: 1,
+    runId: data.run.id,
+    htmlSha256: htmlRef.sha256,
+    dataSha256: dataRef.sha256,
+    exports: {},
+  };
   const artifacts = buildExports(
     { data },
     { producerName: settings.producerName ?? pl.exports.producerDefault, tlp: settings.tlp ?? 'amber' },
@@ -118,7 +124,10 @@ async function serialized<T>(key: string, task: () => Promise<T>): Promise<T> {
 /** The exports of one report version: the HTML they were generated with and a digest per export kind. */
 export interface ExportSet {
   version: 1;
+  /** The run and the report data of the version (absent in sets stored before versioned downloads). */
+  runId?: string;
   htmlSha256: string;
+  dataSha256?: string;
   exports: Record<string, { sha256: string; mediaType: string }>;
 }
 
@@ -142,6 +151,61 @@ export async function findExportSet(
   } catch {
     return undefined;
   }
+}
+
+/** One complete published report version: the set blob that names its HTML, data and exports (all content-addressed). */
+export interface PublishedReport {
+  legacy?: false;
+  /** SHA-256 of the export-set blob: the version id (the set is registered last, so it exists only for a complete version). */
+  version: string;
+  set: ExportSet & { runId: string; dataSha256: string };
+}
+
+/**
+ * A report saved before versioned downloads (its export set names neither run nor data). Its HTML and exports are the
+ * run's current ones, but their links cannot be bound to a version.
+ */
+export interface LegacyReport {
+  legacy: true;
+  set: ExportSet;
+}
+
+const isPublishedSet = (set: ExportSet, runId: Id): set is PublishedReport['set'] =>
+  set.version === 1 && set.runId === runId && typeof set.dataSha256 === 'string';
+
+const parseSet = (bytes: Uint8Array): ExportSet => JSON.parse(new TextDecoder().decode(bytes)) as ExportSet;
+
+/**
+ * The run's current report, or `undefined` when there is none (no rows, or the newest HTML is not covered by a
+ * complete set yet). A report in the old format is returned as `legacy`. A stored blob that cannot be read or parsed
+ * is a fault and throws.
+ */
+export async function findPublishedReport(
+  deps: { repos: Repositories; blobs: BlobStore },
+  runId: Id,
+): Promise<PublishedReport | LegacyReport | undefined> {
+  const [html, stored] = await Promise.all([
+    deps.repos.analysis.latestReport(runId, REPORT_KINDS.html),
+    deps.repos.analysis.latestReport(runId, REPORT_KINDS.exportSet),
+  ]);
+  if (!html || !stored) return undefined;
+  const set = parseSet(await deps.blobs.get(stored.blobSha256));
+  if (set.version !== 1 || set.htmlSha256 !== html.blobSha256) return undefined;
+  return isPublishedSet(set, runId) ? { version: stored.blobSha256, set } : { legacy: true, set };
+}
+
+/**
+ * A published version named by its id (a download link of an earlier listing). `undefined` only when no such version
+ * exists (no blob, or a blob that is not a version of this run); an unreadable or unparsable stored blob throws.
+ */
+export async function loadReportVersion(
+  deps: { repos: Repositories; blobs: BlobStore },
+  runId: Id,
+  version: string,
+): Promise<PublishedReport | undefined> {
+  if (!(await deps.blobs.has(version))) return undefined;
+  const set = parseSet(await deps.blobs.get(version));
+  return set !== null && typeof set === 'object' && isPublishedSet(set, runId) ? { version, set } : undefined;
 }
 
 export function createReportStage(options: ReportStageOptions = {}): ReportStage {
