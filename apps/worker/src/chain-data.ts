@@ -51,22 +51,43 @@ export function transfersOf(
  */
 export function incompleteHistories(outcomes: readonly ChainFetchOutcome[]): string | undefined {
   const gaps = historyGaps(outcomes);
-  return gaps ? `${gaps.count} address(es): ${gaps.details}` : undefined;
+  return gaps ? `${gaps.count} address(es): ${describeGaps(gaps.items)}` : undefined;
 }
 
-/** The same gaps as numbers and a technical summary (`tron no enabled provider (1)`), for coded partial reasons. */
-export function historyGaps(outcomes: readonly ChainFetchOutcome[]): { count: number; details: string } | undefined {
+/** One kind of gap: how many addresses on a chain ended with this status (`no_enabled_provider`: none was tried). */
+export type HistoryGap = {
+  chain: string;
+  status: Exclude<ChainFetchStatus, 'ok' | 'not_found'> | 'no_enabled_provider';
+  count: number;
+};
+
+/** The same gaps structured, with the total number of addresses, for coded partial reasons. */
+export function historyGaps(
+  outcomes: readonly ChainFetchOutcome[],
+): { count: number; items: HistoryGap[] } | undefined {
   const last = new Map<string, ChainFetchOutcome>();
   for (const outcome of outcomes) last.set(`${addressKey(outcome.address)}|${outcome.chain}`, outcome);
-  const counts = new Map<string, number>();
+  const counts = new Map<string, HistoryGap>();
   for (const outcome of last.values()) {
     if (COMPLETE.has(outcome.status)) continue;
     // Without a provider id no provider was tried: none of the case's enabled providers serves the chain.
-    const status = outcome.status === 'unsupported' && !outcome.providerId ? 'no enabled provider' : outcome.status;
+    const status =
+      outcome.status === 'unsupported' && !outcome.providerId
+        ? 'no_enabled_provider'
+        : (outcome.status as HistoryGap['status']);
     const key = `${outcome.chain} ${status}`;
-    counts.set(key, (counts.get(key) ?? 0) + 1);
+    const gap = counts.get(key) ?? { chain: outcome.chain, status, count: 0 };
+    gap.count += 1;
+    counts.set(key, gap);
   }
   if (counts.size === 0) return undefined;
-  const count = [...counts.values()].reduce((sum, n) => sum + n, 0);
-  return { count, details: [...counts].map(([key, n]) => `${key} (${n})`).join(', ') };
+  const items = [...counts.values()];
+  return { count: items.reduce((sum, g) => sum + g.count, 0), items };
+}
+
+/** English summary for logs, e.g. `tron no enabled provider (1), evm:1 truncated (1)`. */
+export function describeGaps(items: readonly HistoryGap[]): string {
+  return items
+    .map((g) => `${g.chain} ${g.status === 'no_enabled_provider' ? 'no enabled provider' : g.status} (${g.count})`)
+    .join(', ');
 }

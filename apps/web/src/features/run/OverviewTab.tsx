@@ -94,7 +94,10 @@ export function OverviewTab({ scope }: { scope: RunScope }) {
               {partial.map((reason) => (
                 <li key={reason.text}>
                   {reason.code && pl.overview.partialReasons[reason.code] ? (
-                    renderPartialReason(reason, pl.overview.partialReasons)
+                    renderPartialReason(reason, pl.overview.partialReasons, {
+                      item: pl.overview.partialItem,
+                      labels: { status: pl.overview.partialStatuses },
+                    })
                   ) : (
                     <Verbatim>{reason.text}</Verbatim>
                   )}

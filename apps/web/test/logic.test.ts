@@ -355,14 +355,15 @@ describe('run overview', () => {
         {
           text: 'chain data incomplete for 2 address(es): tron timeout (2)',
           code: 'chain_incomplete',
-          params: { count: 2, details: 'tron timeout (2)' },
+          params: { count: 2, items: [{ chain: 'tron', status: 'no_enabled_provider', count: 2 }] },
         },
         { text: 'x', code: 'code_from_the_future' },
       ],
     };
-    const text = partialReasons({ progress }).map((r) => renderPartialReason(r, pl.overview.partialReasons));
+    const format = { item: pl.overview.partialItem, labels: { status: pl.overview.partialStatuses } };
+    const text = partialReasons({ progress }).map((r) => renderPartialReason(r, pl.overview.partialReasons, format));
     expect(text).toEqual([
-      'niepełna historia łańcucha dla 2 adresów (tron timeout (2))',
+      'niepełna historia łańcucha dla 2 adresów (tron: brak włączonego dostawcy (2))',
       'tron provider: timeout',
       'x',
     ]);

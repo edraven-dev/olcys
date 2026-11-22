@@ -139,6 +139,8 @@ describe('demo scenario on the synthetic persona', () => {
       expect(valued.length).toBeGreaterThan(0);
       for (const event of valued)
         expect(event.valuation?.nbp).toMatchObject({ table: expect.stringMatching(/^SYN\d+\/A\/NBP\/\d{4}$/) });
+      // The rate came from the fixture site, so the valuation says it is synthetic.
+      expect(valued.every((e) => e.valuation?.nbp.synthetic === true)).toBe(true);
       expect(valued.every((e) => e.valuation?.pln && e.valuation.nbp.currency === 'USD')).toBe(true);
       expect(run1?.progress['partialCodes']).toBeUndefined();
       // Address types are stored with the run: CONTRACT-1 stays a plain contract (every probe negative), the persona's
@@ -166,6 +168,7 @@ describe('demo scenario on the synthetic persona', () => {
       expect(html).toContain('Giełda Testowa (SYNTHETIC)');
       expect(html).toContain('Typ adresu: <strong>kontrakt</strong>');
       // Valuations cite the synthetic NBP table, so they cannot pass for real rates.
+      expect(html).toContain('(kurs syntetyczny — dane demonstracyjne)');
       expect(html).toMatch(/tabela SYN\d+\/A\/NBP\/\d{4} z dnia/);
 
       // Every capture has its manifest blob (verifiable down to the artifacts) and exactly one `collected` custody event.

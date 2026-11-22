@@ -96,7 +96,10 @@ export function valuationText(v: Valuation | undefined): SafeHtml {
         candle: formatUtc(v.price.candleTime),
       })
     : '';
-  return markup`<strong>${formatPln(v.pln)}</strong> (${join([nbp, price].filter(Boolean), '; ')})`;
+  const synthetic = v.nbp?.synthetic
+    ? markup` <span class="synthetic">(${pl.activity.syntheticRate})</span>`
+    : markup``;
+  return markup`<strong>${formatPln(v.pln)}</strong> (${join([nbp, price].filter(Boolean), '; ')})${synthetic}`;
 }
 
 /** PLN value of an event: its valuation, or the sum of its legs' values for aggregated events. */

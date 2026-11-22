@@ -3,6 +3,7 @@
  * Chain selection of a case (`scope.chains`) is a pure rule tested here as well. No network (no address, no request).
  */
 import type { Logger } from '@olcys/core';
+import { newId } from '@olcys/core';
 import { createMemoryRepositories } from '@olcys/db';
 import { InMemoryBlobStore } from '@olcys/evidence';
 import { describe, expect, it } from 'vitest';
@@ -41,6 +42,58 @@ describe('chain stage in live mode', () => {
     await expect(noPriceSource().price('BTC', 'USD', '2026-11-01T00:00:00.000Z')).rejects.toMatchObject({
       reason: 'no_candle',
     });
+  });
+});
+
+describe('chain stage in live mode with demo labels already in the store', () => {
+  it('neither uses nor cites the synthetic labels', async () => {
+    const repos = createMemoryRepositories();
+    const exchange = '0x00000000000000000000000000000000000000a1';
+    // As an offline run leaves them: the demo dataset's labels, flagged synthetic.
+    await repos.labels.upsert([
+      {
+        id: newId(),
+        address: { chain: 'evm:1', address: exchange },
+        entity: 'Giełda Testowa (SYNTHETIC)',
+        category: 'exchange',
+        attributes: {},
+        provenance: {
+          datasetId: 'demo-curated',
+          url: 'fixtures',
+          license: 'CC0-1.0',
+          lastmod: '2026-11-15T00:00:00.000Z',
+          retrievedAt: '2026-11-15T00:00:00.000Z',
+          deciding: true,
+          synthetic: true,
+        },
+        confidence: 90,
+      },
+    ]);
+    const runtime = await createRuntime({
+      env: { OLCYS_MODE: 'live' },
+      repos,
+      blobs: new InMemoryBlobStore(),
+      logger: silent,
+      stages: (rt) => [createChainStage({ mode: rt.mode, sources: rt.sources, env: {} })],
+    });
+    const kase = await repos.cases.create(
+      {
+        title: 'Tryb live, etykiety w magazynie (test)',
+        purpose: 'Test pominięcia etykiet syntetycznych w trybie live',
+        legalBasis: 'test',
+        // The address has a synthetic exchange label; no request can be made without an enabled provider.
+        identifiers: [{ kind: 'crypto_address', value: exchange, chain: 'evm:1', isAnchor: true }],
+        scope: { enabledSources: [], amberJustifications: {}, chains: [], maxPivotDepth: 0 },
+      },
+      'test',
+    );
+    const started = await runtime.startRun(kase.id, {});
+    await runtime.idle();
+    // The demo label would have excluded the address (A1) before any fetch; live ignores it.
+    const decisions = await repos.analysis.listExclusions(started.id);
+    expect(decisions.flatMap((d) => d.evidence.labelIds ?? [])).toEqual([]);
+    expect(decisions.some((d) => d.ruleId === 'A1')).toBe(false);
+    await runtime.close();
   });
 });
 

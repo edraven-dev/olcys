@@ -9,12 +9,13 @@ import { formatDateTime, formatDecimal, middleTruncate } from '../../lib/format.
 /** „kurs średni NBP, tabela 226/A/NBP/2026 z dnia 2026-11-19: 1 USD = 3,6512 zł” — the NBP rate behind a PLN value. */
 export function nbpLine(valuation: Pick<Valuation, 'nbp'>): string {
   const { nbp } = valuation;
-  return t(pl.activity.event.nbp, {
+  const line = t(pl.activity.event.nbp, {
     table: nbp.table,
     date: nbp.effectiveDate,
     currency: nbp.currency,
     rate: formatDecimal(nbp.rate),
   });
+  return nbp.synthetic ? `${line}; ${pl.activity.event.syntheticRate}` : line;
 }
 
 export function priceLine(valuation: Pick<Valuation, 'price'>): string | null {

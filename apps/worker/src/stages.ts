@@ -78,7 +78,7 @@ import { createReportStage } from '@olcys/reporting';
 import { loadWeights, scoreRun } from '@olcys/scoring';
 import { classifyFetched } from './address-types.ts';
 import { withAnalystOverrides } from './analyst.ts';
-import { historyGaps, isOwnStatement, transfersOf } from './chain-data.ts';
+import { describeGaps, historyGaps, isOwnStatement, transfersOf } from './chain-data.ts';
 import { REPO_ROOT, TOOL_VERSION } from './config.ts';
 import type { Stage, StageContext } from './pipeline.ts';
 
@@ -428,7 +428,15 @@ export function createChainStage(options: StageOptions): Stage {
       };
       // The labels used are stored (the report and the API show them); labels already in the store apply too.
       if (c.datasetLabels.length) await ctx.repos.labels.upsert(c.datasetLabels);
-      const labels = new MemoryLabelLookup(await ctx.repos.labels.list());
+      // A live run never lets synthetic labels (e.g. the demo dataset an offline run left in the same store) decide.
+      const storedLabels = await ctx.repos.labels.list();
+      const labels = new MemoryLabelLookup(
+        synthetic
+          ? storedLabels
+          : storedLabels.filter(
+              (l) => l.provenance.synthetic !== true && l.provenance.datasetId !== DEMO_CURATED_DATASET.datasetId,
+            ),
+      );
 
       // Candidates found in the evidence and crypto addresses given as case identifiers, in canonical form.
       const found = await ctx.repos.evidence.listCandidates(runId);
@@ -475,9 +483,9 @@ export function createChainStage(options: StageOptions): Stage {
       );
       const gaps = historyGaps(fetched.outcomes);
       if (gaps) {
-        ctx.markPartial(`chain data incomplete for ${gaps.count} address(es): ${gaps.details}`, {
+        ctx.markPartial(`chain data incomplete for ${gaps.count} address(es): ${describeGaps(gaps.items)}`, {
           code: 'chain_incomplete',
-          params: { count: gaps.count, details: gaps.details },
+          params: { count: gaps.count, items: gaps.items },
         });
       }
 
@@ -563,10 +571,10 @@ export function createChainStage(options: StageOptions): Stage {
         : undefined;
       const hopGaps = hop ? historyGaps(hop.outcomes) : undefined;
       if (hopGaps) {
-        ctx.markPartial(`counterparty chain data incomplete for ${hopGaps.count} address(es): ${hopGaps.details}`, {
-          code: 'counterparty_chain_incomplete',
-          params: { count: hopGaps.count, details: hopGaps.details },
-        });
+        ctx.markPartial(
+          `counterparty chain data incomplete for ${hopGaps.count} address(es): ${describeGaps(hopGaps.items)}`,
+          { code: 'counterparty_chain_incomplete', params: { count: hopGaps.count, items: hopGaps.items } },
+        );
       }
       const counterpartyTransfers = new Map(
         [...expansion].map(([key, a]) => [key, transfersOf(a, hop?.transfers ?? [], hop?.utxoTxs ?? [])]),

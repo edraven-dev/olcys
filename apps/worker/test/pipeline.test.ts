@@ -106,7 +106,7 @@ describe('runPipeline', () => {
     async run(ctx) {
       ctx.markPartial('chain data incomplete for 2 address(es): tron timeout (2)', {
         code: 'chain_incomplete',
-        params: { count: 2, details: 'tron timeout (2)' },
+        params: { count: 2, items: [{ chain: 'tron', status: 'error', count: 2 }] },
       });
     },
   };
@@ -150,7 +150,7 @@ describe('runPipeline', () => {
       {
         text: 'chain data incomplete for 2 address(es): tron timeout (2)',
         code: 'chain_incomplete',
-        params: { count: 2, details: 'tron timeout (2)' },
+        params: { count: 2, items: [{ chain: 'tron', status: 'error', count: 2 }] },
       },
     ]);
     const rescore = await createRun(

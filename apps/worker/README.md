@@ -81,13 +81,14 @@ przebiegu są odnajdywane po zabezpieczeniu i położeniu w tekście. Oceny anal
 Etykiety demonstracyjne (`fixtures/labels/demo-curated.json`) i syntetyczny zbiór cen (`fixtures/prices/demo-prices.v1.json`)
 ładuje wyłącznie etap analizy łańcucha w trybach `offline` i `replay`. W trybie `live` obowiązuje zasada: syntetyczne
 etykiety nie rozstrzygają o prawdziwych adresach, a syntetyczne ceny nigdy nie wyceniają prawdziwych transakcji — używa
-się tylko etykiet z magazynu i nie ma źródła cen, więc przepływy wymagające ceny są „bez wyceny”. Brak wyceny w PLN
+się tylko etykiet z magazynu (bez etykiet oznaczonych jako syntetyczne, np. zbioru `demo-curated` pozostawionego w bazie przez przebieg offline) i nie ma źródła cen, więc przepływy wymagające ceny są „bez wyceny”. Brak wyceny w PLN
 (brak ceny albo kursu NBP, np. gdy `nbp_api` nie jest włączone lub NBP nie odpowiada) oznacza przebieg jako `partial`
 z kodem `valuation_unavailable` i liczbą transferów bez wyceny (token spoza rejestru aktywów nie jest błędem wyceny).
 
 Offline i w nagraniach kursy NBP (tabela A) pochodzą ze strony testowej (`/nbp/api/…`, prefiks `api.nbp.pl/api`
 w `hostPrefixes` manifestu): wartości są syntetyczne, a numer tabeli ma przedrostek `SYN`, więc raport pokazuje, że
-wycena nie opiera się na prawdziwych kursach.
+wycena nie opiera się na prawdziwych kursach. Wycena oparta na odpowiedzi ze źródła syntetycznego ma w odnośniku do
+NBP znacznik `synthetic: true`; raport i interfejs dodają przy niej „(kurs syntetyczny — dane demonstracyjne)”.
 
 ## Wybór łańcuchów i zapis transferów
 
