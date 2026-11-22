@@ -525,6 +525,8 @@ export const pl = {
         'rozszerzenie klastrów ograniczone limitem: nie pobrano historii {count} partnerów wspólnego wydatkowania, klastry mogą być niepełne',
       address_type_probes_failed: 'nie udało się ustalić typu adresu (sondy zakończone błędem): {count}',
       valuation_unavailable: 'brak wyceny w PLN dla {count} transferów (brak ceny lub kursu NBP)',
+      flow_graph_truncated:
+        'graf przepływów środków przycięty limitem {limit} krawędzi (zapytań: {count}); część dalszych przepływów nie została pokazana',
     } as Record<string, string>,
     counters: 'Liczniki etapu',
     counterLabels: {

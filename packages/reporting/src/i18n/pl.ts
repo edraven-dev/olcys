@@ -300,6 +300,8 @@ export const pl = {
         'rozszerzenie klastrów ograniczone limitem: nie pobrano historii {count} partnerów wspólnego wydatkowania, klastry mogą być niepełne',
       address_type_probes_failed: 'nie udało się ustalić typu adresu (sondy zakończone błędem): {count}',
       valuation_unavailable: 'brak wyceny w PLN dla {count} transferów (brak ceny lub kursu NBP)',
+      flow_graph_truncated:
+        'graf przepływów środków przycięty limitem {limit} krawędzi (zapytań: {count}); część dalszych przepływów nie została pokazana',
     } as Record<string, string>,
     addresses: 'W treści zabezpieczonych stron znaleziono {addresses} o poprawnym formacie i sumie kontrolnej.',
     transfers: 'Z publicznych danych blockchain pobrano {transfers} dotyczące analizowanych adresów.',
@@ -811,6 +813,10 @@ export const pl = {
     tx: 'Transakcja {tx} w sieci {chain}.',
     valuation: 'Wartość: {value}.',
     noValuation: 'Brak wyceny w PLN.',
+    hopDown:
+      'Krok przepływu: {hop} od analizowanego adresu (dalsza droga środków za bezpośrednim odbiorcą; ścieżka wyliczona z chronologii transakcji, nie dowód związku).',
+    hopUp:
+      'Krok przepływu: {hop} wstecz od analizowanego adresu (dalsze źródło środków przed bezpośrednim nadawcą; ścieżka wyliczona z chronologii transakcji, nie dowód związku).',
     rule: 'Reguła {rule} — {name}: {strength}.',
     inference:
       'Możliwe wyjście do walut tradycyjnych — odbiorca: {counterparty}. Wymaga potwierdzenia u dostawcy usług.',
@@ -858,6 +864,14 @@ export const pl = {
     },
     finalUrl: 'po przekierowaniu: {url}',
     manifest: 'manifest: {sha}',
+    timestamp: 'znacznik czasu RFC 3161: {genTime} · {tsa} · nr seryjny {serial} · {level}',
+    timestampQualified: 'usługa kwalifikowana',
+    timestampDemo: 'usługa niekwalifikowana (demonstracyjna, bez domniemania z art. 41 eIDAS)',
+    timestampSkew: 'UWAGA: czas znacznika różni się od czasu zebrania o {seconds} s',
+    timestampPendingOffline: 'znacznik czasu oczekuje (tryb offline)',
+    timestampRejected:
+      'znacznik czasu odrzucony: {reason} (odpowiedź usługi nie przeszła weryfikacji; żądanie nie jest ponawiane)',
+    timestampPending: 'znacznik czasu oczekuje (ponowienie żądania do usługi znakowania czasem)',
     artifact: '{kind}: {sha}',
     earlier: 'z poprzedniego uruchomienia',
     collector: 'zebrał(a): {collector} · narzędzie {tool} · zegar zsynchronizowany (NTP): {clock}',

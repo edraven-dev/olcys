@@ -10,6 +10,7 @@ export {
   type StageContext,
   type StartRunInput,
 } from './pipeline.ts';
+export { createLlmRuntime, LlmConfigError, type LlmRuntime, type LlmRuntimeOptions } from './llm.ts';
 export { consoleLogger, createRuntime, type Runtime, type RuntimeOptions } from './runtime.ts';
 export {
   latestOccurrence,
@@ -43,3 +44,13 @@ export {
   USER_AGENT,
   type StageOptions,
 } from './stages.ts';
+export {
+  assertTsaAllowListed,
+  createTrustedTimestamper,
+  tsaSettings,
+  TsaConfigError,
+  type FlushReport,
+  type TimestamperOptions,
+  type TsaSettings,
+  type WorkerTimestamper,
+} from './timestamper.ts';

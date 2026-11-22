@@ -37,7 +37,11 @@ potoku `report.render`, który raport generuje i zapisuje.
 6. Chronologia przepływu środków — zdania w kolejności czasu, zbudowane z transakcji, krawędzi przepływu i zdarzeń
    wyjścia do walut tradycyjnych. Zdarzenie bez pobranej transakcji jest wynikiem reguły, a nie przelewem; wycena
    krawędzi trafia tylko do tego samego przepływu (sieć, transakcja, adresy, aktywo, kwota). Sumy liczą każdy
-   przepływ raz (także gdy spełnia kilka reguł), a brak wyceny nigdy nie jest zerem.
+   przepływ raz (także gdy spełnia kilka reguł), a brak wyceny nigdy nie jest zerem („Brak wyceny w PLN” przy
+   wpisie). Krawędzie grafu przepływów (`flows`, zapisane przez etap analizy łańcucha) obejmują także dalsze skoki:
+   wpis za bezpośrednim odbiorcą lub przed bezpośrednim nadawcą ma w części obliczeniowej adnotację „Krok przepływu:
+   N” (ścieżka wyliczona z chronologii transakcji, nie dowód związku). Przycięcie grafu limitem krawędzi jest podane
+   wśród przyczyn niepełności przebiegu (`flow_graph_truncated`).
 
 Adresy są zawsze rozróżniane według sieci i adresu (ten sam adres EVM w Ethereum i Polygon to dwa różne adresy). 7. Zmiany od poprzedniego uruchomienia — alert podmiany adresu portfela z oboma zabezpieczeniami. 8. Rejestr materiału dowodowego — każda strona z adresem URL, czasem pobrania, statusem i skrótami SHA-256 oraz
 podsumowanie dziennika połączeń wychodzących. 9. Metodyka i ograniczenia.

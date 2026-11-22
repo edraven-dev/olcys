@@ -15,7 +15,7 @@ import {
 } from './evidence.ts';
 import { FETCH_MODES } from './provenance.ts';
 import { DENY_LIST_KINDS } from './labels.ts';
-import { ANALYST_OVERRIDE_KINDS, EVIDENCE_TIERS, JUDGEMENT_VALUES } from './scoring.ts';
+import { ANALYST_OVERRIDE_KINDS, EVIDENCE_TIERS, JUDGEMENT_VALUES, JUSTIFICATION_LENGTH } from './scoring.ts';
 import { ADMIRALTY_RELIABILITY, COMPLIANCE_STATUSES, SOURCE_KINDS } from './sources.ts';
 
 // --- errors & helpers ------------------------------------------------------------------------------------------
@@ -132,6 +132,17 @@ export const CreateJudgementSchema = z.object({
   justification: z.string(),
 });
 export type CreateJudgementInput = z.infer<typeof CreateJudgementSchema>;
+
+/**
+ * Body of `POST /api/suggestions/:id/decision`. Not strict on purpose: the analyst is never taken from the request.
+ * A decision without a justification of `JUSTIFICATION_LENGTH` characters (after trimming) is a contract violation.
+ */
+export const SuggestionDecisionSchema = z.object({
+  decision: z.enum(['confirmed', 'rejected']),
+  justification: z.string().trim().min(JUSTIFICATION_LENGTH.min).max(JUSTIFICATION_LENGTH.max),
+  editedText: z.string().trim().min(1).max(4000).optional(),
+});
+export type SuggestionDecisionInput = z.infer<typeof SuggestionDecisionSchema>;
 
 export const AnalystOverrideTargetSchema = z.strictObject({
   sourceId: z.string().trim().min(1).max(64).optional(),

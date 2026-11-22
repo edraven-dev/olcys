@@ -165,6 +165,27 @@ describe('api', () => {
       },
     ];
     await runtime.repos.clusters!.add(collected, clusters);
+    // Fund flows (computed): edges and the per-address views, read from the collecting run too.
+    const seed = { chain: 'evm:1' as const, address: `0x${'5a'.repeat(20)}` };
+    const edge = {
+      from: seed,
+      to: { chain: 'evm:1' as const, address: `0x${'6b'.repeat(20)}` },
+      asset: 'ETH',
+      amount: '0.5',
+      txHash: `0x${'ab'.repeat(32)}`,
+      at: '2026-03-01T10:00:00.000Z',
+      hop: 1,
+    };
+    await runtime.repos.analysis.addFlows!(collected, [edge]);
+    const view = {
+      runId: collected,
+      address: seed,
+      timeline: [],
+      sankey: { nodes: [], links: [] },
+      truncated: false,
+      computedAt: '2026-03-02T00:00:00.000Z',
+    };
+    await runtime.repos.analysis.addFlowViews!([view]);
     const rescore = await app.inject({
       method: 'POST',
       url: `/api/cases/${caseId}/runs`,
@@ -184,6 +205,10 @@ describe('api', () => {
     expect((await app.inject(`/api/runs/${collected}/clusters`)).json().items).toEqual(clusters);
     expect((await app.inject(`/api/runs/${id}/clusters`)).json().items).toEqual(clusters);
     expect((await app.inject(`/api/runs/${newId()}/clusters`)).statusCode).toBe(404);
+    expect((await app.inject(`/api/runs/${collected}/flows`)).json().items).toEqual([edge]);
+    expect((await app.inject(`/api/runs/${id}/flows`)).json().items).toEqual([edge]);
+    expect((await app.inject(`/api/runs/${id}/fund-flows`)).json().items).toEqual([view]);
+    expect((await app.inject(`/api/runs/${newId()}/flows`)).statusCode).toBe(404);
   });
 
   it('marks a run failed when a stage throws', async () => {

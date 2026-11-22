@@ -8,6 +8,8 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@olcys/core": "workspace:*"
+    "@olcys/core": "workspace:*",
+    "asn1js": "4.1.0",
+    "pkijs": "4.0.1"
   }
 }

@@ -338,3 +338,40 @@ describe('scheduler settings and logging', () => {
     expect(warnings).toEqual(['schedule not evaluated']);
   });
 });
+
+const stamper = (canFlush: boolean, calls: string[]) => ({
+  enabled: true,
+  canFlush,
+  stamp: () => Promise.reject(new Error('not used')),
+  flush: () => {
+    calls.push('flush');
+    return Promise.resolve({ ran: true, attempted: 0, granted: 0, failed: 0, rejected: 0 });
+  },
+});
+const start = async (canFlush: boolean) => {
+  const calls: string[] = [];
+  const scheduler = createScheduler({
+    runtime: {
+      repos: createMemoryRepositories(),
+      mode: 'live',
+      config: { sources: [], snapshot: CONFIG },
+      logger: silent,
+      launchRun: () => {},
+      timestamper: stamper(canFlush, calls),
+    },
+    settings: { intervalSeconds: 3600, minIntervalMinutes: 60 },
+  });
+  await scheduler.start();
+  await scheduler.stop();
+  return calls;
+};
+
+describe('timestamp flush on the scheduler timer', () => {
+  it('flushes once at start-up when the TSA can be reached (live mode, enabled)', async () => {
+    expect(await start(true)).toEqual(['flush']);
+  });
+
+  it('does not flush when it cannot (offline, replay or TSA_ENABLED=false)', async () => {
+    expect(await start(false)).toEqual([]);
+  });
+});

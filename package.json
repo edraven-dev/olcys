@@ -24,6 +24,7 @@
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm compliance:licences && pnpm compliance:images && pnpm compliance:sources && pnpm compliance:sbom --check && pnpm licenses:docs --check && pnpm test",
     "db:migrate": "node --env-file-if-exists=.env packages/db/src/migrate.ts",
     "db:reset": "node --env-file-if-exists=.env scripts/dev/db-reset.ts",
+    "demo": "node --env-file-if-exists=.env scripts/demo/run.ts",
     "seed": "node --env-file-if-exists=.env scripts/dev/seed.ts",
     "dev:doctor": "node --env-file-if-exists=.env scripts/dev/doctor.ts",
     "db:status": "node --env-file-if-exists=.env packages/db/src/migrate.ts --status"

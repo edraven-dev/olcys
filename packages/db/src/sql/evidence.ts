@@ -1,6 +1,46 @@
-import type { EvidenceRepository, Observation } from '@olcys/core';
+import type { EvidenceRepository, ExtractionResult, Id, Observation } from '@olcys/core';
+import type { Transaction } from 'kysely';
 import { json, type Db } from '../client.ts';
+import type { Database } from '../schema.ts';
 import { insertCustodyEvents } from './custody.ts';
+import { attachTimestamps } from './timestamps.ts';
+
+async function insertExtraction(trx: Transaction<Database>, runId: Id, result: ExtractionResult): Promise<void> {
+  await trx
+    .insertInto('extraction_results')
+    .values({ run_id: runId, capture_id: result.captureId, record: json(result) })
+    .execute();
+  if (result.candidates.length) {
+    await trx
+      .insertInto('address_candidates')
+      .values(
+        result.candidates.map((c) => ({
+          id: c.id,
+          run_id: runId,
+          capture_id: c.captureId,
+          chain: c.address.chain,
+          address: c.address.address,
+          record: json(c),
+        })),
+      )
+      .execute();
+  }
+  if (result.secrets.length) {
+    await trx
+      .insertInto('secret_findings')
+      .values(
+        result.secrets.map((s) => ({
+          run_id: runId,
+          capture_id: result.captureId,
+          kind: s.kind,
+          view: s.view,
+          span_start: s.span.start,
+          span_end: s.span.end,
+        })),
+      )
+      .execute();
+  }
+}
 
 export function sqlEvidenceRepository(db: Db): EvidenceRepository {
   return {
@@ -84,40 +124,16 @@ export function sqlEvidenceRepository(db: Db): EvidenceRepository {
     },
 
     async addExtraction(runId, result) {
+      await db.transaction().execute((trx) => insertExtraction(trx, runId, result));
+    },
+
+    async addExtractions(runId, results) {
+      // One transaction: when any insert fails, no capture's rows stay.
       await db.transaction().execute(async (trx) => {
-        await trx
-          .insertInto('extraction_results')
-          .values({ run_id: runId, capture_id: result.captureId, record: json(result) })
-          .execute();
-        if (result.candidates.length) {
-          await trx
-            .insertInto('address_candidates')
-            .values(
-              result.candidates.map((c) => ({
-                id: c.id,
-                run_id: runId,
-                capture_id: c.captureId,
-                chain: c.address.chain,
-                address: c.address.address,
-                record: json(c),
-              })),
-            )
-            .execute();
-        }
-        if (result.secrets.length) {
-          await trx
-            .insertInto('secret_findings')
-            .values(
-              result.secrets.map((s) => ({
-                run_id: runId,
-                capture_id: result.captureId,
-                kind: s.kind,
-                view: s.view,
-                span_start: s.span.start,
-                span_end: s.span.end,
-              })),
-            )
-            .execute();
+        for (const result of results) {
+          // Sequential on purpose: one transaction is one connection.
+          // oxlint-disable-next-line no-await-in-loop
+          await insertExtraction(trx, runId, result);
         }
       });
     },
@@ -129,13 +145,16 @@ export function sqlEvidenceRepository(db: Db): EvidenceRepository {
     },
 
     async listCaptures(runId) {
-      return (await db.selectFrom('captures').select('record').where('run_id', '=', runId).execute()).map(
-        (r) => r.record,
+      const rows = await db.selectFrom('captures').select('record').where('run_id', '=', runId).execute();
+      return attachTimestamps(
+        db,
+        rows.map((r) => r.record),
       );
     },
 
     async getCapture(id) {
-      return (await db.selectFrom('captures').select('record').where('id', '=', id).executeTakeFirst())?.record;
+      const row = await db.selectFrom('captures').select('record').where('id', '=', id).executeTakeFirst();
+      return row ? (await attachTimestamps(db, [row.record]))[0] : undefined;
     },
 
     async listAccounts(runId) {

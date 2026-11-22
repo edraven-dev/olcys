@@ -196,6 +196,25 @@ okresu i nie tworzy zmiany; niepobrana kopia z tym samym skrótem CDX dziedziczy
   rola `olcys_app` ma SELECT/INSERT); lista zdarzeń przebiegu: `GET /api/runs/:runId/custody`. Manifest zawiera nazwę
   analityka i adres IP stanowiska — nie jest logowany, a paczki zabezpieczonego materiału należy traktować jako dane
   o ograniczonym dostępie.
+- **Znaczniki czasu RFC 3161.** Po zapisaniu zabezpieczeń etap zbierania prosi usługę znakowania czasem (`TSA_URL`, w
+  demonstracji FreeTSA, źródło `freetsa` z rejestru) o token dla skrótu manifestu (`manifestSha256`); poza system wychodzi
+  tylko skrót i nonce, przez `EgressClient`. Token jest weryfikowany (status, odcisk, nonce, podpis, krytyczne EKU
+  `timeStamping`, `ESSCertID`, łańcuch do kotwic z `config/tsa/`, ważność w chwili `genTime`), a cała odpowiedź zapisana
+  w magazynie blobów (`application/timestamp-reply`) — można ją sprawdzić niezależnie poleceniem
+  `openssl ts -verify` (zob. `config/tsa/freetsa/README.md`). Tylko tryb `live` łączy się z TSA; `offline`, `replay`
+  i `TSA_ENABLED=false` zapisują żądanie ze stanem `queued` (bez zapytania sieciowego), a raport pokazuje
+  „znacznik czasu oczekuje (tryb offline)”. Kolejki zadań nie ma: oczekujące i nieudane żądania ponawia funkcja
+  `flush` — polecenie `pnpm --filter @olcys/worker tsa:flush` oraz zegar harmonogramu (co 10 minut, tylko w trybie live).
+  Zapis jest tylko do dopisywania (`timestamp_request`, `timestamp_token`, migracja `0009`): żądanie nigdy nie zmienia
+  stanu — ponowienie to nowy wiersz (`queued` → `failed` → `granted`/`rejected`), a token jest jeden na
+  (rodzaj, identyfikator, skrót), więc powtórne `flush` jest idempotentne. „Oczekuje” znaczy: ostatnie żądanie jest
+  `queued` lub `failed`, a tokenu nie ma; odpowiedź niezweryfikowana (`rejected`) nie jest ponawiana. Każda próba daje
+  zdarzenie `timestamped` albo `timestamp_failed` w łańcuchu dowodowym; gdy czas `genTime` różni się od czasu
+  zebrania o więcej niż `TSA_MAX_CLOCK_SKEW_SECONDS` (domyślnie 120), zdarzenie ma `skewSuspected: true`. Wczytując
+  przechwycenie, repozytorium uzupełnia `Capture.timestamp`. Start procesu kończy się błędem
+  `tsa_host_not_allow_listed`, gdy host z `TSA_URL` nie jest w `allowedHosts` źródła `TSA_SOURCE_ID`. FreeTSA jest usługą
+  demonstracyjną, bez domniemania z art. 41 eIDAS; token nazywany jest „kwalifikowanym” dopiero po skonfigurowaniu
+  kwalifikowanego dostawcy (`TSA_QUALIFIED=true`).
 - PostgreSQL jest systemem źródłowym. Rola aplikacji `olcys_app` ma na tabelach dowodowych tylko SELECT/INSERT
   (zob. `infra/postgres/init/01-roles.sh`); stan zmienny (status przebiegu, harmonogramy) ma jawne, opisane uprawnienia.
 
@@ -238,10 +257,25 @@ kontraktu usługi — konto EOA z delegacją, konto Safe i konto ERC-4337 mogą 
 ## AI (wymienny model)
 
 `@olcys/llm` korzysta z API Chat Completions zgodnego z OpenAI, więc zmiana modelu sprowadza się do zmiany
-`LLM_BASE_URL` i `LLM_MODEL` (domyślnie lokalnie: Ollama/llama.cpp/vLLM). Model jedynie _podpowiada_ (rola wzmianki
-o adresie, odmiana polskich imion i nazwisk, szkice wniosków w raporcie); nigdy nie wyszukuje adresów i nie ustala
-wyników, otrzymuje zebrany tekst wyłącznie jako oznaczone, niezaufane dane, nie ma dostępu do narzędzi, a każde
-wywołanie jest rejestrowane (wersja promptu, model, skrót modelu, odpowiedź).
+`LLM_BASE_URL` i `LLM_MODEL`. Domyślnie jest to lokalny OpenVINO Model Server (`http://localhost:2140/v3`, model
+`qwen3.6-35b-ov`, myślenie wyłączone przez `LLM_CHAT_TEMPLATE_KWARGS`); Ollama, llama.cpp i vLLM działają tak samo.
+Punkt końcowy modelu jest źródłem w `config/sources.yaml` (`local_llm`, rodzaj `ai_model`, nie wysyła identyfikatorów
+poza maszynę), a cały ruch idzie przez `@olcys/http`: lista dozwolonych hostów, limit zapytań, dziennik wyjścia
+(`containsIdentifier`) i koperta pochodzenia. Zdalny punkt końcowy wymaga własnego wpisu AMBER i zgody w sprawie.
+
+Model jedynie _podpowiada_ (rola wzmianki o adresie, odmiana polskich imion i nazwisk, szkice wniosków w raporcie);
+nigdy nie wyszukuje adresów i nie ustala wyników. Zebrany tekst trafia do niego wyłącznie jako niezaufane dane między
+znacznikami z jednorazowym, deterministycznym znacznikiem (tekst jest normalizowany, znaki niewidoczne i fałszywe
+znaczniki usuwane); żądanie nie zawiera narzędzi. Treści ze źródeł z `llmAllowed: false` (np. Telegram) nigdy nie
+trafiają do promptu, a zbyt długi tekst jest odrzucany. Odpowiedź musi spełniać schemat JSON; wyniki oczekiwane
+(`disabled`, `input_rejected`, `egress_denied`, `timeout`, `http_error`, `invalid_json`, `schema_violation`) są
+zwracane jako wartości, a każda próba trafia do dziennika `llm_call` (wersja i skrót promptu, model żądany i zgłoszony,
+skrót modelu, parametry, skrót i blob żądania, blob odpowiedzi). Prompty są wersjonowane i zablokowane skrótem w
+`packages/llm/prompts.lock.json`.
+
+Sugestie (`llm_suggestion`) mają zerową wagę w ocenie, dopóki analityk ich nie potwierdzi decyzją z uzasadnieniem
+(`POST /api/suggestions/:id/decision`, jedna decyzja na sugestię); potwierdzenie niczego nie zmienia w zapisanej
+ocenie, a uwzględnia je dopiero kolejny przebieg ponownej oceny. Fakty, wyniki obliczeń i wnioski pozostają rozdzielone.
 
 ## Język interfejsu i dokumentacji
 

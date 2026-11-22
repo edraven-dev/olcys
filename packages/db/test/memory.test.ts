@@ -67,3 +67,17 @@ describe('memory repositories', () => {
     expect(await repos.chain.listTransfers(runId)).toHaveLength(1);
   });
 });
+
+describe('memory addExtractions', () => {
+  it('stores nothing when a later result cannot be written', async () => {
+    const repos = createMemoryRepositories();
+    const ok = { captureId: newId(), candidates: [], rejected: [], secrets: [], extractorVersion: 'test' };
+    // A function is not cloneable, so the second write fails.
+    const bad = { ...ok, captureId: newId(), extractorVersion: (() => 1) as unknown as string };
+    const runId = newId();
+    await expect(repos.evidence.addExtractions!(runId, [ok, bad])).rejects.toThrow(/clone/i);
+    expect(await repos.evidence.listExtractionResults(runId)).toEqual([]);
+    await repos.evidence.addExtractions!(runId, [ok]);
+    expect(await repos.evidence.listExtractionResults(runId)).toHaveLength(1);
+  });
+});

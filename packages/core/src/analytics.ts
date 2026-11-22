@@ -106,6 +106,8 @@ export interface FlowEdge {
   asset: string;
   amount: DecimalString;
   txHash: string;
+  /** Log or trace index of the transfer within its transaction (distinguishes several transfers of one transaction). */
+  index?: number;
   at: IsoDateTime;
   /**
    * Downstream (destination of funds) `1…N`, the edge leaving an analysed address is `1`; upstream (source of funds)
@@ -113,6 +115,8 @@ export interface FlowEdge {
    */
   hop: number;
   valuation?: Valuation;
+  /** A co-spend row (Bitcoin): the same output as an original edge; aggregations count the output once. */
+  derivedFrom?: 'co_spend';
   /** True when the edge closes a loop back to an address already on the path (never expanded further). */
   isCycle?: boolean;
 }

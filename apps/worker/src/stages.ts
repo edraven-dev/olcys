@@ -9,6 +9,7 @@ import { join } from 'node:path';
 import type {
   ActivityIndicators,
   AddressRef,
+  Capture,
   CashOutEvent,
   ChainId,
   Clock,
@@ -19,11 +20,13 @@ import type {
   RunContext,
   SourceDescriptor,
   SourceKind,
+  TrustedTimestamper,
   UtxoTransaction,
 } from '@olcys/core';
 import { addressKey, chainFamily, dCmp, dSub, newId, transferKey, uniqueTransfers } from '@olcys/core';
 import {
   analyseAddress,
+  type AddressAnalysis,
   createAssetRegistry,
   createNbpFxRateSource,
   createSeriesPriceSource,
@@ -61,7 +64,13 @@ import {
   toClusterSummary,
 } from '@olcys/labels';
 import { parse as parseYaml } from 'yaml';
-import { createSecretRedactor, extractCapture, parseDenyList, type CaptureContent } from '@olcys/address-extractor';
+import {
+  createSecretRedactor,
+  EXTRACTOR_VERSION,
+  extractCapture,
+  parseDenyList,
+  type CaptureContent,
+} from '@olcys/address-extractor';
 import {
   collectCase,
   createDefaultCollectorRegistry,
@@ -85,6 +94,7 @@ import { classifyFetched } from './address-types.ts';
 import { withAnalystOverrides } from './analyst.ts';
 import { CLUSTER_EXPANSION, clusterBitcoin } from './clusters.ts';
 import { describeGaps, historyGaps, isOwnStatement, transfersOf } from './chain-data.ts';
+import { computeFlowGraph, coSpendTransfers, expandFlowHops, flowSettings, type EndpointClass } from './flows.ts';
 import { REPO_ROOT, TOOL_VERSION } from './config.ts';
 import type { Stage, StageContext } from './pipeline.ts';
 
@@ -97,6 +107,8 @@ export interface StageOptions {
   /** Environment for collector configuration (fixture base URL, watch pages) and cassettes. */
   env?: Readonly<Record<string, string | undefined>>;
   sources: readonly SourceDescriptor[];
+  /** Stamps every persisted capture manifest (RFC 3161); without it captures are not timestamped. */
+  timestamper?: TrustedTimestamper;
 }
 
 /** Loads once per process; a rejected load is retried by the next run. */
@@ -188,6 +200,7 @@ export function createCollectStage(options: StageOptions): Stage {
       );
       await ctx.repos.evidence.addAccounts(result.accounts);
       await ctx.repos.evidence.addObservations(result.observations);
+      await stampCaptures(options.timestamper, result.captures);
       if (result.partial) {
         const unavailable = result.sources.filter((s) => s.status !== 'ok' && s.status !== 'not_found');
         const ids = unavailable.map((s) => s.sourceId).join(', ');
@@ -206,6 +219,26 @@ export function createCollectStage(options: StageOptions): Stage {
   };
 }
 
+/**
+ * Stamps the manifest digest of every persisted capture. A TSA outage is a typed outcome of the timestamper (the request
+ * is stored as failed or queued and retried by the flush); anything thrown here is a bug or an infrastructure error and
+ * fails the stage.
+ */
+async function stampCaptures(timestamper: TrustedTimestamper | undefined, captures: readonly Capture[]): Promise<void> {
+  if (!timestamper) return;
+  for (const capture of captures) {
+    // Sequential on purpose: the TSA is rate limited.
+    // oxlint-disable-next-line no-await-in-loop
+    await timestamper.stamp({
+      type: 'capture_manifest',
+      id: capture.id,
+      digest: capture.manifestSha256,
+      runId: capture.runId,
+      referenceTime: capture.collectedAt,
+    });
+  }
+}
+
 export function createExtractStage(): Stage {
   const denyList = lazy(async () =>
     parseDenyList(await readFile(join(REPO_ROOT, 'config', 'rules', 'deny-list.v1.yaml'), 'utf8')),
@@ -219,8 +252,16 @@ export function createExtractStage(): Stage {
       const captures = (await ctx.repos.evidence.listCaptures(ctx.evidenceRunId)).filter(
         (c) => c.status === 'ok' && !isSearchResultCapture(c),
       );
-      let candidates = 0;
-      for (const capture of captures) {
+      // Redelivery is harmless: a capture already extracted by this run with the current extractor is not stored twice.
+      const done = new Set(
+        (await ctx.repos.evidence.listExtractionResults(ctx.run.id))
+          .filter((r) => r.extractorVersion === EXTRACTOR_VERSION)
+          .map((r) => r.captureId),
+      );
+      // Extract everything first and persist afterwards: a failure (e.g. `SecretLeakError`) stores nothing.
+      const results: Awaited<ReturnType<typeof extractCapture>>[] = [];
+      const started = Date.now();
+      for (const capture of captures.filter((c) => !done.has(c.id))) {
         const artifacts: CaptureContent['artifacts'] = [];
         for (const artifact of capture.artifacts.filter((a) => TEXT_ARTIFACTS.has(a.kind))) {
           // Sequential on purpose: pages are processed one at a time to bound memory.
@@ -229,15 +270,39 @@ export function createExtractStage(): Stage {
           artifacts.push({ kind: artifact.kind, mediaType: artifact.blob.mediaType, bytes });
         }
         if (artifacts.length === 0) continue;
-        // oxlint-disable-next-line no-await-in-loop
-        const result = await extractCapture(
-          { captureId: capture.id, url: capture.url, finalUrl: capture.finalUrl, artifacts },
-          { denyList: list },
+        results.push(
+          // oxlint-disable-next-line no-await-in-loop
+          await extractCapture(
+            { captureId: capture.id, url: capture.url, finalUrl: capture.finalUrl, artifacts },
+            { denyList: list },
+          ),
         );
-        candidates += result.candidates.length;
-        // oxlint-disable-next-line no-await-in-loop
-        await ctx.repos.evidence.addExtraction(ctx.run.id, result);
       }
+      let candidates = 0;
+      const secretsByKind: Record<string, number> = {};
+      let rejected = 0;
+      for (const result of results) {
+        candidates += result.candidates.length;
+        rejected += result.rejected.length;
+        for (const s of result.secrets) secretsByKind[s.kind] = (secretsByKind[s.kind] ?? 0) + 1;
+      }
+      // One all-or-nothing write; a repository without the batch method falls back to one write per capture.
+      const evidence = ctx.repos.evidence;
+      if (evidence.addExtractions) await evidence.addExtractions(ctx.run.id, results);
+      else {
+        for (const result of results) {
+          // oxlint-disable-next-line no-await-in-loop
+          await evidence.addExtraction(ctx.run.id, result);
+        }
+      }
+      // Counts only: nothing extracted from a page (and certainly no secret) goes to the log.
+      ctx.logger.info('extraction finished', {
+        captures: results.length,
+        candidates,
+        rejected,
+        secrets: secretsByKind,
+        ms: Date.now() - started,
+      });
       await ctx.progress({ extracted: captures.length, candidates });
     },
   };
@@ -690,7 +755,45 @@ export function createChainStage(options: StageOptions): Stage {
         [...expansion].map(([key, a]) => [key, transfersOf(a, hop?.transfers ?? [], hop?.utxoTxs ?? [])]),
       );
 
-      // 4. Activity, cash-out indicators and flows, valued in PLN at the NBP rate.
+      // 3b. Fund-flow expansion: counterparties of the analysed addresses (recipients first, then senders), bounded and
+      // never past services or excluded addresses; their histories feed the flow graph and the per-order detection.
+      const settings = flowSettings(env, c.cashOutRules.maxHops);
+      const pool = {
+        transfers: [...fetched.transfers, ...(hop?.transfers ?? [])],
+        utxoTxs: [...fetched.utxoTxs, ...(hop?.utxoTxs ?? [])],
+      };
+      const excludedKeys = new Set(
+        decisions
+          .filter(
+            (d) =>
+              effectiveOutcome(decisions.filter((x) => targetOf(x.address) === targetOf(d.address))).outcome ===
+              'excluded',
+          )
+          .map((d) => targetOf(d.address)),
+      );
+      const classes = new Map<string, EndpointClass>();
+      const classify = async (address: AddressRef): Promise<EndpointClass> => {
+        const canonical = canonicalAddress(address);
+        const key = addressKey(canonical);
+        const known = classes.get(key);
+        if (known) return known;
+        const [labelled, pre] = await Promise.all([
+          labels.labelsFor(canonical),
+          prescreenExclusions(canonical, exclusionDeps),
+        ]);
+        const cls = {
+          service: labelled.length > 0,
+          excluded: excludedKeys.has(key) || effectiveOutcome(pre).outcome === 'excluded',
+        };
+        classes.set(key, cls);
+        return cls;
+      };
+      const fetchedKeys = new Set([
+        ...toFetch.map((a) => addressKey(resolvedOf(a))),
+        ...analysedKeys,
+        ...expansion.keys(),
+      ]);
+      const txCounts = new Map(fetched.summaries.map((x) => [addressKey(x.address), x.txCount]));
       const counted = trackUnpriced(
         createValuator({
           fx: createNbpFxRateSource({ http, ...(c.nbpBaseUrl ? { baseUrl: c.nbpBaseUrl } : {}) }),
@@ -698,6 +801,33 @@ export function createChainStage(options: StageOptions): Stage {
           assets,
         }),
       );
+      const expanded: { address: AddressRef; transfers: NormalizedTransfer[]; hop: number }[] = [];
+      const flowExpansion = await expandFlowHops({
+        seeds: analysed,
+        settings,
+        pool,
+        fetched: fetchedKeys,
+        txCounts,
+        assets,
+        valuator: counted.valuator,
+        ctx: runCtx,
+        classify,
+        fetch: (plan) =>
+          runChainFetch(plan, providers, runCtx, { enabledSources: chainSources, tips, ...unknownEvmChains }),
+        async onFetched(address, transfers, hopNumber) {
+          expanded.push({ address, transfers, hop: hopNumber });
+          counterpartyTransfers.set(addressKey(address), transfers);
+        },
+      });
+      const flowGaps = historyGaps(flowExpansion.outcomes);
+      if (flowGaps) {
+        ctx.markPartial(
+          `fund-flow counterparty chain data incomplete for ${flowGaps.count} address(es): ${describeGaps(flowGaps.items)}`,
+          { code: 'counterparty_chain_incomplete', params: { count: flowGaps.count, items: flowGaps.items } },
+        );
+      }
+
+      // 4. Activity, cash-out indicators and flows, valued in PLN at the NBP rate.
       const deps = {
         labels,
         assets,
@@ -708,6 +838,7 @@ export function createChainStage(options: StageOptions): Stage {
         runId,
       };
       const indicators: ActivityIndicators[] = [];
+      const analyses = new Map<string, AddressAnalysis>();
       // A transfer between two analysed addresses is stored once per run (under the first address analysed).
       const stored = new Set<string>();
       const events: CashOutEvent[] = [];
@@ -729,6 +860,7 @@ export function createChainStage(options: StageOptions): Stage {
         );
         indicators.push(analysis.indicators);
         events.push(...analysis.events);
+        analyses.set(addressKey(a), analysis);
         // oxlint-disable-next-line no-await-in-loop
         await ctx.repos.chain.addTransfers(
           runId,
@@ -739,6 +871,63 @@ export function createChainStage(options: StageOptions): Stage {
             stored.add(key);
             return true;
           }),
+        );
+      }
+      // Counterparty histories (hop expansion) only serve flow queries; analysed addresses keep their own history.
+      const counterpartyHistories = [
+        ...[...expansion].map(([, a]) => ({
+          address: a,
+          transfers: transfersOf(a, hop?.transfers ?? [], hop?.utxoTxs ?? []),
+          hop: 1,
+        })),
+        ...expanded,
+      ];
+      for (const history of counterpartyHistories) {
+        // oxlint-disable-next-line no-await-in-loop
+        await ctx.repos.chain.addTransfers(
+          runId,
+          history.address,
+          history.transfers.filter((t) => {
+            const key = transferKey(t);
+            if (stored.has(key)) return false;
+            stored.add(key);
+            return true;
+          }),
+          { expansionHop: history.hop },
+        );
+      }
+      // Bitcoin co-spenders: a payment leaves every input address of its transaction, not only the first one.
+      const coSpend = coSpendTransfers(pool.transfers, pool.utxoTxs);
+      for (const t of coSpend) {
+        const key = transferKey(t);
+        if (stored.has(key)) continue;
+        stored.add(key);
+        // oxlint-disable-next-line no-await-in-loop
+        await ctx.repos.chain.addTransfers(runId, { chain: t.chain, address: t.from }, [t], { expansionHop: 1 });
+      }
+      pool.transfers.push(...coSpend);
+      // 5. Flow graph: edges valued in PLN, a timeline and a Sankey aggregate per analysed address.
+      const graph = await computeFlowGraph({
+        runId,
+        seeds: analysed,
+        settings,
+        pool,
+        assets,
+        valuator: counted.valuator,
+        ctx: runCtx,
+        classify,
+        labelOf: async (a) => (await labels.labelsFor(canonicalAddress(a)))[0],
+        swapsOf: (a) => analyses.get(addressKey(a))?.indicators.swaps ?? [],
+        eventsOf: (a) => analyses.get(addressKey(a))?.events ?? [],
+        ...(ctx.repos.chain.queryFlowEdges ? { query: (id, q) => ctx.repos.chain.queryFlowEdges!(id, q) } : {}),
+        computedAt: new Date().toISOString(),
+      });
+      await ctx.repos.analysis.addFlows?.(runId, graph.edges);
+      await ctx.repos.analysis.addFlowViews?.(graph.views);
+      if (graph.truncatedQueries > 0) {
+        ctx.markPartial(
+          `fund-flow graph truncated at ${settings.edgeLimit} edges in ${graph.truncatedQueries} query(ies)`,
+          { code: 'flow_graph_truncated', params: { count: graph.truncatedQueries, limit: settings.edgeLimit } },
         );
       }
       // A leg without a price or NBP rate leaves its PLN value missing: say so instead of staying silent.
@@ -762,6 +951,8 @@ export function createChainStage(options: StageOptions): Stage {
         exclusions: decisions.length,
         clusters: clusterCount,
         cashOutEvents: events.length,
+        flowEdges: graph.edges.length,
+        flowExpandedAddresses: expanded.length,
         unpricedTransfers: unpriced,
       });
     },
