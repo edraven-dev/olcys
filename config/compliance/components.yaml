@@ -67,6 +67,9 @@ python:
   anyio:
     licence: MIT
     purpose: 'zależność Starlette (asynchroniczność serwera)'
+  asn1crypto:
+    licence: MIT
+    purpose: 'zależność pyHanko (kodowanie ASN.1/DER podpisów PAdES)'
   attrs:
     licence: MIT
     purpose: 'zależność aiohttp'
@@ -88,6 +91,9 @@ python:
   colorama:
     licence: BSD-3-Clause
     purpose: 'zależność Maigret (kolory w konsoli, nieużywane)'
+  cryptography:
+    licence: Apache-2.0 OR BSD-3-Clause
+    purpose: 'zależność pyHanko; klucz i certyfikat demonstracyjny, testowe urzędy certyfikacji'
   fastapi:
     licence: MIT
     purpose: 'API serwisu osint-py'
@@ -133,6 +139,9 @@ python:
   opentelemetry-api:
     licence: Apache-2.0
     purpose: 'zależność FastAPI: wyłącznie interfejs (bez SDK i eksportera), nic nie opuszcza usługi'
+  oscrypto:
+    licence: MIT
+    purpose: 'zależność pyhanko-certvalidator (operacje kryptograficzne)'
   packaging:
     licence: Apache-2.0 OR BSD-2-Clause
     purpose: 'zależność pytest'
@@ -160,6 +169,12 @@ python:
   pygments:
     licence: BSD-2-Clause
     purpose: 'zależność pytest (kolorowanie wyników)'
+  pyhanko:
+    licence: MIT
+    purpose: 'podpis PDF w formacie PAdES (podpis przerwany: przygotowanie, znacznik czasu z Node, dokończenie); usługa nie łączy się z siecią'
+  pyhanko-certvalidator:
+    licence: MIT
+    purpose: 'zależność pyHanko (budowa i walidacja ścieżki certyfikacji)'
   pytest:
     licence: MIT
     purpose: 'testy usługi (tylko grupa dev)'
@@ -199,6 +214,12 @@ python:
   tzdata:
     licence: Apache-2.0
     purpose: 'dane stref czasowych (zależność Maigret)'
+  tzlocal:
+    licence: MIT
+    purpose: 'zależność pyHanko (strefy czasowe)'
+  uritools:
+    licence: MIT
+    purpose: 'zależność pyhanko-certvalidator (adresy URI)'
   urllib3:
     licence: MIT
     purpose: 'zależność requests'

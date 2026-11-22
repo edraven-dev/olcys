@@ -39,6 +39,8 @@ export const pl = {
       'Raport opisuje powiązania identyfikatorów z adresami kryptowalutowymi, a nie osoby. Wyniki wspierają ocenę analityka i wymagają weryfikacji; nie mogą być jedyną podstawą rozstrzygnięcia.',
     toc: 'Spis treści',
     footer: 'Raport {reportId} · wygenerowano {at} · szablon {template}',
+    signatureNote:
+      'Wersja PDF/A raportu może być opatrzona podpisem elektronicznym (PAdES) z certyfikatem demonstracyjnym: jest to podpis demonstracyjny, niekwalifikowany, bez domniemania z art. 25 ust. 2 rozporządzenia eIDAS. Skrót SHA-256 danych raportu podano w metryce; załączony manifest (manifest.json) zawiera te same dane.',
   },
   classes: {
     facts: 'Fakty źródłowe',
@@ -304,6 +306,8 @@ export const pl = {
         'graf przepływów środków przycięty limitem {limit} krawędzi (zapytań: {count}); część dalszych przepływów nie została pokazana',
       llm_unavailable:
         'model AI był niedostępny lub zawiódł dla {count} wzmianek o adresach: nie powstały dla nich sugestie ról (nie wpływa to na wyniki)',
+      pdf_unavailable:
+        'nie powstał raport PDF/A (usługa renderowania lub walidacja PDF/A zawiodła: {reason}); dostępny jest raport HTML i manifest (nie wpływa to na wyniki)',
     } as Record<string, string>,
     addresses: 'W treści zabezpieczonych stron znaleziono {addresses} o poprawnym formacie i sumie kontrolnej.',
     transfers: 'Z publicznych danych blockchain pobrano {transfers} dotyczące analizowanych adresów.',

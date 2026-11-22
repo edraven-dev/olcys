@@ -22,7 +22,9 @@ ENV UV_COMPILE_BYTECODE=1 \
 
 WORKDIR /app
 COPY pyproject.toml uv.lock ./
-RUN useradd --system --uid 10001 --home /app olcys
+# The demo signing identity (created on first use, never part of the image or the repository) lives in /signing.
+RUN useradd --system --uid 10001 --home /app olcys && mkdir /signing && chown olcys /signing
+ENV OLCYS_SIGNING_DIR=/signing
 
 # Tests run offline: `docker build --target test -t olcys-osint-test services/osint-py`
 # then `docker run --rm --network none olcys-osint-test`.
@@ -42,6 +44,7 @@ RUN uv sync --frozen --no-dev
 COPY src ./src
 COPY config ./config
 COPY data ./data
+COPY scripts/make_demo_signer.py ./scripts/make_demo_signer.py
 USER olcys
 
 EXPOSE 8000

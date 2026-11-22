@@ -1,6 +1,7 @@
 import { createMemoryRepositories } from '@olcys/db';
 import { InMemoryBlobStore } from '@olcys/evidence';
 import { buildReportData, EXPORT_KINDS, renderReport, storeReport } from '@olcys/reporting';
+import type { EgressClient, EgressResponse } from '@olcys/core';
 import { createRuntime, type Runtime } from '@olcys/worker';
 import { createHash } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -257,5 +258,122 @@ describe('older and damaged reports', () => {
     expect((await app.inject(`/api/runs/${id}/report/view`)).statusCode).toBe(500);
     damaged.clear();
     expect((await app.inject(path.replace(sha, 'e'.repeat(64)))).statusCode).toBe(404);
+  });
+});
+
+const reply = (status: number, body: Uint8Array | object, headers: Record<string, string> = {}): EgressResponse => {
+  const bytes = body instanceof Uint8Array ? body : new TextEncoder().encode(JSON.stringify(body));
+  return {
+    status,
+    finalUrl: '',
+    headers,
+    body: bytes,
+    text: () => new TextDecoder().decode(bytes),
+    json: <T>() => JSON.parse(new TextDecoder().decode(bytes)) as T,
+    provenance: {} as EgressResponse['provenance'],
+  };
+};
+
+describe('report PDF in the version file list', () => {
+  const PDF = new TextEncoder().encode('%PDF-1.7 synthetic');
+  const gotenberg: EgressClient = {
+    async fetch(request) {
+      if (request.sourceId !== 'gotenberg') throw new Error('ECONNREFUSED');
+      return request.url.endsWith('/validate')
+        ? reply(200, { f: { compliant: true, violations: [] } })
+        : reply(200, PDF, { 'gotenberg-remediation-residual': '0' });
+    },
+  };
+
+  it('lists the PDF of the same version with its status and serves it with a matching digest', async () => {
+    const other = (await app.inject({ method: 'POST', url: `/api/cases/${caseId}/runs`, payload: {} })).json()
+      .id as string;
+    await runtime.idle();
+    await storeReport(
+      runtime,
+      await buildReportData(runtime.repos, other, { generatedAt: '2026-11-21T13:41:00.000Z' }),
+      {},
+      {
+        deps: {
+          http: gotenberg,
+          blobs: runtime.blobs,
+          config: { gotenbergUrl: 'http://gotenberg:3000', signing: true },
+        },
+      },
+    );
+    const view = (await app.inject(`/api/runs/${other}/report/view`)).json();
+    const pdf = view.files.find((f: { kind: string }) => f.kind === 'pdf');
+    expect(pdf).toMatchObject({
+      available: true,
+      bytes: PDF.length,
+      path: `/api/runs/${other}/report/versions/${view.version}/pdf`,
+      pdf: { status: 'unsigned', demoCertificate: true, pdfaProfile: 'PDF/A-3b', warnings: ['signing_unavailable'] },
+    });
+    const served = await app.inject(pdf.path);
+    expect(served.statusCode).toBe(200);
+    expect(served.headers['content-type']).toContain('application/pdf');
+    expect(sha256(served.body)).toBe(pdf.sha256);
+  });
+
+  it('lists the RFC 3161 token of the PDF once a live flush has granted it', async () => {
+    const view = (await app.inject(`/api/runs/${runId}/report/view`)).json();
+    const other = view.files.find((f: { kind: string }) => f.kind === 'pdf');
+    expect(other.available).toBe(false);
+    const run = (await app.inject({ method: 'POST', url: `/api/cases/${caseId}/runs`, payload: {} })).json()
+      .id as string;
+    await runtime.idle();
+    const data = await buildReportData(runtime.repos, run, { generatedAt: '2026-11-21T13:41:00.000Z' });
+    const stored = await storeReport(
+      runtime,
+      data,
+      {},
+      {
+        deps: {
+          http: gotenberg,
+          blobs: runtime.blobs,
+          config: { gotenbergUrl: 'http://gotenberg:3000', signing: false },
+        },
+      },
+    );
+    const before = (await app.inject(`/api/runs/${run}/report/view`)).json();
+    expect(before.files.some((f: { kind: string }) => f.kind === 'pdf_timestamp')).toBe(false);
+    const subject = {
+      type: 'report_pdf',
+      id: data.reportId,
+      digest: stored.pdf?.artifacts.find((a) => a.kind === 'pdf')?.blob.sha256 ?? '',
+    } as const;
+    const token = await runtime.blobs.put(new Uint8Array([1, 2, 3]), 'application/timestamp-reply');
+    const requestId = '01900000-0000-7000-8000-0000000000a1';
+    await runtime.repos.timestamps?.record({
+      request: {
+        id: requestId,
+        subject,
+        tsaSourceId: 'freetsa',
+        tsaUrl: 'https://tsa.invalid/tsr',
+        outcome: 'granted',
+        at: '2026-11-21T14:00:00.000Z',
+      },
+      token: {
+        id: '01900000-0000-7000-8000-0000000000a2',
+        subject,
+        requestId,
+        token: {
+          tsaUrl: 'https://tsa.invalid/tsr',
+          token,
+          genTime: '2026-11-21T14:00:00.000Z',
+          hashAlgorithm: 'sha256',
+          messageImprint: subject.digest,
+        },
+        verification: {},
+        createdAt: '2026-11-21T14:00:00.000Z',
+      },
+    });
+    const after = (await app.inject(`/api/runs/${run}/report/view`)).json();
+    expect(after.version).toBe(before.version);
+    expect(after.files.find((f: { kind: string }) => f.kind === 'pdf_timestamp')).toMatchObject({
+      available: true,
+      sha256: token.sha256,
+      path: `/api/blobs/${token.sha256}`,
+    });
   });
 });
