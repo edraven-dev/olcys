@@ -16,7 +16,8 @@ import type {
   RunWithProgress,
   SourceDescriptor,
 } from '@olcys/core';
-import { addressKey, newId, nowIso, readPartialReasons } from '@olcys/core';
+import { addressKey, INFERENCE_DRAFT_TASK, newId, nowIso, readPartialReasons } from '@olcys/core';
+import { isReportableDraft } from './drafts.ts';
 import { REPORT_TEMPLATE_VERSION, type ReportData, type ReportSource } from './types.ts';
 import { cmp, refKey, timeOf } from './view.ts';
 
@@ -161,13 +162,18 @@ export async function buildReportData(
   ]);
 
   // Analyst statements and inputs, kept apart from the computed results (optional ports of the store).
-  const [judgements, overrides, suggestions] = await Promise.all([
+  const [judgements, overrides, suggestions, drafts] = await Promise.all([
     repos.judgements ? repos.judgements.listByRun(runId) : Promise.resolve([]),
     repos.overrides && run.trigger === 'rescore' && run.config.analystOverrides?.length
       ? repos.overrides.listByCase(run.caseId)
       : Promise.resolve([]),
     repos.llm ? roleSuggestionsOf(repos, run, candidates, evidenceRunId) : Promise.resolve([]),
+    repos.llm ? repos.llm.listSuggestionsByRun(run.id) : Promise.resolve([]),
   ]);
+  // Drafts for section C: only the ones an analyst confirmed are reported (never pending or rejected ones).
+  const inferenceDrafts = drafts
+    .filter((x) => x.task === INFERENCE_DRAFT_TASK && isReportableDraft(x))
+    .toSorted((a, b) => cmp(a.decidedAt ?? '', b.decidedAt ?? '') || cmp(a.id, b.id));
   // Address-mention roles proposed by the model: hypotheses of zero weight, listed with their status.
   const roleSuggestions = suggestions.toSorted((a, b) => cmp(a.createdAt, b.createdAt) || cmp(a.id, b.id));
   const applied = appliedOverrides(plainRun(run), overrides);
@@ -282,6 +288,7 @@ export async function buildReportData(
     changes: byId(changes),
     ...(judgements.length ? { judgements: byTime(judgements) } : {}),
     ...(roleSuggestions.length ? { suggestions: roleSuggestions } : {}),
+    ...(inferenceDrafts.length ? { inferenceDrafts } : {}),
     ...(applied.length ? { overrides: applied } : {}),
   };
 }

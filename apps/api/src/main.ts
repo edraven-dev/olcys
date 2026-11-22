@@ -3,7 +3,7 @@
  * proxy (`/api`). The MVP runs the analysis pipeline and the schedules of periodic re-runs in this process.
  */
 import { EXTRACTOR_VERSION } from '@olcys/address-extractor';
-import { createRuntime, createScheduler, schedulingSettings } from '@olcys/worker';
+import { createDraftInferencer, createRuntime, createScheduler, schedulingSettings } from '@olcys/worker';
 import { analystName } from './analyst-routes.ts';
 import { buildApp } from './app.ts';
 import { listFromEnv } from './guard.ts';
@@ -21,6 +21,7 @@ const app = buildApp({
   analyst: analystName(process.env),
   schedule: { minIntervalMinutes: settings.minIntervalMinutes },
   renderReport: reportRenderer(runtime),
+  draftInferences: createDraftInferencer(runtime),
   // Read-only facts for the settings page; the API key is never read here.
   settings: {
     llm: {

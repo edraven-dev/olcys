@@ -22,6 +22,7 @@ import { unavailableCaptures } from './render/header.ts';
 import { flowSteps } from './render/chain.ts';
 import { isWalletSwap, changeWhere } from './render/annex.ts';
 import { COMPUTED_PREFIX, isKycLead, linkEvidence, propertyLabel, uniqueRejected } from './render/links.ts';
+import { inferencesFromDrafts } from './drafts.ts';
 import type { ReportData } from './types.ts';
 import { chainName } from './render/blocks.ts';
 import { buildView, cmp, icdTerm, linkBand, lowestConfidence, refKey, timeOf, type View } from './view.ts';
@@ -270,6 +271,8 @@ function inferencesOf(view: View): ReportInference[] {
       requiresVerification: true,
     });
   }
+  // Confirmed AI drafts follow the rule-based and analyst inferences; they are labelled as AI-assisted.
+  out.push(...inferencesFromDrafts(data.inferenceDrafts ?? []));
   return out;
 }
 

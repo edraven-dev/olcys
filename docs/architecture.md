@@ -290,6 +290,15 @@ ocenie, a uwzględnia je dopiero kolejny przebieg ponownej oceny (potwierdzona r
 przebiegu błędem: niedostępny lub zawodzący model daje kod `llm_unavailable` (przebieg `partial`), a po 3 kolejnych
 niepowodzeniach kolejne wzmianki nie są wysyłane. Decyzja o sugestii zleca w tle ponowne wygenerowanie raportu przebiegu (nowa wersja, wcześniejsze zostają); odpowiedź nie czeka na renderowanie. Tekst z Telegrama nie trafia do modelu. Fakty, wyniki obliczeń i wnioski pozostają rozdzielone.
 
+Szkice wniosków do sekcji C raportu powstają wyłącznie na wyraźną prośbę analityka (`POST /api/runs/:runId/report/drafts`,
+dostępne, gdy `meta.features.inferenceDrafts`): jedno ograniczone wywołanie (najwyżej 6 szkiców) czyta zapisany model
+raportu — fakty (A) i wyniki obliczeń (B), bez pozycji opartych na Telegramie — i zwraca sugestie powiązane
+identyfikatorami z A/B; szkic cytujący nieistniejący identyfikator albo powtarzający wynik punktowy jest odrzucany.
+Awaria modelu to typowany wynik pokazany komunikatem po polsku, nie błąd. Szkice mają wagę 0 i nie zmieniają ocen ani
+podsumowania; analityk potwierdza (opcjonalnie poprawiając tekst) lub odrzuca je tą samą decyzją co inne sugestie, a do
+raportu i PDF trafiają tylko szkice potwierdzone, z etykietą „wspomagane AI, zatwierdzone przez analityka”, nazwiskiem
+analityka i czasem decyzji.
+
 ## Bezpieczeństwo
 
 Nagłówki i CSP, dziennik dostępu (tabela `access_log`, tylko dopisywanie), brak telemetrii, sekrety wyłącznie ze

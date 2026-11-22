@@ -11,3 +11,9 @@ export {
   AddressRoleOutputSchema,
   type AddressRoleOutput,
 } from './address-role/v1.ts';
+export {
+  INFERENCE_DRAFT_LIMITS,
+  inferenceDraftPromptV1,
+  InferenceDraftOutputSchema,
+  type InferenceDraftOutput,
+} from './inference-draft/v1.ts';

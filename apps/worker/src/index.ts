@@ -11,6 +11,7 @@ export {
   type StartRunInput,
 } from './pipeline.ts';
 export { createLlmRuntime, llmSnapshot, LlmConfigError, type LlmRuntime, type LlmRuntimeOptions } from './llm.ts';
+export { createDraftInferencer, type DraftInferencesDeps } from './draft-inferences.ts';
 export { runLlmCheck, type LlmCheckResult } from './llm-check.ts';
 export { consoleLogger, createRuntime, type Runtime, type RuntimeOptions } from './runtime.ts';
 export {
