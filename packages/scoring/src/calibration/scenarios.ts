@@ -12,6 +12,7 @@ import { discount } from '../hop.ts';
 import type { ClaimInput, PathInput } from '../link.ts';
 import { RELATION_RULES_VERSION } from '../version.ts';
 import type { ScoringWeights } from '../weights.ts';
+import { createIdFactory } from './ids.ts';
 import { Rng } from './prng.ts';
 
 /** One feature a scenario emits, with the probability of emitting it per claim. */
@@ -116,6 +117,9 @@ export function generateClaims(
 ): LabelledClaim[] {
   const active = specs.filter((s) => !NOT_ASSESSED.has(s.relation));
   const rng = new Rng(seed);
+  const newId = createIdFactory(seed);
+  const runId = newId();
+  const identityId = newId();
   const counts = allocate(
     active.map((s) => s.weight),
     n,
@@ -146,8 +150,8 @@ export function generateClaims(
       };
       out.push({
         claim: {
-          runId: 'calibration-run',
-          identityId: 'calibration-subject',
+          runId,
+          identityId,
           address: { chain: 'bitcoin', address: `synthetic-${si}-${j}` },
           relation: spec.relation,
           tier: TIER_RANK.find((t) => tiers.has(t)) ?? 'E3',

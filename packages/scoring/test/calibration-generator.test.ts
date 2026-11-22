@@ -1,8 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { isUuidV7 } from '@olcys/core';
 import { beforeAll, describe, expect, it } from 'vitest';
 import {
   canonicalJson,
+  createIdFactory,
   generateClaims,
   oracleScenarios,
   parsePersonaSet,
@@ -137,5 +139,33 @@ describe('scenario generator', () => {
       ['WORKED-TRON-1', 50],
       ['WORKED-COMBINED', 62],
     ]);
+  });
+});
+
+describe('generated ids', () => {
+  it('are UUIDv7, repeatable for a seed and different for another seed', () => {
+    const a = createIdFactory(7);
+    const ids = Array.from({ length: 2000 }, () => a());
+    expect(ids.every((id) => isUuidV7(id))).toBe(true);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(ids).toEqual(
+      Array.from(
+        { length: 2000 },
+        (
+          (b) => () =>
+            b()
+        )(createIdFactory(7)),
+      ),
+    );
+    expect(createIdFactory(8)()).not.toBe(ids[0]);
+    expect(ids.toSorted()).toEqual(ids);
+  });
+
+  it('every record id of generated claims is a UUIDv7 and identical across runs with one seed', () => {
+    const run = () => generateClaims(oracleScenarios(w), 200, 5).map((c) => [c.claim.runId, c.claim.identityId]);
+    const first = run();
+    expect(first.flat().every((id) => isUuidV7(id ?? ''))).toBe(true);
+    expect(run()).toEqual(first);
+    expect(generateClaims(oracleScenarios(w), 10, 6)[0]?.claim.runId).not.toBe(first[0]?.[0]);
   });
 });

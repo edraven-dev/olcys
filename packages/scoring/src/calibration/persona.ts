@@ -6,6 +6,7 @@ import {
   type Relation,
 } from '@olcys/core';
 import { parse as parseYaml } from 'yaml';
+import { createIdFactory } from './ids.ts';
 import { scoreLink, type ClaimInput, type PathInput } from '../link.ts';
 import { RELATION_RULES_VERSION } from '../version.ts';
 import type { ScoringWeights } from '../weights.ts';
@@ -78,12 +79,17 @@ export function parsePersonaSet(text: string): { version: string; cases: Persona
   return { version: doc['version'], cases };
 }
 
+const PERSONA_SEED = 20261121;
+
 /** Scores the persona claims with the engine; the caller compares `got` with `expected`. */
 export function scorePersona(cases: readonly PersonaCase[], w: ScoringWeights): PersonaResult[] {
+  const newId = createIdFactory(PERSONA_SEED);
+  const runId = newId();
+  const identityId = newId();
   return cases.map((c) => {
     const claim: ClaimInput = {
-      runId: 'calibration-persona',
-      identityId: 'calibration-subject',
+      runId,
+      identityId,
       address: { chain: 'bitcoin', address: `persona-${c.id}` },
       relation: c.relation,
       tier: 'E3',
@@ -95,7 +101,7 @@ export function scorePersona(cases: readonly PersonaCase[], w: ScoringWeights): 
     };
     const result = scoreLink(claim, w, {
       clock: { now: () => new Date('2026-11-21T12:00:00.000Z') },
-      newId: () => '01900000-0000-7000-8000-000000000000',
+      newId,
     });
     if (!result.ok) throw new Error(`persona claim ${c.id} could not be scored: ${result.reason}`);
     return { claim: c.id, expected: c.expected, got: result.assessment.score };

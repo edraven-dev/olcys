@@ -1,4 +1,5 @@
 export { canonicalJson, sha256OfText } from './canonical.ts';
+export { createIdFactory } from './ids.ts';
 export { reportMarkdown } from './markdown.ts';
 export {
   binIndex,

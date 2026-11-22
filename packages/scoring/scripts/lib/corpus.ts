@@ -11,6 +11,7 @@ import { EXTRACTOR_VERSION, extractCapture, parseDenyList, type CaptureContent }
 import { type ArtifactKind, type Capture, type Relation, type RoleCue } from '@olcys/core';
 import {
   buildClaims,
+  createIdFactory,
   expectedRelation,
   sha256OfText,
   type CorpusProvenance,
@@ -41,7 +42,7 @@ const MEDIA: Record<string, { kind: ArtifactKind; mediaType: string }> = {
 const hashBytes = (bytes: Uint8Array): string => createHash('sha256').update(bytes).digest('hex');
 
 const AT = '2026-11-21T10:00:00.000Z';
-const id = (prefix: string, n: number): string => `0190${prefix}0000-0000-7000-8000-${String(n).padStart(12, '0')}`;
+const CORPUS_ID_SEED = 20261121;
 
 /** `true` when `dir` looks like the corpus (ground truth and a documents directory). */
 export function corpusPresent(dir: string): boolean {
@@ -71,8 +72,12 @@ export async function corpusRelations(
 
   const pairs: RelationPair[] = [];
   let unmatched = 0;
-  let counter = 0;
-  for (const [index, file] of files.entries()) {
+  const newId = createIdFactory(CORPUS_ID_SEED);
+  const runId = newId();
+  const caseId = newId();
+  const identifierId = newId();
+  const accountId = newId();
+  for (const file of files) {
     const dot = file.lastIndexOf('.');
     const docId = file.slice(0, dot);
     const media = MEDIA[file.slice(dot + 1)] ?? { kind: 'text' as const, mediaType: 'text/plain; charset=utf-8' };
@@ -88,7 +93,7 @@ export async function corpusRelations(
     const raw = await readFile(join(dir, 'docs', file));
     used.push(`${file} ${hashBytes(raw)}`);
     const bytes = new Uint8Array(raw);
-    const captureId = id('c', index + 1);
+    const captureId = newId();
     const url = `https://example.org/corpus/${docId}`;
     const content: CaptureContent = {
       captureId,
@@ -97,10 +102,10 @@ export async function corpusRelations(
       artifacts: [{ kind: media.kind, mediaType: media.mediaType, bytes }],
     };
     // oxlint-disable-next-line no-await-in-loop
-    const extraction = await extractCapture(content, { denyList, newId: () => id('a', (counter += 1)) });
+    const extraction = await extractCapture(content, { denyList, newId });
     const capture: Capture = {
       id: captureId,
-      runId: 'run-corpus',
+      runId,
       sourceId: 'fixture_site',
       url,
       finalUrl: url,
@@ -117,11 +122,11 @@ export async function corpusRelations(
     };
     const { claims } = buildClaims(
       {
-        runId: 'run-corpus',
+        runId,
         identifiers: [
           {
-            id: 'idf-corpus',
-            caseId: 'case-corpus',
+            id: identifierId,
+            caseId,
             kind: 'nickname',
             value: 'fikcyjny_korpus',
             platform: 'corpus',
@@ -132,8 +137,8 @@ export async function corpusRelations(
         ],
         accounts: [
           {
-            id: 'acc-corpus',
-            runId: 'run-corpus',
+            id: accountId,
+            runId,
             platform: 'corpus',
             handle: 'fikcyjny_korpus',
             profileUrl: 'https://example.org/corpus/profile',

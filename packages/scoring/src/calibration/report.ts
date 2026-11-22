@@ -3,6 +3,7 @@ import { discount } from '../hop.ts';
 import { scoreLink } from '../link.ts';
 import { ALGORITHM_VERSION, RELATION_RULES_VERSION } from '../version.ts';
 import type { ScoringWeights } from '../weights.ts';
+import { createIdFactory } from './ids.ts';
 import { canonicalJson, sha256OfText } from './canonical.ts';
 import {
   brier,
@@ -169,10 +170,9 @@ function featureTable(claims: readonly LabelledClaim[], w: ScoringWeights): Reco
  * weights and options give the same report (and the same bytes once serialised with `serialiseReport`).
  */
 export function calibrate(claims: readonly LabelledClaim[], w: ScoringWeights, o: CalibrateOptions): CalibrationReport {
-  let counter = 0;
   const deps = {
     clock: { now: () => new Date('2026-11-21T12:00:00.000Z') },
-    newId: () => `01900000-0000-7000-8000-${String((counter += 1)).padStart(12, '0')}`,
+    newId: createIdFactory(o.seed),
   };
   const p: number[] = [];
   const y: number[] = [];
