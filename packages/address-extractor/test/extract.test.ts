@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { base64 } from '@scure/base';
 import { createDenyList, parseDenyList } from '../src/deny-list.ts';
+import { LEXICON_VERSION } from '../src/context/lexicon.ts';
 import { EXTRACTOR_VERSION, extractCapture } from '../src/extract.ts';
 import { buildViews } from '../src/views/build.ts';
 import type { CaptureContent } from '../src/pipeline-types.ts';
@@ -131,6 +132,14 @@ describe('extractCapture on persona-like pages', () => {
   });
 });
 
+describe('extractor version', () => {
+  it('is stored with the result and carries the lexicon version, so a lexicon change changes it', async () => {
+    const result = await extractCapture(htmlCapture(`<p>${gen.p2wpkh('version')}</p>`), { denyList });
+    expect(result.extractorVersion).toBe(EXTRACTOR_VERSION);
+    expect(EXTRACTOR_VERSION).toContain(LEXICON_VERSION);
+  });
+});
+
 describe('occurrences across views', () => {
   it('counts href and link text separately but one text node once', async () => {
     const address = gen.evm('dedup');
@@ -140,6 +149,14 @@ describe('occurrences across views', () => {
     expect(result.candidates.every((c) => c.context.occurrencesInCapture === 3)).toBe(true);
     expect(result.candidates.every((c) => c.address.chain === 'evm:1')).toBe(true);
     expect(result.candidates[1]?.chainAttribution).toEqual({ method: 'page_chain', detail: 'same_address' });
+  });
+
+  it('reports href and link text as two occurrences and the shared text node once (visible_text wins)', async () => {
+    const address = gen.evm('ac2');
+    const html = `<p><a href="https://etherscan.io/address/${address}">${address}</a></p>`;
+    const result = await extractCapture(htmlCapture(html), { denyList });
+    expect(result.candidates.map((c) => c.view)).toEqual(['visible_text', 'attribute']);
+    expect(result.candidates.every((c) => c.context.occurrencesInCapture === 2)).toBe(true);
   });
 
   it('does not turn one link seen by two views into a page prior', async () => {

@@ -44,6 +44,30 @@ function without(html: string, parts: string[]): string {
 }
 
 describe('renderReport', () => {
+  it('marks an archived copy in the evidence register with the snapshot date, in Polish', () => {
+    const data = personaData();
+    const [first] = data.captures;
+    if (!first) throw new Error('fixture has no capture');
+    const html = renderReport({
+      ...data,
+      captures: [
+        ...data.captures,
+        {
+          ...first,
+          id: '00000000-0000-7000-8000-00000000aaaa',
+          archive: {
+            provider: 'wayback',
+            snapshotTimestamp: '20250102030405',
+            originalUrl: 'https://bitcointalk.org/index.php?action=profile;u=900001',
+          },
+        },
+      ],
+    });
+    expect(html).toContain('kopia archiwalna (Wayback Machine) z dnia 2025-01-02 03:04:05 UTC');
+    expect(html).toContain('adres oryginalny:');
+    expect(report).not.toContain('kopia archiwalna');
+  });
+
   it('renders every chapter in order, in Polish', () => {
     expect(report.startsWith('<!doctype html>\n<html lang="pl">')).toBe(true);
     expect(report).toContain('<title>Raport z analizy OSINT: Kacper Fikcyjny (dane syntetyczne)</title>');

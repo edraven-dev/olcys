@@ -30,6 +30,7 @@ import { createGithubCollector } from '../platforms/code-hosting.ts';
 import { createWykopCollector } from '../platforms/social-profile.ts';
 import { createTelegramCollector } from '../platforms/telegram.ts';
 import { searchCollectorFactories } from '../search/mode.ts';
+import { createWaybackCollector } from '../wayback/collector.ts';
 import {
   accountAliasKeys,
   DEFAULT_MAX_TASKS,
@@ -42,8 +43,8 @@ import {
 } from './planner.ts';
 
 /**
- * Forum, social profile, code hosting, channel previews and P2P ads (fixture), the Polish public registries, in
- * planning order, then the web search collectors of `OLCYS_SEARCH_MODE` (default: the mock search over the fixture
+ * Forum, social profile, code hosting, channel previews and P2P ads (fixture), the Polish public registries and the
+ * Wayback history lookup (offline and in replay served by the fixture site's synthetic archive), in planning order, then the web search collectors of `OLCYS_SEARCH_MODE` (default: the mock search over the fixture
  * site). CEIDG needs the institution's token (`CEIDG_API_TOKEN`) in live mode and is not registered without it;
  * offline and in replay it reads the synthetic fixture site and needs none.
  */
@@ -55,7 +56,8 @@ export function createDefaultCollectorRegistry(options: { mode?: FetchMode; env?
     .register(createTelegramCollector())
     .register(createClassifiedAdsCollector())
     .register(createVatWhitelistCollector())
-    .register(createKrsCollector());
+    .register(createKrsCollector())
+    .register(createWaybackCollector());
   const ceidgToken = options.env?.['CEIDG_API_TOKEN']?.trim();
   if ((options.mode ?? 'offline') !== 'live' || ceidgToken) {
     registry.register(createCeidgCollector({ token: ceidgToken }));

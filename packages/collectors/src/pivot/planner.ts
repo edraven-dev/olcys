@@ -2,7 +2,7 @@
  * Pivot planner (pure, no I/O): input identifiers → collector tasks, and each task's result → follow-up tasks, inside
  * the run's locked scope and depth limit. Every task and every skipped candidate records why it exists.
  *
- * Rules `pivot.v1`:
+ * Rules `pivot.v2` (v2 adds E6):
  *   I1  identifier given for platform P            → P's collector
  *   I2  nick / social login                        → same nick on every other platform that has handles
  *   I3  any identifier                             → watch-list pages (kept only when an identifier matches)
@@ -16,6 +16,9 @@
  *   E4  CEIDG `registry.nip`                       → VAT white list, only when the name search matched exactly one
  *                                                    firm (`registry.ceidg.result_count` = 1); else "ambiguous namesake"
  *   E5  VAT white list `registry.krs`              → KRS (depth + 1)
+ *   E6  profile URL of an account the subject gave or an own account's page linked (unbroken own chain), and a watch-list page
+ *       that matched a case identifier → archive history (Wayback), same depth: a lookup, not a pivot. Pages of third
+ *       parties (same-nick probes, search hits, warning channels) are never looked up: the URL is disclosed to the archive.
  *   Third parties found in a registry (representatives, clerks, partners, board members) are never pivots.
  */
 import type {
@@ -32,11 +35,11 @@ import type {
 import type { CollectorFactory, CollectorInstance } from '../framework/collector-registry.ts';
 import type { WatchedPage } from '../framework/config.ts';
 import type { ResolvedScope } from '../framework/source-registry.ts';
-import { recogniseAccountUrl, toLogicalUrl, type FixtureMapping } from '../framework/urls.ts';
+import { isFixtureUrl, recogniseAccountUrl, toLogicalUrl, type FixtureMapping } from '../framework/urls.ts';
 import { normalizeKrs, normalizeNip } from '../registries/polish-ids.ts';
 import { normaliseQueryText, SEARCH_IDENTIFIER_KINDS } from '../search/query.ts';
 
-export const PIVOT_RULES_VERSION = 'pivot.v1';
+export const PIVOT_RULES_VERSION = 'pivot.v2';
 export const PIVOT_REASONS = [
   'input_identifier',
   'same_nick',
@@ -45,6 +48,7 @@ export const PIVOT_REASONS = [
   'discovered_account',
   'search_result',
   'registry_identifier',
+  'archive_history',
 ] as const;
 export type PivotReason = (typeof PIVOT_REASONS)[number];
 export const SKIP_REASONS = [
@@ -70,6 +74,12 @@ export interface PivotProvenance {
   accountId?: Id;
   observationId?: Id;
   captureId?: Id;
+  /**
+   * True while the task rests on an unbroken chain of the subject's own accounts (an input identifier or profile URL,
+   * then links from those accounts). Same-nick probes, search hits, watch pages and registries break it. Only such
+   * tasks may send a page URL to an archive (E6).
+   */
+  own?: boolean;
   detail?: string;
 }
 
@@ -357,6 +367,25 @@ class Planner {
     });
   }
 
+  /** Archive-history task for one page of the subject (E6); nothing when the case does not enable the archive. */
+  history(url: string, depth: number, provenance: PivotProvenance): void {
+    const factory = this.#ctx.factories.find((f) => f.archiveHistory);
+    if (!factory || !this.#ctx.scope.isEnabled(factory.sourceId)) return;
+    const logical = toLogicalUrl(url, this.#ctx.fixture);
+    // A page that exists only on the fixture site (no live URL) has no archive to ask: never send it out.
+    if (isFixtureUrl(logical, this.#ctx.fixture)) return;
+    const subjectKey = `url:${logical}`;
+    this.consider({
+      key: taskKey(factory.sourceId, subjectKey),
+      sourceId: factory.sourceId,
+      platform: factory.platform,
+      subjectKey,
+      depth,
+      input: { ...emptyInput(depth), values: [{ kind: 'url', value: logical, method: 'cross_link' }] },
+      provenance: { ...provenance, reason: 'archive_history', detail: logical },
+    });
+  }
+
   plan(): PivotPlan {
     return { rulesVersion: PIVOT_RULES_VERSION, tasks: this.tasks, skipped: this.skipped };
   }
@@ -391,7 +420,7 @@ export function planInitial(identifiers: readonly Identifier[], ctx: PlannerCont
       identifierId: identifier.id,
     });
     if (/^https?:\/\//i.test(value)) {
-      planner.linked(value, 0, provenance('input_identifier', 'I4'), { method: 'input' });
+      planner.linked(value, 0, { ...provenance('input_identifier', 'I4'), own: true }, { method: 'input' });
       continue;
     }
     if (identifier.platform && HANDLE_KINDS.has(identifier.kind)) {
@@ -404,7 +433,7 @@ export function planInitial(identifiers: readonly Identifier[], ctx: PlannerCont
           subjectKey,
           depth: 0,
           input: { ...emptyInput(0), identifiers: [identifier] },
-          provenance: provenance('input_identifier', 'I1'),
+          provenance: { ...provenance('input_identifier', 'I1'), own: true },
         });
       }
     }
@@ -481,7 +510,15 @@ export function planExpansion(parent: PlannedTask, result: CollectorResult, ctx:
     planner.linked(
       o.value,
       depth,
-      { reason: 'linked_url', rule: 'E1', parentTaskKey: parent.key, observationId: o.id, captureId: o.captureId },
+      {
+        reason: 'linked_url',
+        rule: 'E1',
+        parentTaskKey: parent.key,
+        observationId: o.id,
+        captureId: o.captureId,
+        // A link only extends the subject's own chain when the page it is on does.
+        own: parent.provenance.own === true,
+      },
       { method: 'cross_link', observationId: o.id, captureId: o.captureId },
     );
   }
@@ -496,6 +533,29 @@ export function planExpansion(parent: PlannedTask, result: CollectorResult, ctx:
     );
   }
   planner.registries(parent, result, depth);
+  if (!factory?.archiveHistory) {
+    // E6: the subject's own accounts (given, or linked by their own pages in an unbroken chain from a given account), never hypotheses from a same-nick
+    // probe or anything reached through a search hit or a third party's page.
+    for (const account of result.accounts) {
+      if (parent.provenance.own !== true) break;
+      if (account.discoveredVia.method !== 'input' && account.discoveredVia.method !== 'cross_link') continue;
+      if (factory?.pivotOnAccounts === false) continue;
+      planner.history(account.profileUrl, parent.depth, {
+        reason: 'archive_history',
+        rule: 'E6',
+        parentTaskKey: parent.key,
+        accountId: account.id,
+      });
+    }
+    // E6: a watch-list page is the subject's only when an identifier matched on it (the collector kept observations).
+    if (parent.provenance.reason === 'watch_list' && factory?.pivotOnAccounts !== false && result.observations.length) {
+      planner.history(parent.subjectKey.replace(/^url:/, ''), parent.depth, {
+        reason: 'archive_history',
+        rule: 'E6',
+        parentTaskKey: parent.key,
+      });
+    }
+  }
   if (factory?.pivotOnAccounts !== false) {
     // An account found by a same-nick probe was looked up with a nick already probed everywhere: no re-probe with
     // its platform spelling (e.g. the code-hosting login `a-b` for the nick `a_b`).

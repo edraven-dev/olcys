@@ -867,7 +867,8 @@ export const pl = {
     artifact: '{kind}: {sha}',
     earlier: 'z poprzedniego uruchomienia',
     collector: 'zebrał(a): {collector} · narzędzie {tool} · zegar zsynchronizowany (NTP): {clock}',
-    archive: 'kopia archiwalna ({provider}, {snapshot}) strony {url}',
+    archive: 'kopia archiwalna ({provider}) z dnia {snapshot}; adres oryginalny: {url}',
+    archiveProviders: { wayback: 'Wayback Machine' } as Record<string, string>,
     httpStatus: '{status} (HTTP {code})',
     egressTitle: 'Dziennik połączeń wychodzących (podsumowanie)',
     egressIntro:
