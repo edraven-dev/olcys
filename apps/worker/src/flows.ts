@@ -239,9 +239,7 @@ const edgeKey = (e: FlowEdge): string =>
  * services and excluded addresses. Without a store query (`query` absent) the same trace runs over the pool.
  */
 export async function computeFlowGraph(args: FlowGraphArgs): Promise<FlowGraph> {
-  const run =
-    args.query ??
-    ((_: Id, q: FlowQuery): Promise<FlowQueryResult> => Promise.resolve(traceFlows(args.pool.transfers, q)));
+  const run = args.query ?? ((_: Id, q: FlowQuery): Promise<FlowQueryResult> => traceFlows(args.pool.transfers, q));
   // Stop addresses: every labelled service and excluded address among the endpoints of the known transfers.
   const stopByChain = new Map<string, Set<string>>();
   const seen = new Set<string>();

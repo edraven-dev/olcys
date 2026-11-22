@@ -1,14 +1,15 @@
 /**
- * Fund-flow tracing over stored transfers: the pure core of `queryFlowEdges` (PostgreSQL recursive CTE in
- * `@olcys/db`; the in-memory store uses `traceFlows`). Both have the same semantics:
+ * Fund-flow tracing over stored transfers: the pure core of `queryFlowEdges` (PostgreSQL, one query per hop
+ * in `@olcys/db`; the in-memory store uses `traceFlows`). Both have the same semantics:
  *
- * - downstream (`out`): paths start with the transfers leaving a seed (hop 1) and continue with transfers leaving the
- *   previous recipient that are not older than the previous transfer (time-monotonic); upstream (`in`) mirrors it with
- *   hops −1, −2, … and transfers that are not newer;
- * - a path stops at a stop address (labelled service, excluded address) and at a seed reached again (shown, not
- *   expanded); an address repeated on a path closes a cycle: the edge is returned with `isCycle` and not expanded;
- * - every transfer is returned once, at its smallest |hop|; the result is ordered by |hop|, time, transaction, index,
- *   sender, recipient and cut at `limit` (`truncated` tells that more existed).
+ * - downstream (`out`): hop 1 is the transfers leaving a seed; each next hop takes the transfers leaving the recipients
+ *   reached in the previous hop, not older than the earliest transfer that reached that address (time-monotonic);
+ *   upstream (`in`) mirrors it with hops −1, −2, … and the latest departure;
+ * - an address is expanded once (breadth first), so every transfer is returned once, at its first hop; an exit address
+ *   already visited (a seed or an earlier hop) marks the edge `isCycle` and is not expanded; stop addresses (labelled
+ *   service, excluded address) end the path;
+ * - the result is ordered by |hop|, time, transaction, index, sender, recipient and cut at `limit` (`truncated` tells
+ *   that more existed).
  *
  * Browser-safe: pure functions and types.
  */
@@ -80,60 +81,95 @@ function rowKey(t: NormalizedTransfer): string {
   ].join('|');
 }
 
-interface Step {
-  transfer: NormalizedTransfer;
-  time: number;
-  hop: number;
-  isCycle: boolean;
+/** One address of the frontier of a hop and the time its funds arrived (`out`: earliest) or left (`in`: latest). */
+export interface FlowFrontierItem {
+  /** Case-folded address. */
+  address: string;
+  /** Absent for the seeds of the first hop: every transfer of a seed counts. */
+  at?: IsoDateTime;
 }
 
-export function traceFlows(transfers: readonly NormalizedTransfer[], q: FlowQuery): FlowQueryResult {
+/**
+ * Loads the distinct transfers of one hop: those leaving (`out`) or entering (`in`) a frontier address, not older (`out`)
+ * or not newer (`in`) than its time. `limit` is the most rows the caller can still use; a store may stop reading at
+ * `limit` rows in the order of `compareFlowRows`.
+ */
+export type FlowHopLoader = (frontier: readonly FlowFrontierItem[], limit: number) => Promise<NormalizedTransfer[]>;
+
+/**
+ * Bounded address-level breadth-first walk: per hop one entry per address (with its earliest arrival, or latest departure
+ * upstream), the next hop takes the transfers leaving that address from that time on. An address is expanded once, so
+ * every transfer is emitted once, at its first hop, and the work stays linear in the transfers however many parallel
+ * transfers a leg has. An exit address already visited (a seed or an earlier hop) marks the edge `isCycle` and is not
+ * expanded; stop addresses are not expanded either.
+ */
+export async function walkFlows(load: FlowHopLoader, q: FlowQuery): Promise<FlowQueryResult> {
   const out = q.direction === 'out';
   const norm = (a: string): string => flowAddress(q.chain, a);
-  // One edge per distinct transfer; self-transfers move nothing between addresses.
+  const exit = (t: NormalizedTransfer): string => norm(out ? t.to : t.from);
+  const seeds = [...new Set(q.seeds.map(norm))];
+  const stop = new Set(q.stopAt.map(norm));
+  const visited = new Set(seeds);
+  const rows: FlowRow[] = [];
+  let frontier: FlowFrontierItem[] = seeds.map((address) => ({ address }));
+  for (let hop = 1; hop <= q.maxHops && frontier.length > 0; hop += 1) {
+    const signed = out ? hop : -hop;
+    // Sequential on purpose: each hop starts from the previous one.
+    // oxlint-disable-next-line no-await-in-loop
+    const loaded = await load(frontier, q.limit + 1 - rows.length);
+    const reached: FlowRow[] = [];
+    for (const t of loaded) reached.push(Object.assign({}, t, { hop: signed, isCycle: visited.has(exit(t)) }));
+    reached.sort(compareFlowRows);
+    if (rows.length + reached.length > q.limit) {
+      rows.push(...reached.slice(0, q.limit - rows.length));
+      return { rows, truncated: true };
+    }
+    rows.push(...reached);
+    const next = new Map<string, string>();
+    for (const row of reached) {
+      const at = exit(row);
+      if (row.isCycle || stop.has(at)) continue;
+      const known = next.get(at);
+      // Downstream the earliest arrival counts, upstream the latest departure.
+      const better =
+        known === undefined ||
+        (out ? Date.parse(row.blockTime) < Date.parse(known) : Date.parse(row.blockTime) > Date.parse(known));
+      if (better) next.set(at, row.blockTime);
+    }
+    for (const row of reached) visited.add(exit(row));
+    frontier = [...next].map(([address, at]) => ({ address, at }));
+  }
+  return { rows, truncated: false };
+}
+
+/** The in-memory flow query: `walkFlows` over an index of the distinct transfers of the chain. */
+export function traceFlows(transfers: readonly NormalizedTransfer[], q: FlowQuery): Promise<FlowQueryResult> {
+  const out = q.direction === 'out';
+  const norm = (a: string): string => flowAddress(q.chain, a);
   const unique = new Map<string, NormalizedTransfer>();
   for (const t of transfers) {
     if (t.chain !== q.chain || norm(t.from) === norm(t.to)) continue;
     const key = rowKey(t);
     if (!unique.has(key)) unique.set(key, t);
   }
-  /** The address a transfer is entered from (`out`: its sender) and left to (its recipient). */
-  const entry = (t: NormalizedTransfer): string => norm(out ? t.from : t.to);
-  const exit = (t: NormalizedTransfer): string => norm(out ? t.to : t.from);
   const byEntry = new Map<string, NormalizedTransfer[]>();
   for (const t of unique.values()) {
-    const list = byEntry.get(entry(t)) ?? [];
+    const entry = norm(out ? t.from : t.to);
+    const list = byEntry.get(entry) ?? [];
     list.push(t);
-    byEntry.set(entry(t), list);
+    byEntry.set(entry, list);
   }
-  const seeds = new Set(q.seeds.map(norm));
-  const stop = new Set(q.stopAt.map(norm));
-
-  /** Per distinct transfer: the smallest |hop| reached and whether every path at that hop closed a cycle. */
-  const best = new Map<string, Step>();
-  const visit = (step: Step, path: readonly string[]): void => {
-    const key = rowKey(step.transfer);
-    const known = best.get(key);
-    if (!known || Math.abs(step.hop) < Math.abs(known.hop)) best.set(key, step);
-    else if (Math.abs(step.hop) === Math.abs(known.hop)) known.isCycle &&= step.isCycle;
-    const at = exit(step.transfer);
-    if (step.isCycle || Math.abs(step.hop) >= q.maxHops || stop.has(at) || seeds.has(at)) return;
-    for (const next of byEntry.get(at) ?? []) {
-      const time = Date.parse(next.blockTime);
-      if (out ? time < step.time : time > step.time) continue;
-      const to = exit(next);
-      visit({ transfer: next, time, hop: step.hop + (out ? 1 : -1), isCycle: path.includes(to) }, [...path, to]);
+  return walkFlows(async (frontier) => {
+    const found: NormalizedTransfer[] = [];
+    for (const item of frontier) {
+      const from = item.at === undefined ? undefined : Date.parse(item.at);
+      for (const t of byEntry.get(item.address) ?? []) {
+        const time = Date.parse(t.blockTime);
+        if (from === undefined || (out ? time >= from : time <= from)) found.push(t);
+      }
     }
-  };
-  for (const seed of seeds) {
-    for (const t of byEntry.get(seed) ?? []) {
-      visit({ transfer: t, time: Date.parse(t.blockTime), hop: out ? 1 : -1, isCycle: false }, [exit(t)]);
-    }
-  }
-  const reached: FlowRow[] = [];
-  for (const s of best.values()) reached.push(Object.assign({}, s.transfer, { hop: s.hop, isCycle: s.isCycle }));
-  const rows = reached.toSorted(compareFlowRows);
-  return { rows: rows.slice(0, q.limit), truncated: rows.length > q.limit };
+    return found;
+  }, q);
 }
 
 /** A node of the Sankey diagram: an address at a layer (`id`: `${chain}:${address}#${layer}`). */

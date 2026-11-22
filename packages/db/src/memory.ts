@@ -186,7 +186,7 @@ export function createMemoryRepositories(): Repositories {
       },
       async queryFlowEdges(runId, query) {
         return copy(
-          traceFlows(
+          await traceFlows(
             store.transfers.filter((t) => t.runId === runId).map((t) => t.transfer),
             query,
           ),

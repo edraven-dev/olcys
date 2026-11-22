@@ -82,8 +82,8 @@ function scenarios(store: () => Store): void {
       transfer('B', 'A', day(2)),
       transfer('A', 'Z', day(3)),
     ]);
-    // B→A is shown at hop 2; A→Z stays the first-hop edge it is (A is not expanded a second time at hop 3).
-    expect(path(await run(query({})))).toEqual(['A>B@1', 'A>Z@1', 'B>A@2']);
+    // B→A is shown at hop 2 as a cycle back to the seed; A→Z stays the first-hop edge it is (A is not expanded again).
+    expect(path(await run(query({})))).toEqual(['A>B@1', 'A>Z@1', 'B>A@2c']);
   });
 
   it('only follows paths that never go back in time', async () => {
@@ -139,8 +139,27 @@ function scenarios(store: () => Store): void {
       transfer('A', 'B', day(1), { tx: 'tx-1' }), // exact repeat of tx-1: the same movement
     ]);
     const result = await run(query({}));
-    expect(path(result)).toEqual(['A>B@1', 'A>C@1', 'A>B@1', 'A>B@1', 'B>C@2', 'C>D@2']);
+    expect(path(result)).toEqual(['A>B@1', 'A>C@1', 'A>B@1', 'A>B@1', 'B>C@2c', 'C>D@2']);
     expect(result.rows.filter((r) => r.txHash === 'tx-5').map((r) => r.index)).toEqual([undefined, 1]);
+  });
+
+  it('uses the earliest arrival at an address and keeps the work linear for many parallel transfers', async () => {
+    const early = await store().seed([
+      transfer('A', 'B', day(3)),
+      transfer('A', 'B', day(1)),
+      transfer('B', 'C', day(2)), // after the earliest arrival at B (day 1)
+    ]);
+    expect(path(await early(query({})))).toEqual(['A>B@1', 'A>B@1', 'B>C@2']);
+    // 400 parallel transfers per leg: a path-enumerating query would produce 400³ third-hop rows.
+    const legs = (from: string, to: string, base: number) =>
+      Array.from({ length: 400 }, (_, i) => transfer(from, to, day(base, i % 20)));
+    const run = await store().seed([...legs('A', 'B', 1), ...legs('B', 'C', 2), ...legs('C', 'D', 3)]);
+    const started = Date.now();
+    const result = await run(query({ maxHops: 3, limit: 5000 }));
+    expect(result.rows).toHaveLength(1200);
+    expect([1, 2, 3].map((h) => result.rows.filter((r) => r.hop === h).length)).toEqual([400, 400, 400]);
+    expect(result.truncated).toBe(false);
+    expect(Date.now() - started).toBeLessThan(5000);
   });
 
   it('cuts the result at the limit and says so', async () => {
