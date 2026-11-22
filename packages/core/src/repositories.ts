@@ -11,7 +11,7 @@ import type { AddressRef } from './chains.ts';
 import type { Id, IsoDateTime } from './common.ts';
 import type { Capture, CustodyEvent, Observation, OnlineAccount } from './evidence.ts';
 import type { AddressCandidate, ExtractionResult } from './extraction.ts';
-import type { AddressLabel, ExclusionDecision } from './labels.ts';
+import type { AddressLabel, AddressTypeClassification, ExclusionDecision } from './labels.ts';
 import type { EgressLogEntry, ProvenanceEnvelope } from './provenance.ts';
 import type { CaseScheduleChange, ScheduleTick, ScheduleTickOutcome } from './schedule.ts';
 import type { CreateCaseInput } from './schemas.ts';
@@ -145,6 +145,14 @@ export interface ChainDataRepository {
   listTransfers(runId: Id): Promise<NormalizedTransfer[]>;
 }
 
+/** Address types the chain analysis determined (append-only; one classification per run and address). */
+export interface AddressTypeRepository {
+  /** Stores the run's classifications; an address already classified in the run is refused. */
+  add(runId: Id, classifications: AddressTypeClassification[]): Promise<void>;
+  /** Ordered by chain, then address. */
+  list(runId: Id): Promise<AddressTypeClassification[]>;
+}
+
 /** Computed results of a run. */
 export interface AnalysisRepository {
   addExclusions(decisions: ExclusionDecision[]): Promise<void>;
@@ -206,6 +214,8 @@ export interface Repositories {
   runs: RunRepository;
   evidence: EvidenceRepository;
   chain: ChainDataRepository;
+  /** Address-type classifications of the chain analysis (both `@olcys/db` implementations provide it). */
+  addressTypes?: AddressTypeRepository;
   analysis: AnalysisRepository;
   labels: LabelRepository;
   /** Periodic re-runs (both `@olcys/db` implementations provide it; `ApiMeta.features.schedules`). */

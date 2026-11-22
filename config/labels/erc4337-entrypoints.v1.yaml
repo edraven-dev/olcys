@@ -1,0 +1,20 @@
+# ERC-4337 EntryPoint singletons — read by the address-type classifier in packages/labels.
+# A contract whose entryPoint() returns one of these is an ERC-4337 smart account (often a person's own wallet), not a
+# service contract. EntryPoints are deterministic deployments: the same address on every EVM network.
+# Data only, copied from the eth-infinitism release notes (the reference implementation's code is not used).
+
+version: erc4337-entrypoints.v1
+
+entryPoints:
+  - version: '0.6'
+    address: '0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789'
+    source: https://github.com/eth-infinitism/account-abstraction/releases/tag/v0.6.0
+  - version: '0.7'
+    address: '0x0000000071727De22E5E9d8BAf0edAc6f37da032'
+    source: https://github.com/eth-infinitism/account-abstraction/releases/tag/v0.7.0
+  - version: '0.8'
+    address: '0x4337084d9e255ff0702461cf8895ce9e3b5ff108'
+    source: https://github.com/eth-infinitism/account-abstraction/releases/tag/v0.8.0
+  - version: '0.9'
+    address: '0x433709009B8330FDa32311DF1C2AFA402eD8D009'
+    source: https://github.com/eth-infinitism/account-abstraction/releases/tag/v0.9.0

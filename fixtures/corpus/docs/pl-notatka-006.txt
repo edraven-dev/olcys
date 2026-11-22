@@ -1,0 +1,14 @@
+DANE SYNTETYCZNE — SYNTHETIC TEST DATA. Fikcyjne dane testowe OŁCyŚ.
+Notatki — portfele (2026-06-10)
+
+Mój portfel BTC: bc1qwtawfgq3x9a0
+qn30pxq6kezwe9nj
+s9mrypf58v7ja2x
+qqtjtxvlqtkmxyu
+Mój adres Linea: 0xD6173341593483069fE487620917129E09B478bf
+
+Podejrzany adres z czatu: https://mempool.space/address/bc1py2fhdr3zrtnzsc889t0r7nthd49jlxc9ea7zclk5924cc0htj0hqlfg80e
+
+
+
+Stary portfel — klucz prywatny: {{SECRET:hex64_private_key_context:1}}

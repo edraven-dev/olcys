@@ -1,0 +1,24 @@
+<!--
+title: Strona kranu sieci testowej z adresami testnet i prawdziwym adresem na darowizny
+renders: 10
+slots:
+  t: { neg: [testnet_bech32, testnet_base58] }
+  don: { pool: bitcoin.bech32, role: donation }
+-->
+<!doctype html>
+<html lang="pl">
+<head><meta charset="utf-8"><title>Kran sieci testowej</title></head>
+<body>
+{{BANNER}}
+<main>
+<h1>Kran testnet</h1>
+<p>Monety testowe wysyłamy z poniższych adresów. Nie mają żadnej wartości.</p>
+<ul>
+{{#ROWS:1-4}}<li>{{NEG:t}}</li>
+{{/ROWS}}</ul>
+</main>
+<section>
+<p>Utrzymanie kranu kosztuje — darowizny w prawdziwych BTC: {{ADDR:don}}</p>
+</section>
+</body>
+</html>

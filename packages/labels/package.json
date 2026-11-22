@@ -9,6 +9,11 @@
   },
   "dependencies": {
     "@olcys/core": "workspace:*",
+    "@safe-global/safe-deployments": "1.37.67",
+    "@scure/base": "2.4.0",
     "yaml": "2.9.1"
+  },
+  "devDependencies": {
+    "@noble/hashes": "2.4.0"
   }
 }

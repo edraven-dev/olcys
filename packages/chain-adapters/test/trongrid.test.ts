@@ -77,6 +77,45 @@ describe('TronGrid provider', () => {
     expect(http.requests.every((r) => r.secretParams?.includes('TRON-PRO-API-KEY'))).toBe(true);
   });
 
+  it('reads contract code from wallet/getcontract: bytecode, none, or a node error', async () => {
+    const bytecode = `6080604052${'ab'.repeat(8)}`;
+    const http = new FakeEgressClient((r) => {
+      const value = new URL(r.url).searchParams.get('value');
+      if (value === ME) return { body: { bytecode: bytecode.toUpperCase(), name: 'Synthetic', contract_address: ME } };
+      if (value === OTHER) return { body: {} };
+      return { body: { Error: 'class java.lang.IllegalArgumentException : invalid address' } };
+    });
+    const provider = createTronGridProvider(config, { env: {} });
+    const ctx = testContext(http);
+    expect((await provider.getCode!({ chain: 'tron', address: ME }, ctx)).code).toBe(`0x${bytecode}`);
+    expect((await provider.getCode!({ chain: 'tron', address: OTHER }, ctx)).code).toBe('0x');
+    await expect(provider.getCode!({ chain: 'tron', address: 'Tbroken' }, ctx)).rejects.toMatchObject({
+      kind: 'upstream_error',
+    });
+    expect(new URL(http.requests[0]!.url).pathname).toBe('/wallet/getcontract');
+    expect(new URL(http.requests[0]!.url).searchParams.get('visible')).toBe('true');
+    expect(http.requests.every((r) => r.containsIdentifier)).toBe(true);
+  });
+
+  it('reads "no contract" only from an object without contract fields; other bodies never become an account', async () => {
+    const provider = createTronGridProvider(config, { env: {} });
+    const codeFor = (body: unknown) =>
+      provider.getCode!({ chain: 'tron', address: ME }, testContext(new FakeEgressClient(() => ({ body }))));
+    expect((await codeFor({})).code).toBe('0x');
+    for (const body of ['null', '[]', '"0x"', '42']) {
+      // oxlint-disable-next-line no-await-in-loop
+      await expect(codeFor(body)).rejects.toMatchObject({ kind: 'invalid_response' });
+    }
+    for (const body of [{ success: false, error: 'limit exceeded' }, { error: 'bad request' }, { Error: 'boom' }]) {
+      // oxlint-disable-next-line no-await-in-loop
+      await expect(codeFor(body)).rejects.toMatchObject({ kind: 'upstream_error' });
+    }
+    for (const body of [{ contract_address: ME, name: 'Synthetic' }, { bytecode: '' }, { bytecode: 'xyz' }]) {
+      // oxlint-disable-next-line no-await-in-loop
+      await expect(codeFor(body)).rejects.toMatchObject({ kind: 'invalid_response' });
+    }
+  });
+
   it('reads the solidified tip and treats success:false as an upstream error', async () => {
     const http = new FakeEgressClient((r) =>
       r.url.endsWith('/walletsolidity/getnowblock')
@@ -111,5 +150,7 @@ describe('TronGrid provider against the synthetic fixture site', () => {
     expect(page.items).toHaveLength(9);
     expect(page.items.every((t) => t.asset.contract === USDT_TRC20)).toBe(true);
     expect((await provider.getAddressSummary({ chain: 'tron', address: tron1 }, ctx)).balance).toBe('35');
+    // TRON-1 is an account, not a smart contract
+    expect((await provider.getCode!({ chain: 'tron', address: tron1 }, ctx)).code).toBe('0x');
   });
 });

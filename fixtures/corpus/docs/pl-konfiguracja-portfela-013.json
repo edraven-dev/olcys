@@ -1,0 +1,9 @@
+{
+  "_note": "DANE SYNTETYCZNE — SYNTHETIC TEST DATA. Fikcyjne dane testowe OŁCyŚ.",
+  "network": "mainnet",
+  "account": {
+    "address": "bc1pmt56f635w44kf070rjjfz2njuu7kplsy7x6dwmvqp7ghe2d0w8zsznraha",
+    "privateKey": "{{SECRET:hex64_private_key_context:1}}",
+    "mnemonic": "{{SECRET:seed_phrase:1}}"
+  }
+}

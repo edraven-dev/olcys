@@ -3,6 +3,8 @@
  * placeholders filled by `t()`/`fill()` (values are escaped). Scoring terms follow the analyst console wording.
  */
 import type {
+  AddressType,
+  AddressTypeProbe,
   AdmiraltyReliability,
   AnalystOverrideKind,
   AnalyticConfidence,
@@ -572,6 +574,42 @@ export const pl = {
       'Adres może należeć do osoby trzeciej wskazanej w źródle. Nie należy go przypisywać osobie z identyfikatorów sprawy bez dodatkowych dowodów.',
     columns: { raw: 'Zapis w źródle', reason: 'Powód odrzucenia', view: 'Widok tekstu', page: 'Strona' },
     nonAscii: 'Znaki spoza ASCII: {codepoints}',
+  },
+  /** Address types of the chain analysis (the basis of rules A2/A3). */
+  addressTypes: {
+    eoa: 'konto zewnętrzne (EOA)',
+    delegated_eoa: 'EOA z delegacją EIP-7702',
+    safe: 'konto Safe',
+    erc4337_account: 'konto inteligentne ERC-4337',
+    token_contract: 'kontrakt tokena',
+    contract: 'kontrakt',
+    utxo_script: 'skrypt UTXO',
+    unknown: 'nieznany typ',
+  } satisfies Record<AddressType, string>,
+  addressType: {
+    line: 'Typ adresu: {type} (stan na zapisany szczyt łańcucha)',
+    short: 'typ adresu: {type}',
+    code: 'kod pod adresem: {prefix}… ({bytes} B)',
+    noCode: 'brak kodu pod adresem (konto sterowane kluczem prywatnym)',
+    delegate: 'delegat EIP-7702: {address}',
+    delegateKnown: 'delegat EIP-7702: {address} — {kind} „{name}” (źródło: {source})',
+    delegateKinds: {
+      wallet_implementation: 'implementacja portfela',
+      sweeper: 'znany „sweeper” — przechwytuje wpływające środki, klucz konta prawdopodobnie przejęty',
+    },
+    safeMasterCopy: 'kontrakt bazowy Safe (singleton w slocie 0): {address}',
+    entryPoint: 'EntryPoint ERC-4337: {address}',
+    implementation: 'implementacja proxy ERC-1967: {address}',
+    scriptType: 'typ skryptu: {script}',
+    failedProbe:
+      'Sprawdzenie „{probe}” nie powiodło się — typ ustalono na podstawie pozostałych sprawdzeń; wymaga weryfikacji.',
+    probes: {
+      code: 'kod pod adresem',
+      safe: 'konto Safe (slot 0)',
+      erc4337: 'konto ERC-4337 (entryPoint())',
+      token: 'kontrakt tokena (totalSupply(), decimals())',
+      implementation: 'implementacja proxy (ERC-1967)',
+    } satisfies Record<AddressTypeProbe, string>,
   },
   exclusionRules: {
     A1: 'Adres oznaczony jako usługa (giełda, bramka, lista sankcyjna)',

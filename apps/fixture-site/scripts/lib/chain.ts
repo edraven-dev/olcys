@@ -462,7 +462,11 @@ function renderEtherscan(
   for (const [slot, code] of Object.entries(contractCode)) {
     const file = `chain/etherscan/${lower(slot)}/code.json`;
     files.push({ path: file, content: json(mark({ jsonrpc: '2.0', id: 1, result: code })) });
-    routes.push(route({ module: 'proxy', action: 'eth_getCode', address: lower(slot) }, file));
+    routes.push(
+      route({ module: 'proxy', action: 'eth_getCode', address: lower(slot) }, file),
+      // A plain contract: no Safe singleton or proxy slot set, every probed function reverts (address-type probes).
+      route({ module: 'proxy', action: 'eth_call', to: lower(slot) }, 'chain/etherscan/call-revert.json'),
+    );
   }
   files.push(
     {
@@ -472,17 +476,29 @@ function renderEtherscan(
     { path: 'chain/etherscan/zero-balance.json', content: json(mark({ status: '1', message: 'OK', result: '0' })) },
     { path: 'chain/etherscan/code-eoa.json', content: json(mark({ jsonrpc: '2.0', id: 1, result: '0x' })) },
     {
+      path: 'chain/etherscan/storage-zero.json',
+      content: json(mark({ jsonrpc: '2.0', id: 1, result: `0x${'0'.repeat(64)}` })),
+    },
+    { path: 'chain/etherscan/call-empty.json', content: json(mark({ jsonrpc: '2.0', id: 1, result: '0x' })) },
+    {
+      path: 'chain/etherscan/call-revert.json',
+      content: json(mark({ jsonrpc: '2.0', id: 1, error: { code: -32000, message: 'execution reverted' } })),
+    },
+    {
       path: 'chain/etherscan/block-number.json',
       content: json(mark({ jsonrpc: '2.0', id: 83, result: `0x${tip.toString(16)}` })),
     },
   );
-  // Fallbacks after the per-address routes: unknown addresses have no history; every address is an EOA.
+  // Fallbacks after the per-address routes: unknown addresses have no history; every address is an EOA (zero
+  // storage, a call to an account without code returns no data).
   routes.push(
     route({ module: 'account', action: 'txlist' }, 'chain/etherscan/empty-list.json'),
     route({ module: 'account', action: 'txlistinternal' }, 'chain/etherscan/empty-list.json'),
     route({ module: 'account', action: 'tokentx' }, 'chain/etherscan/empty-list.json'),
     route({ module: 'account', action: 'balance' }, 'chain/etherscan/zero-balance.json'),
     route({ module: 'proxy', action: 'eth_getCode' }, 'chain/etherscan/code-eoa.json'),
+    route({ module: 'proxy', action: 'eth_getStorageAt' }, 'chain/etherscan/storage-zero.json'),
+    route({ module: 'proxy', action: 'eth_call' }, 'chain/etherscan/call-empty.json'),
     route({ module: 'proxy', action: 'eth_blockNumber' }, 'chain/etherscan/block-number.json'),
   );
   return { files, routes };
@@ -492,9 +508,12 @@ function renderEtherscan(
 
 const tronHex = (address: string): string => hex.encode(base58check.decode(address));
 
+const TRONGRID_GETCONTRACT = '/chain/trongrid/wallet/getcontract';
+
 function renderTrongrid(seed: string, slots: Slots, tronSlots: readonly string[]): GeneratedFile[] {
   const at = Date.parse(DEMO_NOW);
-  const files: GeneratedFile[] = [];
+  // `wallet/getcontract` answers `{}` for an account that is not a smart contract (every synthetic TRON address).
+  const files: GeneratedFile[] = [{ path: 'chain/trongrid/wallet/getcontract-none.json', content: json(mark({})) }];
   for (const slot of tronSlots) {
     const address = slots[slot] ?? '';
     const mine = TRON_STORY.filter((t) => t.from === slot || t.to === slot);
@@ -559,6 +578,7 @@ export function renderChain(
         headers: { 'content-type': 'text/plain; charset=utf-8' },
       },
       ...etherscan.routes,
+      { path: TRONGRID_GETCONTRACT, file: 'chain/trongrid/wallet/getcontract-none.json' },
     ],
   };
 }

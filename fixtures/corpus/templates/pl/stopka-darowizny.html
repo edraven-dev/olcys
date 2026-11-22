@@ -1,0 +1,28 @@
+<!--
+title: Strona fundacji ze stopką „Wesprzyj nas” (BTC, sieć EVM, TRX)
+renders: 12
+slots:
+  btc: { pool: bitcoin.bech32, role: donation }
+  eth: { pool: evm, role: donation, chain: net }
+  trx: { pool: tron, role: donation }
+-->
+<!doctype html>
+<html lang="pl">
+<head><meta charset="utf-8"><title>Fundacja Testowa Pomocy Zwierzętom</title></head>
+<body>
+{{BANNER}}
+<main>
+<article>
+<h1>Schronisko potrzebuje karmy na zimę</h1>
+<p>W tym roku pod naszą opieką jest ponad sto psów i kotów. Każda złotówka idzie na karmę, leki i ogrzewanie
+boksów. Sprawozdanie finansowe publikujemy co kwartał.</p>
+</article>
+</main>
+<footer>
+<p>Wesprzyj nas:</p>
+<p>BTC {{ADDR:btc}}</p>
+<p>{{NET:eth}} {{ADDR:eth}}</p>
+<p>TRX {{ADDR:trx}}</p>
+</footer>
+</body>
+</html>

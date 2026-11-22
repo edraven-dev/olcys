@@ -138,6 +138,16 @@ describe('api', () => {
     const caseId = (await app.inject('/api/cases')).json().items[0].id as string;
     const runs = (await app.inject(`/api/cases/${caseId}/runs`)).json().items as { id: string; trigger: string }[];
     const collected = runs.find((r) => r.trigger === 'manual')!.id;
+    // The chain analysis of the collecting run (synthetic): its address types are read for the rescore too.
+    const types = [
+      {
+        address: { chain: 'evm:1' as const, address: `0x${'5a'.repeat(20)}` },
+        type: 'safe' as const,
+        safeMasterCopy: '0x41675c099f32341bf84bfc5382af534df5c7461a',
+        fetchIds: [newId(), newId()],
+      },
+    ];
+    await runtime.repos.addressTypes!.add(collected, types);
     const rescore = await app.inject({
       method: 'POST',
       url: `/api/cases/${caseId}/runs`,
@@ -150,6 +160,9 @@ describe('api', () => {
     expect(own.length).toBeGreaterThan(0);
     expect((await app.inject(`/api/runs/${id}/captures`)).json().items).toEqual(own);
     expect((await app.inject(`/api/runs/${id}/observations`)).json().items.length).toBeGreaterThan(0);
+    expect((await app.inject(`/api/runs/${collected}/address-types`)).json().items).toEqual(types);
+    expect((await app.inject(`/api/runs/${id}/address-types`)).json().items).toEqual(types);
+    expect((await app.inject(`/api/runs/${newId()}/address-types`)).statusCode).toBe(404);
   });
 
   it('marks a run failed when a stage throws', async () => {

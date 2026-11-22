@@ -1,0 +1,19 @@
+<!--
+title: Formularze wpłat z adresami wyłącznie w atrybutach (value, data-address)
+renders: 8
+slots:
+  a: { pool: any, role: payment_request }
+  b: { pool: any, role: donation }
+-->
+<!doctype html>
+<html lang="pl">
+<head><meta charset="utf-8"><title>Wpłata — formularz</title></head>
+<body>
+{{BANNER}}
+{{#ROWS:1-2}}<form class="wplata">
+<label for="adres-{{N}}">Adres do wpłaty</label>
+<input id="adres-{{N}}" readonly value="{{ADDR:a}}">
+<button type="button" data-address="{{ADDR:b}}" title="Wesprzyj nas">Kopiuj adres wsparcia</button>
+</form>
+{{/ROWS}}</body>
+</html>

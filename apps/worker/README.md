@@ -47,7 +47,10 @@ Etapy (zbieranie, wyodrębnianie adresów, analiza łańcucha, punktacja, raport
    wskazania stron, a same strony zbierają i przetwarzają ich kolektory, więc fragment wyniku nie staje się drugą kopią
    wzmianki o adresie.
 3. **Analiza łańcucha** (`chain.fetch`) — wstępna selekcja (lista wykluczeń, etykiety), dane łańcucha przez klienta ruchu
-   wychodzącego (offline ze strony testowej), reguły odrzucania A1/A2/A4/A8, rozszerzenie o kontrahentów, aktywność
+   wychodzącego (offline ze strony testowej), typ każdego pobranego adresu (`classifyAddress` z `@olcys/labels`: kod
+   z pobrania i sondy przez tego samego dostawcę — EOA, delegacja EIP-7702, Safe, ERC-4337, kontrakt tokena, kontrakt,
+   typ skryptu Bitcoin; zapis w `addressTypes`, nieudana sonda oznacza przebieg jako `partial`), reguły odrzucania
+   A1–A4/A8 (A3 z rejestrem delegatów `config/labels/eip7702-delegates.v1.yaml`), rozszerzenie o kontrahentów, aktywność
    i wskaźniki wyjścia do fiat wyceniane w PLN (NBP). Adresy otrzymują tylko dostawcy włączeni w zakresie sprawy
    (AMBER, np. `etherscan_v2`, `trongrid`, z uzasadnieniem analityka); kursy NBP przy włączonym `nbp_api`. Historia
    pobrana niecałkowicie (brak włączonego dostawcy, blokada, brak nagrania, obcięcie) oznacza przebieg jako `partial`.

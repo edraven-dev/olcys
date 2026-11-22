@@ -1,0 +1,23 @@
+<!--
+title: Instrukcja wpłaty na giełdę z adresem depozytowym i tagiem docelowym
+renders: 12
+slots:
+  dep: { pool: tron, role: exchange_deposit }
+  eth: { pool: evm, role: exchange_deposit, chain: net }
+-->
+<!doctype html>
+<html lang="pl">
+<head><meta charset="utf-8"><title>Giełda Testowa — wpłata środków</title></head>
+<body>
+{{BANNER}}
+<main>
+<h1>Wpłata środków</h1>
+<ol>
+<li>Wybierz sieć TRON (TRC20).</li>
+<li>Twój adres depozytowy: {{ADDR:dep}}</li>
+<li>Tag docelowy / memo: {{NUM}}</li>
+</ol>
+<p>Dla sieci {{NET:eth}} adres depozytowy to {{ADDR:eth}}</p>
+</main>
+</body>
+</html>

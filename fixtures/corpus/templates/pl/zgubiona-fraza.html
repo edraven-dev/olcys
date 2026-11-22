@@ -1,0 +1,18 @@
+<!--
+title: Posty na forum z ujawnionymi frazami seed (sekrety maskowane przez ekstraktor)
+renders: 20
+slots:
+  own: { pool: bitcoin, role: first_person_owner, chain: net }
+-->
+<!doctype html>
+<html lang="pl">
+<head><meta charset="utf-8"><title>Pomocy, portfel się nie otwiera</title></head>
+<body>
+{{BANNER}}
+{{#ROWS:1-2}}<div class="post">
+<p>Pomocy! Po aktualizacji aplikacja nie chce się otworzyć. Mój adres {{NET:own}}: {{ADDR:own}}</p>
+<p>Moja fraza seed: {{SECRET:seed_phrase:1}}</p>
+<p>Czy ktoś wie, co robię źle?</p>
+</div>
+{{/ROWS}}</body>
+</html>

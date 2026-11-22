@@ -2,7 +2,9 @@
  * TRON over TronGrid's v1 REST API: TRC-20 transfers (USDT-TRC20, the dominant P2P/card settlement medium) with
  * fingerprint paging, and account balances. A self-hosted java-tron + TRC-20 indexer serving the same shape only
  * changes `baseUrl`. TRC-20 items carry no block number: `blockHeight` is `0` (unknown) and ordering uses
- * `blockTime`. Native TRX transfers and contract detection are not fetched yet.
+ * `blockTime`. Contract code comes from the node API (`wallet/getcontract`); TRON has no storage or call probes
+ * here, so a TRON address is an account, a token contract (by label or asset registry) or a contract. Native TRX
+ * transfers are not fetched yet.
  */
 import type {
   AddressRef,
@@ -10,11 +12,12 @@ import type {
   ChainId,
   ChainProvider,
   ChainTip,
+  Id,
   NormalizedTransfer,
   RunContext,
 } from '@olcys/core';
 import { apiKeyOf, type ChainProviderConfig, type ProviderDeps } from './config.ts';
-import { ChainProviderError } from './errors.ts';
+import { ChainProviderError, type ChainErrorKind } from './errors.ts';
 import { integerText, isRecord } from './json.ts';
 import { CircuitBreaker, requestJson, type ChainRequest } from './request.ts';
 import {
@@ -183,5 +186,44 @@ export function createTronGridProvider(config: ChainProviderConfig, deps: Provid
         ...(fingerprint ? { nextCursor: encodeCursor(config.id, { stream: 'trc20', fingerprint }) } : {}),
       };
     },
+
+    /**
+     * `wallet/getcontract`: the bytecode of a smart contract. Only an object without contract fields (the node's `{}`)
+     * means "no contract"; anything else without valid bytecode is an invalid response, never an account.
+     */
+    async getCode(address: AddressRef, ctx: RunContext): Promise<{ code: string; fetchId: Id }> {
+      assertChain(address.chain);
+      const query = new URLSearchParams({ value: address.address, visible: 'true' });
+      const { data, fetchId } = await requestJson<Record<string, unknown>>(
+        ctx,
+        request(`/wallet/getcontract?${query.toString()}`, 'tron contract code (contract check)', true),
+        { breaker, classify: classifyNode },
+      );
+      const invalid = (reason: string): never => {
+        throw new ChainProviderError('invalid_response', config.id, `unexpected getcontract body: ${reason}`, {
+          fetchId,
+        });
+      };
+      const bytecode = data['bytecode'];
+      if (bytecode === undefined) {
+        if (CONTRACT_FIELDS.some((field) => field in data)) invalid('contract fields without bytecode');
+        return { code: '0x', fetchId };
+      }
+      if (typeof bytecode !== 'string' || !/^(0x)?([0-9a-f]{2})+$/i.test(bytecode)) invalid('bytecode is not hex');
+      return { code: `0x${String(bytecode).replace(/^0x/i, '').toLowerCase()}`, fetchId };
+    },
   };
+}
+
+/** Fields of a `wallet/getcontract` answer that describe a deployed contract. */
+const CONTRACT_FIELDS = ['contract_address', 'origin_address', 'abi', 'code_hash', 'name'] as const;
+
+/**
+ * Body check of the node API: the answer is a JSON object; java-tron reports failures as HTTP 200 with `Error`, a
+ * gateway with `success: false` or `error`.
+ */
+function classifyNode(body: unknown): 'ok' | ChainErrorKind {
+  if (!isRecord(body)) return 'invalid_response';
+  if (body['Error'] !== undefined || body['error'] !== undefined || body['success'] === false) return 'upstream_error';
+  return 'ok';
 }

@@ -1,0 +1,21 @@
+<!--
+title: Ostrzeżenie fundacji przed podrobionymi adresami (homoglify, podmienione znaki)
+renders: 12
+slots:
+  real: { pool: any, role: donation }
+  fake1: { neg: [homoglyph] }
+  fake2: { neg: [corrupt1, transpose] }
+-->
+<!doctype html>
+<html lang="pl">
+<head><meta charset="utf-8"><title>Komunikat fundacji: podrobione adresy</title></head>
+<body>
+{{BANNER}}
+<article>
+<p>Prawdziwy adres zbiórki fundacji to {{ADDR:real}}. Wesprzyj nas tylko tam.</p>
+</article>
+<article>
+<p>Uwaga, oszuści rozsyłają podrobione adresy (NIE wpłacajcie!): {{NEG:fake1}} oraz {{NEG:fake2}}</p>
+</article>
+</body>
+</html>

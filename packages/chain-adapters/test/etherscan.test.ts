@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { FixtureServer } from '../../../apps/fixture-site/src/fixture-server.ts';
 import {
   ChainProviderError,
+  classifyEthCall,
   classifyEtherscan,
   createEtherscanProvider,
   decodeCursor,
@@ -190,6 +191,48 @@ describe('Etherscan provider', () => {
     expect(http.requests.at(-1)?.containsIdentifier).toBe(false);
   });
 
+  it('probes storage and calls at latest: a revert is an answer, other JSON-RPC errors fail', async () => {
+    const word = `0x${'0'.repeat(24)}${'ab'.repeat(20)}`;
+    const http = new FakeEgressClient((r) => {
+      const p = params(r);
+      if (p.get('action') === 'eth_getStorageAt')
+        return { body: { jsonrpc: '2.0', id: 1, result: word.toUpperCase().replace('0X', '0x') } };
+      if (p.get('data') === '0xb0d691fe') return { body: { jsonrpc: '2.0', id: 1, result: word } };
+      if (p.get('data') === '0x18160ddd') {
+        return { body: { jsonrpc: '2.0', id: 1, error: { code: -32000, message: 'execution reverted' } } };
+      }
+      if (p.get('data') === '0x313ce567')
+        return { body: { jsonrpc: '2.0', id: 1, error: { code: 3, message: 'x', data: '0x' } } };
+      return { body: { jsonrpc: '2.0', id: 1, error: { code: -32602, message: 'invalid argument 0' } } };
+    });
+    const provider = createEtherscanProvider(config, { env: {} });
+    const ctx = testContext(http);
+    const me = { chain: 'evm:1' as const, address: ME };
+    expect(await provider.getStorageAt!(me, '0x0', ctx)).toEqual({ value: word, fetchId: expect.any(String) });
+    expect(await provider.call!(me, '0xb0d691fe', ctx)).toMatchObject({ status: 'ok', data: word });
+    expect(await provider.call!(me, '0x18160ddd', ctx)).toEqual({ status: 'reverted', fetchId: expect.any(String) });
+    expect((await provider.call!(me, '0x313ce567', ctx)).status).toBe('reverted');
+    await expect(provider.call!(me, '0x12345678', ctx)).rejects.toMatchObject({ kind: 'upstream_error' });
+    expect(params(http.requests[0]!).toString()).toBe(
+      `chainid=1&module=proxy&action=eth_getStorageAt&address=${ME}&position=0x0&tag=latest`,
+    );
+    expect(params(http.requests[1]!).toString()).toBe(
+      `chainid=1&module=proxy&action=eth_call&to=${ME}&data=0xb0d691fe&tag=latest`,
+    );
+    expect(http.requests.every((r) => r.containsIdentifier && r.purpose.includes('address type probe'))).toBe(true);
+  });
+
+  it('classifies eth_call bodies: reverts are results, throttling stays throttling', () => {
+    expect(classifyEthCall({ jsonrpc: '2.0', id: 1, error: { code: -32000, message: 'execution reverted' } })).toBe(
+      'ok',
+    );
+    expect(classifyEthCall({ jsonrpc: '2.0', id: 1, result: '0x' })).toBe('ok');
+    expect(classifyEthCall({ jsonrpc: '2.0', id: 1, error: { code: -32005, message: 'limit exceeded' } })).toBe(
+      'upstream_error',
+    );
+    expect(classifyEthCall({ status: '0', message: 'NOTOK', result: 'Max rate limit reached' })).toBe('rate_limited');
+  });
+
   it('refuses chains it is not configured for, without a request', async () => {
     const http = new FakeEgressClient(() => ({ body: {} }));
     const provider = createEtherscanProvider(config, { env: {} });
@@ -232,5 +275,9 @@ describe('Etherscan provider against the synthetic fixture site', () => {
     expect((await provider.getCode!(contract, ctx)).code.startsWith('0x6080')).toBe(true);
     expect((await provider.getCode!(eth1, ctx)).code).toBe('0x');
     expect((await provider.getTip('evm:1', ctx)).height).toBeGreaterThan(26_400_000);
+    // CONTRACT-1 is a plain contract: empty storage slots, every probed function reverts
+    expect((await provider.getStorageAt!(contract, '0x0', ctx)).value).toBe(`0x${'0'.repeat(64)}`);
+    expect((await provider.call!(contract, '0xb0d691fe', ctx)).status).toBe('reverted');
+    expect(await provider.call!(eth1, '0xb0d691fe', ctx)).toMatchObject({ status: 'ok', data: '0x' });
   });
 });

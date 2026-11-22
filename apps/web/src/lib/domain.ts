@@ -60,6 +60,7 @@ export type ExclusionView = Omit<ExclusionDecision, 'evidence'> & {
     codeBytes?: number;
     denyList?: { kind: string; name: string; source: string };
     delegate?: string;
+    delegateInfo?: { kind: string; name: string; source: string };
   };
   emitsCashOut?: string;
 };

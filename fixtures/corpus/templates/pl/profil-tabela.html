@@ -1,0 +1,22 @@
+<!--
+title: Profil użytkownika forum z tabelą danych kontaktowych i portfeli
+renders: 12
+slots:
+  btc: { pool: bitcoin, role: first_person_owner, chain: net }
+  eth: { pool: evm, role: first_person_owner, chain: net }
+  mail: { neg: [email] }
+-->
+<!doctype html>
+<html lang="pl">
+<head><meta charset="utf-8"><title>Profil użytkownika {{NICK}}</title></head>
+<body>
+{{BANNER}}
+<table class="profil">
+<tr><th>Użytkownik</th><td>{{NICK}}</td></tr>
+<tr><th>Dołączył</th><td>{{DATE}}</td></tr>
+<tr><th>E-mail</th><td>{{NEG:mail}}</td></tr>
+<tr><th>Portfel {{NET:btc}}</th><td>{{ADDR:btc}}</td></tr>
+<tr><th>Portfel {{NET:eth}}</th><td>{{ADDR:eth}}</td></tr>
+</table>
+</body>
+</html>

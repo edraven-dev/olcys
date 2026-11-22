@@ -10,8 +10,8 @@ Schemat PostgreSQL, migracje SQL i typowane repozytoria dla magazynu dowodów dz
 - `createDb(url)` — instancja Kysely związana ze schematem `olcys`.
 - `createMemoryRepositories()` — implementacja tych samych portów w pamięci (testy, demonstracja bez bazy).
 - `createSqlRepositories(db)` — implementacje SQL portów repozytoriów z `@olcys/core` (`cases`, `runs`, `evidence`,
-  `chain`, `analysis`, `labels`, `schedules`). Dowody są tylko do dopisywania; rola `olcys_app` nie ma praw
-  UPDATE/DELETE.
+  `chain`, `addressTypes`, `analysis`, `labels`, `schedules`, `judgements`, `overrides`). Dowody są tylko do
+  dopisywania; rola `olcys_app` nie ma praw UPDATE/DELETE.
 - `schedules` (migracja `0002_schedules.sql`) — `setSchedule` zastępuje `cases.schedule` (poza statusem jedyna kolumna
   sprawy z prawem UPDATE) i w tej samej transakcji dopisuje zmianę do `case_schedule_change` (kto, dlaczego, przed, po);
   `fire` zajmuje termin wpisem `schedule_tick` z unikalnym `job_id` pod blokadą doradczą sprawy (tę samą blokadę bierze
@@ -25,6 +25,12 @@ Schemat PostgreSQL, migracje SQL i typowane repozytoria dla magazynu dowodów dz
   (`analyst_judgements`) i korekty analityka w sprawie (`analyst_overrides`, cel korekty w `jsonb`); listy od
   najstarszego wpisu (czas, id). Obie tabele i `link_assessments` są tylko do dopisywania (`olcys_app`: SELECT
   i INSERT). `analysis.getLink(id)` zwraca jedno powiązanie dowolnego przebiegu.
+- `addressTypes` (migracja `0004_address_types.sql`) — typy adresów z analizy łańcuchowej w tabeli
+  `address_type_classification`: jeden wiersz na przebieg i adres (`UNIQUE (run_id, chain, address)`), typ (lista
+  kontrolowana `CHECK`), prefiks i długość kodu, delegat EIP-7702, kontrakt bazowy Safe, EntryPoint ERC-4337,
+  implementacja ERC-1967, typ skryptu UTXO, nieudana sonda (`jsonb`) oraz `fetch_ids uuid[]` — zapytania w kolejności
+  wykonania. `add(runId, klasyfikacje)` odrzuca adres sklasyfikowany już w tym przebiegu, `list(runId)` zwraca wiersze
+  według łańcucha i adresu. Tabela tylko do dopisywania (`olcys_app`: SELECT i INSERT).
 - `migrate(ownerUrl)` / `pnpm db:migrate` — migracje SQL z `migrations/` (z kontrolą skrótów SHA-256). Historię
   migracji (`schema_migrations`) może zapisywać wyłącznie właściciel schematu — `migrate()` odbiera prawa zapisu
   pozostałym rolom. Równoczesne uruchomienia (np. równoległe pliki testów) czekają na blokadę doradczą, więc każda

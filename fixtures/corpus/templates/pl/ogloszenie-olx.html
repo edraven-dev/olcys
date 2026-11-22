@@ -1,0 +1,24 @@
+<!--
+title: Ogłoszenie drobne (styl OLX) z płatnością w kryptowalucie
+renders: 12
+slots:
+  pay: { pool: bitcoin, role: payment_request, chain: net }
+  nr: { neg: [uuid, md5] }
+-->
+<!doctype html>
+<html lang="pl">
+<head><meta charset="utf-8"><title>Sprzedam rower szosowy — ogłoszenie {{NUM}}</title></head>
+<body>
+{{BANNER}}
+<main>
+<article class="ogloszenie">
+<h1>Sprzedam rower szosowy, rama 56 cm</h1>
+<p class="cena">Cena: {{PLN}} zł lub równowartość w {{NET:pay}}.</p>
+<p>Stan bardzo dobry, mało jeżdżony. Odbiór osobisty w Krakowie albo wysyłka kurierem.
+Płatność w {{NET:pay}} na adres: {{ADDR:pay}}</p>
+<p>Po zaksięgowaniu proszę o wiadomość z numerem ogłoszenia.</p>
+<footer>Identyfikator ogłoszenia: {{NEG:nr}} · dodano {{DATE}} · sprzedający {{NICK}}</footer>
+</article>
+</main>
+</body>
+</html>

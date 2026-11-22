@@ -8,6 +8,8 @@
 import type {
   AccountDiscoveryMethod,
   AddEvidenceFeature,
+  AddressType,
+  AddressTypeProbe,
   AdmiraltyReliability,
   AnalystOverrideKind,
   AnalyticConfidence,
@@ -840,6 +842,39 @@ export const pl = {
       weakIdentity: 'Brak powiązań o słabej tożsamości.',
       candidates: 'Brak kandydatów odrzuconych przy weryfikacji.',
     },
+  },
+  /** Address types of the chain analysis (the basis of rules A2/A3). */
+  addressTypes: {
+    eoa: 'konto zewnętrzne (EOA)',
+    delegated_eoa: 'EOA z delegacją EIP-7702',
+    safe: 'konto Safe',
+    erc4337_account: 'konto inteligentne ERC-4337',
+    token_contract: 'kontrakt tokena',
+    contract: 'kontrakt',
+    utxo_script: 'skrypt UTXO',
+    unknown: 'nieznany typ',
+  } satisfies Record<AddressType, string>,
+  addressType: {
+    field: 'Typ adresu',
+    asOfTip: 'stan na zapisany szczyt łańcucha',
+    delegate: 'Delegat EIP-7702: {address}',
+    delegateKnown: 'Delegat EIP-7702 z rejestru: {kind} „{name}” (źródło: {source})',
+    delegateKinds: {
+      wallet_implementation: 'implementacja portfela',
+      sweeper: 'znany „sweeper” — przechwytuje wpływające środki, klucz konta prawdopodobnie przejęty',
+    },
+    safeMasterCopy: 'Kontrakt bazowy Safe (singleton w slocie 0): {address}',
+    entryPoint: 'EntryPoint ERC-4337: {address}',
+    implementation: 'Implementacja proxy ERC-1967: {address}',
+    scriptType: 'Typ skryptu: {script}',
+    failedProbe: 'Sprawdzenie „{probe}” nie powiodło się — typ ustalono na podstawie pozostałych sprawdzeń.',
+    probes: {
+      code: 'kod pod adresem',
+      safe: 'konto Safe (slot 0)',
+      erc4337: 'konto ERC-4337 (entryPoint())',
+      token: 'kontrakt tokena (totalSupply(), decimals())',
+      implementation: 'implementacja proxy (ERC-1967)',
+    } satisfies Record<AddressTypeProbe, string>,
   },
   roleCues: {
     first_person_owner: 'wypowiedź o własności w 1. osobie',

@@ -13,6 +13,12 @@
     "apps/fixture-site/public/**",
     "fixtures/persona/**",
     "fixtures/labels/demo-curated.json",
-    "fixtures/cassettes/**"
+    "fixtures/cassettes/**",
+    "fixtures/corpus/addresses/**",
+    "fixtures/corpus/negatives/**",
+    "fixtures/corpus/templates/**",
+    "fixtures/corpus/docs/**",
+    "fixtures/corpus/manifest.json",
+    "fixtures/corpus/ground-truth.jsonl"
   ]
 }

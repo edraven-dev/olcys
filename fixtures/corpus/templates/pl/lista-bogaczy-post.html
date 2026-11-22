@@ -1,0 +1,18 @@
+<!--
+title: Post z listą 60 adresów BTC i ich saldami
+renders: 1
+slots:
+  row: { pool: bitcoin, role: listing, chain: bitcoin, obf: none }
+-->
+<!doctype html>
+<html lang="pl">
+<head><meta charset="utf-8"><title>Top 60 portfeli BTC</title></head>
+<body>
+{{BANNER}}
+<div class="post">
+<p>Lista adresów z największym saldem (rich list), stan na {{DATE}}:</p>
+<p>{{#ROWS:60-60}}{{N}}. {{ADDR:row}} — {{AMOUNT}} BTC<br>
+{{/ROWS}}</p>
+</div>
+</body>
+</html>

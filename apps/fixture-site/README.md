@@ -36,6 +36,11 @@ Serwer (`src/`) używa wyłącznie wbudowanych modułów Node, bo kontener nie m
 | `/registries/ceidg/v3/…`, `/registries/vat-whitelist/api/…`, `/registries/krs/api/…` | syntetyczne odpowiedzi rejestrów (CEIDG v3, wykaz podatników VAT, KRS) w formatach dokumentacji: firma persony z NIP `0001234562`, dwa rachunki NRB, brak wpisu w KRS (404) |
 | `/chain/esplora/api/…`, `/chain/etherscan/v2/api?…`, `/chain/trongrid/v1/…`          | syntetyczne historie transakcji, w tym depozyt giełdowy, przelewy P2P i kod kontraktu                                                                                       |
 
+Sondy typu adresu odpowiadają jak u prawdziwych dostawców: `eth_getStorageAt` zwraca słowo zerowe (brak singletonu
+Safe i implementacji proxy), `eth_call` do CONTRACT-1 kończy się wycofaniem (`execution reverted` — zwykły kontrakt,
+odrzucany regułą A2), do adresu bez kodu zwraca `0x`, a `/chain/trongrid/wallet/getcontract` odpowiada `{}` (konto TRON
+bez kontraktu). Adresy EOA persony pozostają kontami zewnętrznymi.
+
 Pełny opis — adresy, wabiki, oczekiwane wyniki analizy i skróty plików — zawiera `fixtures/persona/manifest.json`.
 
 Mapa witryny podaje adresy względem samej mapy (bez początkowego `/`), bo strona działa pod kilkoma adresami (host,
