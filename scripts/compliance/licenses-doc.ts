@@ -7,7 +7,7 @@
  */
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
-import { loadContext, NPM_SBOM, PYTHON_SBOM } from './context.ts';
+import { loadContext } from './context.ts';
 import { checkLicensesDoc, renderLicensesDoc, writeLicensesDoc } from './doc.ts';
 import { checkImages, findImageUses, loadImageSpecs } from './images.ts';
 import { REPO_ROOT } from './policy.ts';
@@ -35,7 +35,6 @@ const generated = renderLicensesDoc({
   images,
   policy: ctx.policy,
   exceptions: ctx.exceptions,
-  sbomLinks: { npm: `sbom/${NPM_SBOM}`, python: `sbom/${PYTHON_SBOM}` },
   pythonHasLock: ctx.pythonInput.uvLock !== undefined,
 });
 const path = values.out ?? join(REPO_ROOT, 'docs', 'compliance', 'licenses.md');

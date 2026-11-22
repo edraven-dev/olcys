@@ -21,8 +21,6 @@ export interface LicensesDocInput {
   images: ImageFinding[];
   policy: LicencePolicy;
   exceptions: LicenceException[];
-  /** Paths of the SBOM files relative to the document. */
-  sbomLinks: { npm: string; python: string };
   /** True when uv.lock is committed (Python transitive packages are covered). */
   pythonHasLock: boolean;
 }
@@ -100,7 +98,7 @@ export function renderLicensesDoc(input: LicensesDocInput): string {
       ? '- Wynik: wszystkie komponenty zgodne z polityką licencyjną (`config/licenses.json`).'
       : `- Wynik: **${bad} komponentów wymaga decyzji** (uruchom \`pnpm compliance:licences\` i \`pnpm compliance:images\`).`,
     `- Wyjątki licencyjne (\`config/compliance/license-exceptions.yaml\`): ${input.exceptions.length}.`,
-    `- SBOM (CycloneDX 1.6): [npm](${input.sbomLinks.npm}), [Python](${input.sbomLinks.python}).`,
+    '- SBOM (CycloneDX 1.6) powstają na żądanie poleceniem `pnpm compliance:sbom` (katalog `data/sbom/`, poza repozytorium); opisują je pliki `olcys-npm.cdx.json` i `olcys-osint-py.cdx.json`.',
     '',
     '### Zależności bezpośrednie npm',
     '',
@@ -124,7 +122,7 @@ export function renderLicensesDoc(input: LicensesDocInput): string {
     '',
     '### Zależności przechodnie npm (podsumowanie)',
     '',
-    `${transitive.length} pakietów przechodnich; pełna lista z wersjami, skrótami i licencjami jest w SBOM npm.`,
+    `${transitive.length} pakietów przechodnich; pełna lista z wersjami, skrótami i licencjami jest w SBOM npm (\`pnpm compliance:sbom\`).`,
     '',
     table(['Licencja (SPDX)', 'Runtime', 'Tylko dev', 'Razem'], summaryRows),
   ].join('\n');

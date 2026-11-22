@@ -1,18 +1,19 @@
 /**
- * Writes (default) or verifies (--check) the CycloneDX 1.6 SBOMs, offline and deterministic.
+ * Writes the CycloneDX 1.6 SBOMs (default) or, with --check, builds them in memory and fails on any gate violation
+ * (denied or unreviewed licence, component without licence). Offline and deterministic; nothing is diffed against files.
  *
  *   pnpm compliance:sbom [--check] [--only npm|python] [--out-dir <dir>]
  *
- * Default output: docs/compliance/sbom/olcys-npm.cdx.json and olcys-osint-py.cdx.json.
+ * Default output (git-ignored): data/sbom/olcys-npm.cdx.json and olcys-osint-py.cdx.json.
  */
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { loadContext, NPM_SBOM, PYTHON_SBOM, SBOM_DIR } from './context.ts';
 import { serialise } from './cyclonedx.ts';
 import { npmComponentsToBom } from './npm.ts';
 import { buildPythonSbom } from './python.ts';
-import { REPO_ROOT } from './policy.ts';
+import { decideComponent, REPO_ROOT } from './policy.ts';
 
 const { values } = parseArgs({
   options: {
@@ -38,22 +39,29 @@ const targets = [
     : []),
 ];
 
-const results = await Promise.all(
-  targets.map(async (target) => {
-    const path = join(outDir, target.file);
-    if (!values.check) {
+if (values.check) {
+  const problems = [...ctx.npm, ...ctx.python].flatMap((c) => {
+    const d = decideComponent(c, ctx.policy, ctx.exceptions);
+    return d.verdict === 'allow'
+      ? []
+      : [`${d.verdict.toUpperCase()}: ${c.ecosystem} ${c.name}@${c.version} (${d.rule})`];
+  });
+  const lockCount = ctx.npm.length;
+  const bomCount = JSON.parse(targets.find((t) => t.id === 'npm')?.body ?? '{"components":[]}').components.length;
+  if (values.only !== 'python' && bomCount !== lockCount)
+    problems.push(`npm SBOM has ${bomCount} components for ${lockCount} packages`);
+  if (problems.length > 0) {
+    console.error(problems.join('\n'));
+    process.exit(1);
+  }
+  console.log(`SBOMs build cleanly: ${targets.map((t) => t.file).join(', ')}`);
+} else {
+  await Promise.all(
+    targets.map(async (target) => {
+      const path = join(outDir, target.file);
       await mkdir(dirname(path), { recursive: true });
       await writeFile(path, target.body);
-      return { path, stale: false, message: `wrote ${path}` };
-    }
-    const current = await readFile(path, 'utf8').catch(() => undefined);
-    const stale = current !== target.body;
-    return {
-      path,
-      stale,
-      message: stale ? `${path} is out of date: run "pnpm compliance:sbom"` : `${path} is up to date`,
-    };
-  }),
-);
-for (const r of results) (r.stale ? console.error : console.log)(r.message);
-process.exit(results.some((r) => r.stale) ? 1 : 0);
+      console.log(`wrote ${path}`);
+    }),
+  );
+}

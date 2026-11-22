@@ -23,8 +23,14 @@ Wymóg wyzwania: należy wskazać wszystkie wykorzystane komponenty i ich licenc
 - `pnpm compliance:images`: każdy `image:` z `compose.yml` i każde `FROM` z Dockerfile musi być opisane w
   `config/compliance/components.yaml`; licencje GPL/AGPL/LGPL są dopuszczone tylko dla osobnych, niemodyfikowanych usług
   (`separateService: true`);
-- `pnpm compliance:sbom --check`: SBOM CycloneDX 1.6 (`docs/compliance/sbom/`) zgodne z lockfile. `pnpm compliance:sbom` je regeneruje;
-  generowanie jest deterministyczne (bez znacznika czasu i `serialNumber`, posortowane, z sumą SHA-256 lockfile).
+- `pnpm compliance:sbom --check`: buduje SBOM w pamięci i zawodzi przy naruszeniu bramki (komponent bez licencji lub z
+  niedozwoloną). `pnpm compliance:sbom` zapisuje SBOM CycloneDX 1.6 na żądanie do `data/sbom/` (katalog poza
+  repozytorium, aby równoległe zmiany zależności nie powodowały konfliktów); generowanie jest deterministyczne (bez
+  znacznika czasu i `serialNumber`, posortowane, z sumą SHA-256 lockfile).
+
+`pnpm licenses:check` i `pnpm compliance:licences` częściowo się pokrywają: pierwsze sprawdza tylko zainstalowane pakiety npm
+względem listy `allowed`, drugie cały lockfile (także pakiety natywne innych platform) i pakiety Pythona względem pełnej
+polityki.
 
 **Zakres SBOM.** SBOM npm obejmuje każdy pakiet z `pnpm-lock.yaml` (zależności przechodnie, wersje, skróty
 integralności, licencje; pakiety wyłącznie deweloperskie mają `scope: excluded`). Licencje czyta się z zainstalowanych
@@ -48,7 +54,7 @@ Poniższe tabele są generowane z `pnpm-lock.yaml`, `services/osint-py/pyproject
 - Sprawdzone komponenty: 370 (npm: 360, Python: 2, obrazy: 8).
 - Wynik: wszystkie komponenty zgodne z polityką licencyjną (`config/licenses.json`).
 - Wyjątki licencyjne (`config/compliance/license-exceptions.yaml`): 0.
-- SBOM (CycloneDX 1.6): [npm](sbom/olcys-npm.cdx.json), [Python](sbom/olcys-osint-py.cdx.json).
+- SBOM (CycloneDX 1.6) powstają na żądanie poleceniem `pnpm compliance:sbom` (katalog `data/sbom/`, poza repozytorium); opisują je pliki `olcys-npm.cdx.json` i `olcys-osint-py.cdx.json`.
 
 ### Zależności bezpośrednie npm
 
@@ -112,7 +118,7 @@ Każdy `image:` z `compose.yml` i każde `FROM` z Dockerfile musi mieć wpis w `
 
 ### Zależności przechodnie npm (podsumowanie)
 
-331 pakietów przechodnich; pełna lista z wersjami, skrótami i licencjami jest w SBOM npm.
+331 pakietów przechodnich; pełna lista z wersjami, skrótami i licencjami jest w SBOM npm (`pnpm compliance:sbom`).
 
 | Licencja (SPDX) | Runtime | Tylko dev | Razem |
 | --- | --- | --- | --- |

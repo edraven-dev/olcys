@@ -7,7 +7,7 @@ import { collectNpm, type NpmComponent } from './npm.ts';
 import { buildPythonComponents, type PythonComponent } from './python.ts';
 import { loadExceptions, loadPolicy, REPO_ROOT, type LicenceException, type LicencePolicy } from './policy.ts';
 
-export const SBOM_DIR = 'docs/compliance/sbom';
+export const SBOM_DIR = 'data/sbom';
 export const NPM_SBOM = 'olcys-npm.cdx.json';
 export const PYTHON_SBOM = 'olcys-osint-py.cdx.json';
 export const PYTHON_DIR = 'services/osint-py';

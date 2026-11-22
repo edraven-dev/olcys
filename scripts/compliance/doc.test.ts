@@ -33,7 +33,6 @@ const input: LicensesDocInput = {
   images: [],
   policy: { allowed: ['MIT', '0BSD'], separateServiceOnly: [], deny: [] },
   exceptions: [],
-  sbomLinks: { npm: 'sbom/a.json', python: 'sbom/b.json' },
   pythonHasLock: false,
 };
 
@@ -45,7 +44,7 @@ describe('licenses document', () => {
     expect(out).toContain('| zod | 1.0.0 | MIT | walidacja \\| danych | packages/core |');
     expect(out).not.toMatch(/\| left-pad \| 1\.0\.0 \| MIT \|\s*\|/);
     expect(out).toContain('| 0BSD | 0 | 1 | 1 |');
-    expect(out).toContain('(sbom/a.json)');
+    expect(out).toContain('pnpm compliance:sbom');
     expect(out).toContain('wszystkie komponenty zgodne');
   });
 
