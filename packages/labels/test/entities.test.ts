@@ -27,6 +27,11 @@ describe('ESMA CASPS', () => {
   });
 });
 
+const row = (n: number, name: string, y: number): PositionedText[] => [
+  { str: `RDWW-${n}`, x: 10, y, page: 1 },
+  { str: name, x: 130, y, page: 1 },
+];
+
 describe('Polish register', () => {
   const items = JSON.parse(fixture('pl-register.synthetic.json')) as PositionedText[];
 
@@ -47,5 +52,22 @@ describe('Polish register', () => {
   it('checks the NIP checksum', () => {
     expect(validNip('5260000005')).toBe(true);
     expect(validNip('5260000000')).toBe(false);
+  });
+
+  it('never stores a natural person, even with a surname ending in -ska', () => {
+    const header = items.filter((i) => i.y === 10 && i.page === 1);
+    const { records } = parsePlRegister([
+      ...header,
+      ...row(1, 'Anna Przykładowska', 30),
+      ...row(2, 'Przykładowska sp. z o.o.', 50),
+      ...row(3, 'Jan Kowalski SA', 70),
+      ...row(4, 'Fundusz Testowy spółka komandytowa', 90),
+      ...row(5, 'Maria Spółkowska', 110),
+    ]);
+    expect(records.map((r) => r.name)).toEqual([
+      'Przykładowska sp. z o.o.',
+      'Jan Kowalski SA',
+      'Fundusz Testowy spółka komandytowa',
+    ]);
   });
 });

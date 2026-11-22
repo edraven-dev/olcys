@@ -166,8 +166,19 @@ const PL_COLUMNS = [
 ] as const;
 type PlColumn = (typeof PL_COLUMNS)[number]['key'];
 
-const LEGAL_FORM =
-  /(sp\.?\s*z\s*o\.?\s*o\.?|\bs\.?\s*a\.?(?=\s|$|,)|sp\.?\s*k\.?(?=\s|$)|sp\.?\s*j\.?(?=\s|$)|s\.?k\.?a\.?(?=\s|$)|sp\.?\s*p\.?(?=\s|$)|spółka|\bltd\b|\bgmbh\b|\buab\b|\bs\.r\.o\.|\binc\.?(?=\s|$))/i;
+/**
+ * Legal-form tokens, matched as whole words or abbreviations (never inside a surname: „Przykładowska” is not „SKA”).
+ * A name without such a token and without a KRS number belongs to a natural person and is never stored.
+ */
+const WORD = String.raw`(?<![\p{L}\p{N}])`;
+const END = String.raw`(?![\p{L}\p{N}])`;
+const LEGAL_FORM_WORDS = new RegExp(
+  `${WORD}(?:sp\\.\\s*z\\s*o\\.\\s*o\\.?|sp\\.\\s*(?:k|j|p)\\.?|spółka\\s+(?:z\\s+ograniczoną\\s+odpowiedzialnością|akcyjna|komandytowo-akcyjna|komandytowa|jawna|partnerska)|prosta\\s+spółka\\s+akcyjna|ltd|gmbh|uab|s\\.r\\.o\\.|inc\\.?)${END}`,
+  'iu',
+);
+// Case-sensitive: „SA” / „S.A.” / „S.K.A.” / „P.S.A.” in capitals only.
+const LEGAL_FORM_CAPS = new RegExp(`${WORD}(?:S\\.A\\.|SA|S\\.K\\.A\\.|SKA|P\\.S\\.A\\.|PSA)${END}`, 'u');
+const hasLegalForm = (name: string): boolean => LEGAL_FORM_WORDS.test(name) || LEGAL_FORM_CAPS.test(name);
 
 export function validNip(nip: string): boolean {
   if (!/^\d{10}$/.test(nip)) return false;
@@ -218,7 +229,7 @@ export function parsePlRegister(items: readonly PositionedText[]): EntityParseRe
     previous = n;
     const name = text('name');
     const krs = text('krs').replace(/\D/g, '');
-    if (krs.length !== 10 && !LEGAL_FORM.test(name)) continue; // natural person: not stored
+    if (krs.length !== 10 && !hasLegalForm(name)) continue; // natural person: not stored
     const nip = text('nip').replace(/\D/g, '');
     if (nip && !validNip(nip)) warnings.push(`PL register: ${key} has an invalid NIP checksum`);
     const servicesText = text('services').toLowerCase();
