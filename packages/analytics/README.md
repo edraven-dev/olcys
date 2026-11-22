@@ -56,6 +56,41 @@ oddzielny od Confidence Score powiązania. Reguły B2, B3, B6, B7 są poza MVP.
 depozytowego na portfel giełdy) z wyceną oraz chronologiczną oś (`FlowTimelineEntry`: przelew, wymiana, przesłanka)
 dla narracji raportu. `planCounterpartyExpansion` wskazuje nieoznaczonych odbiorców do jednego dodatkowego pobrania.
 
+### Graf przepływów do N skoków
+
+Przepływy są wynikami obliczeń (sekcja B), nie faktami. Pakiet składa je z czterech funkcji; samo wyszukiwanie ścieżek
+leży w `queryFlowEdges` (`@olcys/db`) i `traceFlows` (`@olcys/core`, magazyn w pamięci) — oba mają tę samą semantykę.
+
+- **Znak skoku (`FlowEdge.hop`).** W dół (dokąd poszły środki): `1…N`, krawędź wychodząca z analizowanego adresu ma
+  `1`. W górę (skąd pochodziły środki): `−1…−N`, krawędź wchodząca do analizowanego adresu ma `−1`. Głębokość grafu to
+  `maxHops` z `config/rules/cashout.v1.yaml` (3).
+- **Przeszukiwanie.** Przeszukiwanie jest wszerz na poziomie adresów: w każdym skoku jeden wpis na adres, z jego
+  najwcześniejszym momentem dotarcia środków (w górę — najpóźniejszym wyjściem). Kolejny skok bierze transfery
+  wychodzące z tego adresu nie starsze niż ten moment (monotoniczność czasu; w górę — nie nowsze). Adres jest
+  rozwijany raz, więc każdy transfer występuje raz, w pierwszym skoku, a praca rośnie liniowo z liczbą transferów
+  (równoległe transfery jednej relacji nie mnożą się w ścieżki). Ścieżka kończy się na adresie z etykietą usługi lub
+  z decyzją o wykluczeniu (krawędź do niego jest pokazana, ale dalej się jej nie śledzi). Krawędź prowadząca do adresu
+  już odwiedzonego (ziarno lub wcześniejszy skok) ma `isCycle: true` i nie jest kontynuowana. Wynik jest ograniczony
+  limitem krawędzi (2 000); przekroczenie ustawia `truncated`. Bitcoin: transakcja opuszcza każdy adres swoich
+  wejść, więc etap analizy dopisuje płatność także do pozostałych adresów wejściowych (współwydający).
+- **`buildFlowEdges(wiersze, { valuator, assets }, ctx)`** — krawędzie wyceniane w PLN po kursie NBP z dnia transferu
+  (reguła PIT). Noga bez wyceny (nieznany token, brak ceny lub kursu) zostaje bez pola `valuation` — jest nieocenioną,
+  nigdy zerem.
+- **`buildTimeline(krawędzie, wymiany, zdarzenia, { maxHop?, counterparty? })`** — oś chronologiczna: przelewy (domyślnie
+  skok ±1), wymiany i przesłanki wyjścia do fiat. Przy równych czasach kolejność jest stała: przelew, wymiana,
+  przesłanka, potem reguła, hash transakcji, indeks, nadawca, odbiorca.
+- **`buildSankey(krawędzie, ziarna, etykiety, { maxLinks? })`** — agregat warstwowy bez cykli. Węzeł to adres w warstwie
+  (`${chain}:${adres}#${warstwa}`): skok `h > 0` prowadzi z warstwy `h − 1` do `h`, skok `h < 0` z warstwy `h` do `h + 1`,
+  więc każde łącze idzie z warstwy `k` do `k + 1` (wykres Sankey wymaga grafu acyklicznego). Krawędzie cykliczne
+  i pętle własne są pomijane. Łącze sumuje kwoty per aktywo i PLN z wycenionych nóg; `plnComplete: false`, gdy
+  którakolwiek noga jest bez wyceny. Zostaje 50 łączy o największej wartości PLN; reszta jest scalana do jednego węzła
+  „pozostałe” (`isOther`) na warstwę: po stronie wpływów scalani są pominięci nadawcy (odbiorca zostaje), po stronie
+  wypływów — pominięci odbiorcy (nadawca zostaje), więc liczba łączy faktycznie maleje.
+- **`planHopExpansion(front, { isService, isExcluded, fetched, txCount }, { perHop: 25, maxTxCount: 1000 })`** — kogo
+  pobrać w kolejnym skoku: najpierw odbiorcy, potem nadawcy, każda grupa malejąco wg wartości PLN (bez wyceny na końcu);
+  pomija usługi, adresy wykluczone i już pobrane; najwyżej 25 na skok. Adres z `txCount` ≥ 1000 dostaje
+  `want.transfers: false` (tylko podsumowanie — „liść”). Adres bez znanego podsumowania jest najpierw podsumowywany.
+
 ## Publiczne API
 
 ```ts
@@ -67,4 +102,8 @@ analyseAddress(input, { labels, valuator, assets, forwarding, rules, score, runI
   → { indicators, events, edges, timeline }
 // input: { address, transfers, utxoTxs?, tip?, decisions, counterpartyTransfers?, analysed? }
 computeActivity, evaluateCashOut, cashOutScore, buildFundFlow, planCounterpartyExpansion
+buildFlowEdges(wiersze, { valuator, assets }, ctx) → FlowEdge[]
+buildTimeline(krawędzie, wymiany, zdarzenia, opcje?) → FlowTimelineEntry[]
+buildSankey(krawędzie, ziarna, etykiety, opcje?) → FundFlowSankey
+planHopExpansion(front, zależności, budżet?) → HopPlanItem[]
 ```

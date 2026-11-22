@@ -7,6 +7,7 @@ import type {
   ApiMeta,
   BlobStore,
   FetchMode,
+  LlmClient,
   Logger,
   Repositories,
   RunConfigSnapshot,
@@ -31,6 +32,7 @@ import { registerGuard, type GuardOptions } from './guard.ts';
 import { idOf } from './ids.ts';
 import { registerScheduleRoutes } from './schedule-routes.ts';
 import { httpLogOptions, registerAccessLog, registerSecurityHeaders, reportCsp } from './security.ts';
+import { registerSuggestionRoutes } from './suggestion-routes.ts';
 
 export interface ApiDeps {
   repos: Repositories;
@@ -63,6 +65,8 @@ export interface ApiDeps {
   mode?: FetchMode;
   /** Configuration snapshot of new runs, for `GET /api/meta`. */
   config?: { snapshot: RunConfigSnapshot };
+  /** The AI model: suggestions are offered (`ApiMeta.features.suggestions`) only when it is enabled. */
+  llm?: Pick<LlmClient, 'enabled'>;
   /** Audit log of analyst actions (judgements, overrides). */
   logger?: Logger;
   /** Renders a new version of a finished run's report (`POST /api/runs/:runId/report`). */
@@ -131,7 +135,7 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
       mode: deps.mode ?? 'offline',
       features: {
         judgements: supportsJudgements(repos),
-        suggestions: false,
+        suggestions: Boolean(repos.llm) && deps.llm?.enabled === true,
         schedules: repos.schedules !== undefined,
         reportPdf: false,
         exports: false,
@@ -263,6 +267,9 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
   runList('clusters', (id) => repos.clusters?.list(id) ?? Promise.resolve([]), 'evidence');
   runList('activity', (id) => repos.analysis.listActivity(id), 'evidence');
   runList('cash-outs', (id) => repos.analysis.listCashOuts(id), 'evidence');
+  // Fund-flow edges (computed; hop > 0 downstream, hop < 0 upstream) and the per-address timeline and Sankey views.
+  runList('flows', (id) => repos.analysis.listFlows?.(id) ?? Promise.resolve([]), 'evidence');
+  runList('fund-flows', (id) => repos.analysis.listFlowViews?.(id) ?? Promise.resolve([]), 'evidence');
   runList('changes', (id) => repos.analysis.listChanges(id));
 
   // Who viewed or exported which case and why (append-only log; the one local analyst reads it).
@@ -379,6 +386,8 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
     ...(deps.logger ? { logger: deps.logger } : {}),
     ...(deps.renderReport ? { renderReport: deps.renderReport } : {}),
   });
+
+  registerSuggestionRoutes(app, { repos, analyst, ...(deps.logger ? { logger: deps.logger } : {}) });
 
   return app;
 }

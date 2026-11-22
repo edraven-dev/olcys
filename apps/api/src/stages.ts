@@ -6,8 +6,13 @@ import type { RunWithProgress } from '@olcys/core';
 import type { Runtime, Stage } from '@olcys/worker';
 import { defaultStages as workerStages, evidenceRunIdOf } from '@olcys/worker';
 
-export function defaultStages(runtime: Pick<Runtime, 'sources' | 'mode'>): Stage[] {
-  return workerStages({ mode: runtime.mode, sources: runtime.sources, env: process.env });
+export function defaultStages(runtime: Pick<Runtime, 'sources' | 'mode' | 'timestamper'>): Stage[] {
+  return workerStages({
+    mode: runtime.mode,
+    sources: runtime.sources,
+    env: process.env,
+    timestamper: runtime.timestamper,
+  });
 }
 
 /**
@@ -15,7 +20,7 @@ export function defaultStages(runtime: Pick<Runtime, 'sources' | 'mode'>): Stage
  * analyst judgements recorded after the run. Earlier versions stay stored.
  */
 export function reportRenderer(
-  runtime: Pick<Runtime, 'repos' | 'blobs' | 'logger' | 'sources' | 'mode'>,
+  runtime: Pick<Runtime, 'repos' | 'blobs' | 'logger' | 'sources' | 'mode' | 'timestamper'>,
 ): (run: RunWithProgress) => Promise<void> {
   const stage = defaultStages(runtime).find((s) => s.step === 'report.render');
   return async (run) => {

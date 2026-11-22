@@ -8,8 +8,10 @@ import { sqlCaseRepository } from './cases.ts';
 import { sqlClusterRepository } from './clusters.ts';
 import { sqlCustodyRepository } from './custody.ts';
 import { sqlEvidenceRepository } from './evidence.ts';
+import { sqlLlmRepository } from './llm.ts';
 import { sqlRunRepository } from './runs.ts';
 import { sqlScheduleRepository } from './schedules.ts';
+import { sqlTimestampRepository } from './timestamps.ts';
 
 /** PostgreSQL (Kysely) implementations of every repository port. */
 export function createSqlRepositories(db: Db): Repositories {
@@ -27,6 +29,8 @@ export function createSqlRepositories(db: Db): Repositories {
     overrides: sqlOverrideRepository(db),
     custody: sqlCustodyRepository(db),
     accessLog: sqlAccessLogRepository(db),
+    timestamps: sqlTimestampRepository(db),
+    llm: sqlLlmRepository(db),
   };
 }
 
@@ -38,5 +42,7 @@ export { sqlCaseRepository } from './cases.ts';
 export { sqlClusterRepository } from './clusters.ts';
 export { sqlCustodyRepository } from './custody.ts';
 export { sqlEvidenceRepository } from './evidence.ts';
+export { sqlLlmRepository } from './llm.ts';
 export { sqlRunRepository } from './runs.ts';
 export { sqlScheduleRepository } from './schedules.ts';
+export { attachTimestamps, sqlTimestampRepository } from './timestamps.ts';

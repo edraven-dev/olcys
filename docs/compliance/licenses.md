@@ -50,14 +50,14 @@ Poniższe tabele są generowane z `pnpm-lock.yaml`, `services/osint-py/pyproject
 
 ### Status bramki licencyjnej
 
-- Sprawdzone komponenty: 377 (npm: 367, Python: 2, obrazy: 8).
+- Sprawdzone komponenty: 381 (npm: 371, Python: 2, obrazy: 8).
 - Wynik: wszystkie komponenty zgodne z polityką licencyjną (`config/licenses.json`).
 - Wyjątki licencyjne (`config/compliance/license-exceptions.yaml`): 0.
 - SBOM (CycloneDX 1.6) powstają na żądanie poleceniem `pnpm compliance:sbom` (katalog `data/sbom/`, poza repozytorium); opisują je pliki `olcys-npm.cdx.json` i `olcys-osint-py.cdx.json`.
 
 ### Zależności bezpośrednie npm
 
-Wszystkie zależności bezpośrednie wszystkich pakietów monorepo (31 pakietów); „(dev)” oznacza zależność deweloperską.
+Wszystkie zależności bezpośrednie wszystkich pakietów monorepo (33 pakietów); „(dev)” oznacza zależność deweloperską.
 
 | Komponent | Wersja | Licencja (SPDX) | Zastosowanie | Gdzie |
 | --- | --- | --- | --- | --- |
@@ -72,6 +72,7 @@ Wszystkie zależności bezpośrednie wszystkich pakietów monorepo (31 pakietów
 | @types/react | 19.3.0 | MIT | typy interfejsu (React) | apps/web (dev) |
 | @types/react-dom | 19.3.0 | MIT | typy interfejsu (React DOM) | apps/web (dev) |
 | @vitejs/plugin-react | 6.3.0 | MIT | wtyczka Vite do budowania interfejsu | apps/web (dev) |
+| asn1js | 4.1.0 | BSD-3-Clause | kodowanie i dekodowanie ASN.1/DER (żądania i odpowiedzi znacznika czasu RFC 3161) | packages/evidence |
 | big.js | 7.0.1 | MIT | dokładna arytmetyka dziesiętna (kwoty, PLN) | packages/core |
 | cron-parser | 5.10.6 | MIT | wyrażenia cron harmonogramu analiz (UTC) | apps/worker |
 | cytoscape | 3.35.0 | MIT | graf powiązań (używany bezpośrednio, bez nakładki React; układy wbudowane) | apps/web |
@@ -85,13 +86,14 @@ Wszystkie zależności bezpośrednie wszystkich pakietów monorepo (31 pakietów
 | oxlint | 1.94.0 | MIT | lint | root (dev) |
 | parse5 | 8.1.1 | MIT | parser HTML z pozycjami w źródle (widoki tekstu) | packages/address-extractor |
 | pg | 8.23.1 | MIT | sterownik PostgreSQL (node-postgres) | packages/db |
+| pkijs | 4.0.1 | BSD-3-Clause | struktury PKI/CMS: budowa i weryfikacja znaczników czasu RFC 3161 (podpis, łańcuch certyfikatów) | packages/evidence |
 | react | 19.3.1 | MIT | interfejs użytkownika | apps/web |
 | react-dom | 19.3.1 | MIT | interfejs użytkownika (renderowanie w przeglądarce) | apps/web |
 | typescript | 7.0.2 | Apache-2.0 | kontrola typów (tsc, tylko noEmit) | root (dev) |
 | vite | 8.3.8 | MIT | budowanie i serwer deweloperski interfejsu | apps/web (dev) |
 | vitest | 5.1.1 | MIT | testy | root (dev) |
 | yaml | 2.9.1 | ISC | odczyt plików konfiguracyjnych YAML (rejestr źródeł, reguły, wagi, dostawcy danych łańcuchowych) | root (dev), apps/worker, packages/address-extractor, packages/analytics, packages/chain-adapters, packages/collectors, packages/core (dev), packages/labels, packages/scoring |
-| zod | 4.6.7 | MIT | walidacja danych wejściowych i konfiguracji | packages/core |
+| zod | 4.6.7 | MIT | walidacja danych wejściowych i konfiguracji | packages/core, packages/llm |
 
 ### Pakiety Pythona (services/osint-py)
 
@@ -119,17 +121,17 @@ Każdy `image:` z `compose.yml` i każde `FROM` z Dockerfile musi mieć wpis w `
 
 ### Zależności przechodnie npm (podsumowanie)
 
-336 pakietów przechodnich; pełna lista z wersjami, skrótami i licencjami jest w SBOM npm (`pnpm compliance:sbom`).
+338 pakietów przechodnich; pełna lista z wersjami, skrótami i licencjami jest w SBOM npm (`pnpm compliance:sbom`).
 
 | Licencja (SPDX) | Runtime | Tylko dev | Razem |
 | --- | --- | --- | --- |
-| MIT | 57 | 139 | 196 |
+| MIT | 58 | 139 | 197 |
 | ISC | 6 | 55 | 61 |
 | Apache-2.0 | 1 | 31 | 32 |
 | BSD-2-Clause | 12 | 2 | 14 |
 | BlueOak-1.0.0 | 0 | 12 | 12 |
 | MPL-2.0 | 0 | 12 | 12 |
-| BSD-3-Clause | 4 | 1 | 5 |
+| BSD-3-Clause | 5 | 1 | 6 |
 | (MIT AND CC-BY-3.0) | 0 | 1 | 1 |
 | 0BSD | 0 | 1 | 1 |
 | CC-BY-3.0 | 0 | 1 | 1 |

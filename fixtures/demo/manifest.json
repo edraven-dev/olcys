@@ -1,0 +1,80 @@
+{
+  "schema": "olcys.demo-manifest.v1",
+  "synthetic": true,
+  "addressesFrom": "fixtures/persona/manifest.json",
+  "expected": {
+    "v1": {
+      "links": [
+        {
+          "slot": "BTC-1",
+          "score": 99
+        },
+        {
+          "slot": "TRON-1",
+          "score": 77
+        },
+        {
+          "slot": "ETH-2",
+          "score": 24
+        }
+      ],
+      "rejected": [
+        {
+          "slot": "ETH-1",
+          "rule": "A4"
+        },
+        {
+          "slot": "HOT-1",
+          "rule": "A1"
+        },
+        {
+          "slot": "CONTRACT-1",
+          "rule": "A2"
+        },
+        {
+          "slot": "D2",
+          "rule": "A8"
+        }
+      ],
+      "zeroScore": ["ETH-1", "CONTRACT-1", "TRON-2"],
+      "cashOut": [
+        {
+          "slot": "ETH-1",
+          "rule": "B1"
+        },
+        {
+          "slot": "TRON-1",
+          "rule": "B1"
+        },
+        {
+          "slot": "TRON-1",
+          "rule": "B4"
+        },
+        {
+          "slot": "TRON-1",
+          "rule": "B5"
+        }
+      ]
+    },
+    "v2": {
+      "links": [
+        {
+          "slot": "BTC-1",
+          "score": 99
+        },
+        {
+          "slot": "BTC-2",
+          "score": 86
+        }
+      ],
+      "changes": [
+        {
+          "kind": "VALUE_CHANGED",
+          "property": "profile.bitcoin_address",
+          "from": "BTC-1",
+          "to": "BTC-2"
+        }
+      ]
+    }
+  }
+}
