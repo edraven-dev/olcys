@@ -28,7 +28,12 @@ def render() -> dict[str, str]:
 def main() -> int:
     files = render()
     if "--check" in sys.argv:
-        stale = [n for n, text in files.items() if not (OUT / n).exists() or (OUT / n).read_text() != text]
+        # Compared as data: the repository formatter may lay the files out differently.
+        stale = [
+            n
+            for n, text in files.items()
+            if not (OUT / n).exists() or json.loads((OUT / n).read_text()) != json.loads(text)
+        ]
         print("stale: " + ", ".join(stale) if stale else "schemas are current")
         return 1 if stale else 0
     OUT.mkdir(exist_ok=True)
