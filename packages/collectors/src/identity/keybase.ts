@@ -5,7 +5,7 @@
  * One user name per request, minimal `fields`, no login. The service is in maintenance mode: an answer that is not
  * the documented JSON is an error, never "not found".
  */
-import type { Capture, CollectorInput, OnlineAccount, SourceCollector } from '@olcys/core';
+import type { AccountDiscoveryMethod, Capture, CollectorInput, OnlineAccount, SourceCollector } from '@olcys/core';
 import type { CollectorFactory } from '../framework/collector-registry.ts';
 import { createSourceHttp } from '../framework/http.ts';
 import { ResultBuilder } from '../framework/result.ts';
@@ -151,29 +151,31 @@ export function proofProfileUrl(proofType: string, nametag: string): string | un
 interface Candidate {
   name: string;
   valid: boolean;
+  method: AccountDiscoveryMethod;
 }
 
 function candidates(input: CollectorInput): Candidate[] {
   const seen = new Set<string>();
   const out: Candidate[] = [];
-  const add = (raw: string): void => {
+  const add = (raw: string, method: AccountDiscoveryMethod): void => {
     const name = raw.trim().replace(/^@+/, '').toLowerCase();
     if (!name || seen.has(name)) return;
     seen.add(name);
-    out.push({ name, valid: KEYBASE_USERNAME.test(name) });
+    out.push({ name, valid: KEYBASE_USERNAME.test(name), method });
   };
   for (const value of input.values ?? []) {
-    if (value.kind === 'username') add(value.value);
+    if (value.kind === 'username') add(value.value, value.method ?? 'enumeration');
     else if (value.kind === 'url') {
       const account = recogniseAccountUrl(value.value);
-      if (account?.platform === 'keybase' && account.handle) add(account.handle);
+      if (account?.platform === 'keybase' && account.handle) add(account.handle, value.method ?? 'cross_link');
     }
   }
   if (namesPages(input)) return out;
-  for (const account of input.accounts) if (account.platform === 'keybase') add(account.handle);
+  for (const account of input.accounts)
+    if (account.platform === 'keybase') add(account.handle, account.discoveredVia.method);
   for (const identifier of input.identifiers) {
     if (identifier.platform === 'keybase' || (HANDLE_KINDS.includes(identifier.kind) && !identifier.platform)) {
-      if (HANDLE_KINDS.includes(identifier.kind)) add(identifier.value);
+      if (HANDLE_KINDS.includes(identifier.kind)) add(identifier.value, 'input');
     }
   }
   return out;
@@ -230,7 +232,7 @@ export function createKeybaseCollector(): CollectorFactory {
             if (answer.status === 'not_found') rb.affirmNotFound(`keybase user ${target.name}`);
             const parsed = answer.status === 'ok' ? parseKeybaseLookup(answer.json) : undefined;
             if (parsed?.user && answer.capture)
-              observeUser(rb, answer.capture, parsed.user, descriptor.id, deps.config.fixture);
+              observeUser(rb, answer.capture, parsed.user, descriptor.id, deps.config.fixture, target.method);
           }
           return rb.build();
         },
@@ -245,6 +247,7 @@ function observeUser(
   user: KeybaseLookupUser,
   sourceId: string,
   mapping: Parameters<typeof recogniseAccountUrl>[1],
+  method: AccountDiscoveryMethod,
 ): void {
   const handle = user.username;
   const key = `keybase:${handle.toLowerCase()}`;
@@ -256,7 +259,7 @@ function observeUser(
     profileUrl: `https://keybase.io/${handle}`,
     profileCaptureId: capture.id,
     ...(user.fullName ? { displayName: user.fullName } : {}),
-    discoveredVia: { sourceId, method: 'input', captureId: capture.id },
+    discoveredVia: { sourceId, method, captureId: capture.id },
   });
   const fact = (property: string, value: string | undefined, path: string): void => {
     if (value) rb.observe(capture, subject, property, value, `${key}#${path}`);

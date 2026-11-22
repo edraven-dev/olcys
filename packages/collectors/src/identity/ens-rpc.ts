@@ -57,7 +57,8 @@ export class CcipReadDisabledError extends Error {
 export interface RpcCall {
   method: string;
   fetchId: Id;
-  result: string | null;
+  /** Size of the raw answer only: the encoded answer can carry a secret and is never stored (hash in provenance). */
+  answerBytes: number;
 }
 export interface RpcTrace {
   calls: RpcCall[];
@@ -129,6 +130,8 @@ export function createRpcEnsReader(args: {
         // The calldata carries the queried address or the DNS-encoded name, which the identifier net cannot see.
         containsIdentifier: true,
         redirect: 'manual',
+        // The encoded answer may carry a seed phrase or key from a text record: only its hash is kept.
+        persistBody: false,
       });
     } catch (error) {
       const known = failure(error, http.logicalUrl(url));
@@ -138,7 +141,7 @@ export function createRpcEnsReader(args: {
     trace.last = response;
     const status = statusFromHttp(response.status);
     if (status !== 'ok') {
-      trace.calls.push({ method, fetchId: response.provenance.fetchId, result: null });
+      trace.calls.push({ method, fetchId: response.provenance.fetchId, answerBytes: response.body.byteLength });
       const notes = [note('fetch_error', `${http.logicalUrl(url)}: HTTP ${response.status}`)];
       if (status === 'blocked' || status === 'login_wall') {
         http.stop(status, `HTTP ${response.status}`);
@@ -153,13 +156,13 @@ export function createRpcEnsReader(args: {
     try {
       body = JSON.parse(new TextDecoder().decode(response.body));
     } catch {
-      trace.calls.push({ method, fetchId: response.provenance.fetchId, result: null });
+      trace.calls.push({ method, fetchId: response.provenance.fetchId, answerBytes: response.body.byteLength });
       throw new EnsRpcFailure('error', [note('unrecognised_markup', 'the RPC answer is not JSON')]);
     }
     const object = typeof body === 'object' && body !== null ? (body as Record<string, unknown>) : {};
     const error = object['error'] as { code?: number; message?: string; data?: unknown } | undefined;
     if (error) {
-      trace.calls.push({ method, fetchId: response.provenance.fetchId, result: null });
+      trace.calls.push({ method, fetchId: response.provenance.fetchId, answerBytes: response.body.byteLength });
       const data = typeof error.data === 'string' ? error.data.toLowerCase() : '';
       if (data.startsWith(OFFCHAIN_LOOKUP)) throw new CcipReadDisabledError();
       // A revert of the resolver (no resolver, no record) is an answer: the name or record does not exist.
@@ -172,7 +175,7 @@ export function createRpcEnsReader(args: {
     trace.calls.push({
       method,
       fetchId: response.provenance.fetchId,
-      result: typeof result === 'string' ? result : null,
+      answerBytes: response.body.byteLength,
     });
     return result;
   }

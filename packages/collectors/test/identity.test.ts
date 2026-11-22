@@ -8,6 +8,10 @@ import { readFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import type { CollectorInput, CollectorResult, FetchMode, SourceId } from '@olcys/core';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { createSecretRedactor } from '../../address-extractor/src/index.ts';
+import { abiEncode } from '../src/identity/ens-abi.ts';
+import { sha256 } from '@noble/hashes/sha2.js';
+import { createBase58check } from '@scure/base';
 import { identityAddresses, TEST_IDENTITY } from '../../../apps/fixture-site/scripts/lib/identity.ts';
 import type { FixtureServer } from '../../../apps/fixture-site/src/fixture-server.ts';
 import {
@@ -278,7 +282,7 @@ describe('Keybase', () => {
     expect(values(result, 'verification.zcash_address')).toHaveLength(1);
     expect(result.notes.some((n) => n.startsWith('unsupported_input: zcash'))).toBe(true);
     const keybase = result.accounts.find((a) => a.platform === 'keybase');
-    expect(keybase).toMatchObject({ handle: NICK, discoveredVia: { method: 'input' } });
+    expect(keybase).toMatchObject({ handle: NICK, discoveredVia: { method: 'enumeration' } });
     expect(keybase?.platformUserId).toMatch(/^[0-9a-f]{32}$/);
     expect(values(result, 'profile.created_at')).toEqual(['2014-01-01T00:00:00.000Z']);
   });
@@ -833,5 +837,116 @@ describe('planner rules pivot.v3 and the persona run', () => {
     expect(result.observations.some((o) => o.property === 'verification.bitcoin_address' && o.value === A().btc)).toBe(
       true,
     );
+  });
+});
+
+describe('review fixes', () => {
+  it('Keybase carries the discovery method of the task into the account', async () => {
+    const found = await fixtureJson('keybase/lookup-olcys_test_ewa.json');
+    const method = async (input: CollectorInput) => {
+      const { run } = liveSetup(() => ({ status: 200, body: found }), ['keybase']);
+      const result = await run(createKeybaseCollector(), input);
+      return result.accounts.find((a) => a.platform === 'keybase')?.discoveredVia.method;
+    };
+    expect(await method(handleInput('keybase', NICK))).toBe('input');
+    expect(await method(probeInput(NICK))).toBe('enumeration');
+    expect(
+      await method({
+        identifiers: [],
+        accounts: [],
+        addresses: [],
+        depth: 1,
+        values: [{ kind: 'url', value: `https://keybase.io/${NICK}`, method: 'cross_link' }],
+      }),
+    ).toBe('cross_link');
+  });
+
+  it('BitList treats a missing or renamed result list as an unreadable answer, not as not found', async () => {
+    for (const body of [
+      '{"result":"success","message":null,"data":null}',
+      '{"result":"success","message":null,"data":{"total_results":0}}',
+      '{"result":"success","message":null,"data":{"total_results":0,"results":[]}}',
+    ]) {
+      const { run } = liveSetup(() => ({ status: 200, body }), ['bitlist']);
+      const result = await run(createBitlistCollector(), probeInput(NICK));
+      expect(result.status).toBe('error');
+    }
+    expect(() => parseBitlistPosts({ result: 'success', data: { total_results: 0 } })).toThrow(/posts list/);
+  });
+
+  it('BitList applies its limit locally and notes it even when the total equals the returned count', async () => {
+    const items = Array.from({ length: 3 }, (_, i) => ({
+      address: `bc1qsynthetic${i}`,
+      coin: 'BTC',
+      post_id: i + 1,
+      topic_id: 1,
+      author: NICK,
+      author_uid: 900201,
+      title: 't',
+      date: '2026-01-01T00:00:00.000Z',
+      board_id: 142,
+      board_name: 'Polski',
+    }));
+    const body = JSON.stringify({ result: 'success', message: null, data: { total_results: 3, addresses: items } });
+    const { run } = liveSetup(() => ({ status: 200, body }), ['bitlist']);
+    const result = await run(createBitlistCollector({ includePosts: false, limit: 2 }), probeInput(NICK));
+    expect(values(result, 'archive.post.address')).toEqual(['bc1qsynthetic0', 'bc1qsynthetic1']);
+    expect(result.notes).toContain('truncated: 2 of 3');
+  });
+
+  it('ENS masks a seed phrase and a private key from a text record everywhere and never stores the raw answer', async () => {
+    const wif = createBase58check(sha256).encode(Uint8Array.from([0x80, ...new Uint8Array(32).fill(7), 0x01]));
+    const seed = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
+    const secretText = `${wif} ${seed}`;
+    const zero = new Uint8Array(20);
+    const answerFor = (inner: Uint8Array): string =>
+      `0x${[
+        ...abiEncode([
+          { type: 'bytes', value: inner },
+          { type: 'address', value: zero },
+        ]),
+      ]
+        .map((b) => b.toString(16).padStart(2, '0'))
+        .join('')}`;
+    const textAnswer = answerFor(abiEncode([{ type: 'string', value: secretText }]));
+    const emptyAnswer = answerFor(abiEncode([{ type: 'address', value: zero }]));
+    const live = liveSetup(
+      (_url, body) => {
+        const method = (JSON.parse(body ?? '{}') as { method?: string }).method;
+        const result =
+          method === 'eth_blockNumber'
+            ? '0x10'
+            : method === 'eth_getBlockByNumber'
+              ? { number: '0x10', hash: '0xaa' }
+              : body?.includes('59d1d43c')
+                ? textAnswer
+                : emptyAnswer;
+        return { status: 200, body: JSON.stringify({ jsonrpc: '2.0', id: 1, result }) };
+      },
+      ['ens'],
+      { OLCYS_SOURCE_HOSTS_ENS: 'node.example.org' },
+    );
+    live.deps.redactor = createSecretRedactor();
+    const factory = createEnsCollector({
+      rpcUrl: 'https://node.example.org/rpc',
+      universalResolver: ENS_FIXTURE_RESOLVER,
+      textKeys: ['description'],
+    });
+    const result = await live.run(factory, handleInput(undefined, ENS_NAME));
+    const everything = JSON.stringify([result, live.test.envelopes, live.test.logs]);
+    expect(everything).not.toContain(wif);
+    expect(everything).not.toContain('abandon abandon');
+    expect(values(result, 'ens.text.description')[0]).toContain('[REDACTED');
+    const hexOf = (text: string) =>
+      [...new TextEncoder().encode(text)].map((b) => b.toString(16).padStart(2, '0')).join('');
+    for (const bytes of live.test.blobs.data.values()) {
+      const text = new TextDecoder().decode(bytes);
+      expect(text).not.toContain(wif);
+      expect(text).not.toContain('abandon abandon');
+      expect(text).not.toContain(hexOf(wif));
+    }
+    // No raw JSON-RPC answer is persisted: provenance keeps hashes only.
+    expect(live.test.envelopes.every((e) => e.body.sha256.length === 64)).toBe(true);
+    expect(live.test.blobs.data.size).toBeLessThanOrEqual(4);
   });
 });

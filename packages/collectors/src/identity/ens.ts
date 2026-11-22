@@ -148,7 +148,16 @@ export function createEnsCollector(options: EnsOptions = {}): CollectorFactory {
             return rb.build();
           }
           const http = createSourceHttp({ descriptor, ctx, deps, input });
-          const env: Env = { http, ctx, rb, rpcUrl, universalResolver, textKeys, reader: options.reader };
+          const env: Env = {
+            http,
+            ctx,
+            rb,
+            rpcUrl,
+            universalResolver,
+            textKeys,
+            reader: options.reader,
+            redaction: { secrets: 0, kinds: new Set() },
+          };
           const queue = [
             ...subjects.addresses.map((value) => ({ kind: 'address' as const, value })),
             ...subjects.names.map((value) => ({ kind: 'name' as const, value })),
@@ -180,6 +189,8 @@ interface Env {
   universalResolver: string;
   textKeys: readonly string[];
   reader: EnsReader | undefined;
+  /** Secrets masked in the current subject's decoded strings (reset per subject). */
+  redaction: { secrets: number; kinds: Set<string> };
 }
 
 /** What one subject's reads found; `emit` turns it into observations once the capture exists. */
@@ -199,6 +210,7 @@ async function withSubject(
 ): Promise<void> {
   const { http, ctx, rb } = env;
   const startedAt = nowIso(ctx.clock);
+  env.redaction = { secrets: 0, kinds: new Set() };
   const { reader, trace } = env.reader
     ? { reader: env.reader, trace: { calls: [] } as RpcTrace }
     : createRpcEnsReader({ http, rpcUrl: env.rpcUrl, universalResolver: env.universalResolver });
@@ -262,11 +274,25 @@ async function withSubject(
       transformations: [
         'ABI-decoded results of eth_call reads pinned to one block; raw JSON-RPC answers are in the fetch provenance',
         'text records stripped of control characters and capped at 2 KB',
+        ...(env.redaction.secrets
+          ? [
+              `${env.redaction.secrets} secret(s) redacted in memory (${[...env.redaction.kinds].toSorted().join(', ')})`,
+            ]
+          : []),
       ],
       technical: {
         method: 'http',
         startedAt,
         redirects: [],
+        ...(env.redaction.secrets
+          ? {
+              redaction: {
+                secrets: env.redaction.secrets,
+                kinds: [...env.redaction.kinds].toSorted(),
+                originalSha256: last?.provenance.body.sha256 ?? '',
+              },
+            }
+          : {}),
         software: [
           { name: '@olcys/collectors', version: COLLECTORS_VERSION },
           { name: 'parser:ens', version: ENS_PARSER_VERSION },
@@ -290,7 +316,13 @@ function safeHost(url: string): string {
   }
 }
 
-const clip = (value: string): string => cleanRecord(value);
+/** Control characters out, 2 KB cap, then secrets (seed phrase, private key) masked in memory before any use. */
+function clip(env: Env, value: string): string {
+  const result = env.http.deps.redactor.redact(cleanRecord(value));
+  env.redaction.secrets += result.findings.length;
+  for (const finding of result.findings) env.redaction.kinds.add(finding.kind);
+  return result.text;
+}
 
 /** Reads the manager statements of a name; observations are added by the returned emitter. */
 async function readName(env: Env, reader: EnsReader, name: string, block: bigint) {
@@ -302,9 +334,9 @@ async function readName(env: Env, reader: EnsReader, name: string, block: bigint
     // Sequential on purpose: one request at a time per source.
     // oxlint-disable-next-line no-await-in-loop
     const raw = await reader.address(name, coin.coinType, block);
-    summary[`addr.${coin.coinType}`] = raw;
     if (!raw) continue;
     const decoded = decodeCoinAddress(coin.coinType, fromHex(raw));
+    summary[`addr.${coin.coinType}`] = decoded ?? null;
     if (decoded) coins.push({ symbol: coin.symbol, coinType: coin.coinType, address: decoded });
     else env.rb.note('unsupported_input', `coin type ${coin.coinType}: record is not a plain address`);
   }
@@ -312,8 +344,8 @@ async function readName(env: Env, reader: EnsReader, name: string, block: bigint
   for (const key of env.textKeys) {
     // oxlint-disable-next-line no-await-in-loop
     const value = await reader.text(name, key, block);
-    summary[`text.${key}`] = value === null ? null : clip(value);
-    if (value) texts.push({ key, value: clip(value) });
+    summary[`text.${key}`] = value === null ? null : clip(env, value);
+    if (value) texts.push({ key, value: clip(env, value) });
   }
   return { forward, coins, texts, summary };
 }
@@ -331,7 +363,7 @@ async function lookupName(env: Env, raw: string, via: 'input' | 'protocol_lookup
     let verified = false;
     if (read.forward) {
       const primary = await reader.primaryName(read.forward, block.number);
-      read.summary['reverse.60'] = primary;
+      read.summary['reverse.60'] = primary === null ? null : clip(env, primary);
       verified =
         primary !== null &&
         normaliseEnsName(primary).ok &&
@@ -399,7 +431,7 @@ async function lookupAddress(env: Env, address: string): Promise<void> {
   await withSubject(env, `address/${address}`, async (reader, block) => {
     const owner = { type: 'address' as const, key: `evm:1:${address}` };
     const rawName = await reader.primaryName(address, block.number);
-    const summary: Record<string, unknown> = { 'reverse.60': rawName };
+    const summary: Record<string, unknown> = { 'reverse.60': rawName === null ? null : clip(env, rawName) };
     if (!rawName) return { found: false, summary, emit: () => undefined };
     const normalised = normaliseEnsName(rawName);
     const locator = `ens:addr=${address}#reverse.60`;
@@ -408,7 +440,7 @@ async function lookupAddress(env: Env, address: string): Promise<void> {
         found: true,
         summary,
         emit: (capture) => {
-          env.rb.observe(capture, owner, 'ens.primary_name', clip(rawName), locator);
+          env.rb.observe(capture, owner, 'ens.primary_name', clip(env, rawName), locator);
           env.rb.observe(capture, owner, 'computed.ens.forward_verified', 'false', locator);
           env.rb.note('unsupported_input', `ens primary name not resolvable here: ${normalised.reason}`);
         },

@@ -62,7 +62,9 @@ const str = (value: unknown): string => (typeof value === 'string' ? value : '')
 export function parseBitlistAddresses(json: unknown): { total: number; hits: BitlistAddressHit[] } {
   const data = envelope(json)['data'];
   const object = asObject(data);
-  const hits = asArray(object?.['addresses']).flatMap((item): BitlistAddressHit[] => {
+  // A missing or renamed list is an unreadable answer, never an empty result.
+  if (!Array.isArray(object?.['addresses'])) throw new Error('BitList answer has no addresses list');
+  const hits = asArray(object['addresses']).flatMap((item): BitlistAddressHit[] => {
     const hit = asObject(item);
     const address = asText(hit?.['address']);
     if (!hit || !address) return [];
@@ -88,6 +90,7 @@ export function parseBitlistAddresses(json: unknown): { total: number; hits: Bit
 export function parseBitlistPosts(json: unknown): { total: number; posts: BitlistPost[] } {
   const data = envelope(json)['data'];
   const object = asObject(data);
+  if (!Array.isArray(data) && !Array.isArray(object?.['posts'])) throw new Error('BitList answer has no posts list');
   const list = Array.isArray(data) ? data : asArray(object?.['posts']);
   const posts = list.flatMap((item): BitlistPost[] => {
     const post = asObject(item);
@@ -248,7 +251,8 @@ async function runQuery(
     classify: (json, httpStatus) => {
       if (httpStatus >= 300) return undefined;
       try {
-        envelope(json);
+        if (query.kind === 'addresses') parseBitlistAddresses(json);
+        else parseBitlistPosts(json);
       } catch (error) {
         return { status: 'error', reason: (error as Error).message, code: 'fetch_error' };
       }
@@ -267,10 +271,11 @@ async function runQuery(
   if (query.kind === 'addresses') {
     const parsed = parseBitlistAddresses(answer.json);
     // Data minimisation: only hits about the queried author or address; the raw body stays in the capture.
-    const kept = parsed.hits.filter((hit) =>
+    const shown = parsed.hits.slice(0, limit);
+    const kept = shown.filter((hit) =>
       query.key === 'author' ? sameAuthor(hit.author, query.value) : sameAddress(hit.address, query.value),
     );
-    if (parsed.total > parsed.hits.length) rb.note('truncated', `${parsed.hits.length} of ${parsed.total}`);
+    if (parsed.total > shown.length) rb.note('truncated', `${shown.length} of ${parsed.total}`);
     kept.forEach((hit, index) => {
       const subject = accountFor(rb, capture, accounts, hit.author_uid, hit.author);
       const locator = `bitlist:post=${hit.post_id}#address[${index}]`;
@@ -281,8 +286,9 @@ async function runQuery(
     return;
   }
   const parsed = parseBitlistPosts(answer.json);
-  if (parsed.total > parsed.posts.length) rb.note('truncated', `${parsed.posts.length} of ${parsed.total}`);
-  for (const post of parsed.posts.filter((p) => sameAuthor(p.author, query.value))) {
+  const shownPosts = parsed.posts.slice(0, limit);
+  if (parsed.total > shownPosts.length) rb.note('truncated', `${shownPosts.length} of ${parsed.total}`);
+  for (const post of shownPosts.filter((p) => sameAuthor(p.author, query.value))) {
     const subject = accountFor(rb, capture, accounts, post.author_uid, post.author);
     const locator = `bitlist:post=${post.post_id}`;
     postFacts(rb, capture, subject, `${locator}#post`, post);
