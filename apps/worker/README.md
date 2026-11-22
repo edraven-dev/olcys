@@ -39,10 +39,13 @@ Etapy (zbieranie, wyodrębnianie adresów, analiza łańcucha, punktacja, raport
    interakcja jest rejestrowana; trop KYC tylko dla adresu podanego w pierwszej osobie (nie w cytacie, ostrzeżeniu,
    zgłoszeniu oszustwa ani na liście).
 4. **Punktacja** (`score.links`) — Wskaźnik Pewności dla powiązań; migawka konfiguracji przebiegu zapisuje wersję
-   i skrót SHA-256 wag używanych przez punktację.
+   i skrót SHA-256 wag używanych przez punktację. Tylko w ponownej ocenie etap stosuje korekty analityka sprawy
+   zapisane do chwili zlecenia przebiegu (`applyOverrides` z `@olcys/scoring`, moduł `src/analyst.ts`), a migawka
+   konfiguracji zapisuje je jako `rulesVersions.overrides` (`overrides@<liczba>:<id najnowszej>`).
 5. **Raport** (`report.render`) — po wbudowanym porównaniu z poprzednim przebiegiem (`diff.previous`), więc raport
    zawiera wykryte zmiany.
 
 Ponowna ocena (`rescore`) niczego nie pobiera: używa zebranych dowodów i analizy łańcucha ocenianego przebiegu,
 ponownie wyodrębnia adresy i liczy wskaźniki. Braki danych ocenianego przebiegu pozostają widoczne (status `partial`
-z tymi samymi powodami).
+z tymi samymi powodami). Wykryte adresy mają w niej nowe identyfikatory; korekty wskazujące adresy wcześniejszego
+przebiegu są odnajdywane po zabezpieczeniu i położeniu w tekście. Oceny analityka nie uruchamiają żadnego przebiegu.
