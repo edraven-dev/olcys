@@ -232,6 +232,8 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
   runList('exclusions', (id) => repos.analysis.listExclusions(id), 'evidence');
   // Address types behind A2/A3 (EOA, EIP-7702 delegation, Safe, ERC-4337 account, contract…); none without the port.
   runList('address-types', (id) => repos.addressTypes?.list(id) ?? Promise.resolve([]), 'evidence');
+  // Bitcoin co-spend clusters: a heuristic result with its merge evidence and skipped transactions; none without the port.
+  runList('clusters', (id) => repos.clusters?.list(id) ?? Promise.resolve([]), 'evidence');
   runList('activity', (id) => repos.analysis.listActivity(id), 'evidence');
   runList('cash-outs', (id) => repos.analysis.listCashOuts(id), 'evidence');
   runList('changes', (id) => repos.analysis.listChanges(id));

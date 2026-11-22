@@ -128,6 +128,21 @@ describe('demo scenario on the synthetic persona', () => {
         (r) => !(r.rule === 'A8' && rejectedByExtractor.has(addressOf(r.slot))),
       ))
         expect([slot, ruleOf(slot)]).toEqual([slot, expect.arrayContaining([rule])]);
+      // Co-spend clustering: the persona's own Bitcoin transactions never spend two addresses together (change
+      // outputs are not merged), so the heuristic leaves BTC-1 a cluster of one and flags nothing.
+      const clusters = (await runtime.repos.clusters?.list(first.id)) ?? [];
+      const btc1 = clusters.find((c) => c.seeds.includes(addressOf('BTC-1')));
+      expect(btc1).toMatchObject({
+        members: [addressOf('BTC-1')],
+        size: 1,
+        mergeEvidence: [],
+        skipped: [],
+        serviceMembers: [],
+        heuristic: 'co_spend',
+        flags: { serviceMerge: false, capped: false },
+      });
+      expect(exclusions.filter((d) => d.ruleId === 'A7')).toEqual([]);
+      expect(links.filter((l) => l.relation === 'CLUSTER_ASSOCIATED')).toEqual([]);
       const cashOuts = await runtime.repos.analysis.listCashOuts(first.id);
       const cashOutOf = (slot: string) =>
         cashOuts.filter((e) => e.address.address.toLowerCase() === addressOf(slot)).map((e) => e.ruleId);
