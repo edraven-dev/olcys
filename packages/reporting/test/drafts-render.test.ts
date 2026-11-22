@@ -45,7 +45,7 @@ describe('AI-drafted inferences in the report', () => {
     const data = personaData();
     const fact = data.observations[0]!;
     data.inferenceDrafts = [
-      confirmed('d-ok', { output: { ...draft('d-ok').output as object, basedOn: [fact.id] } }),
+      confirmed('d-ok', { output: { ...(draft('d-ok').output as object), basedOn: [fact.id] } }),
       confirmed('d-edit', { editedText: 'Tekst analityka o adresie.' }),
     ];
     const c = sectionC(renderReport(data));
@@ -112,7 +112,13 @@ describe('report data of a run with drafts', () => {
       trigger: 'manual',
       mode: 'offline',
       status: 'succeeded',
-      config: { toolVersion: '0', sourcesConfigSha256: 'a', weightsVersion: 'w', weightsSha256: 'b', rulesVersions: {} },
+      config: {
+        toolVersion: '0',
+        sourcesConfigSha256: 'a',
+        weightsVersion: 'w',
+        weightsSha256: 'b',
+        rulesVersions: {},
+      },
       queuedAt: '2026-11-22T10:00:00.000Z',
     });
     const llm = repos.llm!;
@@ -135,6 +141,9 @@ describe('report data of a run with drafts', () => {
     const data = await buildReportData(repos, 'run-d');
     expect(data.inferenceDrafts?.map((d) => d.id)).toEqual(['d-early', 'd-late']);
     expect(data.suggestions).toBeUndefined();
-    expect(buildReportModel(data).inferences.map((i) => i.id)).toEqual(['inference-draft-d-early', 'inference-draft-d-late']);
+    expect(buildReportModel(data).inferences.map((i) => i.id)).toEqual([
+      'inference-draft-d-early',
+      'inference-draft-d-late',
+    ]);
   });
 });

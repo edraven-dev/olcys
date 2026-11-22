@@ -154,5 +154,5 @@ export interface InferenceDraft {
 /** Typed answer of `POST /api/runs/:runId/report/drafts` (a model failure is a value, not an error). */
 export type DraftInferencesResult =
   | { status: 'drafted'; created: number; dropped: { unknownBasis: number; restatesScore: number } }
-  | { status: 'skipped'; reason: 'nothing_to_draft' | 'pending_drafts' | 'busy' }
+  | { status: 'skipped'; reason: 'nothing_to_draft' | 'pending_drafts' | 'busy' | 'no_report' }
   | { status: 'failed'; reason: LlmFailureCode };

@@ -18,6 +18,8 @@ export interface ApiFeatures {
   /** Analyst judgements on links and analyst overrides of a case. */
   judgements: boolean;
   suggestions: boolean;
+  /** The analyst can ask the model for draft inferences of a report (needs the model and the report drafter). */
+  inferenceDrafts?: boolean;
   schedules: boolean;
   reportPdf: boolean;
   exports: boolean;

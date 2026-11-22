@@ -58,10 +58,10 @@ function aiDraftInferences(view: View): SafeHtml[] {
         date: formatLongDate(ai.decidedAt),
       })}</strong> ${inference.statement}</span>${
         refs.length ? para(markup`${a.basedOn}: ${join(refs, ', ')}`, 'muted') : ''
-      }${
-        inference.alternatives.length ? markup`<div>${a.alternatives}:${list(inference.alternatives)}</div>` : ''
-      }${
-        inference.verificationSteps?.length ? markup`<div>${a.verification}:${list(inference.verificationSteps)}</div>` : ''
+      }${inference.alternatives.length ? markup`<div>${a.alternatives}:${list(inference.alternatives)}</div>` : ''}${
+        inference.verificationSteps?.length
+          ? markup`<div>${a.verification}:${list(inference.verificationSteps)}</div>`
+          : ''
       }${para(t(a.model, { model: ai.model, prompt: ai.promptVersion }), 'muted')}`,
     ];
   });

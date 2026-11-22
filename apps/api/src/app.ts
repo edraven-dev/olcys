@@ -7,6 +7,7 @@ import type {
   AnalysisRun,
   ApiMeta,
   BlobStore,
+  DraftInferencesResult,
   LegacyReportView,
   ReportFile,
   ReportView,
@@ -87,6 +88,8 @@ export interface ApiDeps {
   config?: { snapshot: RunConfigSnapshot };
   /** The AI model: suggestions are offered (`ApiMeta.features.suggestions`) only when it is enabled. */
   llm?: Pick<LlmClient, 'enabled'>;
+  /** Drafts inferences for section C of a run's report (`POST /api/runs/:runId/report/drafts`); needs `llm`. */
+  draftInferences?(run: RunWithProgress): Promise<DraftInferencesResult>;
   /** Audit log of analyst actions (judgements, overrides). */
   logger?: Logger;
   /** Renders a new version of a finished run's report (`POST /api/runs/:runId/report`). */
@@ -258,6 +261,7 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
       features: {
         judgements: supportsJudgements(repos),
         suggestions: Boolean(repos.llm) && deps.llm?.enabled === true,
+        inferenceDrafts: Boolean(repos.llm) && deps.llm?.enabled === true && deps.draftInferences !== undefined,
         schedules: repos.schedules !== undefined,
         reportPdf: false,
         exports: false,
@@ -650,6 +654,8 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
     analyst,
     ...(deps.logger ? { logger: deps.logger } : {}),
     ...(deps.renderReport ? { renderReport: deps.renderReport } : {}),
+    llmEnabled: deps.llm?.enabled === true,
+    ...(deps.draftInferences ? { draftInferences: deps.draftInferences } : {}),
   });
 
   return app;
