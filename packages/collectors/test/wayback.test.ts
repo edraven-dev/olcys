@@ -216,7 +216,7 @@ describe('collector', () => {
     const { run, sent, test, maxInFlight } = setup(happy);
     const result = await run({ maxSnapshotsPerUrl: 2 });
     expect(result.status).toBe('ok');
-    // availability, one CDX page, two snapshots; one request at a time, GET only (AC7)
+    // API requests only (the test's robots policy is a stub): availability, one CDX page, two snapshots; one at a time (AC7)
     expect(sent.map((s) => s.method)).toEqual(['GET', 'GET', 'GET', 'GET']);
     expect(maxInFlight()).toBe(1);
     const snaps = result.captures.filter((c) => c.archive);
@@ -287,6 +287,27 @@ describe('collector', () => {
     const second = await run({}, urlInput('https://forum.example.org/profile/other'));
     expect(sent).toHaveLength(3);
     expect(second.status).toBe('blocked');
+  });
+
+  it('honours the archive host robots.txt for replay fetches (API requests counted only)', async () => {
+    const { run, sent, deps } = setup(happy);
+    const robotsChecked: string[] = [];
+    deps.robots = {
+      check: async (url) => {
+        robotsChecked.push(url);
+        return url.includes('/web/') ? { allowed: false, reason: 'Disallow: /web/' } : { allowed: true };
+      },
+    };
+    const result = await run({ maxSnapshotsPerUrl: 2 });
+    // Only the two API requests (availability, CDX) were sent: no snapshot request, and no circuit opened.
+    expect(sent.map((s) => s.url.split('?')[0])).toEqual([
+      'https://archive.org/wayback/available',
+      'https://web.archive.org/cdx/search/cdx',
+    ]);
+    expect(robotsChecked).toHaveLength(2);
+    expect(result.notes.filter((n) => n.startsWith('robots_disallowed:'))).toHaveLength(2);
+    expect(result.captures.some((c) => c.archive)).toBe(false);
+    expect(result.status).toBe('partial');
   });
 
   it('does not look up the archive itself or non-http values', async () => {

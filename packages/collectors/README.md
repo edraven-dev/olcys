@@ -273,8 +273,10 @@ Zasady:
   przebiegu): kolejne zadania nie wysyłają nic i kończą się `blocked`, bieżące — `partial` (albo `blocked`) z notatką
   `rate_limited: wayback rate limited (circuit open)`. Odpowiedź 5xx kończy tylko to jedno zapytanie (`error`).
 - Każde zapytanie ma `containsIdentifier: true` (adres profilu pochodzi od podmiotu sprawy i jest ujawniany archiwum);
-  cele: `wayback availability`, `wayback cdx listing`, `wayback snapshot`. robots.txt witryny źródłowej nie dotyczy kopii
-  archiwum; treść migawki nie jest oceniana jako bariera (zarchiwizowana strona logowania jest treścią, nie blokadą).
+  cele: `wayback availability`, `wayback cdx listing`, `wayback snapshot`. robots.txt hosta archiwum jest respektowany przy pobieraniu migawek (zakaz daje `blocked` z notatką
+  `robots_disallowed`, bez zapytania o migawkę; wynik jest buforowany w przebiegu jak dla innych hostów), a robots.txt
+  witryny źródłowej nie jest sprawdzany dla kopii z archiwum. Zapytania Availability i CDX (API JSON) nie podlegają
+  robots.txt. Treść migawki nie jest oceniana jako bariera (zarchiwizowana strona logowania jest treścią, nie blokadą).
 - **Kopia archiwalna to ta sama grupa pochodzenia co strona, którą odwzorowuje.** Przechwycenie ma profil
   `archive_snapshot` i pole `archive` (`provider`, `snapshotTimestamp`, `originalUrl`, ponadto w manifeście
   `replayUrl` i `cdxDigest`); `collectedAt` to czas pobrania, nigdy czas migawki. Ocena punktowa przypisuje wzmianki w
@@ -296,22 +298,22 @@ W trybach `offline` i `replay` archiwum symuluje strona testowa (`web.archive.or
 Warunki korzystania z Internet Archive dopuszczają dostęp „dla celów naukowych i badawczych”; ich zgodność z użyciem
 przez KAS pozostaje otwartym pytaniem prawnym (patrz `docs/compliance/sources.md`).
 
-## Pivoty (`pivot.v1`)
+## Pivoty (`pivot.v2`)
 
-| Reguła | Wyzwalacz                                                                                  | Zadanie                                                                                                                         |
-| ------ | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
-| I1     | identyfikator podany dla platformy P                                                       | kolektor platformy P                                                                                                            |
-| I2     | nick / login                                                                               | ten sam nick na pozostałych platformach (GitHub: `_` i `.` → `-`)                                                               |
-| I3     | dowolny identyfikator                                                                      | strony z listy obserwowanych; zachowane tylko, gdy zawierają identyfikator                                                      |
-| I4     | identyfikator będący adresem profilu                                                       | kolektor rozpoznanej platformy                                                                                                  |
-| E1     | `account.link` do rozpoznanego konta                                                       | kolektor tej platformy (głębokość + 1)                                                                                          |
-| E2     | konto znalezione dla osoby inaczej niż próbą nicku (nie kanał ostrzeżeń)                   | jego login na pozostałych platformach (głębokość + 1)                                                                           |
-| I5     | imię i nazwisko, nick, e-mail, adres kryptowaluty                                          | każda zarejestrowana wyszukiwarka: jedno zapytanie (dokładna fraza)                                                             |
-| E3     | `search.result_url` (wynik wyszukiwania)                                                   | kolektor strony (klucz jak I3) albo konta (jak E1) (głębokość + 1)                                                              |
-| I6     | imię i nazwisko (`full_name`)                                                              | CEIDG: jedno wyszukiwanie po imieniu i nazwisku (klucz `name:<imię nazwisko>`)                                                  |
-| E4     | `registry.nip` z CEIDG                                                                     | wykaz VAT (głębokość + 1) — **tylko** gdy `registry.ceidg.result_count` = 1; w przeciwnym razie pominięcie `ambiguous_namesake` |
-| E5     | `registry.krs` z wykazu VAT                                                                | KRS (głębokość + 1)                                                                                                             |
-| E6     | profil własnego konta (`input`, `cross_link`) albo dopasowana strona z listy obserwowanych | historia z archiwum (Wayback), ta sama głębokość: to sprawdzenie, nie pivot; nigdy strony osób trzecich                         |
+| Reguła                 | Wyzwalacz                                                                                  | Zadanie                                                                                                                         |
+| ---------------------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| I1                     | identyfikator podany dla platformy P                                                       | kolektor platformy P                                                                                                            |
+| I2                     | nick / login                                                                               | ten sam nick na pozostałych platformach (GitHub: `_` i `.` → `-`)                                                               |
+| I3                     | dowolny identyfikator                                                                      | strony z listy obserwowanych; zachowane tylko, gdy zawierają identyfikator                                                      |
+| I4                     | identyfikator będący adresem profilu                                                       | kolektor rozpoznanej platformy                                                                                                  |
+| E1                     | `account.link` do rozpoznanego konta                                                       | kolektor tej platformy (głębokość + 1)                                                                                          |
+| E2                     | konto znalezione dla osoby inaczej niż próbą nicku (nie kanał ostrzeżeń)                   | jego login na pozostałych platformach (głębokość + 1)                                                                           |
+| I5                     | imię i nazwisko, nick, e-mail, adres kryptowaluty                                          | każda zarejestrowana wyszukiwarka: jedno zapytanie (dokładna fraza)                                                             |
+| E3                     | `search.result_url` (wynik wyszukiwania)                                                   | kolektor strony (klucz jak I3) albo konta (jak E1) (głębokość + 1)                                                              |
+| I6                     | imię i nazwisko (`full_name`)                                                              | CEIDG: jedno wyszukiwanie po imieniu i nazwisku (klucz `name:<imię nazwisko>`)                                                  |
+| E4                     | `registry.nip` z CEIDG                                                                     | wykaz VAT (głębokość + 1) — **tylko** gdy `registry.ceidg.result_count` = 1; w przeciwnym razie pominięcie `ambiguous_namesake` |
+| E5                     | `registry.krs` z wykazu VAT                                                                | KRS (głębokość + 1)                                                                                                             |
+| E6 (nowa w `pivot.v2`) | profil własnego konta (`input`, `cross_link`) albo dopasowana strona z listy obserwowanych | historia z archiwum (Wayback), ta sama głębokość: to sprawdzenie, nie pivot; nigdy strony osób trzecich                         |
 
 Osoby trzecie z rejestrów (reprezentanci, prokurenci, wspólnicy, zarząd) nigdy nie są pivotami. Wyszukiwania (I5) są planowane po wszystkich pozostałych regułach identyfikatorów, więc nie zabierają limitu zadań
 kolektorom platform. Wyniki wyszukiwania (E3) trafiają do kolektora strony z listy obserwowanych, który ją czyta — pod

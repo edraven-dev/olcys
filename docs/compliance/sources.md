@@ -219,6 +219,8 @@ muszą wymieniać blokowane hosty — nie są kontaktowane nawet jako „dodatko
 - **Charakter:** `wayback_cdx` (GREEN, wiarygodność B) — wyłącznie odczyt: Availability API, CDX z `collapse=digest` i
   odtwarzanie surowej migawki (`id_`). Do 20 zapytań na minutę, jedno naraz; odpowiedź 429, która utrzymuje się po
   odczekaniu klienta, wstrzymuje źródło do końca przebiegu (archiwum blokuje klientów, którzy nadal wysyłają po 429).
+- **robots.txt:** przy pobieraniu migawek respektujemy robots.txt hosta archiwum (zakaz = `blocked`, `robots_disallowed`);
+  robots.txt witryny źródłowej nie jest sprawdzany dla jej kopii w archiwum. Zapytania do API (Availability, CDX) go nie dotyczą.
 - **Save Page Now jest zakazane.** Zapisałoby stronę podejrzaną w publicznym archiwum i ujawniło zainteresowanie
   śledczych. Kod nie ma ścieżki, która zbudowałaby adres punktu zapisu (`assertWaybackReadUrl`, test w
   `packages/collectors/test/wayback.test.ts`); używane jest tylko `GET`. archive.today jest wykluczone (zmieniane

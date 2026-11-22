@@ -33,8 +33,9 @@ export interface PageRequest {
   classify?: (body: string) => { status: CaptureStatus; reason: string } | undefined;
   /**
    * An archived copy of a page (Wayback snapshot). The capture gets the `archive_snapshot` profile and this provenance.
-   * The original site's robots.txt does not apply to the archive's copy and the body is not checked for access
-   * barriers (an archived login page is content, not a block of this request); only the HTTP status is.
+   * The archive host's robots.txt is honoured as for any page hop; the original site's robots.txt is not consulted for
+   * the archive's copy. The body is not checked for access barriers (an archived login page is content, not a block of
+   * this request); only the HTTP status is.
    */
   archive?: CaptureDraft['archive'];
   /** Called with the logical URL of every hop before it is requested; throws to refuse it. */
@@ -111,19 +112,17 @@ export async function fetchPage(http: SourceHttp, request: PageRequest): Promise
       };
     }
     request.guardUrl?.(http.logicalUrl(url));
-    if (!request.archive) {
-      // Sequential on purpose: every hop is checked against robots.txt before it is requested.
-      // oxlint-disable-next-line no-await-in-loop
-      const decision = await http.deps.robots.check(url, http.descriptor.id);
-      const robotsUrl = new URL('/robots.txt', url).toString();
-      robots = decision.allowed ? { allowed: true, robotsUrl } : { allowed: false, robotsUrl, reason: decision.reason };
-      if (!decision.allowed) {
-        return {
-          status: 'blocked',
-          logicalUrl: http.logicalUrl(url),
-          notes: [note('robots_disallowed', `${http.logicalUrl(url)} (${decision.reason})`)],
-        };
-      }
+    // Sequential on purpose: every hop is checked against robots.txt before it is requested.
+    // oxlint-disable-next-line no-await-in-loop
+    const decision = await http.deps.robots.check(url, http.descriptor.id);
+    const robotsUrl = new URL('/robots.txt', url).toString();
+    robots = decision.allowed ? { allowed: true, robotsUrl } : { allowed: false, robotsUrl, reason: decision.reason };
+    if (!decision.allowed) {
+      return {
+        status: 'blocked',
+        logicalUrl: http.logicalUrl(url),
+        notes: [note('robots_disallowed', `${http.logicalUrl(url)} (${decision.reason})`)],
+      };
     }
     try {
       // oxlint-disable-next-line no-await-in-loop

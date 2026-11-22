@@ -278,9 +278,12 @@ describe('demo scenario on the synthetic persona', () => {
         .filter((c) => c.counted && c.evidence.captureId && archivedIds.has(c.evidence.captureId));
       expect(countedFromArchive).toEqual([]);
       // Nothing about the archive reaches a third party: only the persona's own forum profile was looked up.
-      expect(egress.filter((e) => e.sourceId === 'wayback_cdx').every((e) => e.containsIdentifier && e.allowed)).toBe(
-        true,
-      );
+      // The archive's robots.txt is the one request without a subject-derived URL.
+      expect(
+        egress
+          .filter((e) => e.sourceId === 'wayback_cdx' && e.purpose !== 'robots.txt')
+          .every((e) => e.containsIdentifier && e.allowed),
+      ).toBe(true);
       expect(egress.filter((e) => e.sourceId === 'wayback_cdx' && e.purpose === 'wayback availability')).toHaveLength(
         1,
       );
