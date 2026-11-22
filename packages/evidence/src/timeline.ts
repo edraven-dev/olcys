@@ -183,7 +183,10 @@ export function latestExtractions<T extends { captureId: Id }>(rounds: readonly 
   return [...newest.values()];
 }
 
-function pageTimelines(input: TimelineInput, options: TimelineOptions): { url: string; timeline: PropertyTimeline }[] {
+function pageTimelines(
+  input: TimelineInput,
+  options: TimelineOptions,
+): { urls: string[]; timeline: PropertyTimeline }[] {
   const liveUrl = pageResolver(input);
   const byId = new Map(input.captures.map((c) => [c.id, c]));
   const valuesOf = extractedValues(input.extractions);
@@ -197,7 +200,7 @@ function pageTimelines(input: TimelineInput, options: TimelineOptions): { url: s
     const url = normalisePageUrl(entry.originalUrl);
     entriesByUrl.set(url, [...(entriesByUrl.get(url) ?? []), { ...entry, at }]);
   }
-  const results: { url: string; timeline: PropertyTimeline }[] = [];
+  const results: { urls: string[]; timeline: PropertyTimeline }[] = [];
   for (const [url, entries] of [...entriesByUrl].toSorted(([a], [b]) => a.localeCompare(b))) {
     // A fetched copy that can be trusted: the values another row with the same digest (identical bytes) inherits.
     const usable = (e: ArchiveSnapshotEntry): TimelineCapture | undefined => {
@@ -250,12 +253,12 @@ function pageTimelines(input: TimelineInput, options: TimelineOptions): { url: s
       raws.push(livePoint(capture, values ? sortedUnique(values) : undefined));
     }
     const key = { platform: 'web', locator: `web:${url}#${PAGE_ADDRESS_PROPERTY}`, property: PAGE_ADDRESS_PROPERTY };
-    results.push({ url, timeline: shape(key, sortPoints(raws)) });
+    results.push({ urls: [url], timeline: shape(key, sortPoints(raws)) });
   }
   return results;
 }
 
-function propertyTimelines(input: TimelineInput): { url: string; timeline: PropertyTimeline }[] {
+function propertyTimelines(input: TimelineInput): { urls: string[]; timeline: PropertyTimeline }[] {
   const liveUrl = pageResolver(input);
   const live = input.captures.filter((c) => !c.archive);
   const byId = new Map(live.map((c) => [c.id, c]));
@@ -270,14 +273,14 @@ function propertyTimelines(input: TimelineInput): { url: string; timeline: Prope
     group.byCapture.set(o.captureId, values);
     groups.set(id, group);
   }
-  const results: { url: string; timeline: PropertyTimeline }[] = [];
+  const results: { urls: string[]; timeline: PropertyTimeline }[] = [];
   for (const { key, byCapture } of groups.values()) {
     const urls = sortedUnique([...byCapture.keys()].map((id) => liveUrl(byId.get(id)!)));
     // Every live capture of the same page is a point: one that read the page without the property shows `[]`.
     const raws = live
       .filter((c) => urls.includes(liveUrl(c)))
       .map((c) => livePoint(c, sortedUnique(byCapture.get(c.id) ?? [])));
-    results.push({ url: urls[0] ?? '', timeline: shape(key, sortPoints(raws)) });
+    results.push({ urls, timeline: shape(key, sortPoints(raws)) });
   }
   return results.toSorted(
     (a, b) =>
@@ -298,8 +301,8 @@ export function buildPropertyTimelines(
   const wanted = filter.url === undefined ? undefined : normalisePageUrl(filter.url);
   return [...pageTimelines(input, options), ...propertyTimelines(input)]
     .filter(
-      ({ url, timeline }) =>
-        (wanted === undefined || url === wanted) &&
+      ({ urls, timeline }) =>
+        (wanted === undefined || urls.includes(wanted)) &&
         (filter.property === undefined || timeline.key.property === filter.property) &&
         (!filter.walletOnly || isWalletProperty(timeline.key.property)),
     )

@@ -252,6 +252,22 @@ describe('buildPropertyTimelines', () => {
     expect(latestExtractions([newer, older]).find((e) => e.captureId === 'c1')?.candidates).toEqual(['BTC-REJECTED']);
   });
 
+  it('a property seen on two pages is found by the URL of either', () => {
+    const TOPIC = 'https://forum.example.org/topic/5500001';
+    const captures = [
+      ...fixture.captures,
+      { id: 't1', runId: 'run-1', url: TOPIC, status: 'ok', collectedAt: '2026-03-01T09:00:20.000Z' },
+    ];
+    const observations = [...fixture.observations, { ...fixture.observations[0], id: 'o9', captureId: 't1' }];
+    const filter = { property: 'profile.bitcoin_address' };
+    for (const url of [PAGE, TOPIC]) {
+      expect(buildPropertyTimelines(input({ captures, observations }), { ...filter, url })).toHaveLength(1);
+    }
+    expect(
+      buildPropertyTimelines(input({ captures, observations }), { ...filter, url: 'https://x.example.org/' }),
+    ).toEqual([]);
+  });
+
   it('AC6: live property observations form their own timeline; walletOnly drops non-wallet keys', () => {
     const all = buildPropertyTimelines(input());
     const bitcoin = all.find((t) => t.key.property === 'profile.bitcoin_address')!;
