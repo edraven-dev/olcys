@@ -7,7 +7,7 @@ import type { ChainId, ComplianceStatus, SourceId } from '@olcys/core';
 import { isChainId } from '@olcys/core';
 import { parse as parseYaml } from 'yaml';
 
-export const CHAIN_PROVIDER_KINDS = ['esplora', 'etherscan', 'trongrid'] as const;
+export const CHAIN_PROVIDER_KINDS = ['esplora', 'etherscan', 'trongrid', 'otterscan'] as const;
 export type ChainProviderKind = (typeof CHAIN_PROVIDER_KINDS)[number];
 
 export interface ChainProviderConfig {
@@ -16,6 +16,8 @@ export interface ChainProviderConfig {
   sourceId: SourceId;
   /** e.g. `https://mempool.space/api`, `https://api.etherscan.io/v2/api`, `https://api.trongrid.io`. */
   baseUrl: string;
+  /** Environment variable that overrides `baseUrl` when set (e.g. `SANDBOX_EVM_RPC_URL`); `baseUrl` is the default. */
+  baseUrlEnv?: string;
   chains: ChainId[];
   /** Lower is tried first. */
   priority: number;
@@ -75,6 +77,7 @@ export function loadChainProviderConfig(
     for (const chain of chains) if (!isChainId(chain)) fail(`${where}.chains: ${String(chain)} is not a chain id`);
     const priority = typeof e['priority'] === 'number' ? e['priority'] : 1;
     const config: ChainProviderConfig = { id, kind: kind as ChainProviderKind, sourceId, baseUrl, chains, priority };
+    if (typeof e['baseUrlEnv'] === 'string') config.baseUrlEnv = e['baseUrlEnv'];
     if (typeof e['apiKeyEnv'] === 'string') config.apiKeyEnv = e['apiKeyEnv'];
     if (e['options'] && typeof e['options'] === 'object') config.options = e['options'] as Record<string, unknown>;
     return config;

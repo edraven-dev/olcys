@@ -2,6 +2,7 @@ import type { ChainId, ChainProvider, SourceId } from '@olcys/core';
 import type { ChainProviderConfig, ProviderDeps } from './config.ts';
 import { createEsploraProvider } from './esplora.ts';
 import { createEtherscanProvider } from './etherscan.ts';
+import { createOtterscanProvider } from './otterscan.ts';
 import { createTronGridProvider } from './trongrid.ts';
 
 export function createChainProvider(config: ChainProviderConfig, deps: ProviderDeps = {}): ChainProvider {
@@ -10,6 +11,8 @@ export function createChainProvider(config: ChainProviderConfig, deps: ProviderD
       return createEsploraProvider(config, deps);
     case 'etherscan':
       return createEtherscanProvider(config, deps);
+    case 'otterscan':
+      return createOtterscanProvider(config, deps);
     case 'trongrid':
       return createTronGridProvider(config, deps);
   }

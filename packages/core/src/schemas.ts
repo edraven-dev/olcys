@@ -160,6 +160,7 @@ export const SourceEntrySchema = z
     llmAllowed: z.boolean().optional(),
     blockedHosts: z.array(z.string()).optional(),
     attribution: z.string().optional(),
+    sandbox: z.boolean().optional(),
   })
   .superRefine((s, ctx) => {
     const fail = (path: string, message: string) => ctx.addIssue({ code: 'custom', message, path: [path] });
