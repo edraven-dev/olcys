@@ -1,7 +1,7 @@
 /**
  * @olcys/worker — job runner and composition root. Skeleton only: the pipeline is not implemented yet.
  *
- * Pipeline (one pg-boss job type per step, idempotent per run):
+ * Pipeline (in-process stages run in order, idempotent per run):
  *   run.start → pivot.plan → collect.source* → extract.capture* → pivot.expand → chain.fetch*
  *   → labels.classify* → analytics.compute → score.links → llm.suggest → diff.previous → report.render → run.finish
  */

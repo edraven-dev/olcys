@@ -36,6 +36,10 @@ export const GENERIC_PATTERNS: Record<string, string> = {
   bech32: `${NOT_WORD}(?:bc1|tb1)[\\p{L}\\p{N}]{20,100}`,
   base58: `${NOT_WORD}[13]${BASE58}{25,34}${NOT_WORD_AFTER}`,
   tron: `${NOT_WORD}T${BASE58}{33}${NOT_WORD_AFTER}`,
+  // Bank account numbers (NRB / IBAN), e.g. from the VAT whitelist: 26 digits, optionally grouped or PL-prefixed.
+  bankAccount: String.raw`(?<![\p{L}\p{N}])(?:PL ?)?\d{2}(?: ?\d{4}){6}(?![\p{L}\p{N}])`,
+  // Any other run of 20 or more digits (synthetic registry account numbers of other lengths).
+  longDigits: String.raw`(?<![\p{L}\p{N}])\d{20,}(?![\p{L}\p{N}])`,
   // The console shortens addresses and hashes to „head…tail”.
   shortenedEmail: String.raw`[\p{L}\p{N}._%+-]{4,}…[\p{L}\p{N}.-]{3,}\.\p{L}{2,}`,
   shortened: `${NOT_WORD}(?:0x[0-9a-fA-F]{6,}|bc1[\\p{L}\\p{N}]{3,}|[T13]${BASE58}{5,}|[0-9a-fA-F]{8,})…[\\p{L}\\p{N}]{4,}`,

@@ -20,7 +20,7 @@ z portalu społecznościowego, e-mail lub adres kryptowalutowy) narzędzie:
 ```
 apps/
   api/            API HTTP (Fastify) dla konsoli analityka
-  worker/         procesy w tle na pg-boss i PUNKT SKŁADANIA ZALEŻNOŚCI
+  worker/         potok analizy w procesie (bez kolejki) i PUNKT SKŁADANIA ZALEŻNOŚCI
   web/            konsola analityka w React, interfejs po polsku
   fixture-site/   syntetyczna strona testowa z personą, warianty v1/v2
 packages/
@@ -72,7 +72,7 @@ apps/web ──┘
 
 ## Cykl życia przebiegu analizy
 
-Każdy krok to osobny typ zadania pg-boss z kluczem idempotencji `(runId, krok, klucz obiektu)`:
+Kroki wykonują się kolejno w procesie (bez kolejki zadań); każdy jest idempotentny w obrębie przebiegu `(runId, krok, klucz obiektu)`:
 
 ```
 run.start         migawka konfiguracji (skrót sources.yaml, wersje wag i reguł, wersja narzędzia, model) → AnalysisRun

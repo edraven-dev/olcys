@@ -36,6 +36,9 @@ describe('presentation masking', () => {
       'kacper.fik…mple.org', // shortened e-mail
       'jan.kowal…irma.pl',
       'TMVZLbhMuE…WJUmVPVk',
+      '61109010140000071219812874', // NRB bank account (26 digits)
+      'PL61 1090 1014 0000 0712 1981 2874', // IBAN, grouped
+      '25000000000000000010001', // long synthetic registry account number
     ];
     for (const sample of samples) expect(masked(`adres ${sample} koniec`)).toEqual([sample]);
   });
