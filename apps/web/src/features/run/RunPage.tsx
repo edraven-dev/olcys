@@ -1,6 +1,14 @@
 import type { CaseWithIdentifiers, RunWithProgress } from '@olcys/core';
-import { useState } from 'react';
-import { Async, DateTime, Icon, ResourceNotices, RunStatusBadge, useDocumentTitle } from '../../components/ui.tsx';
+import { lazy, Suspense, useState } from 'react';
+import {
+  Async,
+  DateTime,
+  Icon,
+  LoadingState,
+  ResourceNotices,
+  RunStatusBadge,
+  useDocumentTitle,
+} from '../../components/ui.tsx';
 import { pl } from '../../i18n/pl.ts';
 import { t } from '../../i18n/t.ts';
 import { apiPaths } from '../../lib/api.ts';
@@ -10,13 +18,15 @@ import { Link, RUN_TABS, routePath, type RunTab } from '../../lib/router.tsx';
 import { useJson, useList } from '../../lib/use-api.ts';
 import { ActivityTab } from '../activity/ActivityTab.tsx';
 import { ChangesTab } from '../changes/ChangesTab.tsx';
-import { GraphTab } from '../graph/GraphTab.tsx';
 import { LinksTab } from '../links/LinksTab.tsx';
 import { RejectedTab } from '../rejected/RejectedTab.tsx';
 import { ReportTab } from '../report/ReportTab.tsx';
 import { SourcesTab } from '../sources/SourcesTab.tsx';
 import { OverviewTab } from './OverviewTab.tsx';
 import { currentStep, isTerminal } from './run-model.ts';
+
+// Cytoscape is large: the graph tab is fetched only when it is opened.
+const GraphTab = lazy(() => import('../graph/GraphTab.tsx').then((m) => ({ default: m.GraphTab })));
 
 /** What every result tab receives. `version` changes whenever the run's status does, so lists reload. */
 export interface RunScope {
@@ -84,7 +94,11 @@ function TabContent({ tab, scope }: { tab: RunTab; scope: RunScope }) {
     case 'links':
       return <LinksTab scope={scope} />;
     case 'graph':
-      return <GraphTab scope={scope} />;
+      return (
+        <Suspense fallback={<LoadingState text={pl.graph.loading} />}>
+          <GraphTab scope={scope} />
+        </Suspense>
+      );
     case 'rejected':
       return <RejectedTab scope={scope} />;
     case 'activity':

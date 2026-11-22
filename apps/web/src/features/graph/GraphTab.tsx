@@ -227,6 +227,7 @@ function Legend() {
     ['legend-address', legend.addressHop],
     ['legend-published', legend.published],
     ['legend-third', legend.thirdParty],
+    ['legend-other', legend.otherRelation],
     ['legend-exclusion', legend.exclusion],
     ['legend-flow', legend.flow],
   ] as const;

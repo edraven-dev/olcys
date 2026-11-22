@@ -147,6 +147,37 @@ describe('filters', () => {
   });
 });
 
+const rejectedWith = (relation: typeof btcLink.relation, n: number) => ({
+  ...btcLink,
+  id: `other-${n}`,
+  address: { chain: 'bitcoin' as const, address: `bc1qother${n}` },
+  relation,
+  score: 0,
+  gates: [{ gate: 'relation', passed: false }],
+});
+
+describe('other rejected relations', () => {
+  it('draws them as their own edge kind with a Polish relation label', () => {
+    const input = {
+      ...graphInput,
+      exclusions: [],
+      links: [
+        rejectedWith('TX_COUNTERPARTY', 1),
+        rejectedWith('CLUSTER_ASSOCIATED', 2),
+        rejectedWith('SELF_DECLARED', 3),
+      ],
+    };
+    const b = buildGraph(input, DEFAULT_GRAPH_OPTIONS);
+    expect(edgesOf(b, 'published')).toEqual([]);
+    expect(edgesOf(b, 'other_relation').map((e) => e.label)).toEqual([
+      'kontrahent transakcji',
+      'powiązany klastrem — heurystyka',
+      'relacja bez roszczenia własności',
+    ]);
+    expect(b.nodes.filter((n) => n.rejected)).toHaveLength(3);
+  });
+});
+
 describe('structure edge cases', () => {
   it('links an identifier straight to the address when the path has no account', () => {
     const direct = { ...btcLink, id: 'direct', paths: [{ ...btcLink.paths[0]!, accountId: undefined }] };

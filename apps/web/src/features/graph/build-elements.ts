@@ -36,6 +36,7 @@ export const GRAPH_EDGE_KINDS = [
   'address_hop',
   'published',
   'third_party',
+  'other_relation',
   'exclusion',
   'flow',
 ] as const;
@@ -231,7 +232,7 @@ export function buildGraph(input: GraphInput, options: GraphOptions): GraphBuild
 
     const identifierNode = nodeIds.identifier(link.identityId);
     const paths: LinkPathView[] = link.paths.length > 0 ? link.paths : [];
-    const kind = rejected ? rejectedKind(link) : 'address_hop';
+    const kind = rejected ? rejectedKind(link, excludedKeys) : 'address_hop';
     if (paths.length === 0) {
       // No account in the path (a crypto-address input, or a third-party attribution without an account).
       addEdge(draft, linkEdge(kind, identifierNode, addressNode.id, link, undefined), tier);
@@ -319,10 +320,12 @@ function markRejected(node: GraphNodeData): void {
   node.label = `${base} (${pl.graph.rejectedSuffix})`;
 }
 
-function rejectedKind(link: LinkView): GraphEdgeKind {
+function rejectedKind(link: LinkView, excludedKeys: ReadonlySet<string>): GraphEdgeKind {
   if (link.relation === 'THIRD_PARTY_ATTRIBUTION') return 'third_party';
   // An address the subject's account published but that is no holding (exchange deposit, KYC lead).
-  return 'published';
+  if (link.relation === 'CUSTODIAL_EXCHANGE' || excludedKeys.has(keyOf(link.address))) return 'published';
+  // Any other rejected relation (transaction counterparty, cluster heuristic, failed gate): no claim by the subject.
+  return 'other_relation';
 }
 
 function linkEdge(
@@ -339,7 +342,9 @@ function linkEdge(
       ? t(pl.graph.edgeLabel.addressHop, { p: hopLabel(probability ?? 0), tier: link.tier })
       : kind === 'third_party'
         ? pl.graph.edgeLabel.thirdParty
-        : t(pl.graph.edgeLabel.published, { relation });
+        : kind === 'other_relation'
+          ? (lookup(pl.graph.otherRelation, link.relation) ?? pl.graph.otherRelationFallback)
+          : t(pl.graph.edgeLabel.published, { relation });
   return {
     id: `${kind}:${link.id}:${source}>${target}`,
     source,

@@ -161,6 +161,16 @@ export function graphStylesheet(p: GraphPalette): cytoscape.StylesheetJson {
       },
     },
     {
+      selector: 'edge.other_relation',
+      style: {
+        'line-style': 'dashed',
+        'line-dash-pattern': [2, 6],
+        'line-color': p.muted,
+        'target-arrow-color': p.muted,
+        width: 1.5,
+      },
+    },
+    {
       selector: 'edge.exclusion',
       style: { 'line-style': 'dashed', 'line-color': p.critical, 'target-arrow-color': p.critical, width: 2 },
     },
