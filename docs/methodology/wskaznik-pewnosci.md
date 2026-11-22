@@ -89,7 +89,7 @@ pnpm --filter @olcys/scoring calibrate --oracle          # dane losowane z samyc
 pnpm --filter @olcys/scoring calibrate --oracle --propose  # dodatkowo propozycja wag (tylko pod --out)
 ```
 
-Wyniki trafiają do `data/calibration/<algorytm>/<wagi>/<ziarno>[-oracle]/` (katalog ignorowany przez git):
+Wyniki trafiają do `data/calibration/<algorytm>/<wagi>/<seed>[-oracle]/` (katalog ignorowany przez git):
 `report.json`, `reliability.svg` (diagram niezawodności) i `report.md`. Raport zawiera SHA-256 wag, wersje algorytmu
 i reguł, SHA-256 zbioru danych oraz seed; te same dane wejściowe i ten sam seed dają identyczne bajty.
 

@@ -248,7 +248,7 @@ dla etapu:  W = log2(szanse a priori) + Σ log2(BF′),   BF′ = ρ·BF + (1 �
 - Wynik dla powiązania: wskaźnik 0–100, termin prawdopodobieństwa wg ICD 203, słowny odpowiednik ilorazu wiarygodności
   wg ENFSI dla każdego etapu, osobna pewność analityczna, pełna lista wkładów (wykres kaskadowy), `algorithmVersion`,
   `weightsVersion`, `weightsSha256`.
-- Wagi: `config/scoring/weights.v1.yaml` (nieskalibrowane). Przykład do odtworzenia w testach: kotwica na
+- Wagi: `config/scoring/weights.v2.yaml` (domyślne, nieskalibrowane; `weights.v1.yaml` zachowane do porównań). Przykład do odtworzenia w testach: kotwica na
   forum w stylu Bitcointalk + podpisany wpis + pole profilu → **99**; konto w stylu Wykopu z tym samym nickiem i linkiem
   do kotwicy oraz „mój portfel” → **50**; konto w stylu GitHuba z tym samym nickiem i deklaracją Drips → **24**;
   ścieżki Wykop + GitHub łącznie → **62**.
