@@ -37,8 +37,8 @@ Serwer (`src/`) używa wyłącznie wbudowanych modułów Node, bo kontener nie m
 
 Pełny opis — adresy, wabiki, oczekiwane wyniki analizy i skróty plików — zawiera `fixtures/persona/manifest.json`.
 
-Mapa witryny podaje adresy względne, bo strona działa pod kilkoma adresami (host, compose, testy na wolnym porcie);
-wyszukiwarka testowa rozwiązuje je względem adresu samej mapy.
+Mapa witryny podaje adresy względem samej mapy (bez początkowego `/`), bo strona działa pod kilkoma adresami (host,
+compose, testy na wolnym porcie), także ze ścieżką bazową; wyszukiwarka testowa rozwiązuje je względem adresu mapy.
 
 ## Generator
 

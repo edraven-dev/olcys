@@ -77,7 +77,10 @@ describe('fixture server', () => {
   it('lists the persona pages in a sitemap, without the robots canary and the barrier pages', async () => {
     const res = await get('/sitemap.xml');
     expect([res.status, res.headers.get('content-type')]).toEqual([200, 'application/xml; charset=utf-8']);
-    const locs = [...(await res.text()).matchAll(/<loc>([^<]*)<\/loc>/g)].map((m) => m[1]?.replaceAll('&amp;', '&'));
+    // Locations are relative to the sitemap (the site may run under a base path).
+    const locs = [...(await res.text()).matchAll(/<loc>([^<]*)<\/loc>/g)].map(
+      (m) => `/${m[1]?.replaceAll('&amp;', '&')}`,
+    );
     const expected = manifest.pages
       .filter((p) => !p.path.startsWith('/private/') && !p.path.startsWith('/barriers/'))
       .map((p) => p.path);
