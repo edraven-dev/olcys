@@ -3,7 +3,7 @@
  * the analyst's confirmation or rejection (append-only, once per suggestion, with a justification); it never changes
  * a stored score and takes effect only in a later rescore. The analyst is the API's configured identity.
  */
-import type { LlmSuggestionDecision, Logger, Repositories } from '@olcys/core';
+import type { LlmSuggestionDecision, Logger, Repositories, RunWithProgress } from '@olcys/core';
 import { newId, nowIso, parse, SuggestionDecisionSchema } from '@olcys/core';
 import type { FastifyInstance } from 'fastify';
 import { idOf } from './ids.ts';
@@ -12,6 +12,8 @@ export interface SuggestionRouteDeps {
   repos: Repositories;
   analyst: string;
   logger?: Logger;
+  /** Renders the run's report again (a new stored version); see `reportRenderer`. */
+  renderReport?(run: RunWithProgress): Promise<void>;
 }
 
 export function registerSuggestionRoutes(app: FastifyInstance, deps: SuggestionRouteDeps): void {
@@ -48,6 +50,17 @@ export function registerSuggestionRoutes(app: FastifyInstance, deps: SuggestionR
       decision: decision.decision,
       analyst: decision.decidedBy,
     });
+    // The stored report is a fixed document: a decision adds a new version that shows it. The response does not wait
+    // for the rendering (it can be slow); a failure is logged and the earlier versions stay.
+    const run = await deps.repos.runs.get(suggestion.runId);
+    if (deps.renderReport && run && (run.status === 'succeeded' || run.status === 'partial')) {
+      void deps.renderReport(run).catch((error: unknown) =>
+        deps.logger?.error('report not rendered after a suggestion decision', {
+          runId: run.id,
+          error: String(error),
+        }),
+      );
+    }
     return await llm.getSuggestion(suggestion.id);
   });
 }

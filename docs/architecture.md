@@ -269,7 +269,7 @@ Sugestie (`llm_suggestion`) mają zerową wagę w ocenie, dopóki analityk ich n
 ocenie, a uwzględnia je dopiero kolejny przebieg ponownej oceny (potwierdzona rola wzmianki trafia wtedy jako sygnał
 `AnalystCue` do punktu wejścia oceny; oczekujące i odrzucone sugestie nigdy). Krok `llm.suggest` nigdy nie kończy
 przebiegu błędem: niedostępny lub zawodzący model daje kod `llm_unavailable` (przebieg `partial`), a po 3 kolejnych
-niepowodzeniach kolejne wzmianki nie są wysyłane. Tekst z Telegrama nie trafia do modelu. Fakty, wyniki obliczeń i wnioski pozostają rozdzielone.
+niepowodzeniach kolejne wzmianki nie są wysyłane. Decyzja o sugestii zleca w tle ponowne wygenerowanie raportu przebiegu (nowa wersja, wcześniejsze zostają); odpowiedź nie czeka na renderowanie. Tekst z Telegrama nie trafia do modelu. Fakty, wyniki obliczeń i wnioski pozostają rozdzielone.
 
 ## Język interfejsu i dokumentacji
 

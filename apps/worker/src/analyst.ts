@@ -122,13 +122,14 @@ async function confirmedSuggestionRefs(
   return confirmed.map((s) => {
     const candidateId = s.target.candidateId as Id;
     const address = candidates.get(candidateId)?.address;
-    return {
+    const ref: ConfirmedSuggestionRef = {
       suggestionId: s.id,
       decidedAt: s.decidedAt as string,
       role: s.label,
       candidateId,
-      ...(address ? { address } : {}),
     };
+    if (address) ref.address = address;
+    return ref;
   });
 }
 
