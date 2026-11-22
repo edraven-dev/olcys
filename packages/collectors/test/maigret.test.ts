@@ -316,8 +316,8 @@ describe('secrets and request details', () => {
   it('does not start a page capture at robots.txt', async () => {
     const { run } = setup();
     const result = await run();
-    const page = result.captures.find((c) => c.status === 'ok' && c.url.includes('/wykop/'));
-    expect(page?.url).toBe('http://fixture-site:4100/wykop/ludzie/fikcyjny_kacper');
+    const profile = result.captures.find((c) => c.status === 'ok' && c.url.includes('/wykop/'));
+    expect(profile?.url).toBe('http://fixture-site:4100/wykop/ludzie/fikcyjny_kacper');
     expect(result.captures.every((c) => !c.url.endsWith('/robots.txt'))).toBe(true);
   });
 
