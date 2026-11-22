@@ -3,13 +3,13 @@
 Opis zabezpieczeń OŁCyŚ w wersji MVP: nagłówki i polityka CSP, dziennik dostępu, dowód braku telemetrii, sekrety
 w środowisku i utwardzenie kontenerów.
 
-## Brak logowania i kont
+## Poza zakresem MVP (planowane)
 
-MVP **nie ma logowania ani kont użytkowników**. Aplikację otwiera się i używa od razu, bez żadnego monitu o tożsamość
-czy cel. Kontrola dostępu pozostaje po stronie wdrożenia: API nasłuchuje na `127.0.0.1`, a udostępnienie go innym
-osobom wymaga warstwy przed aplikacją, na przykład reverse proxy z uwierzytelnianiem lub logowania jednokrotnego (SSO)
-organu. Wbudowane zabezpieczenia API to sprawdzanie nagłówków `Host` i `Origin` (ochrona przed DNS rebinding i
-zapisami z innych witryn), opisane w `apps/api/src/guard.ts`.
+Konta użytkowników i logowanie są **poza zakresem tego MVP i planowane w kolejnej wersji**: konta analityków z rolami,
+sesje po stronie serwera oraz ograniczanie liczby prób logowania. Do tego czasu aplikację otwiera się i używa od razu,
+bez monitu o tożsamość czy cel. Dostęp można ograniczyć na poziomie wdrożenia (API nasłuchuje na `127.0.0.1`).
+Wbudowane zabezpieczenia API to sprawdzanie nagłówków `Host` i `Origin` (ochrona przed DNS rebinding i zapisami z
+innych witryn), opisane w `apps/api/src/guard.ts`.
 
 ## Nagłówki bezpieczeństwa i CSP
 

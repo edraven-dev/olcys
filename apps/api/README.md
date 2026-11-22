@@ -107,5 +107,5 @@ Hak `onSend` (`src/security.ts`) dodaje do każdej odpowiedzi ścisłe CSP (`def
 `nosniff`, `Referrer-Policy: no-referrer`, `Permissions-Policy` i `Cache-Control: no-store`; HSTS tylko przy
 `OLCYS_HSTS=1`. Raport HTML dopuszcza swoje arkusze stylów po skrócie SHA-256. Odczyty spraw, uruchomień, dowodów,
 raportów i eksportów trafiają w tle do dziennika dostępu (`GET /api/access-log`): podmiotem jest etykieta analityka
-(`OLCYS_ANALYST_NAME`, inaczej `local`), cel tylko wtedy, gdy klient prześle nagłówek `X-Olcys-Purpose`. MVP nie ma
-logowania ani kont; kontrola dostępu należy do wdrożenia. Szczegóły: `docs/security.md`.
+(`OLCYS_ANALYST_NAME`, inaczej `local`), cel tylko wtedy, gdy klient prześle nagłówek `X-Olcys-Purpose`. Konta i logowanie
+są planowane w kolejnej wersji (poza zakresem MVP). Szczegóły: `docs/security.md`.

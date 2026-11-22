@@ -233,6 +233,11 @@ o adresie, odmiana polskich imion i nazwisk, szkice wniosków w raporcie); nigdy
 wyników, otrzymuje zebrany tekst wyłącznie jako oznaczone, niezaufane dane, nie ma dostępu do narzędzi, a każde
 wywołanie jest rejestrowane (wersja promptu, model, skrót modelu, odpowiedź).
 
+## Bezpieczeństwo
+
+Nagłówki i CSP, dziennik dostępu (tabela `access_log`, tylko dopisywanie), brak telemetrii, sekrety wyłącznie ze
+środowiska i utwardzone kontenery opisuje `docs/security.md`. Konta i logowanie są poza zakresem MVP (planowane później).
+
 ## Język interfejsu i dokumentacji
 
 Konsola analityka, raporty, wszystkie pliki README oraz katalog `docs/` są **po polsku**. Wszystkie teksty widoczne dla
