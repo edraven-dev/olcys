@@ -143,6 +143,7 @@ export {
   accountAliasKeys,
   planExpansion,
   planInitial,
+  referencesOnly,
   searchSubject,
   taskKey,
   type PivotPlan,
@@ -257,6 +258,46 @@ export {
 } from './registries/vat-whitelist.ts';
 
 export * from './wayback/index.ts';
+export {
+  BITLIST_BASE_URL,
+  BITLIST_DEFAULT_LIMIT,
+  BITLIST_PARSER_VERSION,
+  bitlistProbeHandle,
+  bitlistUrl,
+  createBitlistCollector,
+  parseBitlistAddresses,
+  parseBitlistPosts,
+  type BitlistAddressHit,
+  type BitlistOptions,
+  type BitlistPost,
+} from './identity/bitlist.ts';
+export {
+  KEYBASE_FIELDS,
+  KEYBASE_PARSER_VERSION,
+  KEYBASE_PROOF_OK,
+  KEYBASE_USERNAME,
+  createKeybaseCollector,
+  keybaseLookupUrl,
+  keybaseProbeHandle,
+  parseKeybaseLookup,
+  proofProfileUrl,
+  type KeybaseLookup,
+  type KeybaseLookupUser,
+} from './identity/keybase.ts';
+export {
+  ENS_COIN_TYPES,
+  ENS_FIXTURE_RESOLVER,
+  ENS_FIXTURE_RPC_URL,
+  ENS_PARSER_VERSION,
+  ENS_SOURCE_ID,
+  ENS_TEXT_KEYS,
+  createEnsCollector,
+  looksLikeEnsName,
+  type EnsOptions,
+} from './identity/ens.ts';
+export { CcipReadDisabledError, EnsRpcFailure, createRpcEnsReader, type EnsReader } from './identity/ens-rpc.ts';
+export { decodeCoinAddress, normaliseEnsName } from './identity/ens-names.ts';
+export { namehash } from './identity/ens-abi.ts';
 
 export { assertCollectorAllowed } from './compliance/guard.ts';
 export { SourceDescriptorMismatchError, SourceForbiddenError } from './compliance/errors.ts';
