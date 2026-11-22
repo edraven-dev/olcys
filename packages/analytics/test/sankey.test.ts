@@ -106,4 +106,42 @@ describe('buildSankey', () => {
     expect(other).toMatchObject({ isOther: true, layer: 1, address: { chain: 'tron', address: '' } });
     expect(sankey.nodes).toHaveLength(5);
   });
+
+  it('merges the dropped senders (not the recipient) on the incoming side and reduces the link count', () => {
+    const edges = Array.from({ length: 60 }, (_, i) =>
+      edge(`S${i}`, 'SUBJ', -1, T(1), { amount: String(i + 1), tx: `tx-in-${i}` }),
+    );
+    const sankey = buildSankey(edges, new Set(['tron:SUBJ']), new Map());
+    // 50 kept links plus one merged link; every link still ends in the subject.
+    expect(sankey.links).toHaveLength(51);
+    expect(sankey.links.every((l) => l.target === 'tron:SUBJ#0')).toBe(true);
+    const rest = sankey.links.find((l) => l.source === 'other#-1');
+    // S0…S9 are the smallest: 1 + … + 10 = 55 USDT = 220.00 PLN in ten transfers
+    expect(rest).toMatchObject({
+      target: 'tron:SUBJ#0',
+      pln: '220.00',
+      plnComplete: true,
+      txCount: 10,
+      byAsset: [{ asset: 'USDT', amount: '55' }],
+    });
+    expect(sankey.nodes.find((n) => n.id === 'other#-1')).toMatchObject({ isOther: true, layer: -1 });
+    expect(sankey.nodes).toHaveLength(52);
+  });
+
+  it('merges each side on its own: senders upstream, recipients downstream', () => {
+    const edges = [
+      edge('S1', 'A', -1, T(1), { amount: '9' }),
+      edge('S2', 'A', -1, T(1), { amount: '1' }),
+      edge('S3', 'A', -1, T(1), { amount: '2' }),
+      edge('A', 'R1', 1, T(2), { amount: '8' }),
+      edge('A', 'R2', 1, T(2), { amount: '1' }),
+      edge('A', 'R3', 1, T(2), { amount: '2' }),
+    ];
+    const sankey = buildSankey(edges, new Set(['tron:A']), new Map(), { maxLinks: 2 });
+    expect(sankey.links.map((l) => `${l.source}>${l.target}`).toSorted()).toEqual(
+      ['tron:S1#-1>tron:A#0', 'tron:A#0>tron:R1#1', 'other#-1>tron:A#0', 'tron:A#0>other#1'].toSorted(),
+    );
+    const layer = new Map(sankey.nodes.map((n) => [n.id, n.layer]));
+    for (const link of sankey.links) expect((layer.get(link.target) ?? NaN) - (layer.get(link.source) ?? NaN)).toBe(1);
+  });
 });

@@ -93,17 +93,16 @@ export function buildSankey(
   const kept = new Map<string, Acc>(ranked.slice(0, maxLinks).map((l) => [`${l.source}>${l.target}`, l]));
   const others = new Map<string, AddressRef>();
   for (const dropped of ranked.slice(maxLinks)) {
-    const layer = layerOf(dropped.target);
-    const target = `other#${layer}`;
-    others.set(target, { chain: refs.get(dropped.source)?.chain ?? 'bitcoin', address: '' });
-    const key = `${dropped.source}>${target}`;
-    const acc: Acc = kept.get(key) ?? {
-      source: dropped.source,
-      target,
-      complete: true,
-      byAsset: new Map(),
-      txCount: 0,
-    };
+    // Incoming side (sources in layers below 0): the dropped senders merge into one node per layer and the real
+    // recipient stays; outgoing side: the dropped recipients merge and the real sender stays.
+    const incoming = layerOf(dropped.source) < 0;
+    const mergedId = `other#${layerOf(incoming ? dropped.source : dropped.target)}`;
+    const source = incoming ? mergedId : dropped.source;
+    const target = incoming ? dropped.target : mergedId;
+    const chain = refs.get(incoming ? dropped.target : dropped.source)?.chain ?? 'bitcoin';
+    others.set(mergedId, { chain, address: '' });
+    const key = `${source}>${target}`;
+    const acc: Acc = kept.get(key) ?? { source, target, complete: true, byAsset: new Map(), txCount: 0 };
     kept.set(key, acc);
     for (const [asset, amount] of dropped.byAsset) acc.byAsset.set(asset, dAdd(acc.byAsset.get(asset) ?? '0', amount));
     if (dropped.pln !== undefined) acc.pln = acc.pln === undefined ? dropped.pln : dAdd(acc.pln, dropped.pln);
