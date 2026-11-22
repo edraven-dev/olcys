@@ -27,9 +27,12 @@
     "demo": "node --env-file-if-exists=.env scripts/demo/run.ts",
     "seed": "node --env-file-if-exists=.env scripts/dev/seed.ts",
     "dev:doctor": "node --env-file-if-exists=.env scripts/dev/doctor.ts",
-    "db:status": "node --env-file-if-exists=.env packages/db/src/migrate.ts --status"
+    "db:status": "node --env-file-if-exists=.env packages/db/src/migrate.ts --status",
+    "test:e2e": "node e2e/run.ts",
+    "demo:video": "node e2e/video/record.ts"
   },
   "devDependencies": {
+    "@playwright/test": "1.65.1",
     "@types/node": "26.6.6",
     "license-checker-rseidelsohn": "5.0.1",
     "oxfmt": "0.79.0",

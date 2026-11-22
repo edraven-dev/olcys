@@ -50,19 +50,20 @@ Poniższe tabele są generowane z `pnpm-lock.yaml`, `services/osint-py/pyproject
 
 ### Status bramki licencyjnej
 
-- Sprawdzone komponenty: 381 (npm: 371, Python: 2, obrazy: 8).
+- Sprawdzone komponenty: 384 (npm: 374, Python: 2, obrazy: 8).
 - Wynik: wszystkie komponenty zgodne z polityką licencyjną (`config/licenses.json`).
 - Wyjątki licencyjne (`config/compliance/license-exceptions.yaml`): 0.
 - SBOM (CycloneDX 1.6) powstają na żądanie poleceniem `pnpm compliance:sbom` (katalog `data/sbom/`, poza repozytorium); opisują je pliki `olcys-npm.cdx.json` i `olcys-osint-py.cdx.json`.
 
 ### Zależności bezpośrednie npm
 
-Wszystkie zależności bezpośrednie wszystkich pakietów monorepo (33 pakietów); „(dev)” oznacza zależność deweloperską.
+Wszystkie zależności bezpośrednie wszystkich pakietów monorepo (34 pakietów); „(dev)” oznacza zależność deweloperską.
 
 | Komponent | Wersja | Licencja (SPDX) | Zastosowanie | Gdzie |
 | --- | --- | --- | --- | --- |
 | @noble/curves | 2.4.0 | MIT | podpisy secp256k1 i weryfikacja BIP-137; generator danych syntetycznych | apps/fixture-site (dev), packages/scoring |
 | @noble/hashes | 2.4.0 | MIT | SHA-256, RIPEMD-160 i Keccak-256 (sumy kontrolne adresów, BIP-137, skrót wag); generator danych | apps/fixture-site (dev), packages/address-extractor, packages/labels (dev), packages/scoring |
+| @playwright/test | 1.65.1 | Apache-2.0 | testy akceptacyjne E2E i nagranie filmu demonstracyjnego (lokalny Chromium, bez pobierania przeglądarek) | root (dev) |
 | @safe-global/safe-deployments | 1.37.67 | MIT | adresy singletonów Safe (klasyfikacja typu adresu) | packages/labels |
 | @scure/base | 2.4.0 | MIT | bech32/bech32m, base58check i base64 (adresy, BIP-137); generator danych | apps/fixture-site (dev), packages/address-extractor, packages/labels, packages/scoring |
 | @scure/bip39 | 2.4.0 | MIT | listy słów BIP-39 do wykrywania i maskowania fraz seed | packages/address-extractor |
@@ -121,13 +122,13 @@ Każdy `image:` z `compose.yml` i każde `FROM` z Dockerfile musi mieć wpis w `
 
 ### Zależności przechodnie npm (podsumowanie)
 
-338 pakietów przechodnich; pełna lista z wersjami, skrótami i licencjami jest w SBOM npm (`pnpm compliance:sbom`).
+340 pakietów przechodnich; pełna lista z wersjami, skrótami i licencjami jest w SBOM npm (`pnpm compliance:sbom`).
 
 | Licencja (SPDX) | Runtime | Tylko dev | Razem |
 | --- | --- | --- | --- |
 | MIT | 58 | 139 | 197 |
 | ISC | 6 | 55 | 61 |
-| Apache-2.0 | 1 | 31 | 32 |
+| Apache-2.0 | 1 | 33 | 34 |
 | BSD-2-Clause | 12 | 2 | 14 |
 | BlueOak-1.0.0 | 0 | 12 | 12 |
 | MPL-2.0 | 0 | 12 | 12 |
