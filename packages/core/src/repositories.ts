@@ -8,6 +8,7 @@ import type { AnalysisRun, Case, CaseSchedule, Identifier } from './case.ts';
 import type { ChangeEvent } from './changes.ts';
 import type { NormalizedTransfer } from './chain-data.ts';
 import type { AddressRef } from './chains.ts';
+import type { AccessLogRepository } from './access-log.ts';
 import type { AddressCluster } from './clusters.ts';
 import type { Id, IsoDateTime } from './common.ts';
 import type { Capture, CustodyEvent, Observation, OnlineAccount } from './evidence.ts';
@@ -242,4 +243,6 @@ export interface Repositories {
   overrides?: OverrideRepository;
   /** Present when the store keeps chain-of-custody events. */
   custody?: CustodyRepository;
+  /** Present when the store keeps the access log (both `@olcys/db` implementations provide it). */
+  accessLog?: AccessLogRepository;
 }

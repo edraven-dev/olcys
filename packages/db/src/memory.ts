@@ -19,6 +19,7 @@ import type {
   RunWithProgress,
 } from '@olcys/core';
 import { addressKey, newId, nowIso, uniqueTransfers } from '@olcys/core';
+import { memoryAccessLogRepository } from './memory-access-log.ts';
 import { memoryClusterRepository } from './memory-clusters.ts';
 import { memoryAddressTypeRepository } from './memory-address-types.ts';
 import { memoryScheduleRepository } from './memory-schedules.ts';
@@ -124,6 +125,7 @@ export function createMemoryRepositories(): Repositories {
     schedules: memoryScheduleRepository(cases, runs),
     addressTypes: memoryAddressTypeRepository(runs),
     clusters: memoryClusterRepository(runs),
+    accessLog: memoryAccessLogRepository(),
     evidence: {
       async addEgressLog(entries) {
         store.egress.push(...copy(entries));

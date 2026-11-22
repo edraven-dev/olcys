@@ -25,6 +25,8 @@ import type {
   AnalystOverrideKind,
   CustodyAction,
   CustodyEvent,
+  AccessAction,
+  AccessOutcome,
   AnalystOverrideTarget,
   ScheduleTickOutcome,
 } from '@olcys/core';
@@ -280,6 +282,21 @@ export interface CustodyEventTable {
   created_at: GeneratedTimestamp;
 }
 
+/** migrations/0011_access_log.sql */
+export interface AccessLogTable {
+  id: string;
+  at: Timestamp;
+  actor: string;
+  action: AccessAction;
+  case_id: string | null;
+  run_id: string | null;
+  resource: string | null;
+  purpose: string | null;
+  outcome: AccessOutcome;
+  ip: string;
+  created_at: GeneratedTimestamp;
+}
+
 /** migrations/0003_analyst_overrides.sql */
 export interface AnalystOverridesTable {
   id: string;
@@ -338,6 +355,7 @@ export interface Database {
   analyst_judgements: AnalystJudgementsTable;
   analyst_overrides: AnalystOverridesTable;
   custody_event: CustodyEventTable;
+  access_log: AccessLogTable;
   change_events: ChangeEventsTable;
   reports: ReportsTable;
   schema_migrations: SchemaMigrationsTable;

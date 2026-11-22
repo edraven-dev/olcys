@@ -1,5 +1,6 @@
 import type { Repositories } from '@olcys/core';
 import type { Db } from '../client.ts';
+import { sqlAccessLogRepository } from './access-log.ts';
 import { sqlAddressTypeRepository } from './address-types.ts';
 import { sqlAnalysisRepository, sqlChainDataRepository, sqlLabelRepository } from './analysis.ts';
 import { sqlJudgementRepository, sqlOverrideRepository } from './analyst.ts';
@@ -25,9 +26,11 @@ export function createSqlRepositories(db: Db): Repositories {
     judgements: sqlJudgementRepository(db),
     overrides: sqlOverrideRepository(db),
     custody: sqlCustodyRepository(db),
+    accessLog: sqlAccessLogRepository(db),
   };
 }
 
+export { sqlAccessLogRepository } from './access-log.ts';
 export { sqlAddressTypeRepository } from './address-types.ts';
 export { sqlAnalysisRepository, sqlChainDataRepository, sqlLabelRepository } from './analysis.ts';
 export { sqlJudgementRepository, sqlOverrideRepository } from './analyst.ts';
