@@ -10,6 +10,7 @@ import { createMemoryRepositories } from '@olcys/db';
 import { InMemoryBlobStore, verifyCapture } from '@olcys/evidence';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createFixtureServer, type FixtureServer } from '../../fixture-site/src/fixture-server.ts';
+import { buildWaybackHistory } from '@olcys/collectors';
 import { createRuntime, defaultStages, type Runtime } from '../src/index.ts';
 
 const REPO = resolve(import.meta.dirname, '..', '..', '..');
@@ -23,6 +24,14 @@ let manifest: {
   expected: { v1: { rejected: { slot: string; rule: string }[]; cashOut: { rule: string; slot: string }[] } };
 };
 const addressOf = (slot: string): string => manifest.addresses[slot]?.address.toLowerCase() ?? '';
+/** Wei as a decimal string of ether (whole units, no trailing zeros). */
+const ethOf = (wei: string): string => {
+  const whole = BigInt(wei) / 10n ** 18n;
+  const frac = (BigInt(wei) % 10n ** 18n).toString().padStart(18, '0').replace(/0+$/, '');
+  return frac ? `${whole}.${frac}` : `${whole}`;
+};
+const slotOf = (address: string): string =>
+  Object.entries(manifest.addresses).find(([, a]) => a.address === address)?.[0] ?? '';
 
 beforeAll(async () => {
   manifest = JSON.parse(await readFile(join(REPO, 'fixtures/persona/manifest.json'), 'utf8')) as typeof manifest;
@@ -83,6 +92,8 @@ describe('demo scenario on the synthetic persona', () => {
               'etherscan_v2',
               'trongrid',
               'nbp_api',
+              // GREEN: history of the persona's own profile from the (synthetic) Wayback Machine.
+              'wayback_cdx',
             ],
             amberJustifications: {
               bitcointalk: JUSTIFICATION,
@@ -158,6 +169,63 @@ describe('demo scenario on the synthetic persona', () => {
       expect(valued.every((e) => e.valuation?.nbp.synthetic === true)).toBe(true);
       expect(valued.every((e) => e.valuation?.pln && e.valuation.nbp.currency === 'USD')).toBe(true);
       expect(run1?.progress['partialCodes']).toBeUndefined();
+
+      // Fund flows (computed): derived from the fixture site's own data, never from invented numbers.
+      const flows = (await runtime.repos.analysis.listFlows?.(first.id)) ?? [];
+      const flowsOf = (slot: string, sign: 1 | -1) =>
+        flows.filter(
+          (e) => (sign > 0 ? e.from : e.to).address.toLowerCase() === addressOf(slot) && Math.sign(e.hop) === sign,
+        );
+      // ETH-1: what the fixture's tx list says went in and out (1.5 ETH in, the sweep to the labelled hot wallet out).
+      const txlist = JSON.parse(
+        await readFile(
+          join(REPO, 'apps/fixture-site/public/shared/chain/etherscan', addressOf('ETH-1'), 'txlist.json'),
+          'utf8',
+        ),
+      ) as { result: { hash: string; from: string; to: string; value: string }[] };
+      const expectedOut = txlist.result.filter((t) => t.from === addressOf('ETH-1'));
+      const expectedIn = txlist.result.filter((t) => t.to === addressOf('ETH-1'));
+      expect(flowsOf('ETH-1', 1).map((e) => [e.hop, e.to.address.toLowerCase(), e.amount, e.txHash])).toEqual(
+        expectedOut.map((t) => [1, t.to, ethOf(t.value), t.hash]),
+      );
+      // The hot wallet is a labelled service: the path ends there, nothing is followed past it.
+      expect(flows.filter((e) => e.from.address.toLowerCase() === addressOf('HOT-1'))).toEqual([]);
+      expect(flowsOf('ETH-1', -1).map((e) => [e.hop, e.from.address.toLowerCase(), e.amount, e.txHash])).toEqual(
+        expectedIn.map((t) => [-1, t.from, ethOf(t.value), t.hash]),
+      );
+      // TRON-1 (manifest: 3000 USDT to the deposit address, which sweeps to the labelled hot wallet; six round P2P
+      // transfers; 5000 USDT from a DEX pair).
+      const tronDown = flowsOf('TRON-1', 1);
+      const deposit = tronDown.find((e) => e.to.address === manifest.addresses['TRON-DEP']?.address);
+      expect(deposit).toMatchObject({ hop: 1, amount: '3000', asset: 'USDT' });
+      expect(flows.find((e) => e.from.address === manifest.addresses['TRON-DEP']?.address)).toMatchObject({
+        hop: 2,
+        amount: '3000',
+        to: { address: manifest.addresses['TRON-HOT']?.address },
+      });
+      expect(flows.filter((e) => e.from.address === manifest.addresses['TRON-HOT']?.address)).toEqual([]);
+      expect(tronDown.filter((e) => slotOf(e.to.address).startsWith('TRON-P2P'))).toHaveLength(6);
+      expect(
+        flowsOf('TRON-1', -1).find((e) => e.from.address === manifest.addresses['TRON-DEX']?.address),
+      ).toMatchObject({
+        hop: -1,
+        amount: '5000',
+      });
+      // Every leg is valued (synthetic NBP), computed once per transfer and hop.
+      expect(flows.every((e) => e.valuation?.nbp.synthetic === true)).toBe(true);
+      expect(
+        new Set(flows.map((e) => `${e.txHash}|${e.index ?? ''}|${e.from.address}|${e.to.address}|${e.hop}`)).size,
+      ).toBe(flows.length);
+      // Per analysed address: a timeline (chronological) and an acyclic layered Sankey.
+      const views = (await runtime.repos.analysis.listFlowViews?.(first.id)) ?? [];
+      const tronView = views.find((v) => v.address.address === manifest.addresses['TRON-1']?.address);
+      expect(tronView?.timeline.map((e) => e.at)).toEqual(tronView?.timeline.map((e) => e.at).toSorted());
+      expect(tronView?.timeline.some((e) => e.kind === 'cash_out' && e.ruleId === 'B1')).toBe(true);
+      const layers = new Map((tronView?.sankey.nodes ?? []).map((nd) => [nd.id, nd.layer]));
+      expect(tronView?.sankey.links.length).toBeGreaterThan(0);
+      for (const link of tronView?.sankey.links ?? [])
+        expect((layers.get(link.target) ?? NaN) - (layers.get(link.source) ?? NaN)).toBe(1);
+      expect(views.every((v) => !v.truncated)).toBe(true);
       // Address types are stored with the run: CONTRACT-1 stays a plain contract (every probe negative), the persona's
       // accounts stay EOAs, Bitcoin is classified locally.
       const types = await runtime.repos.addressTypes!.list(first.id);
@@ -185,6 +253,8 @@ describe('demo scenario on the synthetic persona', () => {
       // Valuations cite the synthetic NBP table, so they cannot pass for real rates.
       expect(html).toContain('(kurs syntetyczny — dane demonstracyjne)');
       expect(html).toMatch(/tabela SYN\d+\/A\/NBP\/\d{4} z dnia/);
+      // The flow chapter carries the second hop (the deposit address's sweep), marked as a computed path.
+      expect(html).toContain('Krok przepływu: 2 od analizowanego adresu');
 
       // Every capture has its manifest blob (verifiable down to the artifacts) and exactly one `collected` custody event.
       const captures = await runtime.repos.evidence.listCaptures(first.id);
@@ -251,6 +321,39 @@ describe('demo scenario on the synthetic persona', () => {
       expect(
         egress.filter((e) => ['ceidg', 'vat_whitelist'].includes(e.sourceId)).every((e) => e.containsIdentifier),
       ).toBe(true);
+      // Archive history: the older snapshots of the persona's forum profile are collected as archived copies, in the
+      // same origin group as the live page; they add history, never score (the scores above are unchanged).
+      expect(contacted).toContain('wayback_cdx');
+      const archived = captures.filter((c) => c.archive);
+      expect(archived.map((c) => c.archive?.snapshotTimestamp)).toEqual(['20240312101500', '20250102030405']);
+      expect(
+        archived.every((c) => c.archive?.originalUrl === 'https://bitcointalk.org/index.php?action=profile;u=900001'),
+      ).toBe(true);
+      expect(archived.every((c) => c.sourceId === 'wayback_cdx' && c.status === 'ok')).toBe(true);
+      const history = buildWaybackHistory(captures, observations);
+      expect(history.map((h) => [h.snapshotTimestamp, h.fetched, h.digestCheck])).toEqual([
+        ['20240312101500', true, 'match'],
+        ['20250102030405', true, 'match'],
+      ]);
+      // The older snapshot mentions BTC-1 (extraction finds it); no counted evidence item rests on an archived copy.
+      const archivedIds = new Set(archived.map((c) => c.id));
+      const archivedCandidates = extracted.filter((r) => archivedIds.has(r.captureId)).flatMap((r) => r.candidates);
+      expect(archivedCandidates.map((c) => c.address.address.toLowerCase())).toContain(addressOf('BTC-1'));
+      const countedFromArchive = links
+        .flatMap((l) => l.paths)
+        .flatMap((p) => p.addressHop.contributions)
+        .filter((c) => c.counted && c.evidence.captureId && archivedIds.has(c.evidence.captureId));
+      expect(countedFromArchive).toEqual([]);
+      // Nothing about the archive reaches a third party: only the persona's own forum profile was looked up.
+      // The archive's robots.txt is the one request without a subject-derived URL.
+      expect(
+        egress
+          .filter((e) => e.sourceId === 'wayback_cdx' && e.purpose !== 'robots.txt')
+          .every((e) => e.containsIdentifier && e.allowed),
+      ).toBe(true);
+      expect(egress.filter((e) => e.sourceId === 'wayback_cdx' && e.purpose === 'wayback availability')).toHaveLength(
+        1,
+      );
       const stored = new Set((await runtime.repos.labels.list()).map((l) => l.id));
       const used = exclusions.flatMap((d) => d.evidence.labelIds ?? []);
       expect(used.length).toBeGreaterThan(0);

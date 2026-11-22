@@ -1,6 +1,6 @@
 /** Chapter 7 (changes since the previous run), 8 (evidence register, egress log) and 9 (methodology, limitations). */
 import type { Capture, ChangeEvent } from '@olcys/core';
-import { isAddressValuedProperty } from '@olcys/core';
+import { isAddressValuedProperty, waybackTimestampToIso } from '@olcys/core';
 import { formatUtc, plural } from '../format.ts';
 import { join, markup, t, type Html, type SafeHtml } from '../html.ts';
 import { pl } from '../i18n/pl.ts';
@@ -124,6 +124,15 @@ function timestampLine(view: View, capture: Capture): SafeHtml {
   )}${skew ? markup`<br>${muted(t(e.timestampSkew, { seconds: token.skewSeconds ?? 0 }))}` : ''}`;
 }
 
+/** The snapshot time in UTC; a timestamp the archive wrote in another form is shown as it is. */
+function snapshotDate(timestamp: string): string {
+  try {
+    return formatUtc(waybackTimestampToIso(timestamp));
+  } catch {
+    return timestamp;
+  }
+}
+
 function registerRow(view: View, capture: Capture, earlier: boolean): SafeHtml {
   const n = view.captureNo.get(capture.id) ?? 0;
   const e = pl.evidence;
@@ -144,8 +153,8 @@ function registerRow(view: View, capture: Capture, earlier: boolean): SafeHtml {
     capture.archive
       ? markup`<br>${muted(
           t(e.archive, {
-            provider: capture.archive.provider,
-            snapshot: capture.archive.snapshotTimestamp,
+            provider: e.archiveProviders[capture.archive.provider] ?? capture.archive.provider,
+            snapshot: snapshotDate(capture.archive.snapshotTimestamp),
             url: url(capture.archive.originalUrl),
           }),
         )}`

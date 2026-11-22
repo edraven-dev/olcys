@@ -213,3 +213,24 @@ muszą wymieniać blokowane hosty — nie są kontaktowane nawet jako „dodatko
   prokurenci, wspólnicy, zarząd) trafiają do raportu jako nazwa i rola i nigdy nie stają się podstawą dalszego
   wyszukiwania. Zapytania ujawniają rejestrom imię, nazwisko lub numer podatkowy badanej osoby i są odnotowane w dzienniku
   ruchu (`containsIdentifier: true`). Dane testowe są syntetyczne (NIP, REGON, KRS i rachunki celowo nieprzydzielone).
+
+## Archiwum internetowe (Wayback Machine)
+
+- **Charakter:** `wayback_cdx` (GREEN, wiarygodność B) — wyłącznie odczyt: Availability API, CDX z `collapse=digest` i
+  odtwarzanie surowej migawki (`id_`). Do 20 zapytań na minutę, jedno naraz; odpowiedź 429, która utrzymuje się po
+  odczekaniu klienta, wstrzymuje źródło do końca przebiegu (archiwum blokuje klientów, którzy nadal wysyłają po 429).
+- **robots.txt:** przy pobieraniu migawek respektujemy robots.txt hosta archiwum (zakaz = `blocked`, `robots_disallowed`);
+  robots.txt witryny źródłowej nie jest sprawdzany dla jej kopii w archiwum. Zapytania do API (Availability, CDX) go nie dotyczą.
+- **Save Page Now jest zakazane.** Zapisałoby stronę podejrzaną w publicznym archiwum i ujawniło zainteresowanie
+  śledczych. Kod nie ma ścieżki, która zbudowałaby adres punktu zapisu (`assertWaybackReadUrl`, test w
+  `packages/collectors/test/wayback.test.ts`); używane jest tylko `GET`. archive.today jest wykluczone (zmieniane
+  archiwa, ściana CAPTCHA).
+- **Czego dotyczy zapytanie:** wyłącznie adresów profili kont samej badanej osoby (podanych przez analityka albo
+  wskazanych przez jej własne strony) i dopasowanych stron z listy obserwowanych — nie stron osób trzecich. Adres jest
+  ujawniany Internet Archive, więc każde zapytanie ma w dzienniku ruchu `containsIdentifier: true`.
+- **Dowód:** migawka jest kopią z archiwum (pole `archive` przechwycenia), a nie stanem strony w chwili zbierania; ma tę
+  samą grupę pochodzenia co strona, którą odwzorowuje, więc nie zwiększa Wskaźnika Pewności — dodaje historię. Zgodność
+  skrótu migawki ze skrótem z CDX jest zapisywana jako obliczenie.
+- **Otwarte pytanie prawne:** warunki korzystania z Internet Archive udzielają dostępu „dla celów naukowych i
+  badawczych”. Czy obejmują one użycie przez organ administracji (KAS) w czynnościach urzędowych, wymaga opinii
+  prawnej, zanim źródło zostanie włączone w sprawie prowadzonej na żywo.

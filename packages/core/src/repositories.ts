@@ -3,7 +3,7 @@
  * `@olcys/db` (`createSqlRepositories`) and are wired in the composition root. Evidence repositories are
  * append-only: they add and read, never update or delete.
  */
-import type { ActivityIndicators, CashOutEvent } from './analytics.ts';
+import type { ActivityIndicators, CashOutEvent, FlowEdge } from './analytics.ts';
 import type { AnalysisRun, Case, CaseSchedule, Identifier } from './case.ts';
 import type { ChangeEvent } from './changes.ts';
 import type { NormalizedTransfer } from './chain-data.ts';
@@ -19,6 +19,7 @@ import type {
   TimestampToken,
 } from './evidence.ts';
 import type { AddressCandidate, ExtractionResult } from './extraction.ts';
+import type { FlowQuery, FlowQueryResult, FundFlowView } from './flows.ts';
 import type { AddressLabel, AddressTypeClassification, ExclusionDecision } from './labels.ts';
 import type { EgressLogEntry, ProvenanceEnvelope } from './provenance.ts';
 import type { SourceId } from './sources.ts';
@@ -140,6 +141,8 @@ export interface EvidenceRepository {
   addObservations(observations: Observation[]): Promise<void>;
   /** Stores the result, its candidates and secret positions (never secret values). */
   addExtraction(runId: Id, result: ExtractionResult): Promise<void>;
+  /** Stores several results all or nothing: when any write fails, none of them is stored. */
+  addExtractions?(runId: Id, results: readonly ExtractionResult[]): Promise<void>;
   listEgressLog(runId: Id): Promise<EgressLogEntry[]>;
   listCaptures(runId: Id): Promise<Capture[]>;
   getCapture(id: Id): Promise<Capture | undefined>;
@@ -150,8 +153,23 @@ export interface EvidenceRepository {
 }
 
 export interface ChainDataRepository {
-  addTransfers(runId: Id, address: AddressRef, transfers: NormalizedTransfer[]): Promise<void>;
+  /**
+   * Stores the transfers fetched for an address. `expansionHop` marks transfers of counterparties fetched by the
+   * fund-flow expansion (hop 1…N): they only serve flow queries and are not part of `listTransfers`.
+   */
+  addTransfers(
+    runId: Id,
+    address: AddressRef,
+    transfers: NormalizedTransfer[],
+    options?: { expansionHop?: number },
+  ): Promise<void>;
+  /** The transfers of the analysed addresses (expansion transfers excluded), once per run. */
   listTransfers(runId: Id): Promise<NormalizedTransfer[]>;
+  /**
+   * Fund flows over every stored transfer of the run (analysed and expansion): time-monotonic, bounded paths with cycle
+   * detection (`traceFlows`; PostgreSQL: recursive CTE). Both `@olcys/db` implementations provide it.
+   */
+  queryFlowEdges?(runId: Id, query: FlowQuery): Promise<FlowQueryResult>;
 }
 
 /** Address types the chain analysis determined (append-only; one classification per run and address). */
@@ -194,6 +212,16 @@ export interface AnalysisRepository {
     runId: Id,
     kind: string,
   ): Promise<{ blobSha256: string; mediaType: string; createdAt: string } | undefined>;
+  /**
+   * Fund-flow edges of the run (append-only; an edge already stored for the run — same transfer and hop — is kept once).
+   * Both `@olcys/db` implementations provide the flow methods.
+   */
+  addFlows?(runId: Id, edges: FlowEdge[]): Promise<void>;
+  /** Ordered by |hop|, time, transaction hash. */
+  listFlows?(runId: Id): Promise<FlowEdge[]>;
+  /** Fund-flow views (timeline and Sankey per analysed address); a view already stored for the run and address is kept. */
+  addFlowViews?(views: FundFlowView[]): Promise<void>;
+  listFlowViews?(runId: Id): Promise<FundFlowView[]>;
 }
 
 /** Reference data (labels are not run-scoped); re-importing the same dataset row is a no-op. */

@@ -123,8 +123,8 @@ export interface RobotsCacheOptions {
 
 /**
  * Fetches and caches `/robots.txt` per origin through the egress client (RFC 9309 §2.3.1): 2xx → parsed rules,
- * 4xx → no restrictions (both cached for `cacheTtlMs`, default 24 h), 5xx or an unreachable file → complete disallow
- * until a retry after `retryAfterFailureMs`.
+ * 429 or 5xx → complete disallow until a retry, other 4xx → no restrictions (cached for `cacheTtlMs`, default 24 h), an unreachable file → complete disallow until a retry after
+ * `retryAfterFailureMs`.
  */
 export class RobotsCache {
   private readonly client: EgressClient;
@@ -173,6 +173,8 @@ export class RobotsCache {
         containsIdentifier: false,
       });
       if (res.status >= 200 && res.status < 300) return { kind: 'rules', groups: parseRobots(res.text()) };
+      // A rate-limited robots.txt is not "absent": the source is asking us to slow down, so nothing is fetched.
+      if (res.status === 429) return { kind: 'disallow_all', reason: 'robots.txt rate limited (HTTP 429)' };
       if (res.status >= 400 && res.status < 500) return { kind: 'allow_all' };
       return { kind: 'disallow_all', reason: `robots.txt unreachable (HTTP ${res.status})` };
     } catch (error) {

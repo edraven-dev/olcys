@@ -15,6 +15,8 @@ import type {
   ChangeEvent,
   EgressLogEntry,
   ExclusionDecision,
+  FlowEdge,
+  FundFlowView,
   ExtractionResult,
   LinkAssessment,
   NormalizedTransfer,
@@ -179,6 +181,8 @@ export interface ChainTransfersTable {
   address: string;
   tx_hash: string;
   record: Json<NormalizedTransfer>;
+  /** 0: history of an analysed address; n: transfers of a counterparty fetched by hop n of the flow expansion (0008). */
+  expansion_hop: ColumnType<number, number | undefined, never>;
 }
 
 export interface AddressLabelsTable {
@@ -235,6 +239,33 @@ export interface AddressClusterTable {
   service_members: Json<AddressCluster['serviceMembers']>;
   flags: Json<AddressCluster['flags']>;
   created_at: GeneratedTimestamp;
+}
+
+/** Append-only: one fund-flow edge per run, transfer and hop (migration 0008). */
+export interface FlowEdgeTable {
+  run_id: string;
+  chain: string;
+  tx_hash: string;
+  idx: number;
+  from_address: string;
+  to_address: string;
+  asset: string;
+  amount: string;
+  at: Timestamp;
+  hop: number;
+  is_cycle: boolean;
+  record: Json<FlowEdge>;
+  created_at: GeneratedTimestamp;
+}
+
+/** Append-only: timeline and Sankey of one analysed address per run (migration 0008). */
+export interface FundFlowViewTable {
+  run_id: string;
+  chain: string;
+  address: string;
+  record: Json<FundFlowView>;
+  truncated: boolean;
+  computed_at: Timestamp;
 }
 
 export interface ActivityTable {
@@ -376,6 +407,8 @@ export interface Database {
   exclusion_decisions: ExclusionDecisionsTable;
   address_type_classification: AddressTypeClassificationTable;
   address_cluster: AddressClusterTable;
+  flow_edge: FlowEdgeTable;
+  fund_flow_view: FundFlowViewTable;
   activity: ActivityTable;
   cash_out_events: CashOutEventsTable;
   link_assessments: LinkAssessmentsTable;

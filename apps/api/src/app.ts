@@ -246,6 +246,9 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
   runList('clusters', (id) => repos.clusters?.list(id) ?? Promise.resolve([]), 'evidence');
   runList('activity', (id) => repos.analysis.listActivity(id), 'evidence');
   runList('cash-outs', (id) => repos.analysis.listCashOuts(id), 'evidence');
+  // Fund-flow edges (computed; hop > 0 downstream, hop < 0 upstream) and the per-address timeline and Sankey views.
+  runList('flows', (id) => repos.analysis.listFlows?.(id) ?? Promise.resolve([]), 'evidence');
+  runList('fund-flows', (id) => repos.analysis.listFlowViews?.(id) ?? Promise.resolve([]), 'evidence');
   runList('changes', (id) => repos.analysis.listChanges(id));
 
   // Address labels (reference data, not run-scoped) with their provenance: dataset, URL, licence, lastmod.

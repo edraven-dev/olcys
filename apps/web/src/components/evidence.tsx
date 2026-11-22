@@ -3,7 +3,7 @@
  * from the console's own API (`/api/blobs/<sha256>`), never embedded, framed or rendered; URLs are copyable text,
  * never links that would make the analyst's browser contact the source.
  */
-import type { AddressCandidate, Capture, Observation } from '@olcys/core';
+import { waybackTimestampToIso, type AddressCandidate, type Capture, type Observation } from '@olcys/core';
 import type { ReactNode } from 'react';
 import { pl } from '../i18n/pl.ts';
 import { lookup, t } from '../i18n/t.ts';
@@ -36,6 +36,29 @@ export function CaptureFiles({ capture }: { capture: Pick<Capture, 'artifacts'> 
   );
 }
 
+/** An archived copy (Wayback snapshot): the archive's snapshot time is history, never the time of collection. */
+function ArchiveFacts({ archive }: { archive: NonNullable<Capture['archive']> }) {
+  let iso: string | undefined;
+  try {
+    iso = waybackTimestampToIso(archive.snapshotTimestamp);
+  } catch {
+    iso = undefined;
+  }
+  return (
+    <>
+      <dt>{pl.evidence.archive}</dt>
+      <dd>
+        {t(pl.evidence.archiveOf, { provider: pl.evidence.archiveProviders[archive.provider] ?? archive.provider })}{' '}
+        {iso ? <DateTime iso={iso} /> : archive.snapshotTimestamp}
+      </dd>
+      <dt>{pl.evidence.archiveOriginal}</dt>
+      <dd>
+        <AddressText value={archive.originalUrl} />
+      </dd>
+    </>
+  );
+}
+
 /** One capture with its Berkeley-Protocol collection fields. */
 export function CaptureCard({
   capture,
@@ -64,6 +87,7 @@ export function CaptureCard({
           <DateTime iso={capture.collectedAt} />
           {capture.clockSynced ? null : <span className="tag tag-warn">{pl.evidence.clockNotSynced}</span>}
         </dd>
+        {capture.archive ? <ArchiveFacts archive={capture.archive} /> : null}
         <dt>{pl.evidence.manifest}</dt>
         <dd>
           <HashText value={capture.manifestSha256} />
