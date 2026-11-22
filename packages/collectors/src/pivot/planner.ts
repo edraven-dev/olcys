@@ -2,7 +2,7 @@
  * Pivot planner (pure, no I/O): input identifiers → collector tasks, and each task's result → follow-up tasks, inside
  * the run's locked scope and depth limit. Every task and every skipped candidate records why it exists.
  *
- * Rules `pivot.v2` (v2 adds E6):
+ * Rules `pivot.v3` (v2 added E6; v3 adds I7, I8 and E7 for the identity lookups BitList, ENS and Keybase):
  *   I1  identifier given for platform P            → P's collector
  *   I2  nick / social login                        → same nick on every other platform that has handles
  *   I3  any identifier                             → watch-list pages (kept only when an identifier matches)
@@ -19,6 +19,12 @@
  *   E6  profile URL of an account the subject gave or an own account's page linked (unbroken own chain), and a watch-list page
  *       that matched a case identifier → archive history (Wayback), same depth: a lookup, not a pivot. Pages of third
  *       parties (same-nick probes, search hits, warning channels) are never looked up: the URL is disclosed to the archive.
+ *   I7  crypto address (EVM; BTC for BitList)      → every source that looks addresses up by itself (ENS reverse lookup,
+ *                                                    BitList address → authors): one task per address
+ *   I8  identifier ending in `.eth`                → ENS forward check (name → address, text records)
+ *   E7  account of another platform found by a lookup source (BitList uid, a proof of a Keybase user) → that platform's
+ *       collector (depth + 1); never for accounts found from an address (any poster of an address is a third party)
+ *   Nicks reach BitList and Keybase through I2 (same-nick probe) like every other platform with handles.
  *   Third parties found in a registry (representatives, clerks, partners, board members) are never pivots.
  */
 import type {
@@ -39,7 +45,7 @@ import { isFixtureUrl, recogniseAccountUrl, toLogicalUrl, type FixtureMapping } 
 import { normalizeKrs, normalizeNip } from '../registries/polish-ids.ts';
 import { normaliseQueryText, SEARCH_IDENTIFIER_KINDS } from '../search/query.ts';
 
-export const PIVOT_RULES_VERSION = 'pivot.v2';
+export const PIVOT_RULES_VERSION = 'pivot.v3';
 export const PIVOT_REASONS = [
   'input_identifier',
   'same_nick',
@@ -163,6 +169,14 @@ export function accountAliasKeys(
   const keys = [taskKey(sourceId, handleSubject(account.platform, account.handle))];
   if (account.platformUserId) keys.push(taskKey(sourceId, `id:${account.platform}:${account.platformUserId}`));
   return keys;
+}
+
+/** True for an account of another platform that `factory` only found a reference to (see `accountsAreReferences`). */
+export function referencesOnly(
+  factory: CollectorFactory | undefined,
+  account: Pick<OnlineAccount, 'platform'>,
+): boolean {
+  return factory?.accountsAreReferences === true && account.platform !== factory.platform;
 }
 
 const emptyInput = (depth: number): CollectorInput => ({ identifiers: [], accounts: [], addresses: [], depth });
@@ -367,6 +381,55 @@ class Planner {
     });
   }
 
+  /** I7, I8: addresses and `.eth` names go to the sources that look them up by themselves. */
+  lookups(identifiers: readonly Identifier[]): void {
+    for (const identifier of identifiers) {
+      const value = identifier.value.trim();
+      if (!value || /^https?:\/\//i.test(value)) continue;
+      const provenance = (rule: string): PivotProvenance => ({
+        reason: 'input_identifier',
+        rule,
+        identifierId: identifier.id,
+        detail: value,
+      });
+      if (identifier.kind === 'crypto_address' && identifier.chain) {
+        const family =
+          identifier.chain === 'bitcoin' ? 'bitcoin' : identifier.chain.startsWith('evm') ? 'evm' : undefined;
+        if (!family) continue;
+        for (const factory of this.#ctx.factories.filter((f) => f.addressFamilies?.includes(family))) {
+          const subjectKey = `address:${identifier.chain}:${family === 'evm' ? value.toLowerCase() : value}`;
+          this.consider({
+            key: taskKey(factory.sourceId, subjectKey),
+            sourceId: factory.sourceId,
+            platform: factory.platform,
+            subjectKey,
+            depth: 0,
+            input: {
+              ...emptyInput(0),
+              identifiers: [identifier],
+              addresses: [{ chain: identifier.chain, address: value }],
+            },
+            provenance: provenance('I7'),
+          });
+        }
+      } else if (identifier.kind !== 'email' && identifier.kind !== 'full_name') {
+        const lower = value.toLowerCase();
+        for (const factory of this.#ctx.factories.filter((f) => f.nameSuffixes?.some((x) => lower.endsWith(x)))) {
+          const subjectKey = `name:${lower}`;
+          this.consider({
+            key: taskKey(factory.sourceId, subjectKey),
+            sourceId: factory.sourceId,
+            platform: factory.platform,
+            subjectKey,
+            depth: 0,
+            input: { ...emptyInput(0), identifiers: [identifier] },
+            provenance: provenance('I8'),
+          });
+        }
+      }
+    }
+  }
+
   /** Archive-history task for one page of the subject (E6); nothing when the case does not enable the archive. */
   history(url: string, depth: number, provenance: PivotProvenance): void {
     const factory = this.#ctx.factories.find((f) => f.archiveHistory);
@@ -453,6 +516,7 @@ export function planInitial(identifiers: readonly Identifier[], ctx: PlannerCont
       });
     }
   }
+  planner.lookups(identifiers);
   const matchable = identifiers.filter((i) => i.value.trim());
   if (matchable.length) {
     for (const page of ctx.watchList) {
@@ -502,6 +566,8 @@ export function planExpansion(parent: PlannedTask, result: CollectorResult, ctx:
   const depth = parent.depth + 1;
   const factory = ctx.factories.find((f) => f.sourceId === parent.sourceId);
   for (const account of result.accounts) {
+    // An account that a lookup source only refers to (BitList uid, Keybase proof) is not yet read by its own collector.
+    if (referencesOnly(factory, account)) continue;
     const owner = ctx.factories.find((f) => f.platform === account.platform);
     if (owner) for (const key of accountAliasKeys(owner.sourceId, account)) ctx.known.add(key);
   }
@@ -533,6 +599,23 @@ export function planExpansion(parent: PlannedTask, result: CollectorResult, ctx:
     );
   }
   planner.registries(parent, result, depth);
+  const fromAddress =
+    parent.input.addresses.length > 0 || parent.input.identifiers.some((i) => i.kind === 'crypto_address');
+  if (factory?.accountsAreReferences && !fromAddress) {
+    for (const account of result.accounts.filter((a) => referencesOnly(factory, a))) {
+      // Proofs of a Keybase user are already followed through their `account.link` (E1).
+      if (result.observations.some((o) => o.property === 'account.link' && o.value === account.profileUrl)) continue;
+      planner.linked(
+        account.profileUrl,
+        depth,
+        { reason: 'discovered_account', rule: 'E7', parentTaskKey: parent.key, accountId: account.id },
+        {
+          method: account.discoveredVia.method,
+          ...(account.discoveredVia.captureId ? { captureId: account.discoveredVia.captureId } : {}),
+        },
+      );
+    }
+  }
   if (!factory?.archiveHistory) {
     // E6: the subject's own accounts (given, or linked by their own pages in an unbroken chain from a given account), never hypotheses from a same-nick
     // probe or anything reached through a search hit or a third party's page.
@@ -556,7 +639,7 @@ export function planExpansion(parent: PlannedTask, result: CollectorResult, ctx:
       });
     }
   }
-  if (factory?.pivotOnAccounts !== false) {
+  if (factory?.pivotOnAccounts !== false && !(factory?.accountsAreReferences && fromAddress)) {
     // An account found by a same-nick probe was looked up with a nick already probed everywhere: no re-probe with
     // its platform spelling (e.g. the code-hosting login `a-b` for the nick `a_b`).
     for (const account of result.accounts.filter((a) => a.discoveredVia.method !== 'enumeration')) {

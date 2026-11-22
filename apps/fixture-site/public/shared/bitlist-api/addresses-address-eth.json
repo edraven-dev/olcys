@@ -1,0 +1,22 @@
+{
+  "_synthetic": "SYNTHETIC TEST DATA (OŁCyŚ fixture)",
+  "result": "success",
+  "message": null,
+  "data": {
+    "total_results": 1,
+    "addresses": [
+      {
+        "address": "0xC673a6e8B9c38297e8763C837ae50C34080D470F",
+        "coin": "ETH",
+        "post_id": 65000202,
+        "topic_id": 5500201,
+        "author": "olcys_test_ewa",
+        "author_uid": 900201,
+        "title": "Test: adres ETH (SYNTHETIC)",
+        "date": "2026-03-05T18:40:00.000Z",
+        "board_id": 142,
+        "board_name": "Polski"
+      }
+    ]
+  }
+}

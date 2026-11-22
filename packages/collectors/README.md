@@ -107,21 +107,24 @@ sekcjach.
 
 ## Kolektory
 
-| Źródło (`sourceId`) | Platforma       | Tryby         | Co zbiera                                                                                       |
-| ------------------- | --------------- | ------------- | ----------------------------------------------------------------------------------------------- |
-| `bitcointalk`       | `bitcointalk`   | offline, live | profil → „Show Posts” → do 3 wątków (najpierw z podpisaną wiadomością, potem z adresem)         |
-| `wykop`             | `wykop`         | offline       | profil społecznościowy: opis, linki do innych kont (`account.link`), wpisy                      |
-| `github`            | `github`        | offline       | profil z tym samym nickiem → repozytoria → surowy `FUNDING.json` (roszczenia Drips)             |
-| `telegram_preview`  | `telegram`      | offline, live | publiczny podgląd kanału `t.me/s/<kanał>`: opis kanału, posty z autorem (strona trzecia)        |
-| `fixture_site`      | `tablica`       | offline       | ogłoszenie P2P: sprzedający (imię i nazwisko, login, e-mail), treść ogłoszenia                  |
-| `mock_search`       | `web_search`    | offline       | wyszukiwarka testowa: strony z mapy witryny strony testowej zawierające zapytanie               |
-| `brave_search`      | `web_search`    | live, replay  | Brave Search API: wyniki wyszukiwania dokładnej frazy (tylko w trybie `external`)               |
-| `mojeek_search`     | `web_search`    | live, replay  | Mojeek Search API: wyniki wyszukiwania dokładnej frazy (tylko w trybie `external`)              |
-| `ceidg`             | `ceidg`         | offline, live | CEIDG API v3: firmy jednoosobowe po imieniu i nazwisku (w `live` wymaga tokenu)                 |
-| `vat_whitelist`     | `vat_whitelist` | offline, live | wykaz podatników VAT po NIP lub REGON: status VAT, rachunki bankowe, osoby (nazwa i rola)       |
-| `krs`               | `krs`           | offline, live | KRS Open API: odpis aktualny spółki po numerze KRS (zarząd, prokurenci, wspólnicy)              |
-| `wayback_cdx`       | `wayback`       | offline, live | historia profilu w Wayback Machine (tylko odczyt; sekcja „Historia z archiwum”)                 |
-| `maigret`           | `maigret`       | offline, live | enumeracja nicku w publicznych serwisach przez `services/osint-py` (sekcja „Enumeracja nicków”) |
+| Źródło (`sourceId`) | Platforma       | Tryby         | Co zbiera                                                                                                            |
+| ------------------- | --------------- | ------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `bitcointalk`       | `bitcointalk`   | offline, live | profil → „Show Posts” → do 3 wątków (najpierw z podpisaną wiadomością, potem z adresem)                              |
+| `wykop`             | `wykop`         | offline       | profil społecznościowy: opis, linki do innych kont (`account.link`), wpisy                                           |
+| `github`            | `github`        | offline       | profil z tym samym nickiem → repozytoria → surowy `FUNDING.json` (roszczenia Drips)                                  |
+| `telegram_preview`  | `telegram`      | offline, live | publiczny podgląd kanału `t.me/s/<kanał>`: opis kanału, posty z autorem (strona trzecia)                             |
+| `fixture_site`      | `tablica`       | offline       | ogłoszenie P2P: sprzedający (imię i nazwisko, login, e-mail), treść ogłoszenia                                       |
+| `mock_search`       | `web_search`    | offline       | wyszukiwarka testowa: strony z mapy witryny strony testowej zawierające zapytanie                                    |
+| `brave_search`      | `web_search`    | live, replay  | Brave Search API: wyniki wyszukiwania dokładnej frazy (tylko w trybie `external`)                                    |
+| `mojeek_search`     | `web_search`    | live, replay  | Mojeek Search API: wyniki wyszukiwania dokładnej frazy (tylko w trybie `external`)                                   |
+| `ceidg`             | `ceidg`         | offline, live | CEIDG API v3: firmy jednoosobowe po imieniu i nazwisku (w `live` wymaga tokenu)                                      |
+| `vat_whitelist`     | `vat_whitelist` | offline, live | wykaz podatników VAT po NIP lub REGON: status VAT, rachunki bankowe, osoby (nazwa i rola)                            |
+| `krs`               | `krs`           | offline, live | KRS Open API: odpis aktualny spółki po numerze KRS (zarząd, prokurenci, wspólnicy)                                   |
+| `wayback_cdx`       | `wayback`       | offline, live | historia profilu w Wayback Machine (tylko odczyt; sekcja „Historia z archiwum”)                                      |
+| `maigret`           | `maigret`       | offline, live | enumeracja nicku w publicznych serwisach przez `services/osint-py` (sekcja „Enumeracja nicków”)                      |
+| `keybase`           | `keybase`       | offline, live | publiczne `user/lookup`: podpisane adresy, zweryfikowane dowody kont (sekcja „Wyszukiwania tożsamości”)              |
+| `bitlist`           | `bitlist`       | offline, live | archiwum Bitcointalk (BitList): nick → adresy i wpisy, adres → autorzy (AMBER, sekcja „Wyszukiwania tożsamości”)     |
+| `ens`               | `ens`           | offline, live | ENS: nazwa główna zweryfikowana „w przód”, rekordy tekstowe i adresy innych sieci (sekcja „Wyszukiwania tożsamości”) |
 
 Profil forum po nazwie (`action=profile;user=`) jest sprawdzony tylko na stronie testowej; w trybie `live` potrzebny
 jest numer uid albo adres profilu. Strony Wykopu, GitHuba (HTML) i ogłoszeń istnieją tylko na stronie testowej.
@@ -333,7 +336,75 @@ własny dziennik) i pomija adresy wyłączone (`skipped`, `robots_disallowed`); 
 Poza trybem `live` kolektor wysyła wyłącznie `database: 'fixture'` i odrzuca `upstream` (`unsupported_input`), więc
 `offline` i `replay` nigdy nie sięgają do zewnętrznego internetu przez osint-py.
 
-## Pivoty (`pivot.v2`)
+## Wyszukiwania tożsamości (Keybase, BitList, ENS)
+
+Trzy źródła odpowiadają na pytanie „jaki adres publicznie przypisano tej tożsamości” (albo odwrotnie) bez logowania i bez
+kluczy. Moduły: `src/identity/`. Żadne z nich nie daje dowodu samo z siebie: obserwacje trafiają do zwykłej punktacji
+(rozdz. „Słownik obserwacji”), a odpowiedź „nie znaleziono” jest tylko faktem o źródle.
+
+### Keybase (`keybase`, GREEN)
+
+- Zapytanie: `GET https://keybase.io/_/api/1.0/user/lookup.json?usernames=<login>&fields=basics,profile,proofs_summary,cryptocurrency_addresses`
+  (tylko te pola; jeden login na zapytanie; 1 zapytanie/s z rejestru). Login: `^[a-z0-9_]{2,16}$`; nick z łącznikiem, zbyt
+  krótki albo e-mail nie jest wysyłany (`unsupported_input`).
+- `them: [null]` lub `NOT_FOUND` → `not_found` (odpowiedź twierdząca). Inny kod statusu, odpowiedź niebędąca JSON-em
+  (np. strona serwisowa) albo 5xx → `error` — usługa jest tylko utrzymywana, więc jej zniknięcie nigdy nie jest
+  „nie znaleziono”. 429/403 → `blocked` i wstrzymanie źródła do końca przebiegu.
+- Podpisany adres (`cryptocurrency_addresses`) → `verification.<moneta>_address` i `verification.<moneta>_sig_id`.
+  `sig_id` dowodzi, że klucz łańcucha podpisów konta złożył oświadczenie, a **nie** że klucz adresu — dlatego punktacja
+  nadal przechodzi przez zwykłe reguły (dowód kryptograficzny „E1” wagi v1 dotyczy tej obserwacji, ale nie omija bramek).
+  Zcash nie ma jeszcze rodziny łańcucha w rdzeniu: adres jest zapisany jako fakt z notatką `unsupported_input`.
+- Dowody kont (`proofs_summary`): zawsze `account.proof`, `verification.proof_state`, `verification.proof_sig_id`; tylko stan
+  `1` (OK) tworzy `account.link` i konto z `method: 'cross_link'` (GitHub, X, Reddit, Hacker News, strona/DNS). Adres
+  dowodzonego konta budowany jest z typu dowodu i nazwy, nigdy brany z odpowiedzi. Konta z serwisów czerwonych (X, Reddit)
+  są tylko zapisywane.
+
+### BitList (`bitlist`, AMBER)
+
+- Archiwum Bitcointalk osoby trzeciej, bez opublikowanych warunków i limitów; każde zapytanie ujawnia identyfikator
+  prywatnemu operatorowi. Działa tylko w sprawie, która włącza źródło z uzasadnieniem (≥ 20 znaków). W produkcji lepsze są
+  publiczne zrzuty danych.
+- Zapytania (interfejs nieudokumentowany; używane tylko zaobserwowane parametry `author`, `address`, `limit`; nigdy `board=`
+  ani tekst swobodny): `/addresses?author=<nick>&limit=50`, `/posts?author=<nick>&limit=50`,
+  `/addresses?address=<adres>&limit=50` (adresy `bitcoin` i `evm`). Jedno zapytanie na identyfikator i kierunek, 1 na 2 s.
+  Weryfikacja parametrów na żywym interfejsie: **niewykonana** (tylko odpowiedzi syntetyczne).
+- `result !== 'success'` → `error` (nigdy `not_found`); `total_results: 0` → `not_found`; 429/403 → `blocked`; więcej wyników
+  niż zwrócono → notatka `truncated: <zwrócone> of <razem>`.
+- Minimalizacja danych: do obserwacji trafiają tylko trafienia, w których autor to wyszukiwany nick albo adres to wyszukiwany
+  adres; surowa odpowiedź zostaje w przechwyceniu.
+- Konto `bitcointalk` z numerem uid (`method: 'search'`), obserwacje `archive.post.*` (kopia treści autora u osoby trzeciej,
+  **kontekst E3**, w tej samej grupie źródeł co wpis forum, który odbija; wartość adresu jest walidowana dopiero przy
+  ekstrakcji) i fakty `post.signed_message.*` z archiwalnych wpisów (weryfikacja podpisu odbywa się przy ocenie dowodów).
+  Uid prowadzi (reguła E7) do kolektora forum. Autorzy znalezieni po adresie to osoby trzecie: są zapisywani, ale nie są pivotami.
+
+### ENS (`ens`, GREEN)
+
+- Węzeł: JSON-RPC Ethereum wybrany przez wdrożenie. Zmienne: `ENS_RPC_URL` (bez domyślnej wartości: komercyjny węzeł widziałby
+  każdy badany adres; zalecany własny węzeł), `ENS_UNIVERSAL_RESOLVER` (adres Universal Resolver wdrożenia; nie jest
+  wpisany w kodzie) i host węzła w `OLCYS_SOURCE_HOSTS_ENS` (rejestr ma `allowedHosts: []`; nadpisanie dotyczy tylko źródeł
+  bez hostów w rejestrze). Bez `ENS_RPC_URL` w trybie `live` kolektor nie jest rejestrowany; host spoza listy albo zły adres
+  resolvera to błąd konfiguracji przy starcie. Offline i w replay odpowiada syntetyczny węzeł strony testowej (POST pod
+  `ens-rpc.example` → `/ens-rpc/`). Każde wywołanie to `EgressClient` (`containsIdentifier: true`, przypięty blok), bez
+  indeksatorów, bramek CCIP-Read (odpowiedź `OffchainLookup` → notatka `unsupported_input: ccip-read disabled`) i bez pobierania awatarów.
+- Nazwa główna adresu liczy się **tylko po weryfikacji w przód** (nazwa → adres wraca do tego samego adresu); wtedy powstaje
+  konto `ens` (`protocol_lookup`) i obserwacja `ens.verified_address` (kandydat E1). Rozbieżność → `computed.ens.forward_verified`
+  `false`, bez konta. Rekordy tekstowe, adres nazwy (`profile.ens_address`) i adresy innych sieci (`profile.ens_btc_address`,
+  `profile.ens_trx_address`) to oświadczenia zarządcy nazwy (każdy może wskazać nazwę na dowolny adres): **E2**, nie E1.
+  Rekordy tekstowe są niezaufanymi danymi: znaki sterujące usunięte, do 2 KB, nigdy nie są pobierane; `account.link` powstaje
+  tylko z poprawnie zbudowanego loginu (`com.github`, `com.twitter`, `org.telegram`, `io.keybase`) albo adresu `http(s)` z `url`.
+- Normalizacja nazw to ścisły podzbiór ENSIP-15 (małe litery ASCII, cyfry, `-`, `_` wiodące); nazwy z innymi znakami
+  (w tym niewidocznymi, np. U+200B, i mylącymi z innych alfabetów) są odrzucane (`unsupported_input`, 0 zapytań), a nie zgadywane.
+  Odczytywane monety ENSIP-9: BTC (0) i TRX (195); pozostałe są pominięte. Zamiast biblioteki viem (bez nowej zależności o
+  dużym rozmiarze) kodowanie ABI i namehash są własne, na `@noble/hashes` i `@scure/base`; zgodność z żywym Universal Resolver
+  nie była sprawdzana (tylko węzeł syntetyczny).
+
+### Dane testowe
+
+Persona demonstracyjna jest nieznana wszystkim trzem źródłom (odpowiedzi „nie znaleziono”), więc jej wynik nie zmienia się.
+Druga syntetyczna tożsamość `olcys_test_ewa` / `olcys-test-ewa.eth` (uid 900201) jest „znaleziona” i służy testom
+kolektorów (`test/identity.test.ts`); jej adresy są losowymi bajtami w poprawnym formacie, wyprowadzonymi z ziarna manifestu.
+
+## Pivoty (`pivot.v3`)
 
 | Reguła                 | Wyzwalacz                                                                                                                         | Zadanie                                                                                                                         |
 | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
@@ -348,7 +419,14 @@ Poza trybem `live` kolektor wysyła wyłącznie `database: 'fixture'` i odrzuca 
 | I6                     | identyfikator rodzaju, który źródło wyszukuje samo: imię i nazwisko (`full_name`), nick / login (`nickname`, `social_login`)      | CEIDG: jedno wyszukiwanie po imieniu i nazwisku; Maigret: jedna enumeracja nicku (klucz `name:<tekst>`)                         |
 | E4                     | `registry.nip` z CEIDG                                                                                                            | wykaz VAT (głębokość + 1) — **tylko** gdy `registry.ceidg.result_count` = 1; w przeciwnym razie pominięcie `ambiguous_namesake` |
 | E5                     | `registry.krs` z wykazu VAT                                                                                                       | KRS (głębokość + 1)                                                                                                             |
-| E6 (nowa w `pivot.v2`) | profil własnego konta (`input`, `cross_link` w nieprzerwanym łańcuchu własnych kont) albo dopasowana strona z listy obserwowanych | historia z archiwum (Wayback), ta sama głębokość: to sprawdzenie, nie pivot; nigdy strony osób trzecich                         |
+| I7 (nowa w `pivot.v3`) | `crypto_address` (rodzina `evm`; `bitcoin` także dla BitList)                                                                     | źródła szukające adresów same: ENS (nazwa główna), BitList (adres → autorzy); jedno zadanie na adres (`address:<sieć>:<adres>`) |
+| I8 (nowa w `pivot.v3`) | identyfikator kończący się na `.eth`                                                                                              | ENS: sprawdzenie nazwy w przód i rekordy tekstowe (klucz `name:<nazwa>`)                                                        |
+| E7 (nowa w `pivot.v3`) | konto innej platformy znalezione przez źródło-odsyłacz (uid z BitList)                                                            | kolektor tej platformy (głębokość + 1); nigdy dla kont znalezionych po adresie                                                  |
+| E6 (od `pivot.v2`)     | profil własnego konta (`input`, `cross_link` w nieprzerwanym łańcuchu własnych kont) albo dopasowana strona z listy obserwowanych | historia z archiwum (Wayback), ta sama głębokość: to sprawdzenie, nie pivot; nigdy strony osób trzecich                         |
+
+Nick trafia do Keybase i BitList regułą I2, jak do każdej platformy z loginami. Konta, do których źródło-odsyłacz (`accountsAreReferences`)
+tylko odsyła (uid z BitList, dowód Keybase), nie oznaczają kolektora tej platformy jako „już zebrany”: forum albo GitHub
+zbierają je same. Wersja reguł: `pivot.v3` (zmieniła się, bo dodano I7, I8 i E7).
 
 Osoby trzecie z rejestrów (reprezentanci, prokurenci, wspólnicy, zarząd) nigdy nie są pivotami. Wyszukiwania (I5) są planowane po wszystkich pozostałych regułach identyfikatorów, więc nie zabierają limitu zadań
 kolektorom platform. Wyniki wyszukiwania (E3) trafiają do kolektora strony z listy obserwowanych, który ją czyta — pod
@@ -373,26 +451,33 @@ stron: offline i replay — strony z manifestu persony (jak mapa witryny), live 
 Klucz konta: `<platforma>:<uid albo login małymi literami>`; klucz strony (posta) odpowiada kotwicy DOM posta, więc
 ekstraktor może przypisać wzmiankę autorowi. Lokalizator: `<klucz>#<właściwość>` (`[i]` dla powtórzeń).
 
-| Właściwość                                                                    | Podmiot                             | Znaczenie                                                                                    |
-| ----------------------------------------------------------------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------- |
-| `profile.<pole>` (`bitcoin_address`, `name`, `website`, `date_registered`, …) | konto `bitcointalk:<uid>`           | pole profilu forum (lokalizator `bitcointalk:u=<uid>#profile.<pole>`)                        |
-| `post.signed_message.address`, `.text`, `.signature`, `.armor`                | konto autora `bitcointalk:<uid>`    | blok podpisanej wiadomości (bez weryfikacji), `bitcointalk:msg=<m>#signed_message[<i>]`      |
-| `post.signed_message.in_quote`, `.quote_author`                               | strona `bitcointalk:msg=<m>`        | kopia bloku w cytacie innego użytkownika                                                     |
-| `post.author`, `post.author_name`                                             | strona (post)                       | autor posta (klucz konta) i jego nazwa                                                       |
-| `post.published_at`, `post.subject`, `post.board`, `post.url`, `post.text`    | strona (post)                       | data (UTC), temat, dział, adres logiczny, treść                                              |
-| `account.link`                                                                | konto                               | adres logiczny innego rozpoznanego konta (w tej samej postaci co `profileUrl`)               |
-| `enumeration.status`, `profile.<pole>`, `profile.link`                        | konto-kandydat `<platforma>:<nick>` | wynik enumeracji Maigret dla serwisu; pola profilu z socid-extractor; odnośnik nierozpoznany |
-| `profile.about`                                                               | konto `wykop:<login>`               | opis profilu                                                                                 |
-| `profile.name`, `profile.bio`, `profile.repository`                           | konto `github:<login>`              | profil serwisu z kodem                                                                       |
-| `claim.drips.<sieć>_address`, `claim.funding_json`                            | konto `github:<login>`              | `ownedBy` z `FUNDING.json` i surowa treść pliku                                              |
-| `profile.name`, `profile.login`, `profile.email`, `profile.member_since`      | konto `tablica:<login>`             | dane sprzedającego z ogłoszenia P2P                                                          |
-| `post.title`, `post.price`                                                    | strona `tablica:ad=<id>`            | tytuł i cena ogłoszenia                                                                      |
-| `profile.name`, `profile.description`                                         | konto `telegram:<kanał>`            | nazwa i opis kanału                                                                          |
-| `archive.snapshot`, `archive.digest`, `computed.archive_digest_check`         | strona (adres oryginalny)           | wpis listy CDX Wayback (znacznik, skrót) i obliczone porównanie skrótu pobranej migawki      |
-| `computed.identifier_match`                                                   | konto sprzedającego / post kanału   | obliczenie OŁCyŚ: który identyfikator sprawy pasuje (`email`, `full_name`, `nickname`, …)    |
-| `search.result_url`                                                           | strona `search:<dostawca>:<sha>`    | adres wyniku; lokalizator `search:<dostawca>:<sha256 zapytania>#rank=<n>`                    |
-| `search.result_count`                                                         | strona `search:<dostawca>:<sha>`    | liczba wyników (tylko pełna lista)                                                           |
-| `registry.*` (opis w sekcji „Rejestry publiczne”)                             | strona `ceidg:` / `vat:` / `krs:`   | fakty z urzędowych rejestrów; osoby trzecie tylko jako nazwa i rola, nigdy PESEL             |
+| Właściwość                                                                                | Podmiot                             | Znaczenie                                                                                                                                 |
+| ----------------------------------------------------------------------------------------- | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `profile.<pole>` (`bitcoin_address`, `name`, `website`, `date_registered`, …)             | konto `bitcointalk:<uid>`           | pole profilu forum (lokalizator `bitcointalk:u=<uid>#profile.<pole>`)                                                                     |
+| `post.signed_message.address`, `.text`, `.signature`, `.armor`                            | konto autora `bitcointalk:<uid>`    | blok podpisanej wiadomości (bez weryfikacji), `bitcointalk:msg=<m>#signed_message[<i>]`                                                   |
+| `post.signed_message.in_quote`, `.quote_author`                                           | strona `bitcointalk:msg=<m>`        | kopia bloku w cytacie innego użytkownika                                                                                                  |
+| `post.author`, `post.author_name`                                                         | strona (post)                       | autor posta (klucz konta) i jego nazwa                                                                                                    |
+| `post.published_at`, `post.subject`, `post.board`, `post.url`, `post.text`                | strona (post)                       | data (UTC), temat, dział, adres logiczny, treść                                                                                           |
+| `account.link`                                                                            | konto                               | adres logiczny innego rozpoznanego konta (w tej samej postaci co `profileUrl`)                                                            |
+| `enumeration.status`, `profile.<pole>`, `profile.link`                                    | konto-kandydat `<platforma>:<nick>` | wynik enumeracji Maigret dla serwisu; pola profilu z socid-extractor; odnośnik nierozpoznany                                              |
+| `profile.about`                                                                           | konto `wykop:<login>`               | opis profilu                                                                                                                              |
+| `profile.name`, `profile.bio`, `profile.repository`                                       | konto `github:<login>`              | profil serwisu z kodem                                                                                                                    |
+| `claim.drips.<sieć>_address`, `claim.funding_json`                                        | konto `github:<login>`              | `ownedBy` z `FUNDING.json` i surowa treść pliku                                                                                           |
+| `profile.name`, `profile.login`, `profile.email`, `profile.member_since`                  | konto `tablica:<login>`             | dane sprzedającego z ogłoszenia P2P                                                                                                       |
+| `post.title`, `post.price`                                                                | strona `tablica:ad=<id>`            | tytuł i cena ogłoszenia                                                                                                                   |
+| `profile.name`, `profile.description`                                                     | konto `telegram:<kanał>`            | nazwa i opis kanału                                                                                                                       |
+| `archive.snapshot`, `archive.digest`, `computed.archive_digest_check`                     | strona (adres oryginalny)           | wpis listy CDX Wayback (znacznik, skrót) i obliczone porównanie skrótu pobranej migawki                                                   |
+| `computed.identifier_match`                                                               | konto sprzedającego / post kanału   | obliczenie OŁCyŚ: który identyfikator sprawy pasuje (`email`, `full_name`, `nickname`, …)                                                 |
+| `search.result_url`                                                                       | strona `search:<dostawca>:<sha>`    | adres wyniku; lokalizator `search:<dostawca>:<sha256 zapytania>#rank=<n>`                                                                 |
+| `search.result_count`                                                                     | strona `search:<dostawca>:<sha>`    | liczba wyników (tylko pełna lista)                                                                                                        |
+| `verification.<moneta>_address`, `verification.<moneta>_sig_id`                           | konto `keybase:<login>`             | adres podpisany kluczem konta Keybase (E1 wagi v1) i identyfikator podpisu; lokalizator `…#cryptocurrency_addresses.<moneta>[<i>]`        |
+| `account.proof`, `verification.proof_state`, `verification.proof_sig_id`                  | konto `keybase:<login>`             | dowód konta w innym serwisie (`<typ>:<nazwa>`), stan (1 = OK) i podpis; lokalizator `…#proof[<sig_id>]`                                   |
+| `profile.full_name`, `.location`, `.bio`, `.created_at`, `.updated_at`                    | konto `keybase:<login>`             | pola profilu Keybase (deklaracje właściciela) i daty konta                                                                                |
+| `archive.post.address`, `.coin`, `.board`, `.published_at`, `.title`, `.url`, `.text`     | konto `bitcointalk:<uid>`           | kopia wpisu z archiwum BitList (kontekst E3); lokalizator `bitlist:post=<id>#address[<i>]`                                                |
+| `ens.primary_name`, `computed.ens.forward_verified`                                       | adres `evm:1:<adres>`               | nazwa główna adresu i wynik weryfikacji w przód (obliczenie OŁCyŚ); lokalizator `ens:addr=<adres>#reverse.60`                             |
+| `ens.verified_address`                                                                    | konto `ens:<nazwa>`                 | adres, do którego nazwa wraca — **tylko** po weryfikacji w przód (kandydat E1)                                                            |
+| `profile.ens_address`, `profile.ens_<moneta>_address`, `ens.text.<klucz>`, `account.link` | konto `ens:<nazwa>`                 | oświadczenia zarządcy nazwy (E2), niezaufane teksty oczyszczone i obcięte do 2 KB; lokalizator `ens:<nazwa>#addr.<typ>` / `#text.<klucz>` |
+| `registry.*` (opis w sekcji „Rejestry publiczne”)                                         | strona `ceidg:` / `vat:` / `krs:`   | fakty z urzędowych rejestrów; osoby trzecie tylko jako nazwa i rola, nigdy PESEL                                                          |
 
 Pola zmieniające się przy każdej wizycie (`Last Active`, `Local Time`, `Current Status`) zostają tylko w przechwyceniu.
 
@@ -434,5 +519,5 @@ Notatki mają postać `kod: szczegóły`; interfejs tłumaczy kod.
 obserwowanych stron w trybie `live`. Wyszukiwarki: `OLCYS_SEARCH_MODE` (`off` | `mock` | `external`, domyślnie `mock`),
 `BRAVE_SEARCH_API_KEY`, `BRAVE_SEARCH_STORAGE_RIGHTS` (`true` tylko z planem, który pozwala przechowywać wyniki),
 `MOJEEK_API_KEY`, `MOJEEK_PLAN` (`startup` | `business` | `enterprise`, domyślnie `startup`); rejestry: `CEIDG_API_TOKEN`
-(tylko `live`; bez niego CEIDG nie jest rejestrowany); Maigret: `OSINT_PY_URL` (domyślnie `http://127.0.0.1:8090`) i
+(tylko `live`; bez niego CEIDG nie jest rejestrowany); ENS: `ENS_RPC_URL`, `ENS_UNIVERSAL_RESOLVER`, `OLCYS_SOURCE_HOSTS_ENS` (host węzła; tylko źródła bez hostów w rejestrze; przykład: `OLCYS_SOURCE_HOSTS_ENS=node.example.org`); Maigret: `OSINT_PY_URL` (domyślnie `http://127.0.0.1:8090`) i
 `OSINT_PY_DATABASE` (`fixture` | `upstream`; domyślnie `fixture` poza trybem `live`). Klucze wyłącznie ze zmiennych środowiskowych.

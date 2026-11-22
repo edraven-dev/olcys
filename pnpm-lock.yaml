@@ -360,9 +360,15 @@ importers:
 
   packages/collectors:
     dependencies:
+      '@noble/hashes':
+        specifier: 2.4.0
+        version: 2.4.0
       '@olcys/core':
         specifier: workspace:*
         version: link:../core
+      '@scure/base':
+        specifier: 2.4.0
+        version: 2.4.0
       linkedom:
         specifier: 0.18.15
         version: 0.18.15

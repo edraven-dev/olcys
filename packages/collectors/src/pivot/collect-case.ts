@@ -26,6 +26,9 @@ import { createBitcointalkCollector } from '../platforms/bitcointalk.ts';
 import { createCeidgCollector } from '../registries/ceidg.ts';
 import { createKrsCollector } from '../registries/krs.ts';
 import { createVatWhitelistCollector } from '../registries/vat-whitelist.ts';
+import { createBitlistCollector } from '../identity/bitlist.ts';
+import { createEnsCollector } from '../identity/ens.ts';
+import { createKeybaseCollector } from '../identity/keybase.ts';
 import { createGithubCollector } from '../platforms/code-hosting.ts';
 import { createWykopCollector } from '../platforms/social-profile.ts';
 import { createTelegramCollector } from '../platforms/telegram.ts';
@@ -38,13 +41,15 @@ import {
   planExpansion,
   planInitial,
   PIVOT_RULES_VERSION,
+  referencesOnly,
   type PlannedTask,
   type PlannerContext,
   type SkippedTask,
 } from './planner.ts';
 
 /**
- * Forum, social profile, code hosting, channel previews and P2P ads (fixture), the Polish public registries and the
+ * Forum, social profile, code hosting, channel previews and P2P ads (fixture), the identity lookups Keybase, BitList
+ * and ENS, the Polish public registries and the
  * Wayback history lookup (offline and in replay served by the fixture site's synthetic archive), in planning order, then the web search collectors of `OLCYS_SEARCH_MODE` (default: the mock search over the fixture
  * site). CEIDG needs the institution's token (`CEIDG_API_TOKEN`) in live mode and is not registered without it;
  * offline and in replay it reads the synthetic fixture site and needs none.
@@ -55,6 +60,8 @@ export function createDefaultCollectorRegistry(options: { mode?: FetchMode; env?
     .register(createWykopCollector())
     .register(createGithubCollector())
     .register(createTelegramCollector())
+    .register(createKeybaseCollector())
+    .register(createBitlistCollector())
     .register(createClassifiedAdsCollector())
     .register(createVatWhitelistCollector())
     .register(createKrsCollector())
@@ -63,6 +70,14 @@ export function createDefaultCollectorRegistry(options: { mode?: FetchMode; env?
   const ceidgToken = options.env?.['CEIDG_API_TOKEN']?.trim();
   if ((options.mode ?? 'offline') !== 'live' || ceidgToken) {
     registry.register(createCeidgCollector({ token: ceidgToken }));
+  }
+  // ENS reads a node chosen by the deployment: live it needs ENS_RPC_URL (and its host in OLCYS_SOURCE_HOSTS_ENS);
+  // offline and in replay the fixture site's synthetic node answers.
+  const ensRpcUrl = options.env?.['ENS_RPC_URL']?.trim();
+  if ((options.mode ?? 'offline') !== 'live' || ensRpcUrl) {
+    registry.register(
+      createEnsCollector({ rpcUrl: ensRpcUrl, universalResolver: options.env?.['ENS_UNIVERSAL_RESOLVER'] }),
+    );
   }
   for (const factory of searchCollectorFactories({ mode: options.mode ?? 'offline', env: options.env ?? {} })) {
     registry.register(factory);
@@ -194,6 +209,7 @@ export async function collectCase(options: CollectCaseOptions): Promise<CollectC
     const result: CollectorResult = await runCollector(instance.collector, task.input, ctx, scope, deps);
     covered.add(task.key);
     for (const account of result.accounts) {
+      if (referencesOnly(instance.factory, account)) continue;
       const owner = planner.factories.find((f) => f.platform === account.platform);
       if (owner) for (const alias of accountAliasKeys(owner.sourceId, account)) covered.add(alias);
     }

@@ -129,9 +129,10 @@ function lazy<T>(load: () => Promise<T>): () => Promise<T> {
 }
 
 export function createCollectStage(options: StageOptions): Stage {
-  const registry = lazy<SourceRegistry>(() => loadSourceRegistry());
-  const redactor = createSecretRedactor();
   const env = options.env ?? process.env;
+  // Hosts that the deployment supplies for sources without registered hosts (OLCYS_SOURCE_HOSTS_ENS) join the register.
+  const registry = lazy<SourceRegistry>(() => loadSourceRegistry(undefined, env));
+  const redactor = createSecretRedactor();
   // One clock check (cached 60 s) and one recorder per process; the collector identity is resolved from local state.
   const maxOffsetMs = Number(env['OLCYS_CLOCK_MAX_OFFSET_MS']);
   const collector = resolveCollectorIdentity({ ...env }, { hostname, networkInterfaces }, readDefaultRouteInterface());
