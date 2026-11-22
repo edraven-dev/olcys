@@ -1,8 +1,10 @@
 import type { ApiMeta } from '@olcys/core';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { SettingsView } from '../src/features/settings/SettingsPage.tsx';
 import type { SourceItem } from '../src/lib/domain.ts';
+import { ApiRequestError } from '../src/lib/api.ts';
+import type { Resource } from '../src/lib/use-api.ts';
 
 const text = (html: string) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
 
@@ -46,8 +48,16 @@ const sources: SourceItem[] = [
   },
 ];
 
+const resource = (data: SourceItem[] | undefined, error?: unknown): Resource<SourceItem[]> => ({
+  data,
+  error,
+  loading: false,
+  updatedAt: data ? Date.parse('2026-11-21T10:00:00.000Z') : undefined,
+  reload: vi.fn(),
+});
+
 describe('settings page', () => {
-  const html = renderToStaticMarkup(<SettingsView meta={meta} sources={sources} />);
+  const html = renderToStaticMarkup(<SettingsView meta={meta} sources={resource(sources)} />);
   const content = text(html);
 
   it('shows mode, versions, model, weights status and the source register', () => {
@@ -81,5 +91,33 @@ describe('settings page', () => {
     const sections = [...html.matchAll(/<section[^>]*aria-labelledby="([^"]+)"/g)].map((m) => m[1]);
     expect(sections.length).toBeGreaterThanOrEqual(6);
     for (const id of sections) expect(html).toContain(`id="${id}"`);
+  });
+});
+
+describe('source register states', () => {
+  const failure = new ApiRequestError(500, 'internal', '');
+  const render = (sourcesResource: Resource<SourceItem[]>) =>
+    text(renderToStaticMarkup(<SettingsView meta={meta} sources={sourcesResource} />));
+
+  it('shows loading separately from the rest of the settings', () => {
+    const content = render(resource(undefined));
+    expect(content).toContain('Wczytywanie');
+    expect(content).toContain('0.1.0');
+    expect(content).not.toContain('Zarejestrowane źródła');
+  });
+
+  it('shows a failed register with a retry instead of an empty table', () => {
+    const content = render(resource(undefined, failure));
+    expect(content).toContain('Nie udało się wczytać rejestru źródeł.');
+    expect(content).toContain('Spróbuj ponownie');
+    expect(content).not.toContain('Zarejestrowane źródła');
+    expect(content).toContain('weights.v1');
+  });
+
+  it('keeps cached sources but says the refresh failed', () => {
+    const content = render(resource(sources, failure));
+    expect(content).toContain('Nie udało się odświeżyć danych');
+    expect(content).toContain('Spróbuj ponownie');
+    expect(content).toContain('x_twitter');
   });
 });

@@ -42,7 +42,9 @@ export { assertSelfContainedHtml, ExternalReferenceError } from './self-containe
 export {
   createReportStage,
   findExportSet,
-  findReportData,
+  findPublishedReport,
+  loadReportVersion,
+  type PublishedReport,
   REPORT_DATA_MEDIA_TYPE,
   REPORT_HTML_MEDIA_TYPE,
   REPORT_KINDS,

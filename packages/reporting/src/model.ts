@@ -8,6 +8,7 @@ import type {
   AddressRef,
   AnalyticConfidence,
   Capture,
+  LinkAssessment,
   ReportComputed,
   ReportFact,
   ReportInference,
@@ -18,7 +19,7 @@ import { fill } from './html.ts';
 import { pl } from './i18n/pl.ts';
 import { flowSteps } from './render/chain.ts';
 import { isWalletSwap, changeWhere } from './render/annex.ts';
-import { isKycLead, propertyLabel, uniqueRejected } from './render/links.ts';
+import { COMPUTED_PREFIX, isKycLead, linkEvidence, propertyLabel, uniqueRejected } from './render/links.ts';
 import type { ReportData } from './types.ts';
 import { chainName } from './render/blocks.ts';
 import { buildView, cmp, icdTerm, linkBand, lowestConfidence, refKey, timeOf, type View } from './view.ts';
@@ -37,23 +38,25 @@ function rejectReason(reason: string): string {
 
 function factsOf(view: View): ReportFact[] {
   const { data } = view;
-  const fromObservations = data.observations.map((o): { fact: ReportFact; at: string } => {
-    const capture = view.captureById.get(o.captureId);
-    const at = capture?.collectedAt ?? o.observedAt;
-    const fact: ReportFact = {
-      id: o.id,
-      statement: fill(pl.facts.observation, {
-        source: view.sourceName(o.sourceId),
-        subject: o.subject.key,
-        property: propertyLabel(o.property),
-        value: o.value,
-      }),
-      captureId: o.captureId,
-      url: capture?.url ?? '',
-      collectedAt: at,
-    };
-    return { fact, at };
-  });
+  const fromObservations = data.observations
+    .filter((o) => !o.property.startsWith(COMPUTED_PREFIX))
+    .map((o): { fact: ReportFact; at: string } => {
+      const capture = view.captureById.get(o.captureId);
+      const at = capture?.collectedAt ?? o.observedAt;
+      const fact: ReportFact = {
+        id: o.id,
+        statement: fill(pl.facts.observation, {
+          source: view.sourceName(o.sourceId),
+          subject: o.subject.key,
+          property: propertyLabel(o.property),
+          value: o.value,
+        }),
+        captureId: o.captureId,
+        url: capture?.url ?? '',
+        collectedAt: at,
+      };
+      return { fact, at };
+    });
   const fromCandidates = data.candidates.map((c): { fact: ReportFact; at: string } => {
     const capture = view.captureById.get(c.captureId);
     const fact: ReportFact = {
@@ -79,9 +82,30 @@ function basedOnAddress(view: View, address: AddressRef): string[] {
   return [...view.observationsFor(address).map((o) => o.id), ...view.candidatesFor(address).map((c) => c.id)];
 }
 
+/** Facts and computed checks the link rests on, from both hops of its paths (as the HTML renderer cites them). */
+function linkBasedOn(view: View, link: LinkAssessment): string[] {
+  const e = linkEvidence(view, link);
+  return [...new Set([...e.facts, ...e.candidates, ...e.computed].map((x) => x.id))];
+}
+
 function computedOf(view: View): ReportComputed[] {
   const { data } = view;
   const out: ReportComputed[] = [];
+  // Checks OŁCyŚ computed itself on a page (e.g. the signed-message verification) are results, never source facts.
+  for (const o of data.observations.filter((x) => x.property.startsWith(COMPUTED_PREFIX))) {
+    out.push({
+      id: o.id,
+      kind: 'validation',
+      statement: fill(pl.facts.observation, {
+        source: view.sourceName(o.sourceId),
+        subject: o.subject.key,
+        property: propertyLabel(o.property),
+        value: pl.signedCheck[o.value] ?? o.value,
+      }),
+      basedOn: [],
+      data: o,
+    });
+  }
   const rejected = uniqueRejected(data);
   rejected.forEach((r, i) =>
     out.push({
@@ -104,7 +128,7 @@ function computedOf(view: View): ReportComputed[] {
         score: l.score,
         band: pl.bands[linkBand(l)].label,
       }),
-      basedOn: basedOnAddress(view, l.address),
+      basedOn: linkBasedOn(view, l),
       data: l,
     });
   }

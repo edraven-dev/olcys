@@ -1,10 +1,10 @@
 import type { ApiMeta, ReportView } from '@olcys/core';
 import { useState } from 'react';
-import { ErrorState, Icon, LoadingState } from '../../components/ui.tsx';
+import { ErrorState, Icon, LoadingState, StaleNotice } from '../../components/ui.tsx';
 import { pl } from '../../i18n/pl.ts';
 import { api, ApiRequestError, apiPaths } from '../../lib/api.ts';
 import type { SourceItem } from '../../lib/domain.ts';
-import { useJson, useList, useResource } from '../../lib/use-api.ts';
+import { useJson, useList, useResource, type Resource } from '../../lib/use-api.ts';
 import type { RunScope } from '../run/RunPage.tsx';
 import { isTerminal } from '../run/run-model.ts';
 import { DownloadsPanel } from './DownloadsPanel.tsx';
@@ -52,6 +52,7 @@ export function ReportTab({ scope }: { scope: RunScope }) {
         <p className="notice">{pl.report.missing}</p>
       ) : (
         <>
+          {report.error ? <StaleNotice resource={report as Resource<unknown>} /> : null}
           <DownloadsPanel files={report.data.files} />
           <ReportDocument report={report.data.report} names={names} />
         </>

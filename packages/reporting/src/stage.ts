@@ -60,7 +60,13 @@ export async function storeReport(
   const dataRef = await deps.blobs.put(encoder.encode(reportDataJson(data)), REPORT_DATA_MEDIA_TYPE);
   const htmlRef = await deps.blobs.put(encoder.encode(html), REPORT_HTML_MEDIA_TYPE);
   const exports: Record<string, BlobRef> = {};
-  const set: ExportSet = { version: 1, htmlSha256: htmlRef.sha256, exports: {} };
+  const set: ExportSet = {
+    version: 1,
+    runId: data.run.id,
+    htmlSha256: htmlRef.sha256,
+    dataSha256: dataRef.sha256,
+    exports: {},
+  };
   const artifacts = buildExports(
     { data },
     { producerName: settings.producerName ?? pl.exports.producerDefault, tlp: settings.tlp ?? 'amber' },
@@ -118,7 +124,10 @@ async function serialized<T>(key: string, task: () => Promise<T>): Promise<T> {
 /** The exports of one report version: the HTML they were generated with and a digest per export kind. */
 export interface ExportSet {
   version: 1;
+  /** The run and the report data of the version (absent in sets stored before versioned downloads). */
+  runId?: string;
   htmlSha256: string;
+  dataSha256?: string;
   exports: Record<string, { sha256: string; mediaType: string }>;
 }
 
@@ -144,23 +153,49 @@ export async function findExportSet(
   }
 }
 
-/** The report data behind the run's latest report (the exact input of its HTML), or `undefined` when there is none. */
-export async function findReportData(
+/** One complete published report version: the set blob that names its HTML, data and exports (all content-addressed). */
+export interface PublishedReport {
+  /** SHA-256 of the export-set blob: the version id (the set is registered last, so it exists only for a complete version). */
+  version: string;
+  set: ExportSet & { runId: string; dataSha256: string };
+}
+
+const isPublishedSet = (set: ExportSet, runId: Id): set is PublishedReport['set'] =>
+  set.version === 1 && set.runId === runId && typeof set.dataSha256 === 'string';
+
+/**
+ * The run's current report version, or `undefined` when there is none (no rows, or the newest HTML is not covered by
+ * a complete version yet). A stored blob that cannot be read or parsed is a fault and throws.
+ */
+export async function findPublishedReport(
   deps: { repos: Repositories; blobs: BlobStore },
   runId: Id,
-): Promise<{ data: ReportData; sha256: string; bytes: number } | undefined> {
-  const stored = await deps.repos.analysis.latestReport(runId, REPORT_KINDS.data);
-  if (!stored) return undefined;
+): Promise<PublishedReport | undefined> {
+  const [html, stored] = await Promise.all([
+    deps.repos.analysis.latestReport(runId, REPORT_KINDS.html),
+    deps.repos.analysis.latestReport(runId, REPORT_KINDS.exportSet),
+  ]);
+  if (!html || !stored) return undefined;
+  const set = JSON.parse(new TextDecoder().decode(await deps.blobs.get(stored.blobSha256))) as ExportSet;
+  return set.htmlSha256 === html.blobSha256 && isPublishedSet(set, runId)
+    ? { version: stored.blobSha256, set }
+    : undefined;
+}
+
+/** A published version named by its id (a download link of an earlier listing); `undefined` when it is not one of the run. */
+export async function loadReportVersion(
+  deps: { repos: Repositories; blobs: BlobStore },
+  runId: Id,
+  version: string,
+): Promise<PublishedReport | undefined> {
+  if (!(await deps.blobs.has(version))) return undefined;
+  let set: ExportSet;
   try {
-    const bytes = await deps.blobs.get(stored.blobSha256);
-    return {
-      data: JSON.parse(new TextDecoder().decode(bytes)) as ReportData,
-      sha256: stored.blobSha256,
-      bytes: bytes.length,
-    };
+    set = JSON.parse(new TextDecoder().decode(await deps.blobs.get(version))) as ExportSet;
   } catch {
     return undefined;
   }
+  return set !== null && typeof set === 'object' && isPublishedSet(set, runId) ? { version, set } : undefined;
 }
 
 export function createReportStage(options: ReportStageOptions = {}): ReportStage {

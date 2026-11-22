@@ -27,8 +27,8 @@ describe('report model', () => {
   });
 
   it('uses only evidence that exists: computed items cite facts of this report', () => {
-    const factIds = new Set(model.facts.map((f) => f.id));
-    for (const c of model.computed) for (const id of c.basedOn) expect(factIds.has(id)).toBe(true);
+    const known = new Set([...model.facts, ...model.computed].map((f) => f.id));
+    for (const c of model.computed) for (const id of c.basedOn) expect(known.has(id)).toBe(true);
     for (const f of model.facts) expect(f.captureId).toBeTruthy();
   });
 
@@ -55,5 +55,38 @@ describe('report model', () => {
 
   it('keeps addresses of the fixture as plain text', () => {
     expect(JSON.stringify(model)).toContain(A.BTC1);
+  });
+
+  it('keeps checks computed by the tool out of the facts', () => {
+    const data = personaData();
+    const checks = data.observations.filter((o) => o.property.startsWith('computed.'));
+    expect(checks.length).toBeGreaterThan(0);
+    for (const o of checks) {
+      expect(model.facts.map((f) => f.id)).not.toContain(o.id);
+      expect(model.computed.find((c) => c.id === o.id)?.kind).toBe('validation');
+    }
+  });
+
+  it('cites the evidence of both hops of every path in a score', () => {
+    const data = personaData();
+    const cited = new Set(
+      data.links.flatMap((l) =>
+        (l.paths ?? []).flatMap((p) =>
+          [p.identityHop, p.addressHop].flatMap((h) =>
+            (h?.contributions ?? []).flatMap((c) => [c.evidence?.observationId, c.evidence?.candidateId]),
+          ),
+        ),
+      ),
+    );
+    cited.delete(undefined);
+    expect(cited.size).toBeGreaterThan(0);
+    for (const l of data.links) {
+      const basedOn = model.computed.find((c) => c.id === l.id)?.basedOn ?? [];
+      for (const p of l.paths ?? [])
+        for (const h of [p.identityHop, p.addressHop])
+          for (const c of h?.contributions ?? [])
+            for (const id of [c.evidence?.observationId, c.evidence?.candidateId])
+              if (id) expect(basedOn).toContain(id);
+    }
   });
 });

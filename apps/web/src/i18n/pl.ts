@@ -1426,6 +1426,7 @@ export const pl = {
     },
     sources: {
       title: 'Rejestr źródeł',
+      loadError: 'Nie udało się wczytać rejestru źródeł.',
       summary:
         'Zarejestrowane źródła: {total}; zielone: {green}, bursztynowe: {amber}, czerwone (nigdy nie odpytywane): {red}.',
       columns: {

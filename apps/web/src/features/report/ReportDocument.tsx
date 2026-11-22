@@ -34,7 +34,7 @@ export function ReportDocument({
       <Reproducibility report={report} />
       <Summary report={report} />
       <FactsSection facts={report.facts} />
-      <ComputedSection items={report.computed} facts={report.facts} targets={targets} />
+      <ComputedSection items={report.computed} targets={targets} />
       <InferencesSection items={report.inferences} targets={targets} />
       <FundFlow report={report} />
       <Changes changes={report.changesSincePrevious} names={names} />
@@ -250,14 +250,11 @@ function BasedOn({ ids, targets }: { ids: readonly string[]; targets: ReadonlyMa
 
 function ComputedSection({
   items,
-  facts,
   targets,
 }: {
   items: readonly ReportComputed[];
-  facts: readonly ReportFact[];
   targets: ReadonlyMap<string, string>;
 }) {
-  const factIds = new Set(facts.map((f) => f.id));
   return (
     <ClassSection kind="computed" id="report-computed" title={pl.report.sections.computed}>
       {items.length === 0 ? (
@@ -269,7 +266,7 @@ function ComputedSection({
               <p>
                 <span className="tag">{pl.report.computedKinds[item.kind]}</span> {item.statement}
               </p>
-              <BasedOn ids={item.basedOn.filter((id) => factIds.has(id))} targets={targets} />
+              <BasedOn ids={item.basedOn.filter((id) => targets.has(id))} targets={targets} />
               <details>
                 <summary>{pl.report.data}</summary>
                 <pre className="mono prewrap">{JSON.stringify(item.data, null, 2)}</pre>

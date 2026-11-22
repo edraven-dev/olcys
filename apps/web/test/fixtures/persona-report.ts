@@ -89,14 +89,6 @@ export const personaReport: ReportModel = {
       collectedAt: '2026-11-21T10:01:30.000Z',
     },
     {
-      id: 'obs-3',
-      statement:
-        'Bitcointalk (forum) · bitcointalk:fikcyjny_kacper: weryfikacja podpisu wiadomości (obliczona przez OŁCyŚ) — valid',
-      captureId: 'cap-2',
-      url: 'http://127.0.0.1:4100/bitcointalk/index.php?topic=65000101',
-      collectedAt: '2026-11-21T10:01:30.000Z',
-    },
-    {
       id: 'obs-6',
       statement: 'Bitcointalk (forum) · bitcointalk:fikcyjny_kacper: autor wpisu — fikcyjny_kacper',
       captureId: 'cap-2',
@@ -157,10 +149,31 @@ export const personaReport: ReportModel = {
   ],
   computed: [
     {
+      id: 'obs-3',
+      kind: 'validation',
+      statement:
+        'Bitcointalk (forum) · bitcointalk:fikcyjny_kacper: weryfikacja podpisu wiadomości (obliczona przez OŁCyŚ) — podpis poprawny',
+      basedOn: [],
+      data: {
+        id: 'obs-3',
+        runId: 'run-0002',
+        captureId: 'cap-2',
+        sourceId: 'bitcointalk',
+        subject: {
+          type: 'account',
+          key: 'bitcointalk:fikcyjny_kacper',
+        },
+        property: 'computed.signed_message_check',
+        value: 'valid',
+        locator: 'bitcointalk:fikcyjny_kacper#computed.signed_message_check',
+        observedAt: '2026-11-21T10:00:00.000Z',
+      },
+    },
+    {
       id: 'rejected-cap-2-0',
       kind: 'validation',
       statement:
-        'Dopasowanie „bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4” nie przeszło walidacji adresu: documentation_example: BIP-173.',
+        'Dopasowanie „bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4” nie przeszło walidacji adresu: przykład z dokumentacji lub oficjalny wektor testowy.',
       basedOn: [],
       data: {
         captureId: 'cap-2',
@@ -173,7 +186,7 @@ export const personaReport: ReportModel = {
       id: 'rejected-cap-3-1',
       kind: 'validation',
       statement:
-        'Dopasowanie „bc1qsyrа8u0s8akk2qyh7kkqcfgrexw85n5aqmnhdv” nie przeszło walidacji adresu: homoglyph_detected.',
+        'Dopasowanie „bc1qsyrа8u0s8akk2qyh7kkqcfgrexw85n5aqmnhdv” nie przeszło walidacji adresu: znaki podobne z innych alfabetów (homoglify) — możliwa manipulacja.',
       basedOn: [],
       data: {
         captureId: 'cap-3',
@@ -198,7 +211,7 @@ export const personaReport: ReportModel = {
       id: 'rejected-cap-3-3',
       kind: 'validation',
       statement:
-        'Dopasowanie „0x49032b0b289a725fdf2b0d82ff1384f2366fe4792f18932b55ec828f24014700” nie przeszło walidacji adresu: tx_hash_like.',
+        'Dopasowanie „0x49032b0b289a725fdf2b0d82ff1384f2366fe4792f18932b55ec828f24014700” nie przeszło walidacji adresu: ciąg wygląda jak skrót transakcji, a nie adres.',
       basedOn: [],
       data: {
         captureId: 'cap-3',
@@ -212,7 +225,7 @@ export const personaReport: ReportModel = {
       kind: 'score',
       statement:
         'Powiązanie adresu bc1qqeyyk5qtdw97f384wus6nfy4muwa3qh67m9mt2 (Bitcoin) z identyfikatorem „fikcyjny_kacper”: niemal pewne (Wskaźnik Pewności 99/100, BARDZO WYSOKIE).',
-      basedOn: ['obs-1', 'obs-2', 'cand-btc-1', 'cand-btc-2'],
+      basedOn: ['obs-1', 'obs-2', 'cand-btc-1', 'cand-btc-2', 'obs-3'],
       data: {
         id: 'link-btc1',
         runId: 'run-0002',
@@ -326,7 +339,7 @@ export const personaReport: ReportModel = {
       kind: 'score',
       statement:
         'Powiązanie adresu TMVZLbhMuEYfsXYUzwWSarLmLPWJUmVPVk (TRON) z identyfikatorem „fikcyjny_kacper”: prawdopodobne (Wskaźnik Pewności 66/100, PRAWDOPODOBNE).',
-      basedOn: ['cand-tron-wykop', 'cand-tron-p2p'],
+      basedOn: ['obs-4', 'obs-5', 'cand-tron-wykop', 'cand-tron-p2p'],
       data: {
         id: 'link-tron1',
         runId: 'run-0002',
@@ -545,7 +558,7 @@ export const personaReport: ReportModel = {
       kind: 'score',
       statement:
         'Powiązanie adresu 0xcd5c1a91d6dfaafeb0807e3c9d6d00655a54617a (Ethereum) z identyfikatorem „fikcyjny_kacper”: nie oceniono (Wskaźnik Pewności 0/100, NISKIE / SZUM).',
-      basedOn: ['cand-eth1'],
+      basedOn: ['cand-eth1', 'obs-3'],
       data: {
         id: 'link-eth1',
         runId: 'run-0002',
@@ -1241,7 +1254,7 @@ export const personaFiles: ReportFile[] = [
     fileName: 'olcys-raport-run-1.html',
     mediaType: 'text/html; charset=utf-8',
     available: true,
-    path: '/api/runs/run-1/report',
+    path: `/api/runs/run-1/report/versions/${sha('9')}/html`,
     bytes: 24576,
     sha256: sha('1'),
   },
@@ -1251,7 +1264,7 @@ export const personaFiles: ReportFile[] = [
     fileName: 'olcys-raport-run-1.json',
     mediaType: 'application/json',
     available: true,
-    path: '/api/runs/run-1/report/data',
+    path: `/api/runs/run-1/report/versions/${sha('9')}/manifest`,
     bytes: 9000,
     sha256: sha('2'),
   },
@@ -1270,7 +1283,7 @@ export const personaFiles: ReportFile[] = [
     fileName: 'olcys-run-1-stix.json',
     mediaType: 'application/stix+json;version=2.1',
     available: true,
-    path: '/api/runs/run-1/exports/stix',
+    path: `/api/runs/run-1/report/versions/${sha('9')}/stix`,
     bytes: 4096,
     sha256: sha('4'),
   },
@@ -1279,10 +1292,10 @@ export const personaFiles: ReportFile[] = [
     fileName: 'olcys-run-1-links.csv',
     mediaType: 'text/csv; charset=utf-8',
     available: true,
-    path: '/api/runs/run-1/exports/csv_links',
+    path: `/api/runs/run-1/report/versions/${sha('9')}/csv_links`,
     bytes: 800,
     sha256: sha('5'),
   },
 ];
 
-export const personaView: ReportView = { report: personaReport, files: personaFiles };
+export const personaView: ReportView = { version: sha('9'), report: personaReport, files: personaFiles };

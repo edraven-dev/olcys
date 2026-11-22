@@ -83,6 +83,8 @@ export interface ReportFile {
  * 404 until a report exists.
  */
 export interface ReportView {
+  /** Id of the published report version the model and every file below belong to (download paths are bound to it). */
+  version: string;
   report: ReportModel;
   files: ReportFile[];
 }

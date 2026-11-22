@@ -27,8 +27,8 @@ serwer deweloperski Vite (`/api`). W MVP uruchamia też potok analizy w tym samy
 | `GET /api/runs/:id/changes`                                         | zmiany względem poprzedniego przebiegu (m.in. podmiana portfela)                                                                                                                               |
 | `GET /api/runs/:id/egress`                                          | dziennik ruchu wychodzącego przebiegu                                                                                                                                                          |
 | `GET /api/runs/:id/report`                                          | raport HTML przebiegu                                                                                                                                                                          |
-| `GET /api/runs/:id/report/view`                                     | model raportu (`ReportModel`) zbudowany z tych samych danych co HTML oraz pliki do pobrania z rozmiarem i SHA-256 (404 do czasu powstania raportu)                                             |
-| `GET /api/runs/:id/report/data`                                     | kanoniczny JSON danych raportu (manifest) jako załącznik                                                                                                                                       |
+| `GET /api/runs/:id/report/view`                                     | model raportu (`ReportModel`) zbudowany z tych samych danych co HTML oraz pliki jednej wersji z rozmiarem i SHA-256 (404 do czasu pełnej publikacji)                                           |
+| `GET /api/runs/:id/report/versions/:wersja/:rodzaj`                 | plik jednej opublikowanej wersji raportu (`html`, `manifest` lub eksport) — dokładnie te bajty, które wymienia `report/view`                                                                   |
 | `GET /api/runs/:id/exports`                                         | lista eksportów bieżącej wersji raportu (pusta dla starszych raportów)                                                                                                                         |
 | `GET /api/runs/:id/exports/:format`                                 | eksport raportu: `stix`, `misp`, `csv_links`, `csv_evidence`, `csv_cash_out`, `csv_changes`                                                                                                    |
 | `GET /api/labels`                                                   | etykiety adresów z pochodzeniem (zbiór danych, URL, licencja, data zmiany)                                                                                                                     |
@@ -100,7 +100,7 @@ sprawdzają to samo ponownie przy zbieraniu.
 
 `GET /api/runs/:id/report/view` czyta zapisane dane raportu (`data_json`) i buduje z nich `ReportModel` funkcją
 `buildReportModel` z `@olcys/reporting`; API nie zawiera własnej logiki renderowania. Odpowiedź ma też listę plików
-(`html`, `pdf`, `manifest`, `timestamp`, eksporty) z rozmiarem, SHA-256 i ścieżką, z której plik się pobiera; PDF/A jest
+(`html`, `pdf`, `manifest`, `timestamp`, eksporty) z rozmiarem, SHA-256 i ścieżką związaną z wersją (`version` w odpowiedzi to skrót wpisu `export_set`, rejestrowanego jako ostatni, więc wersja niepełna nie jest listowana; ponowne wygenerowanie raportu nie zmienia tego, co serwuje wcześniej wydany odnośnik). Błąd odczytu lub parsowania zapisanego raportu to 500, a nie „brak raportu”; PDF/A jest
 oznaczony jako niedostępny do czasu wdrożenia kroku PDF, a znaczniki RFC 3161 pojawiają się tylko dla zabezpieczeń, które je mają.
 Pobieranie plików nie wymaga logowania; opcjonalny nagłówek `X-Olcys-Purpose` (wartość zakodowana `encodeURIComponent`)
 niesie cel pobrania dla dziennika dostępu.

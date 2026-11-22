@@ -64,7 +64,7 @@ describe('downloads panel', () => {
     act(() => button(pl.report.downloads.kinds.html).click());
     await flush();
     expect(calls).toHaveLength(1);
-    expect(calls[0]?.path).toBe('/api/runs/run-1/report');
+    expect(calls[0]?.path).toBe(`/api/runs/run-1/report/versions/${'9'.repeat(64)}/html`);
     expect(Object.keys(calls[0]?.headers ?? {}).map((h) => h.toLowerCase())).not.toContain('x-olcys-purpose');
     expect(created).toHaveBeenCalledOnce();
     expect(clicked).toEqual([{ href: 'blob:olcys-test', download: 'olcys-raport-run-1.html' }]);
@@ -82,7 +82,7 @@ describe('downloads panel', () => {
     });
     act(() => button(pl.report.downloads.kinds.stix).click());
     await flush();
-    expect(calls[0]?.path).toBe('/api/runs/run-1/exports/stix');
+    expect(calls[0]?.path).toBe(`/api/runs/run-1/report/versions/${'9'.repeat(64)}/stix`);
     expect(calls[0]?.headers['X-Olcys-Purpose']).toBe(encodeURIComponent(purpose));
     expect(decodeURIComponent(calls[0]?.headers['X-Olcys-Purpose'] ?? '')).toBe(purpose);
   });

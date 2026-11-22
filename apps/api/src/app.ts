@@ -4,6 +4,7 @@
  */
 import { createHash } from 'node:crypto';
 import type {
+  AnalysisRun,
   ApiMeta,
   BlobStore,
   ReportFile,
@@ -32,12 +33,16 @@ import {
   EXPORT_KINDS,
   EXPORT_MEDIA_TYPES,
   findExportSet,
-  findReportData,
+  findPublishedReport,
+  loadReportVersion,
+  REPORT_HTML_MEDIA_TYPE,
+  type ExportKind,
+  type ReportData,
   isExportKind,
   REPORT_DATA_MEDIA_TYPE,
 } from '@olcys/reporting';
 import { evidenceRunIdOf, TOOL_VERSION } from '@olcys/worker';
-import Fastify, { type FastifyInstance, type FastifyReply } from 'fastify';
+import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from 'fastify';
 import { DEFAULT_ANALYST, registerAnalystRoutes, supportsJudgements, withJudgements } from './analyst-routes.ts';
 import { registerGuard, type GuardOptions } from './guard.ts';
 import { idOf } from './ids.ts';
@@ -150,6 +155,43 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
     app.log.error(error);
     return reply.code(500).send({ error: 'internal', message: 'internal error' });
   });
+
+  /** Sends one stored export after checking its digest; a download that leaves the tool is a custody event. */
+  const sendExport = async (
+    request: FastifyRequest,
+    reply: FastifyReply,
+    run: AnalysisRun,
+    format: ExportKind,
+    stored: { sha256: string; mediaType: string },
+  ) => {
+    if (!(await deps.blobs.has(stored.sha256))) return notFound(reply, 'export');
+    const bytes = await deps.blobs.get(stored.sha256);
+    if (createHash('sha256').update(bytes).digest('hex') !== stored.sha256) {
+      deps.logger?.error('stored export does not match its digest', { runId: run.id, format });
+      return reply.code(500).send({ error: 'integrity_error', message: 'stored export does not match its digest' });
+    }
+    if (request.method === 'GET') {
+      const kase = await repos.cases.get(run.caseId);
+      await repos.custody?.add([
+        {
+          id: newId(),
+          at: nowIso(),
+          actor: analyst,
+          action: 'exported',
+          runId: run.id,
+          subject: { type: 'report', id: run.id },
+          detail: { format, blobSha256: stored.sha256, purpose: kase?.purpose ?? '' },
+        },
+      ]);
+      deps.logger?.info('report export downloaded', { runId: run.id, format, analyst });
+    }
+    return reply
+      .header('content-type', stored.mediaType)
+      .header('content-disposition', `attachment; filename="olcys-${run.id}-${EXPORT_FILE_EXTENSIONS[format]}"`)
+      .header('x-content-type-options', 'nosniff')
+      .header('content-security-policy', "sandbox; default-src 'none'")
+      .send(Buffer.from(bytes));
+  };
 
   app.get('/api/health', async () => ({ status: 'ok', service: '@olcys/api', contracts: CORE_CONTRACTS_VERSION }));
 
@@ -349,39 +391,42 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
       .send(Buffer.from(bytes));
   });
 
-  // The report model the HTML renderer is built from (same stored data), plus the downloadable files with digests.
+  // The report model the HTML renderer is built from, plus the files of ONE published version with digests. Every
+  // download path is bound to that version (content-addressed blobs), so a later regeneration cannot change what a
+  // listed link serves. A version that is not completely published yet is not listed (404).
   app.get<{ Params: { runId: string } }>('/api/runs/:runId/report/view', async (request, reply) => {
     const runId = idOf(request.params.runId);
-    const stored = runId ? await findReportData(deps, runId) : undefined;
-    if (!runId || !stored) return notFound(reply, 'report');
-    const base = `/api/runs/${runId}`;
+    const published = runId ? await findPublishedReport(deps, runId) : undefined;
+    if (!runId || !published) return notFound(reply, 'report');
+    const { set, version } = published;
+    // A blob that cannot be read or parsed is a fault (500), never "no report".
+    const data = JSON.parse(new TextDecoder().decode(await deps.blobs.get(set.dataSha256))) as ReportData;
+    const base = `/api/runs/${runId}/report/versions/${version}`;
     const name = (extension: string) => `olcys-raport-${runId}.${extension}`;
-    const files: ReportFile[] = [];
-    const html = await repos.analysis.latestReport(runId, 'html');
-    if (html) {
-      const bytes = await deps.blobs.get(html.blobSha256);
-      files.push({
+    const size = async (sha: string) => (await deps.blobs.get(sha)).length;
+    const files: ReportFile[] = [
+      {
         kind: 'html',
         fileName: name('html'),
-        mediaType: html.mediaType,
+        mediaType: REPORT_HTML_MEDIA_TYPE,
         available: true,
-        path: `${base}/report`,
-        bytes: bytes.length,
-        sha256: html.blobSha256,
-      });
-    }
-    // PDF/A is produced by a later pipeline step; until then the file is listed as unavailable.
-    files.push({ kind: 'pdf', fileName: name('pdf'), mediaType: 'application/pdf', available: false, path: '' });
-    files.push({
-      kind: 'manifest',
-      fileName: name('json'),
-      mediaType: REPORT_DATA_MEDIA_TYPE,
-      available: true,
-      path: `${base}/report/data`,
-      bytes: stored.bytes,
-      sha256: stored.sha256,
-    });
-    for (const capture of stored.data.captures) {
+        path: `${base}/html`,
+        bytes: await size(set.htmlSha256),
+        sha256: set.htmlSha256,
+      },
+      // PDF/A is produced by a later pipeline step; until then the file is listed as unavailable.
+      { kind: 'pdf', fileName: name('pdf'), mediaType: 'application/pdf', available: false, path: '' },
+      {
+        kind: 'manifest',
+        fileName: name('json'),
+        mediaType: REPORT_DATA_MEDIA_TYPE,
+        available: true,
+        path: `${base}/manifest`,
+        bytes: await size(set.dataSha256),
+        sha256: set.dataSha256,
+      },
+    ];
+    for (const capture of data.captures) {
       const token = capture.timestamp?.token;
       if (!token) continue;
       files.push({
@@ -395,40 +440,57 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
         captureId: capture.id,
       });
     }
-    const set = await findExportSet(deps, runId);
-    const exported = EXPORT_KINDS.flatMap((format) => {
-      const e = set?.exports[format];
-      return e ? [{ format, sha256: e.sha256 }] : [];
-    });
-    const exportBytes = await Promise.all(exported.map(async (e) => (await deps.blobs.get(e.sha256)).length));
-    exported.forEach(({ format, sha256 }, i) => {
+    for (const format of EXPORT_KINDS) {
+      const e = set.exports[format];
+      if (!e) continue;
       files.push({
         kind: format,
         fileName: `olcys-${runId}-${EXPORT_FILE_EXTENSIONS[format]}`,
         mediaType: EXPORT_MEDIA_TYPES[format],
         available: true,
-        path: `${base}/exports/${format}`,
-        bytes: exportBytes[i] ?? 0,
-        sha256,
+        path: `${base}/${format}`,
+        // oxlint-disable-next-line no-await-in-loop
+        bytes: await size(e.sha256),
+        sha256: e.sha256,
       });
-    });
-    const view: ReportView = { report: buildReportModel(stored.data), files };
+    }
+    const view: ReportView = { version, report: buildReportModel(data), files };
     return view;
   });
 
-  // The canonical JSON report data (the "manifest" download): the exact input of the HTML renderer.
-  app.get<{ Params: { runId: string } }>('/api/runs/:runId/report/data', async (request, reply) => {
-    const runId = idOf(request.params.runId);
-    const stored = runId ? await repos.analysis.latestReport(runId, 'data_json') : undefined;
-    if (!runId || !stored) return notFound(reply, 'report');
-    const bytes = await deps.blobs.get(stored.blobSha256);
-    return reply
-      .header('content-type', stored.mediaType)
-      .header('content-disposition', `attachment; filename="olcys-raport-${runId}.json"`)
-      .header('x-content-type-options', 'nosniff')
-      .header('content-security-policy', "sandbox; default-src 'none'")
-      .send(Buffer.from(bytes));
-  });
+  // One file of a published report version, named by the version id of a listing (`/report/view`).
+  app.get<{ Params: { runId: string; version: string; kind: string } }>(
+    '/api/runs/:runId/report/versions/:version/:kind',
+    async (request, reply) => {
+      const runId = idOf(request.params.runId);
+      const run = runId ? await repos.runs.get(runId) : undefined;
+      const { version, kind } = request.params;
+      if (!run || !/^[0-9a-f]{64}$/.test(version)) return notFound(reply, 'report');
+      const published = await loadReportVersion(deps, run.id, version);
+      if (!published) return notFound(reply, 'report');
+      if (isExportKind(kind)) {
+        const stored = published.set.exports[kind];
+        return stored ? sendExport(request, reply, run, kind, stored) : notFound(reply, 'export');
+      }
+      const files = {
+        html: { sha: published.set.htmlSha256, mediaType: REPORT_HTML_MEDIA_TYPE, extension: 'html' },
+        manifest: { sha: published.set.dataSha256, mediaType: REPORT_DATA_MEDIA_TYPE, extension: 'json' },
+      } as const;
+      const file = kind === 'html' || kind === 'manifest' ? files[kind] : undefined;
+      if (!file || !(await deps.blobs.has(file.sha))) return notFound(reply, 'report');
+      const bytes = await deps.blobs.get(file.sha);
+      if (createHash('sha256').update(bytes).digest('hex') !== file.sha) {
+        deps.logger?.error('stored report file does not match its digest', { runId: run.id, kind });
+        return reply.code(500).send({ error: 'integrity_error', message: 'stored file does not match its digest' });
+      }
+      return reply
+        .header('content-type', file.mediaType)
+        .header('content-disposition', `attachment; filename="olcys-raport-${run.id}.${file.extension}"`)
+        .header('x-content-type-options', 'nosniff')
+        .header('content-security-policy', "sandbox; default-src 'none'")
+        .send(Buffer.from(bytes));
+    },
+  );
 
   // Exports available for the run's current report (none for runs rendered before exports existed).
   app.get<{ Params: { runId: string } }>('/api/runs/:runId/exports', async (request, reply) => {
@@ -455,33 +517,8 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
     }
     // Only files of the current report version; a missing or damaged blob is never recorded as an export.
     const stored = (await findExportSet(deps, run.id))?.exports[format];
-    if (!stored || !(await deps.blobs.has(stored.sha256))) return notFound(reply, 'export');
-    const bytes = await deps.blobs.get(stored.sha256);
-    if (createHash('sha256').update(bytes).digest('hex') !== stored.sha256) {
-      deps.logger?.error('stored export does not match its digest', { runId: run.id, format });
-      return reply.code(500).send({ error: 'integrity_error', message: 'stored export does not match its digest' });
-    }
-    if (request.method === 'GET') {
-      const kase = await repos.cases.get(run.caseId);
-      await repos.custody?.add([
-        {
-          id: newId(),
-          at: nowIso(),
-          actor: analyst,
-          action: 'exported',
-          runId: run.id,
-          subject: { type: 'report', id: run.id },
-          detail: { format, blobSha256: stored.sha256, purpose: kase?.purpose ?? '' },
-        },
-      ]);
-      deps.logger?.info('report export downloaded', { runId: run.id, format, analyst });
-    }
-    return reply
-      .header('content-type', stored.mediaType)
-      .header('content-disposition', `attachment; filename="olcys-${run.id}-${EXPORT_FILE_EXTENSIONS[format]}"`)
-      .header('x-content-type-options', 'nosniff')
-      .header('content-security-policy', "sandbox; default-src 'none'")
-      .send(Buffer.from(bytes));
+    if (!stored) return notFound(reply, 'export');
+    return sendExport(request, reply, run, format, stored);
   });
 
   registerAnalystRoutes(app, {

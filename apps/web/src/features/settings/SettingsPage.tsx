@@ -4,7 +4,7 @@ import { pl } from '../../i18n/pl.ts';
 import { t } from '../../i18n/t.ts';
 import { apiPaths } from '../../lib/api.ts';
 import type { SourceItem } from '../../lib/domain.ts';
-import { useJson, useList } from '../../lib/use-api.ts';
+import { useJson, useList, type Resource } from '../../lib/use-api.ts';
 
 /** Read-only view of the runtime configuration; nothing here can be changed or reveals a secret. */
 export function SettingsPage() {
@@ -16,7 +16,7 @@ export function SettingsPage() {
       <h1 id="settings-title">{pl.settings.title}</h1>
       <p className="muted">{pl.settings.readOnly}</p>
       <Async resource={meta} errorTitle={pl.settings.loadError}>
-        {(data) => <SettingsView meta={data} sources={sources.data ?? []} />}
+        {(data) => <SettingsView meta={data} sources={sources} />}
       </Async>
     </section>
   );
@@ -28,8 +28,7 @@ const weightsLabel = (status: string | undefined): string => {
 };
 
 /** The settings for already loaded data (also used by tests). */
-export function SettingsView({ meta, sources }: { meta: ApiMeta; sources: readonly SourceItem[] }) {
-  const count = (status: SourceItem['compliance']) => sources.filter((s) => s.compliance === status).length;
+export function SettingsView({ meta, sources }: { meta: ApiMeta; sources: Resource<SourceItem[]> }) {
   const rules = Object.entries(meta.scoring?.rulesVersions ?? {});
   return (
     <>
@@ -90,42 +89,9 @@ export function SettingsView({ meta, sources }: { meta: ApiMeta; sources: readon
 
       <section aria-labelledby="settings-sources" className="card">
         <h2 id="settings-sources">{pl.settings.sources.title}</h2>
-        <p>
-          {t(pl.settings.sources.summary, {
-            total: sources.length,
-            green: count('GREEN'),
-            amber: count('AMBER'),
-            red: count('RED'),
-          })}
-        </p>
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th scope="col">{pl.settings.sources.columns.name}</th>
-                <th scope="col">{pl.settings.sources.columns.status}</th>
-                <th scope="col">{pl.settings.sources.columns.default}</th>
-                <th scope="col">{pl.settings.sources.columns.discloses}</th>
-                <th scope="col">{pl.settings.sources.columns.note}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sources.map((source) => (
-                <tr key={source.id}>
-                  <td>
-                    {source.name} <code className="mono small">{source.id}</code>
-                  </td>
-                  <td>
-                    <ComplianceBadge status={source.compliance} />
-                  </td>
-                  <td>{source.enabledByDefault ? pl.common.yes : pl.common.no}</td>
-                  <td>{source.sendsIdentifiersExternally ? pl.common.yes : pl.common.no}</td>
-                  <td>{source.complianceNote}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <Async resource={sources} errorTitle={pl.settings.sources.loadError}>
+          {(list) => <SourceRegister sources={list} />}
+        </Async>
       </section>
 
       <section aria-labelledby="settings-privacy" className="card">
@@ -144,6 +110,50 @@ export function SettingsView({ meta, sources }: { meta: ApiMeta; sources: readon
           <p className="muted">{pl.settings.privacy.none}</p>
         )}
       </section>
+    </>
+  );
+}
+
+function SourceRegister({ sources }: { sources: readonly SourceItem[] }) {
+  const count = (status: SourceItem['compliance']) => sources.filter((s) => s.compliance === status).length;
+  return (
+    <>
+      <p>
+        {t(pl.settings.sources.summary, {
+          total: sources.length,
+          green: count('GREEN'),
+          amber: count('AMBER'),
+          red: count('RED'),
+        })}
+      </p>
+      <div className="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">{pl.settings.sources.columns.name}</th>
+              <th scope="col">{pl.settings.sources.columns.status}</th>
+              <th scope="col">{pl.settings.sources.columns.default}</th>
+              <th scope="col">{pl.settings.sources.columns.discloses}</th>
+              <th scope="col">{pl.settings.sources.columns.note}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sources.map((source) => (
+              <tr key={source.id}>
+                <td>
+                  {source.name} <code className="mono small">{source.id}</code>
+                </td>
+                <td>
+                  <ComplianceBadge status={source.compliance} />
+                </td>
+                <td>{source.enabledByDefault ? pl.common.yes : pl.common.no}</td>
+                <td>{source.sendsIdentifiersExternally ? pl.common.yes : pl.common.no}</td>
+                <td>{source.complianceNote}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </>
   );
 }
