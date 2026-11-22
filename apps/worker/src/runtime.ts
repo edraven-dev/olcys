@@ -21,6 +21,11 @@ export interface Runtime {
     caseId: string,
     input: { trigger?: 'manual' | 'rescore'; rescoreOfRunId?: string },
   ): Promise<RunWithProgress>;
+  /**
+   * Runs the pipeline of a queued run created elsewhere, without waiting: the scheduler stores a scheduled run together
+   * with the tick that started it.
+   */
+  launchRun(runId: string): void;
   /** Resolves when every run started by this runtime has finished (tests, graceful shutdown). */
   idle(): Promise<void>;
   close(): Promise<void>;
@@ -79,19 +84,23 @@ export async function createRuntime(options: RuntimeOptions = {}): Promise<Runti
   const base = { repos, blobs, sources: config.sources, config, mode, logger };
   const stages = options.stages?.(base) ?? [];
   const running = new Set<Promise<unknown>>();
+  const launchRun = (runId: string): void => {
+    const job = runPipeline(runId, { repos, blobs, logger, stages })
+      .catch((error: unknown) => logger.error('pipeline crashed', { runId, error: String(error) }))
+      .finally(() => running.delete(job));
+    running.add(job);
+  };
 
   return {
     ...base,
     async startRun(caseId, input) {
       const run = await createRun(repos, { caseId, mode, ...input }, config.snapshot);
-      const job = runPipeline(run.id, { repos, blobs, logger, stages })
-        .catch((error: unknown) => logger.error('pipeline crashed', { runId: run.id, error: String(error) }))
-        .finally(() => running.delete(job));
-      running.add(job);
+      launchRun(run.id);
       const created = await repos.runs.get(run.id);
       if (!created) throw new Error(`run ${run.id} not stored`);
       return created;
     },
+    launchRun,
     async idle() {
       await Promise.all(running);
     },

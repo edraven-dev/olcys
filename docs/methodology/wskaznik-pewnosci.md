@@ -23,8 +23,8 @@ Analityk może zapisać ocenę każdego powiązania (karta powiązania w zakład
 | `unsure`   | Niepewne                | Dowody nie pozwalają rozstrzygnąć                             |
 
 - Każda ocena ma uzasadnienie (10–2000 znaków po przycięciu spacji), analityka i czas zapisu. Analityk pochodzi
-  z konfiguracji serwera (`OLCYS_ANALYST_NAME`, w razie braku `OLCYS_COLLECTOR_NAME`; po wprowadzeniu uwierzytelniania —
-  zalogowany użytkownik), nigdy z treści żądania.
+  z konfiguracji serwera (`OLCYS_ANALYST_NAME`, w razie braku `OLCYS_COLLECTOR_NAME`, domyślnie `analyst`; po
+  wprowadzeniu uwierzytelniania — zalogowany użytkownik), nigdy z treści żądania.
 - Ocena jest zapisywana **obok** wyniku i nie zmienia obliczonego Wskaźnika Pewności: ani wyniku, ani określenia
   ICD 203, bramek, przedziału, ani zdarzeń `SCORE_CHANGED` porównania przebiegów. Nie uruchamia ponownych obliczeń.
 - Ocen może być kilka; aktualna jest najnowsza (według czasu, a przy równym czasie — identyfikatora). Wcześniejsze

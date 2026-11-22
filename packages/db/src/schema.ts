@@ -5,6 +5,7 @@
 import type {
   AddressLabel,
   AnalysisRun,
+  CaseSchedule,
   CaseScope,
   Capture,
   CashOutEvent,
@@ -20,6 +21,7 @@ import type {
   AddressCandidate,
   AnalystOverrideKind,
   AnalystOverrideTarget,
+  ScheduleTickOutcome,
 } from '@olcys/core';
 import type { ColumnType, Generated } from 'kysely';
 
@@ -38,6 +40,31 @@ export interface CasesTable {
   scope: Json<CaseScope>;
   created_at: GeneratedTimestamp;
   created_by: string;
+  /** Current schedule (migration 0002); the only column the application role may replace besides `status`. */
+  schedule: ColumnType<CaseSchedule | null, string | null | undefined, string | null>;
+}
+
+/** Append-only log of schedule changes. */
+export interface CaseScheduleChangeTable {
+  id: Generated<string>;
+  case_id: string;
+  before: ColumnType<CaseSchedule | null, string | null, never>;
+  after: ColumnType<CaseSchedule, string, never>;
+  changed_by: string;
+  reason: string;
+  at: GeneratedTimestamp;
+}
+
+/** Append-only: one row per handled occurrence of a schedule. */
+export interface ScheduleTickTable {
+  id: Generated<string>;
+  case_id: string;
+  job_id: string;
+  scheduled_for: Timestamp;
+  fired_at: Timestamp;
+  outcome: ScheduleTickOutcome;
+  run_id: string | null;
+  at: GeneratedTimestamp;
 }
 
 export interface CaseIdentifiersTable {
@@ -233,6 +260,8 @@ export interface SchemaMigrationsTable {
 
 export interface Database {
   cases: CasesTable;
+  case_schedule_change: CaseScheduleChangeTable;
+  schedule_tick: ScheduleTickTable;
   case_identifiers: CaseIdentifiersTable;
   runs: RunsTable;
   egress_log: EgressLogTable;

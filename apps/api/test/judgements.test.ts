@@ -110,23 +110,27 @@ describe('analyst judgements', () => {
     expect(digest(await stored(other.id))).toBe(before);
   });
 
-  it('advertises judgements in the meta document only when the store supports them', async () => {
+  it('advertises judgements and schedules in the meta document only when the store supports them', async () => {
     const meta = (await app.inject('/api/meta')).json();
-    expect(meta).toMatchObject({ mode: 'offline', features: { judgements: true, suggestions: false } });
+    expect(meta).toMatchObject({
+      mode: 'offline',
+      features: { judgements: true, schedules: true, suggestions: false },
+    });
     expect(meta.scoring.weightsVersion).toMatch(/^weights\.v\d+$/);
 
-    const { judgements: _j, overrides: _o, ...plain } = createMemoryRepositories();
+    const { judgements: _j, overrides: _o, schedules: _s, ...plain } = createMemoryRepositories();
     const bare = buildApp({ ...runtime, repos: plain });
-    expect((await bare.inject('/api/meta')).json().features.judgements).toBe(false);
+    expect((await bare.inject('/api/meta')).json().features).toMatchObject({ judgements: false, schedules: false });
     expect(
       (await bare.inject({ method: 'POST', url: `/api/links/${link.id}/judgements`, payload: {} })).statusCode,
     ).toBe(404);
     await bare.close();
   });
 
-  it('takes the analyst name from OLCYS_ANALYST_NAME, else OLCYS_COLLECTOR_NAME', () => {
+  it('takes the analyst name from OLCYS_ANALYST_NAME, else OLCYS_COLLECTOR_NAME, else `analyst`', () => {
     expect(analystName({ OLCYS_ANALYST_NAME: ' Jan Analityk ', OLCYS_COLLECTOR_NAME: 'dev' })).toBe('Jan Analityk');
     expect(analystName({ OLCYS_ANALYST_NAME: '', OLCYS_COLLECTOR_NAME: 'dev-analyst' })).toBe('dev-analyst');
-    expect(analystName({})).toBeUndefined();
+    expect(analystName({ OLCYS_ANALYST_NAME: '  ' })).toBe('analyst');
+    expect(analystName({})).toBe('analyst');
   });
 });

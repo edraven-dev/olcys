@@ -288,6 +288,9 @@ importers:
       '@olcys/scoring':
         specifier: workspace:*
         version: link:../../packages/scoring
+      cron-parser:
+        specifier: 5.10.6
+        version: 5.10.6
       yaml:
         specifier: 2.9.1
         version: 2.9.1
@@ -1240,6 +1243,10 @@ packages:
     resolution: {integrity: sha512-SL0cVuEdETEp7pN0FuZb01toc3vnODEfVUCooxG1SJN0yIirh7JMb9X9bvfCFf0vzzbT68RdbKDHYTiWy7a7iw==}
     engines: {node: '>=22'}
 
+  cron-parser@5.10.6:
+    resolution: {integrity: sha512-kpoxgQyveO1l29nw+FWdvmotyV7eOSzGHQpxiXOEZIDOjqO1iR6kfgJ0PVHTuV26uBemKq3ppzma7dHFAG7viw==}
+    engines: {node: '>=18'}
+
   css-select@7.0.0:
     resolution: {integrity: sha512-snmjEVXy+1LnwXdxhYvTMj1d9tOh4HxkA1YmoayVBeeyR2C14Pum7fcxJIm4SswYspVy866eYNwlH6xC3/VH5g==}
     engines: {node: '>=20.19.0'}
@@ -1559,6 +1566,10 @@ packages:
   lru-cache@11.5.3:
     resolution: {integrity: sha512-U4N8FgzmWxc8k1VH8Kr6lQg18U7Fjvby6wXHVRX/ZZ7IwWbRMgrRbP0Wrb5q5NVinryp4SQampHKdvtecItxUg==}
     engines: {node: 20 || >=22}
+
+  luxon@3.7.2:
+    resolution: {integrity: sha512-vtEhXh/gNjI9Yg1u4jX/0YVPMvxzHuGgCm6tC5kZyb08yjGWGnqAjGJvcXbqQR2P3MyMEFnRbpcdFS6PBcLqew==}
+    engines: {node: '>=12'}
 
   magic-string@1.4.5:
     resolution: {integrity: sha512-oLLC2+YvQUfAa+vxoufE/yc1icb87M9iXIRqAoR/2EhE/8cb3SF/+Gi0c2By1B+5Vz2e2vQtUvHiu1+63Znh+w==}
@@ -2738,6 +2749,10 @@ snapshots:
 
   cookie@2.0.2: {}
 
+  cron-parser@5.10.6:
+    dependencies:
+      luxon: 3.7.2
+
   css-select@7.0.0:
     dependencies:
       boolbase: 2.0.0
@@ -3036,6 +3051,8 @@ snapshots:
   lodash.clonedeep@4.5.0: {}
 
   lru-cache@11.5.3: {}
+
+  luxon@3.7.2: {}
 
   magic-string@1.4.5:
     dependencies:

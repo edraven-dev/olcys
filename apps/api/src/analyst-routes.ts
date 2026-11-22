@@ -44,9 +44,15 @@ export interface AnalystRouteDeps {
   renderReport?(run: RunWithProgress): Promise<void>;
 }
 
-/** The analyst identity until authentication exists: `OLCYS_ANALYST_NAME`, else `OLCYS_COLLECTOR_NAME`. */
-export function analystName(env: Readonly<Record<string, string | undefined>>): string | undefined {
-  return env['OLCYS_ANALYST_NAME']?.trim() || env['OLCYS_COLLECTOR_NAME']?.trim() || undefined;
+/** The analyst name when the configuration names none. */
+export const DEFAULT_ANALYST = 'analyst';
+
+/**
+ * The analyst identity until authentication exists, for every analyst action (cases, schedule changes, judgements,
+ * overrides): `OLCYS_ANALYST_NAME`, else `OLCYS_COLLECTOR_NAME`, else `analyst`.
+ */
+export function analystName(env: Readonly<Record<string, string | undefined>>): string {
+  return env['OLCYS_ANALYST_NAME']?.trim() || env['OLCYS_COLLECTOR_NAME']?.trim() || DEFAULT_ANALYST;
 }
 
 /** Judgements and overrides need both stores and the lookup of a link by id. */

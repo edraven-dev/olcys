@@ -10,6 +10,7 @@ interface CaseRow {
   scope: Case['scope'];
   created_at: Date;
   created_by: string;
+  schedule: Case['schedule'] | null;
 }
 
 interface IdentifierRow {
@@ -32,6 +33,7 @@ function toCase(row: CaseRow): Case {
     legalBasis: row.legal_basis,
     status: row.status,
     scope: row.scope,
+    ...(row.schedule ? { schedule: row.schedule } : {}),
     createdAt: row.created_at.toISOString(),
     createdBy: row.created_by,
   };

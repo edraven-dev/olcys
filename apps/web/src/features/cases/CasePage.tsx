@@ -21,6 +21,8 @@ import { isWalletSwap, type ChangeView, type SourceItem } from '../../lib/domain
 import { formatDateTime, formatDuration } from '../../lib/format.ts';
 import { Link, navigate, routePath } from '../../lib/router.tsx';
 import { useJson, useList } from '../../lib/use-api.ts';
+import { SCHEDULE_POLL_MS } from './schedule-model.ts';
+import { SchedulePanel } from './SchedulePanel.tsx';
 
 export const isActiveRun = (run: Pick<RunWithProgress, 'status'>) =>
   run.status === 'queued' || run.status === 'running';
@@ -43,6 +45,8 @@ export function CasePage({ caseId }: { caseId: string }) {
 function CaseDetail({ kase }: { kase: CaseWithIdentifiers }) {
   const sources = useList<SourceItem>(apiPaths.sources);
   const byId = new Map((sources.data ?? []).map((s) => [s.id, s]));
+  // While a schedule is active, the run list also refreshes when idle, so scheduled runs show up.
+  const [scheduleActive, setScheduleActive] = useState(Boolean(kase.schedule?.enabled) && kase.status === 'open');
   return (
     <>
       <ResourceNotices resources={[sources]} />
@@ -54,7 +58,9 @@ function CaseDetail({ kase }: { kase: CaseWithIdentifiers }) {
         {pl.casePage.created} <DateTime iso={kase.createdAt} /> · {kase.createdBy}
       </p>
 
-      <RunsSection caseId={kase.id} />
+      <RunsSection caseId={kase.id} idlePollMs={scheduleActive ? SCHEDULE_POLL_MS : undefined} />
+
+      <SchedulePanel caseId={kase.id} caseOpen={kase.status === 'open'} onActiveChange={setScheduleActive} />
 
       <section aria-labelledby="case-purpose" className="card">
         <h2 id="case-purpose">{pl.casePage.sectionPurpose}</h2>
@@ -119,14 +125,14 @@ function CaseDetail({ kase }: { kase: CaseWithIdentifiers }) {
   );
 }
 
-function RunsSection({ caseId }: { caseId: string }) {
+function RunsSection({ caseId, idlePollMs }: { caseId: string; idlePollMs?: number }) {
   const [pollMs, setPollMs] = useState<number | undefined>(undefined);
   const runs = useList<RunWithProgress>(apiPaths.caseRuns(caseId), { pollMs });
   const [startError, setStartError] = useState<unknown>();
   const [starting, setStarting] = useState(false);
   const items = [...(runs.data ?? [])].toSorted((a, b) => b.queuedAt.localeCompare(a.queuedAt));
   const active = items.some(isActiveRun);
-  const wantedPoll = active ? 2000 : undefined;
+  const wantedPoll = active ? 2000 : idlePollMs;
   if (wantedPoll !== pollMs) setPollMs(wantedPoll);
 
   const start = async () => {

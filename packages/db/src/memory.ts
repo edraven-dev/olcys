@@ -1,6 +1,6 @@
 /**
  * In-memory implementation of the repository ports — same contracts as the SQL implementation, for tests and
- * database-less demos. Append-only like the store it mirrors: only run lifecycle fields change.
+ * database-less demos. Append-only like the store it mirrors: only run lifecycle fields and case schedules change.
  */
 import type {
   ActivityIndicators,
@@ -18,6 +18,7 @@ import type {
   RunWithProgress,
 } from '@olcys/core';
 import { addressKey, newId, nowIso } from '@olcys/core';
+import { memoryScheduleRepository } from './memory-schedules.ts';
 import { labelContentSha256 } from './sql/analysis.ts';
 
 const copy = <T>(value: T): T => structuredClone(value);
@@ -116,6 +117,7 @@ export function createMemoryRepositories(): Repositories {
         return last ? copy(last) : undefined;
       },
     },
+    schedules: memoryScheduleRepository(cases, runs),
     evidence: {
       async addEgressLog(entries) {
         store.egress.push(...copy(entries));

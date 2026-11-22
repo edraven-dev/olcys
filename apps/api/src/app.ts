@@ -15,8 +15,9 @@ import type {
 import { ContractError, CORE_CONTRACTS_VERSION, CreateCaseSchema, parse, StartRunSchema } from '@olcys/core';
 import { evidenceRunIdOf, TOOL_VERSION } from '@olcys/worker';
 import Fastify, { type FastifyInstance, type FastifyReply } from 'fastify';
-import { registerAnalystRoutes, supportsJudgements, withJudgements } from './analyst-routes.ts';
+import { DEFAULT_ANALYST, registerAnalystRoutes, supportsJudgements, withJudgements } from './analyst-routes.ts';
 import { idOf } from './ids.ts';
+import { registerScheduleRoutes } from './schedule-routes.ts';
 
 export interface ApiDeps {
   repos: Repositories;
@@ -27,17 +28,26 @@ export interface ApiDeps {
     caseId: string,
     input: { trigger?: 'manual' | 'rescore'; rescoreOfRunId?: string },
   ): Promise<RunWithProgress>;
-  /** Who acts; the MVP has a single local analyst. */
+  /**
+   * Who acts — the one local analyst of the MVP (`analystName()`: `OLCYS_ANALYST_NAME`, else `OLCYS_COLLECTOR_NAME`,
+   * else `analyst`): creates cases, changes schedules, records judgements and overrides. Never taken from a request.
+   */
   analyst?: string;
   /** Fastify request logging. */
   httpLog?: boolean;
-  /** Run mode and configuration snapshot of new runs, for `GET /api/meta`. */
+  /**
+   * Fetch mode of the runs: shown by `GET /api/meta`; in live mode schedules keep the minimum interval (the strict
+   * rule when absent).
+   */
   mode?: FetchMode;
+  /** Configuration snapshot of new runs, for `GET /api/meta`. */
   config?: { snapshot: RunConfigSnapshot };
   /** Audit log of analyst actions (judgements, overrides). */
   logger?: Logger;
   /** Renders a new version of a finished run's report (`POST /api/runs/:runId/report`). */
   renderReport?(run: RunWithProgress): Promise<void>;
+  /** Periodic re-runs: live-mode minimum interval (default 60 min), who changes schedules (default: `analyst`), clock. */
+  schedule?: { minIntervalMinutes?: number; analyst?: string; clock?: () => Date };
 }
 
 const notFound = (reply: FastifyReply, what: string) =>
@@ -75,7 +85,7 @@ export function scopeProblems(
 export function buildApp(deps: ApiDeps): FastifyInstance {
   const app = Fastify({ logger: deps.httpLog ?? false });
   const { repos } = deps;
-  const analyst = deps.analyst ?? 'analityk';
+  const analyst = deps.analyst ?? DEFAULT_ANALYST;
 
   app.setErrorHandler((error, _request, reply) => {
     if (error instanceof ContractError) {
@@ -103,7 +113,7 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
       features: {
         judgements: supportsJudgements(repos),
         suggestions: false,
-        schedules: false,
+        schedules: repos.schedules !== undefined,
         reportPdf: false,
         exports: false,
         auth: false,
@@ -175,6 +185,15 @@ export function buildApp(deps: ApiDeps): FastifyInstance {
     return reply
       .code(202)
       .send(await deps.startRun(kase.id, { trigger: input.trigger, ...(rescoreOfRunId ? { rescoreOfRunId } : {}) }));
+  });
+
+  registerScheduleRoutes(app, {
+    repos,
+    mode: deps.mode ?? 'live',
+    minIntervalMinutes: deps.schedule?.minIntervalMinutes ?? 60,
+    analyst: deps.schedule?.analyst ?? analyst,
+    clock: deps.schedule?.clock ?? (() => new Date()),
+    idOf,
   });
 
   app.get<{ Params: { runId: string } }>('/api/runs/:runId', async (request, reply) => {

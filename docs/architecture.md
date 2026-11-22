@@ -95,6 +95,53 @@ Tylko ponowna ocena stosuje też korekty analityka zapisane do chwili jej zlecen
 zapisany w migawce konfiguracji jako `analystOverrides` i `rulesVersions.overrides`); oceny analityka są zapisywane
 obok wyników i nigdy ich nie zmieniają — zob. [metodyka Wskaźnika Pewności](methodology/wskaznik-pewnosci.md).
 
+## Analizy okresowe (harmonogram)
+
+Sprawa może mieć harmonogram ponownych analiz: wyrażenie cron (pięć pól: minuta, godzina, dzień miesiąca, miesiąc,
+dzień tygodnia) liczone w UTC oraz flagę włączenia. Każdy przebieg z harmonogramu (`trigger: 'schedule'`) jest
+porównywany z ostatnim zakończonym przebiegiem sprawy (`succeeded` lub `partial`, dowolnego rodzaju — także z ponowną
+oceną), więc krok `diff.previous` pokazuje, co się zmieniło (np. podmianę adresu portfela). Przebieg z harmonogramu
+zbiera dane od nowa i — jak każdy przebieg zbierający — nie stosuje korekt analityka; stosuje je tylko ponowna ocena
+(zob. wyżej).
+
+- **Planista w procesie API (MVP).** `createScheduler()` z `apps/worker` co `OLCYS_SCHEDULER_INTERVAL_SECONDS`
+  (domyślnie 30 s) sprawdza otwarte sprawy z włączonym harmonogramem i obsługuje termin należny: najpóźniejszy termin
+  cron do chwili bieżącej, późniejszy zarówno od ostatniej zmiany harmonogramu, jak i od ostatniego obsłużonego
+  terminu. Stan planisty wynika wyłącznie z bazy danych; przy starcie `reconcile()` raportuje harmonogramy, terminy do
+  nadrobienia i przebiegi w toku.
+- **Idempotencja.** Każdy obsłużony termin to jeden wpis `schedule_tick` z unikalnym identyfikatorem zadania
+  `<id sprawy>@<termin ISO>`. Wstawienie wpisu zajmuje termin: termin już obsłużony nigdy nie uruchamia drugiego
+  przebiegu — także przy kilku procesach API korzystających z jednej bazy (blokada doradcza sprawy w transakcji, która
+  zapisuje wpis razem z przebiegiem). Decyzja zapada pod tą blokadą na bieżącym stanie sprawy, a zmiana harmonogramu
+  bierze tę samą blokadę: termin, który przestał być należny (harmonogram zmieniono po jego wyborze, termin nie pasuje
+  do bieżącego wyrażenia albo obsłużono już późniejszy termin), nie jest obsługiwany i nie zostawia wpisu.
+- **Bez nakładania się przebiegów.** Gdy przebieg sprawy jest w stanie `queued` lub `running`, termin jest pomijany
+  (`skipped_overlap`); przy wyłączonym harmonogramie — `skipped_disabled`; w zamkniętej sprawie — `skipped_case_closed`.
+- **Nadrabianie po przerwie.** Po przestoju uruchamiany jest najwyżej jeden przebieg — dla najpóźniejszego opuszczonego
+  terminu; `fired_at` zapisuje faktyczny czas obsługi. Terminy sprzed zmiany harmonogramu (także z okresu, gdy był
+  wyłączony) nie są nadrabiane.
+- **Umiar wobec źródeł.** W trybie `live` odstęp między kolejnymi terminami musi wynosić co najmniej
+  `OLCYS_SCHEDULE_MIN_INTERVAL_MINUTES` (domyślnie 60 min), w trybach `offline` i `replay` — 1 min; jest sprawdzany
+  dokładnie w obrębie doby i na przełomie dni, a dla wzorców dni (tygodnie, miesiące) na 10 najbliższych terminach.
+  Harmonogram zapisany w innym trybie, zbyt częsty dla bieżącego, nie jest wykonywany. Przebiegi z harmonogramu
+  podlegają tym samym ograniczeniom co ręczne (lista dozwolonych hostów, limity zapytań, zakres sprawy); harmonogram
+  nigdy sam nie włącza źródeł.
+- **Ewidencja.** `cases.schedule` to jedyna nowa wartość zmienna (prawo UPDATE wyłącznie do tej kolumny); każda zmiana
+  trafia w tej samej transakcji do dopisywanego dziennika `case_schedule_change`: kto (z konfiguracji serwera:
+  `OLCYS_ANALYST_NAME`, w razie braku `OLCYS_COLLECTOR_NAME`, domyślnie `analyst`; nigdy z żądania), dlaczego, wartość
+  przed i po. Dla roli `olcys_app` tabele
+  `case_schedule_change` i `schedule_tick` są tylko do dopisywania.
+- **Odrzucane wyrażenia:** makra (`@daily`, `@reboot`), pole sekund, `H` (Jenkins), RRULE oraz jednoczesne ograniczenie
+  dnia miesiąca i dnia tygodnia.
+
+API: `GET`/`PUT /api/cases/:caseId/schedule` (zob. `apps/api/README.md`); w konsoli — panel „Harmonogram analiz” na
+stronie sprawy. Demonstracja w trybie `offline`: harmonogram `*/2 * * * *`, a między wyzwoleniami przełączenie strony
+testowej z wariantu v1 na v2 (`FIXTURE_ALLOW_VARIANT_SWITCH=1`, `POST /__fixture/variant`); drugi przebieg
+z harmonogramu pokazuje alert podmiany portfela.
+
+Ograniczenie MVP: przebieg przerwany restartem procesu API pozostaje w stanie `running`, więc kolejne terminy są
+pomijane (`skipped_overlap`); raport startowy planisty i dziennik wskazują takie przebiegi.
+
 ## Dowody i pochodzenie danych
 
 - Każda odpowiedź z zewnątrz otrzymuje `ProvenanceEnvelope` (dostawca, URL z zamaskowanymi sekretami, czasy, status,

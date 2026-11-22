@@ -126,6 +126,12 @@ export const api = {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(body),
     }),
+  put: <T>(path: string, body: unknown): Promise<T> =>
+    requestJson<T>(path, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    }),
   /** HEAD request: true when the resource exists. */
   exists: async (path: string): Promise<boolean> => {
     const response = await send(path, { method: 'HEAD' });
@@ -142,6 +148,7 @@ export const apiPaths = {
   cases: '/api/cases',
   case: (caseId: string) => `/api/cases/${enc(caseId)}`,
   caseRuns: (caseId: string) => `/api/cases/${enc(caseId)}/runs`,
+  caseSchedule: (caseId: string) => `/api/cases/${enc(caseId)}/schedule`,
   run: (runId: string) => `/api/runs/${enc(runId)}`,
   runList: (runId: string, list: RunListName) => `/api/runs/${enc(runId)}/${list}`,
   report: (runId: string) => `/api/runs/${enc(runId)}/report`,
