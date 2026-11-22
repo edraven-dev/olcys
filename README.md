@@ -24,7 +24,7 @@ Obowiązkowy scenariusz i odpowiadające mu funkcje:
 2. **Wyszukiwanie śladów OSINT** wyłącznie w źródłach włączonych dla sprawy. Kolektory: forum Bitcointalk (strony dla
    gości), konta społecznościowe (Wykop), GitHub (profil, repozytoria, `FUNDING.json`), publiczny podgląd kanałów
    Telegrama, ogłoszenia P2P, wyszukiwarki (lokalna atrapa, opcjonalnie Brave i Mojeek), enumeracja nicków (Maigret),
-   rejestry publiczne (CEIDG, wykaz podatników VAT, KRS) oraz archiwum Wayback Machine (tylko odczyt). Planer rozwija
+   rejestry publiczne (CEIDG, wykaz podatników VAT, KRS), protokoły tożsamości (Keybase — podpisane adresy, ENS — nazwy zweryfikowane w obie strony, archiwum BitList) oraz archiwum Wayback Machine (tylko odczyt). Planer rozwija
    wyszukiwanie z nowych kont i adresów do głębokości `maxPivotDepth`. Każda pobrana strona jest zabezpieczana jako dowód:
    adres, czas, skrót SHA-256 i manifest zgodny z Protokołem Berkeley.
 3. **Wykrywanie i weryfikacja adresów.** Ekstraktor wyszukuje adresy w zapisanym HTML (m.in. Bitcoin, EVM, TRON) i
