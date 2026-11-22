@@ -130,7 +130,7 @@ Samo słowo „test” nie jest wskazówką (każda strona testowa zawiera baner
 ## Pomiar jakości (benchmark)
 
 Syntetyczny korpus `fixtures/corpus/` (opis: `fixtures/corpus/README.md`) zawiera 1 200 adresów Bitcoin, EVM i TRON
-w 500 dokumentach z 48 szablonów (39 polskich), ponad 1 300 trudnych negatywów, 14 rodzajów zaciemnień i ponad
+w 500 dokumentach z 48 szablonów (39 polskich), ponad 1 300 hard negatives, 14 rodzajów zaciemnień i ponad
 200 sekretów wypełnianych wyłącznie w pamięci. Metodyka i wyniki: `docs/methodology/extraction-benchmark.md`.
 
 ```bash
@@ -144,7 +144,7 @@ pnpm --filter @olcys/address-extractor bench             # raport → data/bench
   (`bench/report.ts`, teksty w katalogu `bench/pl.ts`) i linia bazowa SpiderFoot (`bench/baselines/spiderfoot.ts`,
   MIT). Sekrety (`bench/secrets.ts`) powstają z seedu korpusu tylko w pamięci; wyniki, logi i raport są sprawdzane
   pod kątem ich fragmentów, a raport nie zostanie zapisany, jeśli któryś się w nim znajdzie.
-- `scripts/corpus/` — generator korpusu (adresy z losowych bajtów, trudne negatywy, renderowanie szablonów,
+- `scripts/corpus/` — generator korpusu (adresy z losowych bajtów, hard negatives, renderowanie szablonów,
   zaciemnienia, manifest z SHA-256 plików).
 - Bramka CI: `test/corpus.thresholds.test.ts` (cały korpus, poniżej sekundy) — czyste formaty z sumą kontrolną:
   czułość i precyzja ≥ 99 % dla każdej sieci; zaciemnienia: czułość ≥ 90 %; formaty bez sumy kontrolnej

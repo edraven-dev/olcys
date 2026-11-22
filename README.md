@@ -26,7 +26,7 @@ Obowiązkowy scenariusz i odpowiadające mu funkcje:
    Telegrama, ogłoszenia P2P, wyszukiwarki (lokalny mock, opcjonalnie Brave i Mojeek), enumeracja nicków (Maigret),
    rejestry publiczne (CEIDG, wykaz podatników VAT, KRS), protokoły tożsamości (Keybase — podpisane adresy, ENS — nazwy zweryfikowane w obie strony, Farcaster — zweryfikowane adresy, Nostr — NIP-05, archiwum BitList) oraz archiwum Wayback Machine (tylko odczyt). Planer rozwija
    wyszukiwanie z nowych kont i adresów do głębokości `maxPivotDepth`. Każda pobrana strona jest zabezpieczana jako dowód:
-   adres, czas, skrót SHA-256 i manifest zgodny z Protokołem Berkeley.
+   adres, czas, skrót SHA-256 i manifest zgodny z Berkeley Protocol.
 3. **Wykrywanie i weryfikacja adresów.** Ekstraktor wyszukuje adresy w zapisanym HTML (m.in. Bitcoin, EVM, TRON) i
    **weryfikuje sumy kontrolne**: decydują sumy, nie same wyrażenia regularne. Kandydaci odrzuceni przy weryfikacji (skróty
    transakcji, przykłady z dokumentacji, homoglify) są wymienieni z powodem. Klucze prywatne i frazy odzyskiwania są
@@ -41,7 +41,7 @@ Obowiązkowy scenariusz i odpowiadające mu funkcje:
    [`docs/methodology/wskaznik-pewnosci.md`](docs/methodology/wskaznik-pewnosci.md).
 5. **Odrzucanie błędnych przypisań.** Reguły A1–A8 ([`config/rules/exclusion.v1.yaml`](config/rules/exclusion.v1.yaml)):
    etykietowane adresy usług (A1), kontrakty usług (A2), delegowane konta EIP-7702 (A3, nie są odrzucane), adresy
-   depozytowe giełd (A4), zachowanie usługi (A5), CoinJoin (A6), zapadanie się klastra (A7) oraz lista odrzuceń z
+   depozytowe giełd (A4), zachowanie usługi (A5), CoinJoin (A6), cluster collapse (A7) oraz lista odrzuceń z
    przykładami z dokumentacji i adresami spalenia (A8). Odrzucenie **przeklasyfikowuje, a nie usuwa**: przelew na adres
    depozytowy giełdy jest najsilniejszą dostępną w otwartych danych przesłanką wyjścia do fiat. Panel „Odrzucone adresy”
    pokazuje regułę, uzasadnienie i pochodzenie etykiety.
@@ -215,10 +215,10 @@ przebiegu. Szczegóły: [`docs/architecture.md`](docs/architecture.md),
   skanowania hostów i rotowania proxy. Źródła RED nie są kontaktowane, AMBER tylko z uzasadnieniem w sprawie.
 - **Lista dozwolonych hostów i dziennik wyjść.** Każde żądanie przechodzi przez `EgressClient`: host musi należeć do
   włączonego źródła, obowiązują limity zapytań, a wpis dziennika (tylko do dopisywania) zawiera pole
-  `containsIdentifier` i kopertę pochodzenia (URL z zamaskowanymi sekretami, czasy, status, SHA-256). Reguła lintera
+  `containsIdentifier` i provenance envelope (URL z zamaskowanymi sekretami, czasy, status, SHA-256). Reguła lintera
   zabrania `fetch` i klientów HTTP poza `packages/http`.
-- **robots.txt i bariery.** robots.txt (RFC 9309) jest sprawdzany dla każdego kroku. CAPTCHA, wyzwanie przeglądarki,
-  ściana logowania, blokada lub limit kończą zbieranie ze źródła (`captcha`, `login_wall`, `blocked`): **bez ponowień,
+- **robots.txt i bariery.** robots.txt (RFC 9309) jest sprawdzany dla każdego kroku. CAPTCHA, browser challenge,
+  login wall, blokada lub limit kończą zbieranie ze źródła (`captcha`, `login_wall`, `blocked`): **bez ponowień,
   bez rozwiązywania CAPTCHA i bez obchodzenia zabezpieczeń antybotowych**; strona blokady zostaje zapisana jako dowód.
 - **Redakcja sekretów.** Klucze prywatne i frazy odzyskiwania są usuwane z pamięci przed zapisem; test pilnuje także, by
   repozytorium nie zawierało kluczy PEM ani tokenów.

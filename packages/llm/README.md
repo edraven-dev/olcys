@@ -43,7 +43,7 @@ w zakresie sprawy z uzasadnieniem — poza zakresem MVP. Wyłączony model (`LLM
 
 Endpoint modelu to źródło `local_llm` w `config/sources.yaml` (rodzaj `ai_model`, GREEN, tylko hosty lokalne,
 `sendsIdentifiersExternally: false`). `apps/worker/src/llm.ts` buduje dla niego osobnego klienta wyjścia (lista
-dozwolonych hostów, limit zapytań, dziennik wyjścia, koperta pochodzenia) i zapisuje wywołania w `llm_call`. Domyślnie
+dozwolonych hostów, limit zapytań, dziennik wyjścia, provenance envelope) i zapisuje wywołania w `llm_call`. Domyślnie
 działa lokalny OpenVINO Model Server (`http://localhost:2140/v3`, model `qwen3.6-35b-ov`). Zdalny endpoint
 wymaga osobnego wpisu AMBER w rejestrze.
 

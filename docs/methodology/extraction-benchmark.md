@@ -11,7 +11,7 @@ adresów kryptowalutowych oraz maskowania sekretów — i jakie wyniki daje pomi
 Nie istnieje publiczny, oznaczony zbiór stron internetowych z adresami kryptowalut, a zgodność kilku narzędzi nie jest
 prawdą wzorcową. Korpus (`fixtures/corpus/`, opis w `fixtures/corpus/README.md`) powstaje więc razem z prawdą
 wzorcową: generator z ustalonym seedem renderuje szablony (39 polskich, 9 angielskich) i zapisuje każde wystąpienie
-adresu, trudnego negatywu i sekretu z dokładnym zakresem znaków. Adresy pochodzą z losowych bajtów — nikt nie ma do
+adresu, hard negatives i sekretu z dokładnym zakresem znaków. Adresy pochodzą z losowych bajtów — nikt nie ma do
 nich kluczy. Sekrety istnieją wyłącznie w pamięci podczas pomiaru.
 
 Zakres to sieci, które ekstraktor dziś obsługuje: Bitcoin (`p2pkh`, `p2sh`, `p2wpkh`, `p2wsh`, `p2tr`), sieci EVM
@@ -62,17 +62,17 @@ przechodzi, gdy którykolwiek próg nie jest spełniony. Progi są w `packages/a
 | sekrety                                                                          | ≥ 200 sekretów 4 rodzajów, czułość maskowania = 100 %, 0 wycieków |
 | skróty transakcji, CID IPFS, MD5/SHA/git, ciągi JWT i tokenów                    | 0 kandydatów                                                      |
 | wektory BIP-350 (v1 w bech32, v0 w bech32m)                                      | wszystkie odrzucone jako `bech32_variant_mismatch`                |
-| SpiderFoot na dokumentach z trudnymi negatywami                                  | precyzja niższa niż OŁCyŚ                                         |
+| SpiderFoot na dokumentach z hard negatives                                       | precyzja niższa niż OŁCyŚ                                         |
 
 ## Wyniki
 
-| Narzędzie                        | Zakres                          | Precyzja |  Czułość |       F1 |
-| -------------------------------- | ------------------------------- | -------: | -------: | -------: |
-| OŁCyŚ                            | Bitcoin, EVM, TRON              | 100,00 % | 100,00 % | 100,00 % |
-| OŁCyŚ                            | Bitcoin, EVM (porównanie)       | 100,00 % | 100,00 % | 100,00 % |
-| SpiderFoot (wyrażenia regularne) | Bitcoin, EVM (porównanie)       |  49,57 % |  51,22 % |  50,38 % |
-| OŁCyŚ                            | dokumenty z trudnymi negatywami | 100,00 % | 100,00 % | 100,00 % |
-| SpiderFoot (wyrażenia regularne) | dokumenty z trudnymi negatywami |  14,98 % |  37,02 % |  21,33 % |
+| Narzędzie                        | Zakres                     | Precyzja |  Czułość |       F1 |
+| -------------------------------- | -------------------------- | -------: | -------: | -------: |
+| OŁCyŚ                            | Bitcoin, EVM, TRON         | 100,00 % | 100,00 % | 100,00 % |
+| OŁCyŚ                            | Bitcoin, EVM (porównanie)  | 100,00 % | 100,00 % | 100,00 % |
+| SpiderFoot (wyrażenia regularne) | Bitcoin, EVM (porównanie)  |  49,57 % |  51,22 % |  50,38 % |
+| OŁCyŚ                            | dokumenty z hard negatives | 100,00 % | 100,00 % | 100,00 % |
+| SpiderFoot (wyrażenia regularne) | dokumenty z hard negatives |  14,98 % |  37,02 % |  21,33 % |
 
 Wszystkie progi są spełnione. Najważniejsze liczby z raportu:
 
@@ -80,7 +80,7 @@ Wszystkie progi są spełnione. Najważniejsze liczby z raportu:
   `<br>`, `<span>` i komórkami tabeli, znaki zerowej szerokości i sterujące kierunkiem, pełna szerokość, encje HTML,
   kodowanie procentowe w URI, „rozbrojone” odnośniki, adres tylko w atrybucie lub w JSON-LD). Wszystkie 60 wabików
   z homoglifami odrzucono jako `homoglyph_detected`.
-- **Trudne negatywy:** 0 przyjętych przez OŁCyŚ. SpiderFoot przyjął m.in. 86 z 200 adresów z jednym podmienionym
+- **Hard negatives:** 0 przyjętych przez OŁCyŚ. SpiderFoot przyjął m.in. 86 z 200 adresów z jednym podmienionym
   znakiem, 47 ze 100 z zamienionymi sąsiednimi znakami, 51 z 80 skrótów `0x` + 64 hex (pierwsze 40 znaków jako
   „adres”), wszystkie 80 wektorów v1/v0 w niewłaściwym wariancie bech32 i wszystkie 60 adresów EIP-55 ze zmienioną
   wielkością liter.

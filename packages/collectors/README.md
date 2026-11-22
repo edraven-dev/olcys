@@ -16,12 +16,12 @@ ekstraktor adresów na zapisanym HTML.
    (co najmniej 20 znaków), GREEN — gdy sprawa je wymienia. W trybach `offline` i `replay` dochodzi strona testowa (`fixture_site`).
    Kolektor spoza zakresu to błąd planera: `SourceRefusedError` przed jakimkolwiek żądaniem.
 2. **Każde żądanie** idzie przez klienta egress (lista dozwolonych hostów, limity, dziennik z `containsIdentifier`,
-   koperta pochodzenia). `containsIdentifier` nigdy nie jest obniżane, a identyfikator sprawy w adresie podnosi je do
+   provenance envelope). `containsIdentifier` nigdy nie jest obniżane, a identyfikator sprawy w adresie podnosi je do
    `true`. W trybie `live` żądanie z syntetycznym identyfikatorem persony jest odrzucane przed wysłaniem.
 3. **robots.txt (RFC 9309) dla każdego kroku**, przekierowania obsługiwane ręcznie (najwyżej 5), host każdego kroku
    sprawdzany względem listy dozwolonych. Strona wyłączona w robots.txt nie jest pobierana.
-4. **Bariery kończą zbieranie ze źródła:** CAPTCHA, wyzwanie przeglądarki (`cf-mitigated: challenge`), ściana
-   logowania, blokada (403/451) i limit (429 z `retry-after`) dają status `captcha` / `login_wall` / `blocked`, strona
+4. **Bariery kończą zbieranie ze źródła:** CAPTCHA, browser challenge (`cf-mitigated: challenge`), login
+   wall, blokada (403/451) i limit (429 z `retry-after`) dają status `captcha` / `login_wall` / `blocked`, strona
    blokady zostaje zapisana jako dowód, a źródło do końca przebiegu nie jest już odpytywane. Bez ponowień i obchodzenia.
 5. **Tryby `offline` i `replay`:** kolektory budują adresy prawdziwych serwisów, a `resolveSourceUrl` zamienia host na prefiks
    strony testowej (`hostPrefixes` z manifestu persony, adres bazowy `OLCYS_FIXTURE_BASE_URL` lub `FIXTURE_SITE_URL`).
@@ -31,7 +31,7 @@ ekstraktor adresów na zapisanym HTML.
 7. **Sekrety nie trafiają do magazynu:** treść strony jest pobierana z `persistBody: false` (klient egress zachowuje
    tylko skrót i jej nie nagrywa), w pamięci przechodzi przez `SecretRedactor` (klucze prywatne, frazy seed), a
    zapisywane są wyłącznie bajty po redakcji. Parsery i obserwacje widzą tylko tekst po redakcji; `technical.redaction`
-   podaje liczbę i rodzaje usuniętych sekretów (bez wartości) oraz skrót oryginału z koperty pochodzenia.
+   podaje liczbę i rodzaje usuniętych sekretów (bez wartości) oraz skrót oryginału z provenance envelope.
 
 ## Publiczne API (wywołanie z pipeline’u)
 
@@ -218,7 +218,7 @@ klientem egress (`OLCYS_RECORD` nie nagrywa żądań tylko ze skrótem); brak na
 **Brave:** `GET https://api.search.brave.com/res/v1/web/search` z `q="…"`, `count=20`, `offset=0`, `safesearch=off`,
 `spellcheck=false`, `text_decorations=false`, `result_filter=web`; dla imion i nazwisk oraz nicków `country=PL` i
 `search_lang=pl`, dla e-maili i adresów kryptowalut `country=ALL`. Token w nagłówku `X-Subscription-Token` nie trafia do
-dziennika, koperty pochodzenia ani nagrania. Gdy dostawca zmienił zapytanie (`query.altered`), wyniki są odrzucane
+dziennika, provenance envelope ani nagrania. Gdy dostawca zmienił zapytanie (`query.altered`), wyniki są odrzucane
 (status `partial`, dokładność nie jest zapewniona); 401/403 (klucz lub plan) i 422 → `error`; 429 → `blocked`, a źródło
 jest wstrzymane do końca przebiegu (bez ponowień).
 
@@ -316,7 +316,7 @@ listą dozwolonych hostów, limitem 4 zapytań/s i własnym dziennikiem — a ko
   oraz — po stronie serwisu — listę RED; serwis nie kontaktuje takich hostów;
 - scala dziennik żądań serwisu z dziennikiem ruchu wychodzącego (`EgressClient.recordDelegated`): jeden wiersz na
   żądanie z polem `delegate: 'osint-py'`, `containsIdentifier: true`, odmowy jako `allowed: false`; dla żądań z treścią
-  powstaje koperta pochodzenia z `delegatedVia`. Bez tej metody klienta kolektor **nic nie wysyła** (`error`, notatka
+  powstaje provenance envelope z `delegatedVia`. Bez tej metody klienta kolektor **nic nie wysyła** (`error`, notatka
   `delegated_log_unavailable`);
 - zapisuje przechwycenie raportu (JSON bez treści stron) oraz po jednym przechwyceniu na każdy znaleziony profil i każdą
   stronę bariery; konto-kandydat dostaje `discoveredVia.method = 'enumeration'` i **nie jest powiązaniem** — nie ma wagi
@@ -513,7 +513,7 @@ Notatki mają postać `kod: szczegóły`; interfejs tłumaczy kod.
 | ------------------------------ | ----------------------------------------------------------------- |
 | `robots_disallowed`            | Strona wyłączona w robots.txt — nie pobrano                       |
 | `allow_list_denied`            | Host spoza listy dozwolonych — nie pobrano                        |
-| `barrier_captcha`              | CAPTCHA lub wyzwanie przeglądarki — pominięto bez obchodzenia     |
+| `barrier_captcha`              | CAPTCHA lub browser challenge — pominięto bez obchodzenia         |
 | `barrier_login_wall`           | Wymagane logowanie — pominięto                                    |
 | `barrier_blocked`              | Dostęp zablokowany — pominięto                                    |
 | `rate_limited`                 | Przekroczony limit zapytań — źródło wstrzymane do końca przebiegu |

@@ -58,7 +58,7 @@ o token dla skrótu `manifestSha256` każdego zapisanego przechwycenia (etap zbi
 `defaultStages({ mode, sources, env })` zwraca etapy MVP w kolejności pipeline’u:
 
 1. **Zbieranie** (`collect.source`) — kolektory przez jednego klienta ruchu wychodzącego na przebieg (lista dozwolonych hostów,
-   robots.txt, dziennik ruchu i koperty pochodzenia zapisywane w magazynie). Treść stron jest maskowana z kluczy prywatnych
+   robots.txt, dziennik ruchu i provenance envelope zapisywane w magazynie). Treść stron jest maskowana z kluczy prywatnych
    i fraz seed przed zapisem (`createSecretRedactor()` z pakietu wyodrębniania adresów). Oprócz kolektorów platform
    rejestrowane są wyszukiwarki według `OLCYS_SEARCH_MODE` (domyślnie `mock` — wyszukiwarka testowa po stronie testowej;
    zob. `packages/collectors/README.md`); klucze API pochodzą wyłącznie ze zmiennych środowiskowych. Rejestr kolektorów

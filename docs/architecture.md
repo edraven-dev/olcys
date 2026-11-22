@@ -167,17 +167,17 @@ okresu i nie tworzy zmiany; niepobrana kopia z tym samym skrótem CDX dziedziczy
 - Każda odpowiedź z zewnątrz otrzymuje `ProvenanceEnvelope` (dostawca, URL z zamaskowanymi sekretami, czasy, status,
   SHA-256 treści, tryb, wersja narzędzia, wierzchołek łańcucha dla danych blockchain) oraz wpis `EgressLogEntry`
   (host, cel, informacja, czy ujawniono identyfikator ze sprawy). Oba zapisy są tylko do dopisywania.
-- Każda zebrana strona staje się rekordem `Capture` z polami Protokołu Berkeley (URL, źródło HTML, zrzut całej strony,
+- Każda zebrana strona staje się rekordem `Capture` z polami Berkeley Protocol (URL, źródło HTML, zrzut całej strony,
   osoba zbierająca, maszyna, czas zsynchronizowany z NTP, skrót w chwili zbierania), manifestem SHA-256 oraz
   znacznikiem czasu RFC 3161. Na zewnątrz wysyłane są wyłącznie skróty.
 - Surowe bajty trafiają do magazynu adresowanego treścią: `${OLCYS_DATA_DIR}/blobs/sha256/<aa>/<bb>/<skrót>`.
-- **Manifest przechwycenia (Protokół Berkeley ¶155, formularz z Aneksu IV).** Jeden moduł, `CaptureRecorder`
+- **Manifest przechwycenia (Berkeley Protocol ¶155, formularz z Aneksu IV).** Jeden moduł, `CaptureRecorder`
   (`@olcys/evidence`), zamienia zebrane bajty w rekord dowodowy: zapisuje artefakty, buduje manifest w kanonicznym JSON
   (RFC 8785), zapisuje go jako plik w magazynie (`application/vnd.olcys.capture-manifest+json`), a jego skrót SHA-256 staje
   się `Capture.manifestSha256` — `blobs.get(manifestSha256)` zwraca dokładnie zhaszowane bajty. Kolektory nie liczą
   manifestów; tożsamość kolektora, stan zegara i wersję narzędzia ustawia wyłącznie rejestrator.
 
-  | Protokół Berkeley                                                         | Pole manifestu                                                                                                                                                                                    |
+  | Berkeley Protocol                                                         | Pole manifestu                                                                                                                                                                                    |
   | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
   | ¶155(a) adres URL                                                         | `target.url`, `target.finalUrl`                                                                                                                                                                   |
   | ¶155(b) źródło HTML                                                       | artefakt `html` — treść odpowiedzi bajt w bajt (po ewentualnej redakcji sekretów, opisanej w `technical.redaction`)                                                                               |
@@ -271,7 +271,7 @@ kontraktu usługi — konto EOA z delegacją, konto Safe i konto ERC-4337 mogą 
 `qwen3.6-35b-ov`, myślenie wyłączone przez `LLM_CHAT_TEMPLATE_KWARGS`); Ollama, llama.cpp i vLLM działają tak samo.
 Endpoint modelu jest źródłem w `config/sources.yaml` (`local_llm`, rodzaj `ai_model`, nie wysyła identyfikatorów
 poza maszynę), a cały ruch idzie przez `@olcys/http`: lista dozwolonych hostów, limit zapytań, dziennik wyjścia
-(`containsIdentifier`) i koperta pochodzenia. Zdalny endpoint wymaga własnego wpisu AMBER i zgody w sprawie.
+(`containsIdentifier`) i provenance envelope. Zdalny endpoint wymaga własnego wpisu AMBER i zgody w sprawie.
 
 Model jedynie _podpowiada_ (rola wzmianki o adresie, szkice wniosków w raporcie (dwa prompty: `address-role-classification`, `report-inference-draft`));
 nigdy nie wyszukuje adresów i nie ustala wyników. Zebrany tekst trafia do niego wyłącznie jako niezaufane dane między

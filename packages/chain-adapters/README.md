@@ -3,7 +3,7 @@
 Dostawcy danych blockchain za portem `ChainProvider` (Esplora, Etherscan V2, TronGrid, własny węzeł EVM z API Otterscan). Ten sam kod obsługuje publiczne
 API, węzły utrzymywane lokalnie i syntetyczną stronę testową — różni się wyłącznie adres bazowy (`baseUrl`). Każde
 zapytanie idzie przez klienta ruchu wychodzącego przebiegu (`ctx.http`): lista dozwolonych hostów, limity, dziennik
-z `containsIdentifier`, koperta pochodzenia i cassettes.
+z `containsIdentifier`, provenance envelope i cassettes.
 
 - **Zależności:** kontrakty `@olcys/core` oraz `yaml` (odczyt konfiguracji). Inne pakiety są dostępne przez porty
   łączone w `apps/worker`.
@@ -35,7 +35,7 @@ z `containsIdentifier`, koperta pochodzenia i cassettes.
   `sourceId` w `config/chain-providers.yaml`. Żaden adres nie opuszcza wtedy sieci agencji; nigdy nie wskazywać
   publicznego RPC ani nie rozwidlać sieci publicznej w Anvilu.
 - **Dane sandboxa:** wpisy `sandbox_anvil` i `sandbox_esplora` w `config/sources.yaml` mają `sandbox: true`; klient
-  ruchu wychodzącego oznacza wtedy każdą odpowiedź na żywo (koperta pochodzenia i dziennik) jako `sandbox`.
+  ruchu wychodzącego oznacza wtedy każdą odpowiedź na żywo (provenance envelope i dziennik) jako `sandbox`.
 - **Demonstracja (offline):** `withFixtureSite(configs, FIXTURE_SITE_URL, manifest.hostPrefixes)` przepina adresy na
   ścieżki strony testowej, np. `mempool.space/api` → `/chain/esplora/api`.
 

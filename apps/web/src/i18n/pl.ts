@@ -571,7 +571,7 @@ export const pl = {
     },
     unavailableTitle: 'Niedostępne — brak dostępu nie oznacza braku danych',
     unavailableHint:
-      'Blokada, ściana logowania lub CAPTCHA: zbieranie zatrzymano bez obchodzenia zabezpieczeń (wyłącznie OSINT).',
+      'Blokada, wymagane logowanie (login wall) lub CAPTCHA: zbieranie zatrzymano bez obchodzenia zabezpieczeń (wyłącznie OSINT).',
     noSources: 'W tym przebiegu nie zabezpieczono jeszcze żadnej strony.',
     reproTitle: 'Parametry odtwarzalności',
     repro: {

@@ -1,6 +1,6 @@
 # @olcys/evidence
 
-Magazyn plików adresowany treścią (SHA-256), manifesty, rekordy zabezpieczeń stron zgodne z Protokołem Berkeley, znaczniki czasu RFC 3161 oraz porównywanie kolejnych przebiegów analizy.
+Magazyn plików adresowany treścią (SHA-256), manifesty, rekordy zabezpieczeń stron zgodne z Berkeley Protocol, znaczniki czasu RFC 3161 oraz porównywanie kolejnych przebiegów analizy.
 
 - **Zależności:** wyłącznie kontrakty `@olcys/core`. Inne pakiety są dostępne przez porty łączone w `apps/worker`.
 - **Testy:** `test/*.test.ts`, uruchamiane poleceniem `pnpm vitest run --project @olcys/evidence`.
@@ -25,7 +25,7 @@ Magazyn plików adresowany treścią (SHA-256), manifesty, rekordy zabezpieczeń
   niepobranej jest wstrzymywany (`suppressed`), a nie zgłaszany jako usunięty. Zmiana wyniku powiązania daje
   `SCORE_CHANGED` z przyczyną: dane, algorytm lub oba. Każde zdarzenie ma skrót `keySha256` do idempotentnego zapisu.
 
-## Przechwycenia zgodne z Protokołem Berkeley
+## Przechwycenia zgodne z Berkeley Protocol
 
 - `createCaptureRecorder({ clockSync, collector, toolVersion, gitCommit? })` — `CaptureRecorder`, jedyne miejsce, które
   buduje manifest. `record(draft, ctx)` zapisuje artefakty (`{ bytes, mediaType }`) albo ponownie liczy skrót plików już
