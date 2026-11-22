@@ -133,3 +133,16 @@ P(ścieżka) = P(osoba ↔ konto) × P(konto ↔ adres).
 Wagi są nieskalibrowane (`status: uncalibrated`). Każda zmiana wag to nowy plik i nowa wersja; `weights.v2` różni się
 od `weights.v1` wyłącznie cechą `contact_email_match`. Wynik opisuje powiązanie, nigdy osobę; decyzje analityka są
 zapisywane osobno i nie zmieniają obliczonej oceny.
+
+## Kalibracja
+
+`pnpm --filter @olcys/scoring calibrate [--oracle] [--propose] [--n 20000] [--seed 20261121] [--weights <yaml>]
+[--scenarios <yaml>] [--corpus <katalog>|none] [--out data/calibration]` — sprawdzian zgodności prawdopodobieństw
+silnika z etykietami na danych syntetycznych: wynik Briera, logarytmiczna funkcja straty, ECE z przedziałami
+bootstrapu, diagram niezawodności (SVG), empiryczne ilorazy wiarygodności cech, trafność relacji na korpusie
+`fixtures/corpus/` i zestaw kontrolny persony (rozbieżność = kod wyjścia 1). Interfejs biblioteczny: `calibrate`,
+`generateClaims`, `oracleScenarios`, `parseScenarios`, `reliabilitySvg`, `proposeWeights` (`src/calibration/`).
+Skrypt korzysta z ekstraktora adresów (`@olcys/address-extractor`, tylko jako zależność deweloperska) do pomiaru
+relacji na korpusie. Wyniki trafiają do katalogu `data/` (ignorowanego przez git); `--propose` zapisuje wyłącznie
+plik propozycji pod katalogiem wyjściowym i nigdy nie zmienia `config/scoring/`. Metoda, ostatnie wyniki i granice:
+[metodyka](../../docs/methodology/wskaznik-pewnosci.md#kalibracja-i-jej-granice).

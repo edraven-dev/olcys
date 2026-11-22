@@ -1,0 +1,81 @@
+# Persona sanity set (synthetic): engine-level paths of the demo persona and of the methodology's worked example.
+# `expected` is the score the current engine produces for these paths with the current weights (fixtures/persona/
+# manifest.json, docs/methodology/wskaznik-pewnosci.md); a change to weights or algorithm that moves one of them
+# must be a deliberate, documented decision.
+version: persona.v1
+cases:
+  - id: BTC-1
+    expected: 99
+    relation: SELF_DECLARED
+    paths:
+      - anchor: true
+        service: bitcointalk
+        originGroup: 'acct:bitcointalk:900001'
+        address:
+          - { feature: e1_cryptographic_binding, grade: A }
+          - { feature: e2_self_assertion, grade: B }
+  - id: TRON-1
+    expected: 77
+    relation: SELF_DECLARED
+    paths:
+      - anchor: false
+        service: tablica
+        originGroup: 'acct:tablica:fikcyjny_kacper'
+        identity:
+          - { feature: contact_email_match, grade: B }
+          - { feature: exact_username_or_name, grade: A }
+          - { feature: exact_username_or_name, grade: A }
+          - { feature: exact_username_or_name, grade: A }
+        address:
+          - { feature: e3_ownership_cue, grade: C }
+      - anchor: false
+        service: wykop
+        originGroup: 'acct:wykop:fikcyjny_kacper'
+        identity:
+          - { feature: profile_link_to_anchor, grade: B }
+          - { feature: exact_username_or_name, grade: A }
+        address:
+          - { feature: e3_ownership_cue, grade: C }
+  - id: ETH-2
+    expected: 24
+    relation: SELF_DECLARED
+    paths:
+      - anchor: false
+        service: github
+        originGroup: 'acct:github:fikcyjny-kacper'
+        identity:
+          - { feature: exact_username_or_name, grade: A }
+        address:
+          - { feature: e1_cryptographic_binding, grade: A }
+  # Worked example of the methodology: the social-network path alone (50) and together with the code-hosting path (62).
+  - id: WORKED-TRON-1
+    expected: 50
+    relation: SELF_DECLARED
+    paths:
+      - anchor: false
+        service: wykop
+        originGroup: 'acct:wykop:fikcyjny_kacper'
+        identity:
+          - { feature: profile_link_to_anchor, grade: B }
+          - { feature: exact_username_or_name, grade: A }
+        address:
+          - { feature: e3_ownership_cue, grade: C }
+  - id: WORKED-COMBINED
+    expected: 62
+    relation: SELF_DECLARED
+    paths:
+      - anchor: false
+        service: wykop
+        originGroup: 'acct:wykop:fikcyjny_kacper'
+        identity:
+          - { feature: profile_link_to_anchor, grade: B }
+          - { feature: exact_username_or_name, grade: A }
+        address:
+          - { feature: e3_ownership_cue, grade: C }
+      - anchor: false
+        service: github
+        originGroup: 'acct:github:fikcyjny-kacper'
+        identity:
+          - { feature: exact_username_or_name, grade: A }
+        address:
+          - { feature: e1_cryptographic_binding, grade: A }

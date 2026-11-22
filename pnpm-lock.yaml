@@ -467,6 +467,10 @@ importers:
       yaml:
         specifier: 2.9.1
         version: 2.9.1
+    devDependencies:
+      '@olcys/address-extractor':
+        specifier: workspace:*
+        version: link:../address-extractor
 
 packages:
 
