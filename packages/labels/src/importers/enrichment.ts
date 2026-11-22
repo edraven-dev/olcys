@@ -6,7 +6,7 @@
  */
 import type { AddressLabel, AddressRef, IsoDateTime, LabelLookup } from '@olcys/core';
 import { parse as parseYaml } from 'yaml';
-import { recordValidAt, type EntityRecord } from './entities.ts';
+import { recordValidAt, serviceValidAt, type EntityRecord } from './entities.ts';
 
 export interface EntityMapEntry {
   entity: string;
@@ -64,7 +64,11 @@ export function enrichLabel(label: AddressLabel, entities: EntityLookup, map: En
     attributes.euAuthorised = true;
   if (attributes.plRegistered === undefined && inForce.some((r) => r.registry === 'pl_vasp'))
     attributes.plRegistered = true;
-  if (attributes.fiatCapable === undefined && inForce.some((r) => r.fiatCapable)) attributes.fiatCapable = true;
+  if (
+    attributes.fiatCapable === undefined &&
+    inForce.some((r) => (r.registry === 'esma_casps' ? serviceValidAt(r, 'c', date) : r.fiatCapable))
+  )
+    attributes.fiatCapable = true;
   return { ...label, attributes };
 }
 

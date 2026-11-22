@@ -19,6 +19,17 @@ export interface EntityRecord {
   validTo?: IsoDate;
   homeState?: string;
   commercialName?: string;
+  /**
+   * ESMA: validity per service (permission). One LEI can hold several authorisations that end on different days, so
+   * `fiatCapable` at a date comes from the services valid on that day (`serviceValidAt`), not from the merged range.
+   */
+  servicePeriods?: ServicePeriod[];
+}
+
+export interface ServicePeriod {
+  code: string;
+  validFrom?: IsoDate;
+  validTo?: IsoDate;
 }
 
 export interface EntityParseResult {
@@ -26,8 +37,18 @@ export interface EntityParseResult {
   warnings: string[];
 }
 
+const periodValidAt = (p: ServicePeriod, date: IsoDate): boolean =>
+  (p.validFrom === undefined || p.validFrom <= date) && (p.validTo === undefined || date <= p.validTo);
+
+/** True when the service `code` is permitted on `date` (without per-service periods: the record's own validity). */
+export function serviceValidAt(record: EntityRecord, code: string, date: IsoDate): boolean {
+  if (!record.servicePeriods) return record.services.includes(code) && recordValidAt(record, date);
+  return record.servicePeriods.some((p) => p.code === code && periodValidAt(p, date));
+}
+
 /** True when the record is in force on `date` (`validFrom ≤ date ≤ validTo`, inclusive). */
 export function recordValidAt(record: EntityRecord, date: IsoDate): boolean {
+  if (record.servicePeriods?.length) return record.servicePeriods.some((p) => periodValidAt(p, date));
   return (
     (record.validFrom === undefined || record.validFrom <= date) &&
     (record.validTo === undefined || date <= record.validTo)
@@ -45,6 +66,17 @@ export function repairText(value: string): string {
 }
 
 const cell = (row: string[], i: number): string => repairText(row[i] ?? '');
+
+function periodsOf(services: string[], from: IsoDate | undefined, to: IsoDate | undefined): ServicePeriod[] {
+  const periods: ServicePeriod[] = [];
+  for (const code of new Set(services)) {
+    const period: ServicePeriod = { code };
+    if (from) period.validFrom = from;
+    if (to) period.validTo = to;
+    periods.push(period);
+  }
+  return periods;
+}
 
 export function parseEsmaCasps(csv: string): EntityParseResult {
   const firstLine = csv.replace(/^﻿/, '').split(/\r?\n/, 1)[0] ?? '';
@@ -95,6 +127,7 @@ export function parseEsmaCasps(csv: string): EntityParseResult {
         ...(to ? { validTo: to } : {}),
         ...(idx.state >= 0 && cell(row, idx.state) ? { homeState: cell(row, idx.state).toUpperCase() } : {}),
         ...(commercial ? { commercialName: commercial } : {}),
+        servicePeriods: periodsOf(services, from, to),
       });
       if (!to) open.add(lei);
       continue;
@@ -102,6 +135,7 @@ export function parseEsmaCasps(csv: string): EntityParseResult {
     // One entity, several authorisation rows: union of services, widest validity.
     existing.services = [...new Set([...existing.services, ...services])].toSorted();
     existing.fiatCapable ||= services.includes('c');
+    existing.servicePeriods = [...(existing.servicePeriods ?? []), ...periodsOf(services, from, to)];
     existing.mayServePL ||= cou.includes('PL');
     if (from && (!existing.validFrom || from < existing.validFrom)) existing.validFrom = from;
     if (!to) {

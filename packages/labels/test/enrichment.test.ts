@@ -4,6 +4,7 @@ import {
   loadEntityMap,
   MemoryEntityLookup,
   MemoryLabelLookup,
+  parseEsmaCasps,
   type EntityRecord,
 } from '../src/index.ts';
 import { readFileSync } from 'node:fs';
@@ -57,5 +58,26 @@ describe('entity enrichment', () => {
     );
     const [l] = await lookup.labelsFor(address, '2026-11-05T00:00:00Z');
     expect(l?.attributes).toMatchObject({ fiatCapable: false, euAuthorised: false });
+  });
+});
+
+describe('per-service permissions', () => {
+  const csv = [
+    'ae_lei_name;ae_lei;ae_homeMemberState;ac_authorisationNotificationDate;ac_authorisationEndDate;ac_serviceCode;ac_serviceCode_cou',
+    'Bramka Testowa GmbH (SYNTHETIC);SYNTHBRAMKA000000T01;DE;01/01/2026;;a.;DE',
+    'Bramka Testowa GmbH (SYNTHETIC);SYNTHBRAMKA000000T01;DE;01/01/2026;31/03/2026;c.;DE',
+  ].join('\n');
+  const lookup = createEnrichedLabelLookup(
+    new MemoryLabelLookup([label({})]),
+    new MemoryEntityLookup(parseEsmaCasps(csv).records),
+    map,
+  );
+
+  it('drops fiatCapable once service c has ended while the entity stays authorised', async () => {
+    const [on] = await lookup.labelsFor(address, '2026-03-31T10:00:00Z');
+    expect(on?.attributes).toMatchObject({ euAuthorised: true, fiatCapable: true });
+    const [after] = await lookup.labelsFor(address, '2026-04-15T10:00:00Z');
+    expect(after?.attributes.euAuthorised).toBe(true);
+    expect(after?.attributes.fiatCapable).toBeUndefined();
   });
 });

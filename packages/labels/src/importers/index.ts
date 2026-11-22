@@ -14,10 +14,12 @@ export {
   parsePlRegister,
   recordValidAt,
   repairText,
+  serviceValidAt,
   validNip,
   type EntityParseResult,
   type EntityRecord,
   type PositionedText,
+  type ServicePeriod,
 } from './entities.ts';
 export { readEthLabels } from './eth-labels.ts';
 export { diffOfacVersions, OFAC_ENTITY, ofacAssetChains, parseOfacList } from './ofac.ts';
