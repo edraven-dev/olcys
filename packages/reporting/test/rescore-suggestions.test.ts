@@ -78,15 +78,16 @@ describe('role suggestions in a rescore report', () => {
     };
     await repos.evidence.addCaptures([capture]);
     const [c1, c2] = [candidate(capture.id, 1), candidate(capture.id, 2)] as [AddressCandidate, AddressCandidate];
-    for (const c of [c1, c2]) {
-      await repos.evidence.addExtraction(original.id, {
+    await repos.evidence.addExtractions!(
+      original.id,
+      [c1, c2].map((c) => ({
         captureId: capture.id,
         candidates: [c],
         rejected: [],
         secrets: [],
         extractorVersion: 't',
-      });
-    }
+      })),
+    );
     const callId = newId();
     await repos.llm!.addCall({
       id: callId,
@@ -151,15 +152,16 @@ describe('role suggestions in a rescore report', () => {
       },
     });
     await repos.runs.create(rescore);
-    for (const c of [r1, r2]) {
-      await repos.evidence.addExtraction(rescore.id, {
+    await repos.evidence.addExtractions!(
+      rescore.id,
+      [r1, r2].map((c) => ({
         captureId: capture.id,
         candidates: [c],
         rejected: [],
         secrets: [],
         extractorVersion: 't',
-      });
-    }
+      })),
+    );
     // Decided after the rescore was queued: must not show.
     await decide(s2.id, 'rejected', '2026-11-22T13:00:00.000Z');
 

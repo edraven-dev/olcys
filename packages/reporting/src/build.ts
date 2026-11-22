@@ -88,11 +88,11 @@ async function roleSuggestionsOf(
     llm.listSuggestionsByRun(sourceRunId),
     repos.evidence.listCandidates(sourceRunId),
   ]);
-  const byId = new Map(stored.map((x) => [x.id, x]));
+  const storedById = new Map(stored.map((x) => [x.id, x]));
   const earlierById = new Map(earlier.map((c) => [c.id, c]));
   const out: LlmSuggestion[] = [];
   for (const ref of refs) {
-    const original = byId.get(ref.suggestionId);
+    const original = storedById.get(ref.suggestionId);
     const before = earlierById.get(ref.candidateId);
     if (!original || !before) continue;
     // The same mention re-extracted: same capture and address, preferably the same position.
