@@ -205,6 +205,39 @@ describe('evidence rules', () => {
     expect(tron1.score).toBe(expectedScore('TRON-1'));
   });
 
+  it('an archived copy joins the live page also when that page was captured through the fixture site', () => {
+    const input = personaInputs();
+    const fixtureUrl = 'http://127.0.0.1:4100/wykop/ludzie/fikcyjny_kacper/';
+    input.captures = input.captures.map((c) =>
+      c.id === 'cap-wykop'
+        ? {
+            ...c,
+            url: fixtureUrl,
+            finalUrl: fixtureUrl,
+            technical: { logicalUrl: URLS.wykop } as NonNullable<typeof c.technical>,
+          }
+        : c,
+    );
+    input.captures.push(
+      capture('cap-wayback', `http://127.0.0.1:4100/wayback/web/20261013000000id_/${URLS.wykop}`, {
+        archive: { provider: 'wayback', snapshotTimestamp: '20261013000000', originalUrl: URLS.wykop },
+      }),
+    );
+    input.extractions.push({
+      captureId: 'cap-wayback',
+      candidates: [candidate('cand-wayback', 'cap-wayback', 'TRON-1', ['first_person_owner'])],
+      rejected: [],
+      secrets: [],
+      extractorVersion: 'test',
+    });
+    const tron1 = link(scoreRun(input, w, { clock, newId: idSequence() }).assessments, 'TRON-1');
+    expect(tron1.paths.find((p) => p.service === 'wykop')?.addressHop.contributions.map((c) => c.counted)).toEqual([
+      true,
+      false,
+    ]);
+    expect(tron1.score).toBe(expectedScore('TRON-1'));
+  });
+
   it('an observed address that no valid candidate confirms is not a feature', () => {
     const input = personaInputs();
     input.extractions = input.extractions.map((e) => (e.captureId === 'cap-funding' ? { ...e, candidates: [] } : e));

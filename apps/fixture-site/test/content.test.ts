@@ -38,7 +38,8 @@ describe('committed fixtures', () => {
       .filter(([, text]) => !text.includes('DANE SYNTETYCZNE') || !text.includes('noindex,nofollow'))
       .map(([path]) => path);
     const unmarkedJson = entries
-      .filter(([path]) => path.endsWith('.json') && path.includes('/public/'))
+      // A CDX answer is a bare array of rows and cannot carry the marker; the server marks every response by header.
+      .filter(([path]) => path.endsWith('.json') && path.includes('/public/') && !path.includes('/wayback/cdx/'))
       .filter(([, text]) => {
         const doc = JSON.parse(text) as unknown;
         const items: unknown[] = Array.isArray(doc) ? doc : [doc];

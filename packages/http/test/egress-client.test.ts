@@ -3,7 +3,7 @@ import { mkdtemp, mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { BlobRef, BlobStore, EgressLogEntry, ProvenanceEnvelope, SourceDescriptor } from '@olcys/core';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   createEgressClient,
   EgressDeniedError,
@@ -244,6 +244,34 @@ describe('egress client', () => {
     expect(Date.now() - start).toBeGreaterThanOrEqual(190);
   });
 
+  it('holds the declared rate across all hosts of one source (fake clock)', async () => {
+    vi.useFakeTimers({ now: 0 });
+    try {
+      const { client, calls } = setup({
+        enabledSources: [
+          source('multi', {
+            rateLimit: { requests: 1, perSeconds: 10 },
+            allowedHosts: ['a.example.test', 'b.example.test'],
+          }),
+        ],
+      });
+      const pending = ['https://a.example.test/1', 'https://b.example.test/2', 'https://a.example.test/3'].map((url) =>
+        client.fetch(req(url, 'multi')),
+      );
+      await vi.advanceTimersByTimeAsync(0);
+      expect(calls).toHaveLength(1);
+      await vi.advanceTimersByTimeAsync(9_999);
+      expect(calls).toHaveLength(1);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(calls).toHaveLength(2);
+      await vi.advanceTimersByTimeAsync(10_000);
+      expect(calls).toHaveLength(3);
+      await Promise.all(pending);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('can hash without storing the body', async () => {
     const { client, envelopes, blobs } = setup();
     await client.fetch({ ...req('https://api.example.test/a'), persistBody: false });
@@ -438,6 +466,17 @@ describe('robots.txt — RFC 9309 details', () => {
     const groups = parseRobots('User-agent: *\nDisallow: /\n\nUser-agent: olcys\nDisallow: /private/\n');
     expect(isAllowedByRobots(groups, 'OLCYS/0.1 (OSINT research prototype)', '/forum')).toBe(true);
     expect(isAllowedByRobots(groups, 'OtherBot/1.0', '/forum')).toBe(false);
+  });
+
+  it('treats a rate-limited robots.txt (429) as unreachable, not as absent', async () => {
+    const { client } = setup({}, (url) =>
+      url.endsWith('/robots.txt') ? new Response('', { status: 429 }) : new Response('page'),
+    );
+    const robots = new RobotsCache(client, 'OLCYS/0.1');
+    expect(await robots.check('https://api.example.test/a', 'api')).toEqual({
+      allowed: false,
+      reason: 'robots.txt rate limited (HTTP 429)',
+    });
   });
 
   it('allows everything on 4xx, disallows on 5xx or errors, and retries after a failure', async () => {
