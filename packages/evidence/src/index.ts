@@ -13,3 +13,14 @@ export {
   type RunSnapshot,
   type SuppressionReason,
 } from './diff.ts';
+export {
+  ArtifactIntegrityError,
+  CAPTURE_MANIFEST_MEDIA_TYPE,
+  createCaptureRecorder,
+  requiredArtifacts,
+} from './capture-manifest.ts';
+export { createClockSyncCheck, injectedClockSync, type ClockSyncCheck } from './clock-sync.ts';
+export { READ_ME_FILE, writeCollectionPackage } from './collection-package.ts';
+export { resolveCollectorIdentity, type CollectorIdentity } from './collector-identity.ts';
+export { custodyCollected } from './custody.ts';
+export { readManifest, verifyCapture, type CaptureVerification } from './verify-capture.ts';
