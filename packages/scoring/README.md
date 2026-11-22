@@ -63,6 +63,9 @@ P(ścieżka) = P(osoba ↔ konto) × P(konto ↔ adres).
 - Niepoprawna suma kontrolna → brak roszczenia (`invalid_checksum`).
 - Relacje `THIRD_PARTY_ATTRIBUTION`, `TX_COUNTERPARTY`, `CLUSTER_ASSOCIATED`: bez ścieżek, wynik 0, `icd203` =
   `not assessed` (nie oceniono), bramka `relation` niespełniona — to inna relacja, a nie słaby dowód posiadania.
+  `CLUSTER_ASSOCIATED` powstaje z `FeatureExtractionInput.clusters` (heurystyka wspólnego wydatkowania): członkowie
+  klastra, którego ziarno ma roszczenie własności (`SELF_DECLARED`, `PAYMENT_ENDPOINT`, `MENTION_UNCLEAR`); nigdy nie
+  podnosi wyniku ziarna ani nie dostaje wag.
 - `CUSTODIAL_EXCHANGE` (adres depozytowy giełdy) oraz decyzja wykluczenia `excluded` / `reclassified` (np. A1 etykieta,
   A2 kontrakt, A4 depozyt, A8 lista wykluczeń): wynik prezentowany 0, `band` = `WYKLUCZENIE`. Wynik arytmetyczny
   zostaje w `paths` i `ungated` (np. siła tropu KYC dla adresu depozytowego). Decyzje `flagged` / `kept` są tylko

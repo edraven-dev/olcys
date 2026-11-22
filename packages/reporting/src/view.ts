@@ -96,7 +96,7 @@ export const sameRef = (a: AddressRef, b: AddressRef): boolean => refKey(a) === 
 /** Only these outcomes reject an address; `flagged` is a warning and `kept` a passed check. */
 const REMOVING_OUTCOMES = new Set<ExclusionDecision['outcome']>(['excluded', 'reclassified']);
 export const isRemoving = (e: ExclusionDecision): boolean => REMOVING_OUTCOMES.has(e.outcome);
-const NON_OWNERSHIP = new Set<string>(['THIRD_PARTY_ATTRIBUTION', 'CUSTODIAL_EXCHANGE']);
+const NON_OWNERSHIP = new Set<string>(['THIRD_PARTY_ATTRIBUTION', 'CUSTODIAL_EXCHANGE', 'CLUSTER_ASSOCIATED']);
 
 export interface AddressRole {
   kind: 'linked' | 'excluded' | 'third_party' | 'labelled' | 'unknown';

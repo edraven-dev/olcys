@@ -5,6 +5,7 @@
 import type {
   AddressLabel,
   AddressType,
+  AddressCluster,
   AddressTypeClassification,
   AnalysisRun,
   CaseSchedule,
@@ -216,6 +217,24 @@ export interface AddressTypeClassificationTable {
   created_at: GeneratedTimestamp;
 }
 
+/** Append-only: one co-spend cluster per run and id (migration 0007). */
+export interface AddressClusterTable {
+  run_id: string;
+  id: string;
+  chain: string;
+  heuristic: AddressCluster['heuristic'];
+  algorithm_version: string;
+  seeds: string[];
+  members: string[];
+  size: number;
+  previous_size: number | null;
+  merge_evidence: Json<AddressCluster['mergeEvidence']>;
+  skipped: Json<AddressCluster['skipped']>;
+  service_members: Json<AddressCluster['serviceMembers']>;
+  flags: Json<AddressCluster['flags']>;
+  created_at: GeneratedTimestamp;
+}
+
 export interface ActivityTable {
   id: Generated<string>;
   run_id: string;
@@ -312,6 +331,7 @@ export interface Database {
   address_labels: AddressLabelsTable;
   exclusion_decisions: ExclusionDecisionsTable;
   address_type_classification: AddressTypeClassificationTable;
+  address_cluster: AddressClusterTable;
   activity: ActivityTable;
   cash_out_events: CashOutEventsTable;
   link_assessments: LinkAssessmentsTable;

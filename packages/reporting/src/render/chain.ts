@@ -1,6 +1,7 @@
 /** Chapter 5 (on-chain activity, cash-out indicators in PLN) and chapter 6 (chronological funds-flow narrative). */
 import type {
   ActivityIndicators,
+  AddressCluster,
   AddressRef,
   CashOutEvent,
   ChainId,
@@ -384,6 +385,94 @@ function activityCard(view: View, ref: AddressRef, activity: ActivityIndicators 
   )} · ${roleText}</p>${block('facts', facts)}${block('computed', computed)}${block('inferences', inferences)}</article>`;
 }
 
+/** A cluster worth a card: it merged addresses, skipped transactions or raised a flag. */
+const notable = (c: AddressCluster): boolean =>
+  c.size > 1 || c.skipped.length > 0 || c.flags.serviceMerge || c.flags.capped;
+
+const MAX_CLUSTER_MEMBERS = 30;
+
+function clusterCard(c: AddressCluster): SafeHtml {
+  const x = pl.clusters;
+  const flags: SafeHtml[] = [];
+  if (c.previousSize !== undefined && c.flags.growthFactor !== undefined) {
+    flags.push(
+      para(t(x.previous, { previous: c.previousSize, factor: formatDecimal(String(c.flags.growthFactor)) }), 'warning'),
+    );
+  }
+  if (c.flags.capped) flags.push(para(x.capped, 'warning'));
+  if (c.flags.serviceMerge) {
+    flags.push(
+      para(
+        t(x.serviceMerge, {
+          services: join(
+            c.serviceMembers.map((s) => addr(s.address)),
+            ', ',
+          ),
+        }),
+        'warning',
+      ),
+    );
+  }
+  const evidence = c.mergeEvidence.length
+    ? join([
+        markup`<h4>${x.evidenceLabel}</h4>`,
+        table(
+          [x.columns.address, x.columns.tx],
+          c.mergeEvidence.slice(0, MAX_CLUSTER_MEMBERS).map((e) => [addr(e.address), hash(e.txid)]),
+          'grid compact',
+        ),
+        c.mergeEvidence.length > MAX_CLUSTER_MEMBERS
+          ? para(t(pl.common.truncated, { shown: MAX_CLUSTER_MEMBERS, total: c.mergeEvidence.length }), 'muted')
+          : markup``,
+      ])
+    : markup``;
+  const skipped = c.skipped.length
+    ? join([
+        markup`<h4>${x.skippedLabel}</h4>`,
+        table(
+          [x.columns.tx, x.columns.reason],
+          c.skipped.slice(0, MAX_CLUSTER_MEMBERS).map((s) => [hash(s.txid), x.reasons[s.reason]]),
+          'grid compact',
+        ),
+        c.skipped.length > MAX_CLUSTER_MEMBERS
+          ? para(t(pl.common.truncated, { shown: MAX_CLUSTER_MEMBERS, total: c.skipped.length }), 'muted')
+          : markup``,
+      ])
+    : markup``;
+  const members = c.size > 1 ? capped(c.members, MAX_CLUSTER_MEMBERS, addr) : markup``;
+  const computed = join([
+    para(
+      t(x.sizeLine, {
+        size: plural(c.size, pl.counts.addresses),
+        seeds: join(
+          c.seeds.map((s) => addr(s)),
+          ', ',
+        ),
+      }),
+    ),
+    flags,
+    c.size > 1 ? markup`<h4>${x.membersLabel}</h4>` : markup``,
+    members,
+    evidence,
+    skipped,
+  ]);
+  return markup`<article class="card" id="klaster-${c.id}"><h3>${t(x.cardTitle, { id: c.id })}</h3>${block('computed', computed)}</article>`;
+}
+
+/** The co-spend clusters (a heuristic), kept apart from the ownership links and shown only when they say something. */
+function clustersBlock(view: View): SafeHtml {
+  const clusters = view.data.clusters ?? [];
+  if (!clusters.length) return markup``;
+  const shown = clusters.filter(notable);
+  const alone = clusters.length - shown.length;
+  return join([
+    markup`<h3>${pl.clusters.title}</h3>`,
+    para(pl.clusters.intro),
+    shown.map(clusterCard),
+    alone > 0 ? para(t(pl.clusters.singletons, { count: alone }), 'muted') : markup``,
+  ]);
+}
+
 export function activitySection(view: View): SafeHtml {
   const { data } = view;
   const refs = new Map<string, { ref: AddressRef; activity?: ActivityIndicators }>();
@@ -395,7 +484,7 @@ export function activitySection(view: View): SafeHtml {
   return section(
     'aktywnosc',
     pl.sections.activity,
-    join([para(pl.activity.intro), cards.length ? cards : para(pl.activity.none, 'empty')]),
+    join([para(pl.activity.intro), cards.length ? cards : para(pl.activity.none, 'empty'), clustersBlock(view)]),
   );
 }
 

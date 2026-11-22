@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { stixScoId, toStixBundle, TLP_MARKINGS } from '../src/index.ts';
+import { stixScoId, toCsv, toMispEvent, toStixBundle, TLP_MARKINGS } from '../src/index.ts';
 import { A, exportData, referenceUuidV5 } from './export-fixtures.ts';
 
 type Obj = Record<string, any>;
@@ -101,5 +101,24 @@ describe('STIX 2.1 export', () => {
   it('honours the TLP level', () => {
     const red = parse(toStixBundle({ data: exportData() }, { ...opts, tlp: 'red' }).json);
     expect(ofType(red.objects, 'marking-definition')[0]!.id).toBe(TLP_MARKINGS.red.id);
+  });
+
+  it('never exports a cluster association as ownership', () => {
+    const data = exportData();
+    const base = data.links.find((l) => l.id === 'link-btc1')!;
+    const clustered = '1ClusterLeadOnlyAddress000000000000000';
+    data.links.push({
+      ...base,
+      id: 'link-cluster',
+      address: { chain: 'bitcoin', address: clustered },
+      relation: 'CLUSTER_ASSOCIATED',
+    });
+    const plain = toStixBundle({ data }, opts).json;
+    expect(plain).not.toContain(clustered);
+    expect(toMispEvent({ data }, { tlp: 'amber' }).json).not.toContain(clustered);
+    expect(toCsv('csv_links', { data })).not.toContain(clustered);
+    const withRejected = parse(toStixBundle({ data }, { ...opts, includeRejected: true }).json);
+    const rel = ofType(withRejected.objects, 'relationship').find((r) => r.x_olcys_relation === 'CLUSTER_ASSOCIATED');
+    expect(rel).toMatchObject({ x_olcys_rejected: true, x_olcys_rejection_reason: 'CLUSTER_ASSOCIATED' });
   });
 });

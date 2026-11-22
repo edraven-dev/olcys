@@ -9,6 +9,7 @@ export const PARTIAL_CODES = [
   'pages_unavailable',
   'chain_incomplete',
   'counterparty_chain_incomplete',
+  'cluster_expansion_limited',
   'address_type_probes_failed',
   'valuation_unavailable',
 ] as const;
