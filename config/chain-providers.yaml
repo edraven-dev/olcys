@@ -40,3 +40,21 @@ providers:
     apiKeyEnv: TRONGRID_API_KEY
     chains: [tron]
     priority: 1
+
+  # Self-hosted EVM node with the Otterscan API (ots_*, API level >= 8): Anvil in the demo sandbox
+  # (compose profile "sandbox"), an on-prem Erigon node in production. Used only when the case enables the
+  # `sandbox_anvil` source (enabledByDefault: false); priority 0 prefers it over Etherscan then.
+  # baseUrlEnv overrides baseUrl when set. Production: point SANDBOX_EVM_RPC_URL (or baseUrl) at the agency's Erigon
+  # node (e.g. http://erigon.internal:8545, started with `--http.api=eth,erigon,ots`), add its host to
+  # `allowedHosts` of a dedicated source entry in config/sources.yaml and reference that sourceId here.
+  # Never point it at a public RPC: Otterscan nodes are queried with analyst-supplied addresses.
+  - id: evm-otterscan
+    kind: otterscan
+    sourceId: sandbox_anvil
+    baseUrl: http://127.0.0.1:8545
+    baseUrlEnv: SANDBOX_EVM_RPC_URL
+    chains: ['evm:1']
+    priority: 0
+    options:
+      pageSize: 25
+      minApiLevel: 8

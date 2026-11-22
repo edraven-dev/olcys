@@ -24,7 +24,13 @@ const yaml = (sourceId: string): string =>
 describe('chain provider config', () => {
   it('loads the repository config against the source register', () => {
     const configs = loadChainProviderConfig(read('config/chain-providers.yaml'), sources);
-    expect(configs.map((c) => c.id)).toEqual(['esplora-mempool', 'esplora-blockstream', 'etherscan-v2', 'trongrid']);
+    expect(configs.map((c) => c.id)).toEqual([
+      'esplora-mempool',
+      'esplora-blockstream',
+      'etherscan-v2',
+      'trongrid',
+      'evm-otterscan',
+    ]);
   });
 
   it('refuses unregistered and RED sources', () => {
@@ -46,6 +52,7 @@ describe('chain provider config', () => {
       'http://127.0.0.1:4100/chain/esplora/api',
       'http://127.0.0.1:4100/chain/etherscan/v2/api',
       'http://127.0.0.1:4100/chain/trongrid',
+      'http://127.0.0.1:8545', // the sandbox node is not a fixture-site path
     ]);
   });
 });
